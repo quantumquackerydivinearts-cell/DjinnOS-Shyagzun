@@ -1,0 +1,2 @@
+requests>=2.31.0
+jsonpath-ng>=1.6.1
