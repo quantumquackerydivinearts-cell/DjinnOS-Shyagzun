@@ -1,67 +1,36 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence, List, Optional
+from typing import List, Sequence
 
 from shygazun.kernel.types import Edge
-from shygazun.kernel.ceg_jsonl_adapter import JSONLCEGAdapter
+from shygazun.kernel.types.events import KernelEventObj
+
+__all__ = ["CEG", "KernelEventObj"]
 
 
-KernelEventObj = Mapping[str, Any]
-
-
-@dataclass
 class CEG:
-    """
-    Canonical Event Graph (append-only).
+    def __init__(self) -> None:
+        self._events: List[KernelEventObj] = []
+        self._edges: List[Edge] = []
 
-    - JSON-first
-    - No semantics
-    - No inference
-    - Optional persistence via adapter
-    """
+    def add_event(self, evt: KernelEventObj) -> None:
+        self._events.append(evt)
 
-    _events: List[KernelEventObj] = field(default_factory=list)
-    _edges: List[Edge] = field(default_factory=list)
-    _adapter: Optional[JSONLCEGAdapter] = None
-
-    # -----------------------------
-    # Construction
-    # -----------------------------
-
-    @classmethod
-    def with_adapter(cls, adapter: JSONLCEGAdapter) -> "CEG":
-        """
-        Construct a CEG with a persistence adapter.
-        """
-        ceg = cls(adapter=adapter)
-
-        # Hydrate from adapter (append-only replay)
-        ceg._events.extend(adapter.load_events())
-        ceg._edges.extend(adapter.load_edges())
-
-        return ceg
-
-    # -----------------------------
-    # Append operations
-    # -----------------------------
-
-    def add_event(self, e: KernelEventObj) -> None:
-        self._events.append(e)
-        if self._adapter is not None:
-            self._adapter.append_event(e)
-
-    def add_edge(self, e: Edge) -> None:
-        self._edges.append(e)
-        if self._adapter is not None:
-            self._adapter.append_edge(e)
-
-    # -----------------------------
-    # Read operations
-    # -----------------------------
+    def add_edge(self, edge: Edge) -> None:
+        self._edges.append(edge)
 
     def get_events(self) -> Sequence[KernelEventObj]:
-        return self._events
+        return sorted(
+            self._events,
+            key=lambda evt: (
+                int(evt["at"]["tick"]),
+                str(evt["kind"]),
+                str(evt["id"]),
+            ),
+        )
 
     def get_edges(self) -> Sequence[Edge]:
-        return self._edges
+        return sorted(
+            self._edges,
+            key=lambda edge: (edge.from_event, edge.to_event, edge.type),
+        )

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import hashlib
 import json
@@ -226,12 +226,6 @@ class Kernel:
     ) -> None:
         # Read-only identity surface
         self.field: FieldLike = field
-
-        # Kernel-owned effective clock (copied from field)
-        self._clock: Clock = Clock(
-            tick=field.clock.tick,
-            causal_epoch=field.clock.causal_epoch,
-        )
 
         # Active frontiers
         self.frontiers: List[Frontier] = (
@@ -478,7 +472,7 @@ class Kernel:
         attestation_tag: Optional[str],
         payload: Dict[str, Any],
         target: Dict[str, Any],
-) ->  AttestationEventObj:
+    ) -> AttestationEventObj:
         """
         Record an attestation as a structural fact.
 
@@ -487,13 +481,14 @@ class Kernel:
         No semantic effect.
         """
         self._tick()
+        clk = self.field.clock
 
         evt: AttestationEventObj = {
             "id": _stable_event_id(
                 (
                     "attestation",
                     self.field.field_id,
-                    self._clock.tick,
+                    clk.tick,
                     witness_id,
                     attestation_kind,
                     attestation_tag,
@@ -506,7 +501,7 @@ class Kernel:
             "attestation_tag": attestation_tag,
             "payload": dict(payload),
             "target": dict(target),
-            "at": _clock_obj(self._clock),
+            "at": _clock_obj(clk),
         }
 
         self.ceg.add_event(evt)

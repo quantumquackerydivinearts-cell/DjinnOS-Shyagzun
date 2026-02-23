@@ -1,15 +1,19 @@
-import json
+from __future__ import annotations
+
 import hashlib
+import json
 from typing import Any
 
-def canonicalize(obj: Any) -> str:
+
+def canonical_json(obj: Any) -> str:
     return json.dumps(
         obj,
-        ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
+        ensure_ascii=False,
     )
 
+
 def canonical_hash(obj: Any) -> str:
-    canon = canonicalize(obj)
-    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
+    data = canonical_json(obj).encode("utf-8")
+    return hashlib.sha256(data).hexdigest()

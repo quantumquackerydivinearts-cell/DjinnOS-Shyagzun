@@ -1,22 +1,43 @@
-from typing import Any, Optional
-import requests
+from __future__ import annotations
+
+from typing import Any, Dict, Optional
+
+import requests  # type: ignore[import-untyped]
+
 from .errors import HttpError
 
-class HttpClient:
-    def __init__(self, base_url: str) -> None:
-        self.base_url = base_url.rstrip("/")
 
-    def call(
-        self,
-        method: str,
-        path: str,
-        body: Optional[Any] = None,
-    ) -> Any:
-        url = self.base_url + path
-        resp = requests.request(method, url, json=body)
+def call(
+    base_url: str,
+    method: str,
+    path: str,
+    body: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    url = base_url.rstrip("/") + path
+    response = requests.request(method=method, url=url, json=body)
+    payload: Optional[Dict[str, Any]]
+    try:
+        maybe_json: Any = response.json()
+        payload = maybe_json if isinstance(maybe_json, dict) else None
+    except ValueError:
+        payload = None
 
-        if resp.status_code >= 400:
-            raise HttpError(f"{method} {path} → {resp.status_code}: {resp.text}")
+    if response.status_code != 200:
+        raise HttpError(
+            method=method,
+            path=path,
+            status_code=response.status_code,
+            response_text=response.text,
+            response_json=payload,
+        )
 
-        return resp.json()
+    if payload is None:
+        raise HttpError(
+            method=method,
+            path=path,
+            status_code=response.status_code,
+            response_text="Expected JSON object response body",
+            response_json=None,
+        )
 
+    return payload
