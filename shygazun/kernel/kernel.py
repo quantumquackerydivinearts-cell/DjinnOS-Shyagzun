@@ -5,6 +5,7 @@ import json
 from dataclasses import dataclass
 from typing import (
     Any,
+    Callable,
     Dict,
     List,
     Mapping,
@@ -13,10 +14,12 @@ from typing import (
     Sequence,
     Tuple,
     TypedDict,
+    Union,
     runtime_checkable,
 )
 
 from shygazun.kernel.ceg import CEG, KernelEventObj
+from shygazun.kernel.attestation import Attestation, Refusal, intent_hash_for_candidate
 from shygazun.kernel.types.events import AttestationEventObj
 
 # Import only stable public surface types.
@@ -324,12 +327,7 @@ class Kernel:
                 continue
 
             # 1) gather candidates
-            gathered: List[CandidateCompletionLike] = []
-            for reg in self.registers:
-                claims = reg.admit({"raw": ""}, self.field)
-                if not bool(claims.get("admitted", False)):
-                    continue
-                gathered.extend(reg.propose(self.field, claims, fr))
+            gathered = self._gather_candidates_for_frontier(fr)
 
             candidates_by_frontier[fr.id] = list(gathered)
 
@@ -506,3 +504,150 @@ class Kernel:
 
         self.ceg.add_event(evt)
         return evt
+
+    def process_attestation(
+        self,
+        attestation: Attestation,
+        *,
+        require_signature: bool = False,
+        signature_verifier: Optional[Callable[[bytes, str, str], bool]] = None,
+    ) -> Union[AttestationEventObj, Refusal]:
+        """
+        Process attestation as explicit structural commitment binding.
+
+        Restrictions enforced here:
+        - no implicit selection
+        - no semantic interpretation
+        - no hidden branching
+        """
+        if attestation.field_id != self.field.field_id:
+            return self._emit_attestation_refusal("field-mismatch", attestation)
+
+        frontier = self._find_frontier(attestation.frontier_id)
+        if frontier is None:
+            return self._emit_attestation_refusal("frontier-missing", attestation)
+
+        if frontier.status != "active":
+            return self._emit_attestation_refusal("frontier-not-open", attestation)
+
+        if attestation.clock != self.field.clock.tick:
+            return self._emit_attestation_refusal("clock-mismatch", attestation)
+
+        candidates = self._gather_candidates_for_frontier(frontier)
+        candidate = self._find_candidate(candidates, attestation.candidate_id)
+        if candidate is None:
+            return self._emit_attestation_refusal("candidate-missing", attestation)
+
+        expected_intent_hash = intent_hash_for_candidate(candidate)
+        if expected_intent_hash != attestation.intent_hash:
+            return self._emit_attestation_refusal("intent-hash-mismatch", attestation)
+
+        if require_signature:
+            if attestation.signature is None:
+                return self._emit_attestation_refusal("signature-missing", attestation)
+            if signature_verifier is None:
+                return self._emit_attestation_refusal("signature-verifier-missing", attestation)
+            signature_ok = signature_verifier(
+                attestation.canonical_payload(),
+                attestation.signature,
+                attestation.agent_id,
+            )
+            if not signature_ok:
+                return self._emit_attestation_refusal("signature-invalid", attestation)
+
+        # Append-only attested fact; no resolution logic is allowed here.
+        self._tick()
+        clk = self.field.clock
+        evt: AttestationEventObj = {
+            "id": _stable_event_id(
+                (
+                    "attested",
+                    self.field.field_id,
+                    clk.tick,
+                    attestation.frontier_id,
+                    attestation.candidate_id,
+                    attestation.agent_id,
+                    attestation.intent_hash,
+                    attestation.signature,
+                )
+            ),
+            "kind": "attestation",
+            "witness_id": attestation.agent_id,
+            "attestation_kind": "commitment",
+            "attestation_tag": None,
+            "payload": {
+                "intent_hash": attestation.intent_hash,
+                "signature": attestation.signature,
+                "attestation_clock": attestation.clock,
+            },
+            "target": {
+                "field_id": attestation.field_id,
+                "frontier_id": attestation.frontier_id,
+                "candidate_id": attestation.candidate_id,
+            },
+            "at": _clock_obj(clk),
+        }
+        self.ceg.add_event(evt)
+        return evt
+
+    def _find_frontier(self, frontier_id: str) -> Optional[Frontier]:
+        for frontier in self.frontiers:
+            if frontier.id == frontier_id:
+                return frontier
+        return None
+
+    def _find_candidate(
+        self,
+        candidates: Sequence[CandidateCompletionLike],
+        candidate_id: str,
+    ) -> Optional[CandidateCompletionLike]:
+        for candidate in candidates:
+            if candidate.id == candidate_id:
+                return candidate
+        return None
+
+    def _gather_candidates_for_frontier(self, frontier: Frontier) -> List[CandidateCompletionLike]:
+        gathered: List[CandidateCompletionLike] = []
+        for reg in self.registers:
+            claims = reg.admit({"raw": ""}, self.field)
+            if not bool(claims.get("admitted", False)):
+                continue
+            gathered.extend(reg.propose(self.field, claims, frontier))
+        return gathered
+
+    def _emit_attestation_refusal(self, reason: str, attestation: Attestation) -> Refusal:
+        self._tick()
+        clk = self.field.clock
+
+        refusal = Refusal(
+            reason=reason,
+            frontier_id=attestation.frontier_id,
+            agent_id=attestation.agent_id,
+            clock=clk.tick,
+        )
+
+        evt: RefusalEventObj = {
+            "id": _stable_event_id(
+                (
+                    "refusal",
+                    self.field.field_id,
+                    refusal.frontier_id,
+                    refusal.clock,
+                    reason,
+                    refusal.agent_id,
+                    attestation.candidate_id,
+                )
+            ),
+            "kind": "refusal",
+            "reason_code": reason,
+            "frontier_id": refusal.frontier_id,
+            "candidate_id": attestation.candidate_id,
+            "details": {
+                "agent_id": refusal.agent_id,
+                "attestation_field_id": attestation.field_id,
+                "attestation_intent_hash": attestation.intent_hash,
+            },
+            "at": _clock_obj(clk),
+        }
+        self.ceg.add_event(evt)
+        return refusal

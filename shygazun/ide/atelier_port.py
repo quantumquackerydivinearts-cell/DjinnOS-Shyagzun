@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
+from shygazun.kernel.attestation import Attestation, Refusal
 from shygazun.kernel.kernel import Kernel, ObserveResult, PlaceResult
 from shygazun.kernel.types import Edge, Frontier
 from shygazun.kernel.types.events import AttestationEventObj, KernelEventObj
@@ -46,4 +47,17 @@ class AtelierPort:
             attestation_tag=attestation_tag,
             payload=payload,
             target=target,
+        )
+
+    def process_attestation(
+        self,
+        attestation: Attestation,
+        *,
+        require_signature: bool = False,
+        signature_verifier: Optional[Callable[[bytes, str, str], bool]] = None,
+    ) -> Union[AttestationEventObj, Refusal]:
+        return self._kernel.process_attestation(
+            attestation,
+            require_signature=require_signature,
+            signature_verifier=signature_verifier,
         )

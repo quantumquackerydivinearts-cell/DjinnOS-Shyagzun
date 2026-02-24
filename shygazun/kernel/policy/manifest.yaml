@@ -1,0 +1,4 @@
+invariants:
+  - vitriol_governance_order_is_constant
+  - vitriol_letter_order_is_constant
+  - breath_of_ko_hash_is_deterministic
