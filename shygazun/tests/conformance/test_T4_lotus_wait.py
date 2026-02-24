@@ -1,26 +1,29 @@
-# tests/conformance/test_T4_lotus_wait.py
-from kernel.kernel import Kernel
-from tests.stubs.sakura_stub import SakuraStub
+from dataclasses import dataclass
 
-def test_T4_lotus_never_self_resolves():
-    kernel = Kernel(registers=[SakuraStub()])
+from shygazun.kernel.kernel import Kernel
+from shygazun.kernel.register.sakura_stub import SakuraStub
+from shygazun.kernel.types import Clock
 
-    kernel.place({"raw": "B"})
 
-    # Run eligibility multiple times
+@dataclass
+class _Field:
+    field_id: str
+    clock: Clock
+
+
+def test_T4_lotus_never_self_resolves() -> None:
+    kernel = Kernel(
+        field=_Field(field_id="F0", clock=Clock(tick=0, causal_epoch="0")),
+        registers=[SakuraStub()],
+    )
+    kernel.place(raw="B")
+
     for _ in range(3):
-        result = kernel.evaluate_eligibility()
-
-        eligible = result["eligible_by_frontier"]["F0"]
-        refusals = result["refusals"]
-
-        # Candidate is NEVER eligible
-        assert eligible == []
-
-        # Refusal must exist and be localized
+        result = kernel.observe()
+        assert result.eligible_by_frontier["F0"] == []
         assert any(
             r["reason_code"] == "await-lotus"
             and r["candidate_id"] == "sakura.await.lotus"
             and r["frontier_id"] == "F0"
-            for r in refusals
+            for r in result.refusals
         )

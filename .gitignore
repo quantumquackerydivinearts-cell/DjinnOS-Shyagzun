@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+tmp_*.log
+tmp_events_*.json

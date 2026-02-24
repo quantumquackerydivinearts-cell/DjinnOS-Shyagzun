@@ -8,9 +8,13 @@ import io
 import json
 import subprocess
 import sys
+import time
 import tarfile
+import urllib.error
+import urllib.request
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 
 def _run_checked(cmd: Sequence[str], *, cwd: Path) -> None:
@@ -25,6 +29,49 @@ def _run_checked(cmd: Sequence[str], *, cwd: Path) -> None:
     if proc.returncode != 0:
         output = proc.stdout
         raise RuntimeError(f"Command failed ({' '.join(cmd)}):\n{output}")
+
+
+@contextmanager
+def _managed_kernel_service(repo_root: Path, base_url: str) -> Iterator[None]:
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "shygazun.kernel_service:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8000",
+        ],
+        cwd=str(repo_root),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    try:
+        _wait_for_service(base_url)
+        yield
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+
+def _wait_for_service(base_url: str, timeout_sec: float = 20.0) -> None:
+    deadline = time.time() + timeout_sec
+    url = f"{base_url}/events"
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=2.0) as resp:
+                status = getattr(resp, "status", 200)
+                if int(status) == 200:
+                    return
+        except (urllib.error.URLError, TimeoutError, ValueError):
+            time.sleep(0.2)
+    raise RuntimeError(f"Kernel service did not start in time at {base_url}")
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -103,6 +150,10 @@ def _collect_files(repo_root: Path, roots: Sequence[Path]) -> List[Path]:
     for root in roots:
         for path in root.rglob("*"):
             if path.is_file():
+                if "__pycache__" in path.parts:
+                    continue
+                if path.suffix == ".pyc":
+                    continue
                 files.append(path)
     files.sort(key=lambda p: p.relative_to(repo_root).as_posix())
     return files
@@ -153,23 +204,42 @@ def main() -> int:
 
     repo_root = Path(__file__).resolve().parent.parent
 
-    _run_checked(["pytest"], cwd=repo_root)
-    _run_checked(["python", "-m", "mypy", "--strict"], cwd=repo_root)
+    _run_checked([sys.executable, "-m", "pytest"], cwd=repo_root)
+    _run_checked(
+        [
+            sys.executable,
+            "-m",
+            "mypy",
+            "--strict",
+            "--no-incremental",
+            "shygazun/kernel",
+            "shygazun/kernel_service.py",
+            "shygazun/conformance/runners/python",
+            "scripts/generate_release.py",
+            "scripts/verify_determinism.py",
+        ],
+        cwd=repo_root,
+    )
 
     conformance_spec = repo_root / "shygazun" / "conformance" / "v0.1.1" / "conformance.json"
     if not conformance_spec.is_file():
         raise RuntimeError(f"Conformance spec not found: {conformance_spec}")
 
+    conformance_base_url = args.base_url if args.base_url is not None else "http://127.0.0.1:8000"
     conformance_cmd: List[str] = [
-        "python",
+        sys.executable,
         "-m",
         "shygazun.conformance.runners.python.runner",
-        "--spec",
+        "--base-url",
+        conformance_base_url,
+        "--file",
         str(conformance_spec),
     ]
-    if args.base_url is not None:
-        conformance_cmd.extend(["--base-url", args.base_url])
-    _run_checked(conformance_cmd, cwd=repo_root)
+    if args.base_url is None:
+        with _managed_kernel_service(repo_root, conformance_base_url):
+            _run_checked(conformance_cmd, cwd=repo_root)
+    else:
+        _run_checked(conformance_cmd, cwd=repo_root)
 
     roots = _collect_roots(repo_root)
     files = _collect_files(repo_root, roots)
