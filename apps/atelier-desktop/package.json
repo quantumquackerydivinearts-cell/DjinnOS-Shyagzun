@@ -1,0 +1,32 @@
+{
+  "name": "atelier-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "set ELECTRON_RUN_AS_NODE=&& concurrently \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "start": "electron .",
+    "build": "vite build",
+    "build:web": "vite build",
+    "preview": "vite preview",
+    "mobile:android:init": "npx cap add android",
+    "mobile:sync": "npm run build:web && npx cap sync",
+    "mobile:open:android": "npx cap open android",
+    "mobile:run:android": "npm run mobile:sync && npx cap run android"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/cli": "^6.2.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "concurrently": "^9.0.1",
+    "electron": "^31.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "wait-on": "^8.0.1"
+  }
+}

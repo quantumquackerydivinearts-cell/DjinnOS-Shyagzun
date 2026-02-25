@@ -1,0 +1,708 @@
+from __future__ import annotations
+
+import hashlib
+from typing import Any, Dict, Mapping, Optional, Sequence
+
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from .business_schemas import (
+    ArtisanBootstrapInput,
+    ArtisanAccessIssueInput,
+    ArtisanAccessIssueOut,
+    ArtisanAccessStatusOut,
+    ArtisanAccessVerifyInput,
+    BookingCreate,
+    BookingOut,
+    ClientCreate,
+    ClientOut,
+    ContactCreate,
+    ContactOut,
+    InventoryItemCreate,
+    InventoryItemOut,
+    LeadCreate,
+    LeadOut,
+    LessonCreate,
+    LessonOut,
+    ModuleCreate,
+    ModuleOut,
+    OrderCreate,
+    OrderOut,
+    PublicCommissionInquiryCreate,
+    PublicCommissionQuoteOut,
+    QuoteCreate,
+    QuoteOut,
+    SupplierCreate,
+    SupplierOut,
+)
+from .capabilities import CapabilityContext, parse_capabilities, require_capability
+from .config import Settings, load_settings
+from .db import get_db
+from .kernel_client import HttpKernelClient, KernelClient
+from .kernel_integration import KernelIntegrationService
+from .privacy_manifest import build_privacy_manifest
+from .repositories import AtelierRepository
+from .roles import ROLE_STEWARD, RoleContext, role_allows
+from .services import AtelierService
+from .types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse
+from .workshop import (
+    ArtisanIdentity,
+    WorkshopContext,
+    WorkshopScope,
+    enforce_place_scope,
+    parse_scopes,
+)
+
+
+class PlaceInput(BaseModel):
+    raw: str
+    context: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AttestInput(BaseModel):
+    witness_id: str
+    attestation_kind: str
+    attestation_tag: Optional[str] = None
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    target: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AdminGateVerifyInput(BaseModel):
+    gate_code: str
+
+
+def _capability_context(
+    x_atelier_capabilities: Optional[str] = Header(default=None),
+    x_atelier_actor: Optional[str] = Header(default=None),
+) -> CapabilityContext:
+    if x_atelier_actor is None or not x_atelier_actor.strip():
+        raise HTTPException(status_code=401, detail="missing_actor")
+    if x_atelier_capabilities is None:
+        raise HTTPException(status_code=403, detail="missing_capabilities")
+    return CapabilityContext(actor_id=x_atelier_actor, capabilities=parse_capabilities(x_atelier_capabilities))
+
+
+def _kernel_client() -> KernelClient:
+    settings: Settings = load_settings()
+    return HttpKernelClient(base_url=settings.kernel_base_url)
+
+
+def _repository(db: Session = Depends(get_db)) -> AtelierRepository:
+    return AtelierRepository(db)
+
+
+def _kernel_integration(kernel: KernelClient = Depends(_kernel_client)) -> KernelIntegrationService:
+    return KernelIntegrationService(kernel)
+
+
+def _atelier_service(
+    repo: AtelierRepository = Depends(_repository),
+    kernel: KernelIntegrationService = Depends(_kernel_integration),
+) -> AtelierService:
+    return AtelierService(repo=repo, kernel=kernel)
+
+
+def _kernel_only_service(kernel: KernelIntegrationService = Depends(_kernel_integration)) -> AtelierService:
+    return AtelierService(repo=None, kernel=kernel)
+
+
+def _workshop_context(
+    x_artisan_id: Optional[str] = Header(default=None),
+    x_workshop_id: Optional[str] = Header(default=None),
+    x_workshop_scopes: Optional[str] = Header(default=None),
+) -> WorkshopContext:
+    if x_artisan_id is None or not x_artisan_id.strip():
+        raise HTTPException(status_code=401, detail="missing_artisan_id")
+    if x_workshop_id is None or not x_workshop_id.strip():
+        raise HTTPException(status_code=401, detail="missing_workshop_id")
+    if x_workshop_scopes is None:
+        raise HTTPException(status_code=403, detail="missing_workshop_scopes")
+    return WorkshopContext(
+        identity=ArtisanIdentity(artisan_id=x_artisan_id, workshop_id=x_workshop_id),
+        scope=WorkshopScope(scopes=parse_scopes(x_workshop_scopes)),
+    )
+
+
+def _role_context(x_artisan_role: Optional[str] = Header(default=None)) -> RoleContext:
+    if x_artisan_role is None or not x_artisan_role.strip():
+        raise HTTPException(status_code=401, detail="missing_artisan_role")
+    return RoleContext(role=x_artisan_role.strip().lower())
+
+
+def _admin_gate_token(x_admin_gate_token: Optional[str] = Header(default=None)) -> Optional[str]:
+    return x_admin_gate_token
+
+
+def _settings() -> Settings:
+    return load_settings()
+
+
+def _enforce(ctx: CapabilityContext, capability: str) -> None:
+    try:
+        require_capability(ctx, [capability])
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+def _enforce_role(role: RoleContext, capability: str) -> None:
+    if not role_allows(role.role, capability):
+        raise HTTPException(status_code=403, detail=f"role_denied:{role.role}:{capability}")
+
+
+def _expected_admin_gate_token(settings: Settings, actor_id: str, workshop_id: str) -> str:
+    payload = f"{settings.admin_gate_code}:{actor_id}:{workshop_id}".encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _admin_gate_verified(
+    *,
+    settings: Settings,
+    role: RoleContext,
+    actor_id: str,
+    workshop_id: str,
+    token: Optional[str],
+) -> bool:
+    if role.role != ROLE_STEWARD:
+        return False
+    if token is None or not token:
+        return False
+    return token == _expected_admin_gate_token(settings, actor_id, workshop_id)
+
+
+def _enforce_admin_gate(
+    *,
+    settings: Settings,
+    role: RoleContext,
+    actor_id: str,
+    workshop_id: str,
+    token: Optional[str],
+) -> None:
+    if role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required")
+    if not _admin_gate_verified(
+        settings=settings,
+        role=role,
+        actor_id=actor_id,
+        workshop_id=workshop_id,
+        token=token,
+    ):
+        raise HTTPException(status_code=403, detail="admin_gate_required")
+
+
+app = FastAPI(title="Atelier API", version="0.1.0")
+_boot_settings = load_settings()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(_boot_settings.cors_allowed_origins),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/health")
+def health(svc: AtelierService = Depends(_atelier_service)) -> Dict[str, str]:
+    svc.health()
+    return {"status": "ok"}
+
+
+@app.get("/public/privacy/manifest")
+def privacy_manifest() -> Dict[str, Any]:
+    return build_privacy_manifest()
+
+
+@app.post("/v1/access/artisan-id/issue")
+def artisan_id_issue(
+    payload: ArtisanAccessIssueInput,
+    _: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ArtisanAccessIssueOut:
+    return svc.issue_artisan_access_code(
+        artisan_id=workshop.identity.artisan_id,
+        role=role.role,
+        workshop_id=workshop.identity.workshop_id,
+        payload=payload,
+    )
+
+
+@app.post("/v1/access/artisan-id/verify")
+def artisan_id_verify(
+    payload: ArtisanAccessVerifyInput,
+    _: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ArtisanAccessStatusOut:
+    return svc.verify_artisan_access_code(
+        artisan_id=workshop.identity.artisan_id,
+        role=role.role,
+        workshop_id=workshop.identity.workshop_id,
+        payload=payload,
+    )
+
+
+@app.get("/v1/access/artisan-id/status")
+def artisan_id_status(
+    _: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ArtisanAccessStatusOut:
+    return svc.artisan_access_status(
+        artisan_id=workshop.identity.artisan_id,
+        role=role.role,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
+@app.post("/v1/admin/artisans/bootstrap")
+def bootstrap_artisan_account(
+    payload: ArtisanBootstrapInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ArtisanAccessIssueOut:
+    _enforce(ctx, "kernel.place")
+    if role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required")
+    if payload.gate_code != settings.admin_gate_code:
+        raise HTTPException(status_code=403, detail="invalid_admin_gate")
+    return svc.bootstrap_artisan_access(
+        role=ROLE_STEWARD,
+        workshop_id=workshop.identity.workshop_id,
+        payload=payload,
+    )
+
+
+@app.get("/v1/atelier/admin/gate/status")
+def admin_gate_status(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+) -> Dict[str, Any]:
+    verified = _admin_gate_verified(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return {
+        "verified_admin": verified,
+        "required_role": ROLE_STEWARD,
+        "placement_tool_enabled": verified,
+    }
+
+
+@app.post("/v1/atelier/admin/gate/verify")
+def admin_gate_verify(
+    payload: AdminGateVerifyInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    settings: Settings = Depends(_settings),
+) -> Dict[str, Any]:
+    _enforce(ctx, "kernel.place")
+    if role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required")
+    if payload.gate_code != settings.admin_gate_code:
+        raise HTTPException(status_code=403, detail="invalid_admin_gate")
+    return {
+        "verified_admin": True,
+        "required_role": ROLE_STEWARD,
+        "admin_gate_token": _expected_admin_gate_token(
+            settings,
+            ctx.actor_id,
+            workshop.identity.workshop_id,
+        ),
+    }
+
+
+@app.post("/v1/atelier/place")
+def place(
+    payload: PlaceInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    try:
+        enforce_place_scope(workshop, payload.context)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return svc.emit_placement(
+        raw=payload.raw,
+        context=payload.context,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
+@app.post("/v1/atelier/observe")
+def observe(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> ObserveResponse:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    return svc.observe(actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.get("/v1/atelier/timeline")
+def timeline(
+    last: Optional[int] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Sequence[KernelEventObj]:
+    _enforce(ctx, "kernel.timeline")
+    _enforce_role(role, "kernel.timeline")
+    events = list(svc.timeline(actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id))
+    if last is None:
+        return events
+    if last < 0:
+        raise HTTPException(status_code=400, detail="invalid_last")
+    return events[-last:]
+
+
+@app.get("/v1/atelier/edges")
+def edges(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Sequence[EdgeObj]:
+    _enforce(ctx, "kernel.edges")
+    _enforce_role(role, "kernel.edges")
+    return svc.edges(actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.get("/v1/atelier/frontiers")
+def frontiers(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Sequence[FrontierObj]:
+    _enforce(ctx, "kernel.frontiers")
+    _enforce_role(role, "kernel.frontiers")
+    return sorted(list(svc.frontiers(actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)), key=lambda f: f["id"])
+
+
+@app.post("/v1/atelier/attest")
+def attest(
+    payload: AttestInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "kernel.attest")
+    _enforce_role(role, "kernel.attest")
+    return svc.attest(
+        witness_id=payload.witness_id,
+        attestation_kind=payload.attestation_kind,
+        attestation_tag=payload.attestation_tag,
+        payload=payload.payload,
+        target=payload.target,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
+@app.get("/v1/crm/contacts")
+def list_contacts(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[ContactOut]:
+    _enforce(ctx, "crm.contacts.read")
+    _enforce_role(role, "crm.contacts.read")
+    return svc.list_contacts(workspace_id=workspace_id)
+
+
+@app.post("/v1/crm/contacts")
+def create_contact(
+    payload: ContactCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ContactOut:
+    _enforce(ctx, "crm.contacts.write")
+    _enforce_role(role, "crm.contacts.write")
+    return svc.create_contact(payload)
+
+
+@app.get("/v1/booking")
+def list_bookings(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[BookingOut]:
+    _enforce(ctx, "booking.read")
+    _enforce_role(role, "booking.read")
+    return svc.list_bookings(workspace_id=workspace_id)
+
+
+@app.post("/v1/booking")
+def create_booking(
+    payload: BookingCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> BookingOut:
+    _enforce(ctx, "booking.write")
+    _enforce_role(role, "booking.write")
+    return svc.create_booking(payload)
+
+
+@app.get("/v1/lessons")
+def list_lessons(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[LessonOut]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_lessons(workspace_id=workspace_id)
+
+
+@app.post("/v1/lessons")
+def create_lesson(
+    payload: LessonCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> LessonOut:
+    _enforce(ctx, "lesson.write")
+    _enforce_role(role, "lesson.write")
+    return svc.create_lesson(payload)
+
+
+@app.get("/v1/modules")
+def list_modules(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[ModuleOut]:
+    _enforce(ctx, "module.read")
+    _enforce_role(role, "module.read")
+    return svc.list_modules(workspace_id=workspace_id)
+
+
+@app.post("/v1/modules")
+def create_module(
+    payload: ModuleCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ModuleOut:
+    _enforce(ctx, "module.write")
+    _enforce_role(role, "module.write")
+    return svc.create_module(payload)
+
+
+@app.get("/v1/leads")
+def list_leads(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[LeadOut]:
+    _enforce(ctx, "lead.read")
+    _enforce_role(role, "lead.read")
+    return svc.list_leads(workspace_id=workspace_id)
+
+
+@app.post("/v1/leads")
+def create_lead(
+    payload: LeadCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> LeadOut:
+    _enforce(ctx, "lead.write")
+    _enforce_role(role, "lead.write")
+    return svc.create_lead(payload)
+
+
+@app.get("/v1/clients")
+def list_clients(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[ClientOut]:
+    _enforce(ctx, "client.read")
+    _enforce_role(role, "client.read")
+    return svc.list_clients(workspace_id=workspace_id)
+
+
+@app.post("/v1/clients")
+def create_client(
+    payload: ClientCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ClientOut:
+    _enforce(ctx, "client.write")
+    _enforce_role(role, "client.write")
+    return svc.create_client(payload)
+
+
+@app.get("/v1/quotes")
+def list_quotes(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[QuoteOut]:
+    _enforce(ctx, "quote.read")
+    _enforce_role(role, "quote.read")
+    return svc.list_quotes(workspace_id=workspace_id)
+
+
+@app.post("/v1/quotes")
+def create_quote(
+    payload: QuoteCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> QuoteOut:
+    _enforce(ctx, "quote.write")
+    _enforce_role(role, "quote.write")
+    return svc.create_quote(payload)
+
+
+@app.get("/v1/orders")
+def list_orders(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[OrderOut]:
+    _enforce(ctx, "order.read")
+    _enforce_role(role, "order.read")
+    return svc.list_orders(workspace_id=workspace_id)
+
+
+@app.post("/v1/orders")
+def create_order(
+    payload: OrderCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> OrderOut:
+    _enforce(ctx, "order.write")
+    _enforce_role(role, "order.write")
+    return svc.create_order(payload)
+
+
+@app.get("/v1/inventory")
+def list_inventory_items(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[InventoryItemOut]:
+    _enforce(ctx, "inventory.read")
+    _enforce_role(role, "inventory.read")
+    return svc.list_inventory_items(workspace_id=workspace_id)
+
+
+@app.post("/v1/inventory")
+def create_inventory_item(
+    payload: InventoryItemCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> InventoryItemOut:
+    _enforce(ctx, "inventory.write")
+    _enforce_role(role, "inventory.write")
+    return svc.create_inventory_item(payload)
+
+
+@app.get("/v1/suppliers")
+def list_suppliers(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[SupplierOut]:
+    _enforce(ctx, "supplier.read")
+    _enforce_role(role, "supplier.read")
+    return svc.list_suppliers(workspace_id=workspace_id)
+
+
+@app.post("/v1/suppliers")
+def create_supplier(
+    payload: SupplierCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> SupplierOut:
+    _enforce(ctx, "supplier.write")
+    _enforce_role(role, "supplier.write")
+    return svc.create_supplier(payload)
+
+
+@app.get("/public/commission-hall/quotes")
+def public_commission_quotes(
+    workspace_id: str,
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[PublicCommissionQuoteOut]:
+    return svc.list_public_commission_quotes(workspace_id=workspace_id)
+
+
+@app.post("/public/commission-hall/inquiries")
+def public_commission_inquiry(
+    payload: PublicCommissionInquiryCreate,
+    svc: AtelierService = Depends(_atelier_service),
+) -> LeadOut:
+    return svc.create_public_inquiry(payload)

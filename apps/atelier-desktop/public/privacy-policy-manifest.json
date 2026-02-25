@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0.0",
+  "policy_version": "0.1.0",
+  "effective_date_utc": "2026-02-25",
+  "application": {
+    "name": "Quantum Quackery Virtual Atelier",
+    "platforms": ["web", "electron", "android"]
+  },
+  "data_controller": {
+    "name": "Quantum Quackery Divine Arts",
+    "contact_email": "privacy@quantumquackery.local"
+  },
+  "collection": {
+    "user_profile": ["profile_name", "profile_email", "profile_timezone"],
+    "access_control": ["artisan_id", "role", "workshop_id", "artisan_code_hash", "artisan_access_verified"],
+    "business_records": ["contacts", "bookings", "lessons", "modules", "leads", "clients", "quotes", "orders"],
+    "kernel_bridge_metadata": ["actor_id", "capabilities", "workshop_scopes"],
+    "local_device_storage": ["ui_preferences", "studio_files", "calendar_state"]
+  },
+  "processing_purposes": [
+    "account_and_access_control",
+    "scheduling_and_crm_operations",
+    "lesson_and_module_authoring",
+    "kernel_tooling_access_controls",
+    "auditability_and_support"
+  ],
+  "sharing": {
+    "third_parties": [],
+    "kernel_boundary": "Kernel interactions are transport-only and do not grant semantic authority."
+  },
+  "retention": {
+    "server_records": "retained until explicit deletion policy is defined and executed",
+    "local_storage": "retained on device until user clears app/browser storage"
+  },
+  "security_controls": [
+    "role_and_capability_headers",
+    "steward_admin_gate_for_placement",
+    "hashed_artisan_access_code_storage",
+    "cors_origin_allowlist"
+  ],
+  "user_rights": ["access", "correction", "deletion_request", "data_export_request"],
+  "cross_border_transfers": {
+    "enabled": false,
+    "notes": "No cross-border transfer logic is implemented in current stack."
+  },
+  "children_data": {
+    "targeted_at_children": false,
+    "age_floor": 13
+  }
+}

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quantum Quackery Virtual Atelier</title>
+    <style>
+      :root {
+        --bg: #f4f0e8;
+        --ink: #1c1a16;
+        --accent: #2f6d62;
+        --accent-soft: #d7ebe6;
+        --panel: #fffaf1;
+        --line: #d8cbb8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: radial-gradient(circle at top right, #e6efe8 0%, var(--bg) 42%);
+        color: var(--ink);
+        font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        min-height: 100vh;
+      }
+      .sidebar {
+        border-right: 1px solid var(--line);
+        background: linear-gradient(180deg, #fef6e8 0%, #f4ecdc 100%);
+        padding: 20px 16px;
+      }
+      .brand {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        margin-bottom: 18px;
+      }
+      .brand small {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #6f6557;
+        letter-spacing: 0.08em;
+      }
+      .nav {
+        display: grid;
+        gap: 8px;
+      }
+      .nav button {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff9ef;
+        color: #2a261f;
+        text-align: left;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .nav button.active {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        color: #173a34;
+        font-weight: 700;
+      }
+      .content {
+        padding: 26px 28px;
+      }
+      .hero {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel);
+        padding: 18px;
+        margin-bottom: 18px;
+      }
+      .hero h1 { margin: 0 0 8px 0; font-size: 34px; }
+      .hero p { margin: 0; color: #5e564b; }
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fffdf8;
+        padding: 16px;
+      }
+      .panel h2 { margin-top: 0; font-size: 22px; }
+      .row { display: flex; gap: 10px; margin-top: 10px; }
+      input, button.action {
+        font-size: 14px;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+      }
+      input { flex: 1; background: #fff; }
+      button.action {
+        background: var(--accent);
+        color: #fff;
+        border-color: #25554c;
+        cursor: pointer;
+      }
+      pre {
+        margin-top: 12px;
+        background: #0f1729;
+        color: #cde0ff;
+        border-radius: 10px;
+        padding: 12px;
+        overflow: auto;
+      }
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fffdf8;
+        padding: 12px;
+      }
+      .card h3 { margin: 0 0 6px 0; font-size: 16px; }
+      .card p { margin: 0; font-size: 13px; color: #5f584e; }
+      @media (max-width: 900px) {
+        .layout { grid-template-columns: 1fr; }
+        .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+        .card-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script>
+      const e = React.createElement;
+      const NAV_ITEMS = [
+        "Foyer",
+        "Workshop",
+        "Temple and Gardens",
+        "Guild Hall",
+        "Messages",
+        "Studio Hub",
+        "Lesson Creation",
+        "Module Creation",
+        "Learning Hall",
+        "CRM",
+        "Booking System"
+      ];
+
+      function App() {
+        const [section, setSection] = React.useState("Foyer");
+        const [raw, setRaw] = React.useState("");
+        const [output, setOutput] = React.useState("{}");
+
+        async function place() {
+          const response = await fetch("http://127.0.0.1:9000/v1/atelier/place", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Atelier-Actor": "desktop-user",
+              "X-Atelier-Capabilities": "kernel.place",
+              "X-Artisan-Id": "artisan-desktop",
+              "X-Workshop-Id": "workshop-primary",
+              "X-Workshop-Scopes": "scene:*,workspace:*"
+            },
+            body: JSON.stringify({ raw, context: { scene_id: "foyer", workspace_id: "main" } })
+          });
+          const data = await response.json();
+          setOutput(JSON.stringify(data, null, 2));
+        }
+
+        const cards = [
+          ["Workshop", "Artisan workbench and gated composition surfaces."],
+          ["Temple and Gardens", "Reflective and restorative ritual spaces."],
+          ["Guild Hall", "Shared workstreams and role boards."],
+          ["Messages", "Threaded communication lanes."],
+          ["Studio Hub", "File editing and project workspace hub."],
+          ["Lesson Creation", "Design and sequence learning sessions."],
+          ["Module Creation", "Assemble reusable module templates."],
+          ["Learning Hall", "Learner experience and progression views."],
+          ["CRM", "Relationship and account management."],
+          ["Booking System", "Scheduling, reservations, and calendars."]
+        ];
+
+        return e("div", { className: "layout" }, [
+          e("aside", { key: "sb", className: "sidebar" }, [
+            e("div", { key: "brand", className: "brand" }, [
+              "Quantum Quackery Atelier",
+              e("small", { key: "small" }, "FOYER NAVIGATOR")
+            ]),
+            e("div", { key: "nav", className: "nav" }, NAV_ITEMS.map((item) =>
+              e(
+                "button",
+                {
+                  key: item,
+                  className: section === item ? "active" : "",
+                  onClick: () => setSection(item)
+                },
+                item
+              )
+            ))
+          ]),
+          e("main", { key: "main", className: "content" }, [
+            e("div", { key: "hero", className: "hero" }, [
+              e("h1", { key: "h" }, "Foyer"),
+              e("p", { key: "p" }, "Landing hall for controlled movement across Atelier domains. Active section: " + section)
+            ]),
+            e("section", { key: "panel", className: "panel" }, [
+              e("h2", { key: "ph" }, "Ambroflow Placement Emitter"),
+              e("p", { key: "pp" }, "Desktop calls Atelier API only. Kernel remains behind capability and workshop gates."),
+              e("div", { key: "line", className: "row" }, [
+                e("input", { key: "in", value: raw, onChange: (x) => setRaw(x.target.value), placeholder: "emit placement line..." }),
+                e("button", { key: "btn", className: "action", onClick: place }, "Emit")
+              ]),
+              e("pre", { key: "out" }, output),
+              e("div", { key: "cards", className: "card-grid" }, cards.map((card) =>
+                e("article", { key: card[0], className: "card" }, [
+                  e("h3", { key: "h" + card[0] }, card[0]),
+                  e("p", { key: "p" + card[0] }, card[1])
+                ])
+              ))
+            ])
+          ]),
+        ]);
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(e(App));
+    </script>
+  </body>
+</html>

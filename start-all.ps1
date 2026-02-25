@@ -1,0 +1,10 @@
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$launcher = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+
+Start-Process -FilePath $launcher -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "C:\DjinnOS\start-kernel.ps1"
+Start-Sleep -Seconds 1
+Start-Process -FilePath $launcher -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "C:\DjinnOS\start-atelier-api.ps1"
+Start-Sleep -Seconds 1
+Start-Process -FilePath $launcher -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "C:\DjinnOS\start-atelier-desktop.ps1"
