@@ -1,6 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
-
-param(
+﻿param(
     [ValidateSet("dev", "desktop")]
     [string]$UiMode = "dev",
     [string]$KernelHost = "127.0.0.1",
@@ -8,6 +6,8 @@ param(
     [string]$ApiHost = "127.0.0.1",
     [int]$ApiPort = 9000
 )
+
+$ErrorActionPreference = "Stop"
 
 function Test-HttpReady {
     param(
@@ -50,7 +50,7 @@ function Start-ShellProcess {
         [string]$Command
     )
 
-    $script = "$host.UI.RawUI.WindowTitle = '$Title'; Set-Location -LiteralPath '$Workdir'; $Command"
+    $script = "`$host.UI.RawUI.WindowTitle = '$Title'; Set-Location -LiteralPath '$Workdir'; $Command"
     $encoded = New-EncodedCommand -Command $script
 
     return Start-Process -FilePath "powershell.exe" -ArgumentList "-NoExit", "-EncodedCommand", $encoded -PassThru
