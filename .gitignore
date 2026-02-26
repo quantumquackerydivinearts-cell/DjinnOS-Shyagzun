@@ -7,3 +7,10 @@ node_modules/
 dist/
 build/
 DjinnOS-Shyagzun/
+apps/atelier-api/atelier_local.db
+apps/atelier-api/release/
+apps/atelier-desktop/release/
+releases/
+secrets/
+*.jks
+atelier-api-bundle.zip

@@ -1974,7 +1974,12 @@ export function App() {
           </div>
         </div>
         <div className="tools-grid">{renderSectionTools()}</div>
-        <section className="panel"><h2>API Output</h2><pre>{output}</pre></section>
+        {section === "Workshop" ? (
+          <section className="panel">
+            <h2>API Output</h2>
+            <pre>{output}</pre>
+          </section>
+        ) : null}
       </main>
     </div>
   );
