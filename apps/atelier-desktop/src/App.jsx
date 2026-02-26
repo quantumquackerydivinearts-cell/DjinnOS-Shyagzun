@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   "Commission Hall",
   "Suppliers",
   "Inventory",
+  "Graph Maker",
   "Renderer Lab",
   "Privacy"
 ];
@@ -187,6 +188,331 @@ function GraphBars({ title, items }) {
     </section>
   );
 }
+
+function buildFrontierGraph(frontier) {
+  if (!frontier || typeof frontier !== "object" || !Array.isArray(frontier.paths)) {
+    return { nodes: [], edges: [], stats: { paths: 0, nodes: 0, edges: 0, symbols: 0 } };
+  }
+  const nodes = [];
+  const edges = [];
+  const symbols = new Set();
+  frontier.paths.forEach((path, pathIndex) => {
+    if (!path || typeof path !== "object") {
+      return;
+    }
+    const pathSymbols = Array.isArray(path.symbols) ? path.symbols : [];
+    const pathDecimals = Array.isArray(path.decimals) ? path.decimals : [];
+    pathSymbols.forEach((symbol, symbolIndex) => {
+      const nodeId = `p${pathIndex}-s${symbolIndex}`;
+      const label = `${String(symbol)}${pathDecimals[symbolIndex] !== undefined ? ` (${String(pathDecimals[symbolIndex])})` : ""}`;
+      nodes.push({ id: nodeId, label, pathIndex, symbolIndex });
+      symbols.add(String(symbol));
+      if (symbolIndex > 0) {
+        edges.push({ from: `p${pathIndex}-s${symbolIndex - 1}`, to: nodeId, pathIndex });
+      }
+    });
+  });
+  return {
+    nodes,
+    edges,
+    stats: {
+      paths: frontier.paths.length,
+      nodes: nodes.length,
+      edges: edges.length,
+      symbols: symbols.size
+    }
+  };
+}
+
+function stableStringify(value) {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+  const entries = Object.entries(value).sort(([a], [b]) => a.localeCompare(b));
+  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(",")}}`;
+}
+
+function localFrontierHash(frontierObj) {
+  const canon = stableStringify(frontierObj);
+  let hash = 0;
+  for (let i = 0; i < canon.length; i += 1) {
+    hash = (hash * 31 + canon.charCodeAt(i)) >>> 0;
+  }
+  return `h_local_${hash.toString(16).padStart(8, "0")}`;
+}
+
+function localStringHash(text) {
+  let hash = 0;
+  const input = String(text);
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
+  }
+  return `h_local_${hash.toString(16).padStart(8, "0")}`;
+}
+
+function parseObjectJson(text, fallback = {}) {
+  try {
+    const parsed = JSON.parse(text || "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function compileCobraFromEntities(entities) {
+  if (!Array.isArray(entities)) {
+    return "";
+  }
+  return entities
+    .map((entity) => {
+      const id = String(entity.id || "anon");
+      const x = Number(entity.x || 0);
+      const y = Number(entity.y || 0);
+      const kind = String(entity.kind || "token");
+      const lex =
+        typeof entity.akinenwun === "string" && entity.akinenwun.trim()
+          ? entity.akinenwun.trim()
+          : typeof entity.lex === "string" && entity.lex.trim()
+            ? entity.lex.trim()
+            : "";
+      if (!lex) {
+        return `entity ${id} ${x} ${y} ${kind}`;
+      }
+      return [`entity ${id} ${x} ${y} ${kind}`, `  lex ${lex}`].join("\n");
+    })
+    .join("\n");
+}
+
+function compilePythonDrawFromEntities(sceneName, entities) {
+  const title = sceneName ? String(sceneName) : "Game Scene";
+  const count = Array.isArray(entities) ? entities.length : 0;
+  return [`#draw title=${title}`, `#draw entities=${count}`].join("\n");
+}
+
+function tileKey(x, y, layer = "base") {
+  return `${layer}|${x},${y}`;
+}
+
+function parseTileKey(key) {
+  const parts = String(key).split("|");
+  const layer = parts.length > 1 ? parts[0] : "base";
+  const coord = parts.length > 1 ? parts[1] : parts[0];
+  const coordParts = String(coord).split(",");
+  const x = Number.parseInt(coordParts[0] || "0", 10);
+  const y = Number.parseInt(coordParts[1] || "0", 10);
+  return { layer, x, y };
+}
+
+function tileDistance(a, b) {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function relationTokenForDistance(distance, nearThreshold) {
+  return distance <= nearThreshold ? "Ti" : "Ze";
+}
+
+function tokenColor(token) {
+  const map = {
+    Ru: "#c62828",
+    Ot: "#ef6c00",
+    El: "#f9a825",
+    Ki: "#2e7d32",
+    Fu: "#1565c0",
+    Ka: "#283593",
+    AE: "#6a1b9a",
+    Ha: "#ffffff",
+    Ga: "#111111",
+    Na: "#9e9e9e",
+    Ung: "#4e342e",
+    Wu: "#cfd8dc",
+  };
+  return map[token] || "#607d8b";
+}
+
+function tokenOpacity(token) {
+  const map = {
+    Ha: 1,
+    Ga: 1,
+    Na: 0.62,
+    Ung: 0.86,
+    Wu: 0.16,
+  };
+  return map[token] ?? 0.7;
+}
+
+function clampInt(value, min, max, fallback) {
+  const parsed = Number.parseInt(String(value), 10);
+  if (Number.isNaN(parsed)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function buildTileSvgMarkup(model, showGrid, showLinks, renderScale = 1) {
+  const scaledWidth = Math.max(1, Math.round(model.width * renderScale));
+  const scaledHeight = Math.max(1, Math.round(model.height * renderScale));
+  const gridLines = [];
+  if (showGrid) {
+    for (let x = 0; x <= model.cols; x += 1) {
+      gridLines.push(`<line x1="${x * model.cell}" y1="0" x2="${x * model.cell}" y2="${model.height}" stroke="#d8cbb8" stroke-width="1" />`);
+    }
+    for (let y = 0; y <= model.rows; y += 1) {
+      gridLines.push(`<line x1="0" y1="${y * model.cell}" x2="${model.width}" y2="${y * model.cell}" stroke="#d8cbb8" stroke-width="1" />`);
+    }
+  }
+  const layerRects = model.layers
+    .map((layer) =>
+      layer.tiles
+        .map((t) => {
+          const fill = tokenColor(String(t.color_token || "Ru"));
+          const opacity = tokenOpacity(String(t.opacity_token || "Na"));
+          const x = Number(t.x || 0) * model.cell;
+          const y = Number(t.y || 0) * model.cell;
+          return `<rect x="${x}" y="${y}" width="${model.cell}" height="${model.cell}" fill="${fill}" fill-opacity="${opacity}" rx="4" />`;
+        })
+        .join("")
+    )
+    .join("");
+  const links = showLinks
+    ? model.links
+        .map((link) => {
+          const near = String(link.relation_token || "") === "Ti";
+          return `<line x1="${link.x1}" y1="${link.y1}" x2="${link.x2}" y2="${link.y2}" stroke="${near ? "#2f6d62" : "#1565c0"}" stroke-width="2" stroke-dasharray="${near ? "" : "5 3"}" />`;
+        })
+        .join("")
+    : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${model.width} ${model.height}" width="${scaledWidth}" height="${scaledHeight}"><rect x="0" y="0" width="${model.width}" height="${model.height}" fill="#fffaf1" />${gridLines.join("")}${layerRects}${links}</svg>`;
+}
+
+const TILE_PROC_FORM_LIBRARY = {
+  ring_bloom: [
+    "const cx = Math.floor(cols / 2);",
+    "const cy = Math.floor(rows / 2);",
+    "const radius = Math.max(4, Math.floor(Math.min(cols, rows) * 0.22));",
+    "const tokens = [\"Ru\",\"Ot\",\"El\",\"Ki\",\"Fu\",\"Ka\",\"AE\"];",
+    "const tiles = [];",
+    "for (let y = 0; y < rows; y += 1) {",
+    "  for (let x = 0; x < cols; x += 1) {",
+    "    const dx = x - cx;",
+    "    const dy = y - cy;",
+    "    const d = Math.sqrt(dx * dx + dy * dy);",
+    "    if (Math.abs(d - radius) <= 1.25) {",
+    "      const idx = (x + y + seed) % tokens.length;",
+    "      tiles.push({ x, y, layer: \"base\", color_token: tokens[idx], opacity_token: \"Na\", presence_token: \"Ta\" });",
+    "    }",
+    "  }",
+    "}",
+    "return { tiles, links: [], entities: [{ id: `ring-${seed}`, kind: \"pattern\", x: cx, y: cy }] };",
+  ].join("\n"),
+  maze_carve: [
+    "const tiles = [];",
+    "for (let y = 0; y < rows; y += 1) {",
+    "  for (let x = 0; x < cols; x += 1) {",
+    "    const wall = x % 2 === 0 || y % 2 === 0;",
+    "    tiles.push({",
+    "      x, y, layer: wall ? \"ground\" : \"base\",",
+    "      color_token: wall ? \"Ga\" : \"Ki\",",
+    "      opacity_token: wall ? \"Ung\" : \"Na\",",
+    "      presence_token: \"Ta\"",
+    "    });",
+    "  }",
+    "}",
+    "for (let n = 0; n < Math.floor((cols * rows) * 0.12); n += 1) {",
+    "  const x = (seed * 13 + n * 17) % cols;",
+    "  const y = (seed * 7 + n * 19) % rows;",
+    "  tiles.push({ x, y, layer: \"base\", color_token: \"Ki\", opacity_token: \"Na\", presence_token: \"Ta\" });",
+    "}",
+    "return { tiles, links: [] };",
+  ].join("\n"),
+  island_chain: [
+    "const tiles = [];",
+    "const centers = [",
+    "  { x: Math.floor(cols * 0.2), y: Math.floor(rows * 0.35), r: Math.floor(Math.min(cols, rows) * 0.12) },",
+    "  { x: Math.floor(cols * 0.5), y: Math.floor(rows * 0.52), r: Math.floor(Math.min(cols, rows) * 0.15) },",
+    "  { x: Math.floor(cols * 0.78), y: Math.floor(rows * 0.42), r: Math.floor(Math.min(cols, rows) * 0.1) },",
+    "];",
+    "for (let y = 0; y < rows; y += 1) {",
+    "  for (let x = 0; x < cols; x += 1) {",
+    "    let land = false;",
+    "    for (const c of centers) {",
+    "      const dx = x - c.x;",
+    "      const dy = y - c.y;",
+    "      const d = Math.sqrt(dx * dx + dy * dy);",
+    "      if (d <= c.r) { land = true; break; }",
+    "    }",
+    "    tiles.push({",
+    "      x, y, layer: \"base\",",
+    "      color_token: land ? \"Ki\" : \"Fu\",",
+    "      opacity_token: land ? \"Na\" : \"Wu\",",
+    "      presence_token: \"Ta\"",
+    "    });",
+    "  }",
+    "}",
+    "return { tiles, links: [] };",
+  ].join("\n"),
+  corridor_grid: [
+    "const tiles = [];",
+    "const links = [];",
+    "const step = 4;",
+    "for (let y = 0; y < rows; y += 1) {",
+    "  for (let x = 0; x < cols; x += 1) {",
+    "    const corridor = x % step === 0 || y % step === 0;",
+    "    tiles.push({",
+    "      x, y, layer: \"base\",",
+    "      color_token: corridor ? \"El\" : \"Ga\",",
+    "      opacity_token: corridor ? \"Na\" : \"Ung\",",
+    "      presence_token: \"Ta\"",
+    "    });",
+    "    if (corridor && x + step < cols && y % step === 0) {",
+    "      links.push({ ax: x, ay: y, bx: x + step, by: y });",
+    "    }",
+    "    if (corridor && y + step < rows && x % step === 0) {",
+    "      links.push({ ax: x, ay: y, bx: x, by: y + step });",
+    "    }",
+    "  }",
+    "}",
+    "return { tiles, links };",
+  ].join("\n"),
+  noise_caves: [
+    "function noise(x, y, s) {",
+    "  const n = Math.sin((x * 12.9898 + y * 78.233 + s) * 43758.5453);",
+    "  return n - Math.floor(n);",
+    "}",
+    "const tiles = [];",
+    "for (let y = 0; y < rows; y += 1) {",
+    "  for (let x = 0; x < cols; x += 1) {",
+    "    const n = noise(x, y, seed);",
+    "    const solid = n > 0.48;",
+    "    tiles.push({",
+    "      x, y, layer: \"base\",",
+    "      color_token: solid ? \"Ga\" : \"Fu\",",
+    "      opacity_token: solid ? \"Ung\" : \"Wu\",",
+    "      presence_token: \"Ta\"",
+    "    });",
+    "  }",
+    "}",
+    "return { tiles, links: [] };",
+  ].join("\n"),
+};
+
+const ASSET_GEN_PROFILE_V1 = {
+  profile: "asset-gen-v1",
+  cols: "64",
+  rows: "36",
+  cellPx: "20",
+  exportScale: "2",
+  nearThreshold: "3",
+  colorToken: "Ru",
+  opacityToken: "Na",
+  layer: "base",
+  template: "ring_bloom",
+};
 
 function monthLabel(year, month) {
   return new Date(year, month, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -386,6 +712,67 @@ function buildRendererFrameHtml(kind, source, engineState) {
           root.appendChild(div);
         });
       }
+      function splitAkinenwun(word) {
+        const raw = String(word || "").trim();
+        if (!raw) return [];
+        const parts = raw.match(/[A-Z]+[a-z]*/g);
+        if (!parts || parts.length === 0) return [raw];
+        return parts;
+      }
+      function parseCobraShygazun(sourceText) {
+        const lines = String(sourceText || "").split(/\\r?\\n/);
+        const entities = [];
+        const words = [];
+        let current = null;
+        lines.forEach((rawLine) => {
+          const indent = rawLine.length - rawLine.trimStart().length;
+          const lineText = rawLine.trim();
+          if (!lineText || lineText.startsWith("#")) return;
+          if (indent > 0 && current) {
+            const colonAt = lineText.indexOf(":");
+            let key = "";
+            let value = "";
+            if (colonAt > 0) {
+              key = lineText.slice(0, colonAt).trim();
+              value = lineText.slice(colonAt + 1).trim();
+            } else {
+              const spaceAt = lineText.indexOf(" ");
+              if (spaceAt > 0) {
+                key = lineText.slice(0, spaceAt).trim();
+                value = lineText.slice(spaceAt + 1).trim();
+              } else {
+                key = lineText;
+              }
+            }
+            if (!current.meta) current.meta = {};
+            current.meta[key] = value;
+            if (key === "lex" || key === "akinenwun" || key === "shygazun") {
+              current.akinenwun = value;
+              words.push({ word: value, symbols: splitAkinenwun(value) });
+            }
+            return;
+          }
+          if (lineText.startsWith("entity ")) {
+            const parts = lineText.split(/\\s+/);
+            current = {
+              id: parts[1] || "anon",
+              x: Number(parts[2] || 0),
+              y: Number(parts[3] || 0),
+              tag: parts[4] || "none",
+              meta: {}
+            };
+            entities.push(current);
+            return;
+          }
+          current = null;
+          if (lineText.startsWith("lex ") || lineText.startsWith("akinenwun ") || lineText.startsWith("word ")) {
+            const spaceAt = lineText.indexOf(" ");
+            const word = spaceAt > 0 ? lineText.slice(spaceAt + 1).trim() : "";
+            if (word) words.push({ word, symbols: splitAkinenwun(word) });
+          }
+        });
+        return { entities, words };
+      }
       try {
         line("engine.tick=" + String(engine.tick || 0), "ok");
         if ("${kind}" === "javascript") {
@@ -398,16 +785,13 @@ function buildRendererFrameHtml(kind, source, engineState) {
           renderEntities(Array.isArray(parsed.entities) ? parsed.entities : []);
           line(JSON.stringify(parsed, null, 2));
         } else if ("${kind}" === "cobra") {
-          const lines = source.split(/\\r?\\n/).map((v) => v.trim()).filter(Boolean);
-          const entities = [];
-          lines.forEach((ln) => {
-            if (ln.startsWith("entity ")) {
-              const parts = ln.split(" ");
-              entities.push({ id: parts[1] || "anon", x: Number(parts[2] || 0), y: Number(parts[3] || 0), tag: parts[4] || "none" });
-            }
+          const parsed = parseCobraShygazun(source);
+          line("cobra entities=" + parsed.entities.length, "ok");
+          line("shygazun words=" + parsed.words.length, "ok");
+          parsed.words.forEach((entry, idx) => {
+            line("akinenwun[" + String(idx + 1) + "] " + entry.word + " => " + entry.symbols.join("|"), "ok");
           });
-          line("cobra entities=" + entities.length, "ok");
-          renderEntities(entities);
+          renderEntities(parsed.entities);
         } else if ("${kind}" === "python") {
           const lines = source.split(/\\r?\\n/).map((v) => v.trim());
           const drawLines = lines.filter((ln) => ln.startsWith("#draw "));
@@ -437,6 +821,39 @@ export function App() {
   const [gateMessage, setGateMessage] = useState("Placement tooling is locked.");
   const [raw, setRaw] = useState("");
   const [timelineLast, setTimelineLast] = useState("25");
+  const [spriteId, setSpriteId] = useState("sprite_001");
+  const [spriteKind, setSpriteKind] = useState("token");
+  const [spriteLayer, setSpriteLayer] = useState("foreground");
+  const [spriteX, setSpriteX] = useState("0");
+  const [spriteY, setSpriteY] = useState("0");
+  const [spriteAutoPrefix, setSpriteAutoPrefix] = useState("sprite_auto");
+  const [spriteAutoCount, setSpriteAutoCount] = useState("6");
+  const [spriteAutoColumns, setSpriteAutoColumns] = useState("3");
+  const [spriteAutoStartX, setSpriteAutoStartX] = useState("0");
+  const [spriteAutoStartY, setSpriteAutoStartY] = useState("0");
+  const [spriteAutoStepX, setSpriteAutoStepX] = useState("1");
+  const [spriteAutoStepY, setSpriteAutoStepY] = useState("1");
+  const [akinenwunWord, setAkinenwunWord] = useState("TyKoWuVu");
+  const [akinenwunMode, setAkinenwunMode] = useState("prose");
+  const [akinenwunIngest, setAkinenwunIngest] = useState(true);
+  const [akinenwunFrontier, setAkinenwunFrontier] = useState(null);
+  const [rendererAkinenwunMode, setRendererAkinenwunMode] = useState("prose");
+  const [rendererAkinenwunWord, setRendererAkinenwunWord] = useState("TyKoWuVu");
+  const [rendererAkinenwunFrontier, setRendererAkinenwunFrontier] = useState(null);
+  const [graphMakerSource, setGraphMakerSource] = useState("workshop");
+  const [graphMakerManualFrontierText, setGraphMakerManualFrontierText] = useState("{\"paths\":[]}");
+  const [rendererAkinenwunSnapshots, setRendererAkinenwunSnapshots] = useState(() => {
+    const rawSaved = localStorage.getItem("atelier.renderer_akinenwun_snapshots");
+    if (!rawSaved) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(rawSaved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
 
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -526,6 +943,70 @@ export function App() {
   const [rendererJs, setRendererJs] = useState("function render(engine, root) { root.append('js tick=' + engine.tick); return { ok: true, tick: engine.tick }; }");
   const [rendererJson, setRendererJson] = useState("{\"entities\":[{\"id\":\"light-1\",\"x\":3,\"y\":5,\"kind\":\"lamp\"}]}");
   const [rendererEngineStateText, setRendererEngineStateText] = useState("{\"tick\":0,\"camera\":{\"x\":0,\"y\":0}}");
+  const [rendererGameSpecText, setRendererGameSpecText] = useState(
+    "{\"scene\":{\"name\":\"prototype\"},\"systems\":{\"gravity\":0.0,\"camera\":{\"x\":0,\"y\":0}},\"entities\":[{\"id\":\"hero\",\"kind\":\"player\",\"x\":0,\"y\":0,\"hp\":100},{\"id\":\"orb-1\",\"kind\":\"pickup\",\"x\":4,\"y\":2,\"value\":10}]}"
+  );
+  const [rendererGameStatus, setRendererGameStatus] = useState("idle");
+  const [rendererSimPlaying, setRendererSimPlaying] = useState(false);
+  const [rendererSimMs, setRendererSimMs] = useState("300");
+  const [rendererNewEntityId, setRendererNewEntityId] = useState("enemy-1");
+  const [rendererNewEntityKind, setRendererNewEntityKind] = useState("enemy");
+  const [rendererNewEntityX, setRendererNewEntityX] = useState("3");
+  const [rendererNewEntityY, setRendererNewEntityY] = useState("1");
+  const [tileCols, setTileCols] = useState("48");
+  const [tileRows, setTileRows] = useState("27");
+  const [tileCellPx, setTileCellPx] = useState("24");
+  const [tileSvgExportScale, setTileSvgExportScale] = useState("2");
+  const [tileActiveLayer, setTileActiveLayer] = useState("base");
+  const [tilePresenceToken, setTilePresenceToken] = useState("Ta");
+  const [tileColorToken, setTileColorToken] = useState("Ru");
+  const [tileOpacityToken, setTileOpacityToken] = useState("Na");
+  const [tileNearThreshold, setTileNearThreshold] = useState("2");
+  const [tilePlacements, setTilePlacements] = useState({});
+  const [tileConnections, setTileConnections] = useState([]);
+  const [tileConnectMode, setTileConnectMode] = useState(false);
+  const [tileConnectFrom, setTileConnectFrom] = useState(null);
+  const [tileSvgShowGrid, setTileSvgShowGrid] = useState(true);
+  const [tileSvgShowLinks, setTileSvgShowLinks] = useState(true);
+  const [tileProcSeed, setTileProcSeed] = useState("42");
+  const [tileProcTemplate, setTileProcTemplate] = useState("ring_bloom");
+  const [tileProcCode, setTileProcCode] = useState(
+    [
+      "// Return { tiles, links, entities? }",
+      "// tiles: [{ x, y, layer?, color_token, opacity_token, presence_token? }]",
+      "const cx = Math.floor(cols / 2);",
+      "const cy = Math.floor(rows / 2);",
+      "const radius = Math.max(4, Math.floor(Math.min(cols, rows) * 0.22));",
+      "const tokens = [\"Ru\",\"Ot\",\"El\",\"Ki\",\"Fu\",\"Ka\",\"AE\"];",
+      "const tiles = [];",
+      "for (let y = 0; y < rows; y += 1) {",
+      "  for (let x = 0; x < cols; x += 1) {",
+      "    const dx = x - cx;",
+      "    const dy = y - cy;",
+      "    const d = Math.sqrt(dx * dx + dy * dy);",
+      "    if (Math.abs(d - radius) <= 1.25) {",
+      "      const idx = (x + y + seed) % tokens.length;",
+      "      tiles.push({ x, y, layer: \"base\", color_token: tokens[idx], opacity_token: \"Na\", presence_token: \"Ta\" });",
+      "    }",
+      "  }",
+      "}",
+      "return { tiles, links: [], entities: [{ id: `ring-${seed}`, kind: \"pattern\", x: cx, y: cy }] };",
+    ].join("\n")
+  );
+  const [tileProcStatus, setTileProcStatus] = useState("idle");
+  const [tilePresetName, setTilePresetName] = useState("asset_batch_01");
+  const [tileSavedPresets, setTileSavedPresets] = useState(() => {
+    const rawSaved = localStorage.getItem("atelier.tile_presets");
+    if (!rawSaved) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(rawSaved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
 
   const [publicName, setPublicName] = useState("");
   const [publicEmail, setPublicEmail] = useState("");
@@ -627,6 +1108,21 @@ export function App() {
   useEffect(() => localStorage.setItem("atelier.studio_folders", JSON.stringify(studioFolders)), [studioFolders]);
   useEffect(() => localStorage.setItem("atelier.studio_files", JSON.stringify(studioFiles)), [studioFiles]);
   useEffect(() => localStorage.setItem("atelier.studio_selected", studioSelectedFileId), [studioSelectedFileId]);
+  useEffect(
+    () => localStorage.setItem("atelier.renderer_akinenwun_snapshots", JSON.stringify(rendererAkinenwunSnapshots)),
+    [rendererAkinenwunSnapshots]
+  );
+  useEffect(() => localStorage.setItem("atelier.tile_presets", JSON.stringify(tileSavedPresets)), [tileSavedPresets]);
+  useEffect(() => {
+    if (!rendererSimPlaying) {
+      return undefined;
+    }
+    const intervalMs = Math.max(60, Number.parseInt(rendererSimMs || "300", 10) || 300);
+    const timer = window.setInterval(() => {
+      stepRendererEngine();
+    }, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [rendererSimPlaying, rendererSimMs]);
   useEffect(() => {
     function stopDrag() {
       setCalendarDragging(false);
@@ -802,7 +1298,7 @@ export function App() {
   }
 
   async function observe() {
-    await runAction("observe", () => apiCall("/v1/atelier/observe", "POST", {}));
+    await runAction("observe", () => apiCall("/v1/ambroflow/semantic-value", "GET", null));
   }
   async function timeline() {
     await runAction("timeline", () => apiCall(`/v1/atelier/timeline?last=${encodeURIComponent(timelineLast)}`, "GET", null));
@@ -811,7 +1307,417 @@ export function App() {
     await runAction("frontiers", () => apiCall("/v1/atelier/frontiers", "GET", null));
   }
   async function place() {
-    await runAction("place", () => apiCall("/v1/atelier/place", "POST", { raw, context: { scene_id: section.toLowerCase(), workspace_id: workspaceId } }));
+    await runAction("place", () =>
+      apiCall("/v1/ambroflow/place", "POST", {
+        raw,
+        scene_id: section.toLowerCase(),
+        context: { workspace_id: workspaceId },
+      })
+    );
+  }
+
+  function toInt(value, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? fallback : parsed;
+  }
+
+  async function emitSpriteManual() {
+    const x = toInt(spriteX, 0);
+    const y = toInt(spriteY, 0);
+    const line = `sprite.place id=${spriteId} kind=${spriteKind} x=${x} y=${y} layer=${spriteLayer}`;
+    await runAction("sprite_manual_place", () =>
+      apiCall("/v1/ambroflow/place", "POST", {
+        raw: line,
+        scene_id: section.toLowerCase(),
+        tags: { feature: "sprite-generator", mode: "manual" },
+        metadata: {
+          sprite: {
+            id: spriteId,
+            kind: spriteKind,
+            x,
+            y,
+            layer: spriteLayer,
+          },
+        },
+        context: { workspace_id: workspaceId },
+      })
+    );
+  }
+
+  async function emitSpriteAuto() {
+    const count = Math.max(1, toInt(spriteAutoCount, 1));
+    const columns = Math.max(1, toInt(spriteAutoColumns, 1));
+    const startX = toInt(spriteAutoStartX, 0);
+    const startY = toInt(spriteAutoStartY, 0);
+    const stepX = toInt(spriteAutoStepX, 1);
+    const stepY = toInt(spriteAutoStepY, 1);
+    await runAction("sprite_auto_place", async () => {
+      for (let i = 0; i < count; i += 1) {
+        const col = i % columns;
+        const row = Math.floor(i / columns);
+        const id = `${spriteAutoPrefix}_${String(i + 1).padStart(3, "0")}`;
+        const x = startX + col * stepX;
+        const y = startY + row * stepY;
+        const line = `sprite.place id=${id} kind=${spriteKind} x=${x} y=${y} layer=${spriteLayer}`;
+        await apiCall("/v1/ambroflow/place", "POST", {
+          raw: line,
+          scene_id: section.toLowerCase(),
+          tags: { feature: "sprite-generator", mode: "automatic" },
+          metadata: {
+            sprite: {
+              id,
+              kind: spriteKind,
+              x,
+              y,
+              layer: spriteLayer,
+            },
+            auto: {
+              index: i,
+              count,
+              columns,
+            },
+          },
+          context: { workspace_id: workspaceId },
+        });
+      }
+      return { emitted: count };
+    });
+  }
+
+  async function lookupAkinenwun(word, mode, ingest, setter, actionName) {
+    await runAction(actionName, async () => {
+      const data = await apiCall("/v1/ambroflow/akinenwun/lookup", "POST", {
+        akinenwun: word,
+        mode,
+        ingest
+      });
+      setter(data);
+      return data;
+    });
+  }
+
+  function pinRendererFrontierSnapshot() {
+    if (!rendererAkinenwunFrontier || typeof rendererAkinenwunFrontier !== "object") {
+      setNotice("renderer_akinenwun_pin: no frontier loaded");
+      return;
+    }
+    const snapshot = {
+      hash: String(rendererAkinenwunFrontier.frontier_hash || ""),
+      akinenwun: rendererAkinenwunWord,
+      mode: rendererAkinenwunMode,
+      at: new Date().toISOString(),
+      frontier: rendererAkinenwunFrontier.frontier || {}
+    };
+    if (!snapshot.hash) {
+      setNotice("renderer_akinenwun_pin: missing frontier hash");
+      return;
+    }
+    setRendererAkinenwunSnapshots((prev) => {
+      const deduped = prev.filter((item) => item.hash !== snapshot.hash);
+      return [snapshot, ...deduped].slice(0, 40);
+    });
+  }
+
+  function restoreRendererSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== "object") {
+      return;
+    }
+    setRendererAkinenwunWord(String(snapshot.akinenwun || ""));
+    setRendererAkinenwunMode(String(snapshot.mode || "prose"));
+    setRendererAkinenwunFrontier({
+      akinenwun: String(snapshot.akinenwun || ""),
+      mode: String(snapshot.mode || "prose"),
+      frontier_hash: String(snapshot.hash || ""),
+      frontier: snapshot.frontier || {}
+    });
+  }
+
+  function promoteGraphMakerToRendererSnapshot() {
+    const frontierObj = graphMakerFrontierResult.frontier;
+    if (!frontierObj || typeof frontierObj !== "object") {
+      setNotice("graph_maker_promote: no frontier to promote");
+      return;
+    }
+    const sourcePayload =
+      graphMakerSource === "workshop"
+        ? akinenwunFrontier
+        : graphMakerSource === "renderer"
+        ? rendererAkinenwunFrontier
+        : null;
+    const hash =
+      sourcePayload && typeof sourcePayload.frontier_hash === "string" && sourcePayload.frontier_hash
+        ? sourcePayload.frontier_hash
+        : localFrontierHash(frontierObj);
+    const mode =
+      sourcePayload && typeof sourcePayload.mode === "string"
+        ? sourcePayload.mode
+        : graphMakerSource === "manual"
+        ? "manual"
+        : "prose";
+    const akinenwun =
+      sourcePayload && typeof sourcePayload.akinenwun === "string"
+        ? sourcePayload.akinenwun
+        : graphMakerSource === "manual"
+        ? "manual_frontier"
+        : "frontier";
+
+    const snapshot = {
+      hash,
+      akinenwun,
+      mode,
+      at: new Date().toISOString(),
+      frontier: frontierObj
+    };
+    setRendererAkinenwunSnapshots((prev) => {
+      const deduped = prev.filter((item) => item.hash !== snapshot.hash);
+      return [snapshot, ...deduped].slice(0, 40);
+    });
+    restoreRendererSnapshot(snapshot);
+    setSection("Renderer Lab");
+  }
+
+  function downloadTileSvg() {
+    const scale = clampInt(tileSvgExportScale, 1, 8, 2);
+    const svg = buildTileSvgMarkup(tileSvgModel, tileSvgShowGrid, tileSvgShowLinks, scale);
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `tilemap-${workspaceId}-${tileSvgModel.width * scale}x${tileSvgModel.height * scale}.svg`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function applyResolutionPreset(preset) {
+    if (preset === "SD") {
+      setTileCols("32");
+      setTileRows("18");
+      setTileCellPx("20");
+      setTileSvgExportScale("2");
+      return;
+    }
+    if (preset === "HD") {
+      setTileCols("64");
+      setTileRows("36");
+      setTileCellPx("20");
+      setTileSvgExportScale("2");
+      return;
+    }
+    if (preset === "2K") {
+      setTileCols("128");
+      setTileRows("72");
+      setTileCellPx("16");
+      setTileSvgExportScale("2");
+    }
+  }
+
+  function applyAssetGenProfileV1() {
+    setTileCols(ASSET_GEN_PROFILE_V1.cols);
+    setTileRows(ASSET_GEN_PROFILE_V1.rows);
+    setTileCellPx(ASSET_GEN_PROFILE_V1.cellPx);
+    setTileSvgExportScale(ASSET_GEN_PROFILE_V1.exportScale);
+    setTileNearThreshold(ASSET_GEN_PROFILE_V1.nearThreshold);
+    setTileColorToken(ASSET_GEN_PROFILE_V1.colorToken);
+    setTileOpacityToken(ASSET_GEN_PROFILE_V1.opacityToken);
+    setTileActiveLayer(ASSET_GEN_PROFILE_V1.layer);
+    setTileProcTemplate(ASSET_GEN_PROFILE_V1.template);
+    setTileProcCode(TILE_PROC_FORM_LIBRARY[ASSET_GEN_PROFILE_V1.template]);
+    setTileProcStatus("profile_loaded:asset-gen-v1");
+  }
+
+  function applyProceduralTiles() {
+    const seed = clampInt(tileProcSeed, 0, 999999, 42);
+    const cols = clampInt(tileCols, 1, 256, 48);
+    const rows = clampInt(tileRows, 1, 256, 27);
+    try {
+      const fn = new Function(
+        "seed",
+        "cols",
+        "rows",
+        "layer",
+        "\"use strict\";\n" + tileProcCode
+      );
+      const out = fn(seed, cols, rows, tileActiveLayer);
+      if (!out || typeof out !== "object" || Array.isArray(out)) {
+        throw new Error("generator must return object");
+      }
+      const tiles = Array.isArray(out.tiles) ? out.tiles : [];
+      const links = Array.isArray(out.links) ? out.links : [];
+      const entities = Array.isArray(out.entities) ? out.entities : [];
+
+      const nextPlacements = {};
+      for (const item of tiles) {
+        if (!item || typeof item !== "object") {
+          continue;
+        }
+        const x = clampInt(item.x, 0, cols - 1, 0);
+        const y = clampInt(item.y, 0, rows - 1, 0);
+        const layer = typeof item.layer === "string" && item.layer ? item.layer : tileActiveLayer;
+        const presence = item.presence_token === "Zo" ? "Zo" : "Ta";
+        if (presence === "Zo") {
+          continue;
+        }
+        const color = typeof item.color_token === "string" ? item.color_token : tileColorToken;
+        const opacity = typeof item.opacity_token === "string" ? item.opacity_token : tileOpacityToken;
+        const key = tileKey(x, y, layer);
+        nextPlacements[key] = {
+          id: `tile_${layer}_${x}_${y}`,
+          x,
+          y,
+          layer,
+          presence_token: "Ta",
+          color_token: color,
+          opacity_token: opacity,
+        };
+      }
+      setTilePlacements(nextPlacements);
+
+      const nextLinks = links
+        .map((link, index) => {
+          if (!link || typeof link !== "object") {
+            return null;
+          }
+          const ax = clampInt(link.ax, 0, cols - 1, 0);
+          const ay = clampInt(link.ay, 0, rows - 1, 0);
+          const bx = clampInt(link.bx, 0, cols - 1, 0);
+          const by = clampInt(link.by, 0, rows - 1, 0);
+          const al = typeof link.alayer === "string" && link.alayer ? link.alayer : tileActiveLayer;
+          const bl = typeof link.blayer === "string" && link.blayer ? link.blayer : tileActiveLayer;
+          const from = tileKey(ax, ay, al);
+          const to = tileKey(bx, by, bl);
+          const dist = tileDistance({ x: ax, y: ay }, { x: bx, y: by });
+          const nearThreshold = Math.max(1, Number.parseInt(tileNearThreshold || "2", 10) || 2);
+          const rel = relationTokenForDistance(dist, nearThreshold);
+          return {
+            id: `link_proc_${index}_${from.replace("|", "_").replace(",", "_")}_${to.replace("|", "_").replace(",", "_")}`,
+            from,
+            to,
+            distance: dist,
+            relation_token: rel,
+          };
+        })
+        .filter(Boolean);
+      setTileConnections(nextLinks);
+
+      if (entities.length > 0) {
+        const spec = parseObjectJson(rendererGameSpecText, {});
+        const existing = Array.isArray(spec.entities) ? spec.entities : [];
+        const merged = { ...spec, entities: [...existing, ...entities] };
+        setRendererGameSpecText(JSON.stringify(merged, null, 2));
+      }
+      setTileProcStatus(`generated:${Object.keys(nextPlacements).length}_tiles`);
+      setRendererGameStatus(`procedural:${Object.keys(nextPlacements).length}_tiles`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setTileProcStatus(`error:${msg}`);
+      setNotice(`procedural_generate: ${msg}`);
+    }
+  }
+
+  function loadProceduralTemplate(name) {
+    const template = TILE_PROC_FORM_LIBRARY[name];
+    if (!template) {
+      setNotice(`template_not_found:${name}`);
+      return;
+    }
+    setTileProcTemplate(name);
+    setTileProcCode(template);
+    setTileProcStatus(`template_loaded:${name}`);
+  }
+
+  function saveGenerationPreset() {
+    const name = tilePresetName.trim();
+    if (!name) {
+      setNotice("preset_save: name required");
+      return;
+    }
+    const preset = {
+      name,
+      at: new Date().toISOString(),
+      params: {
+        cols: tileCols,
+        rows: tileRows,
+        cellPx: tileCellPx,
+        exportScale: tileSvgExportScale,
+        nearThreshold: tileNearThreshold,
+        activeLayer: tileActiveLayer,
+        presenceToken: tilePresenceToken,
+        colorToken: tileColorToken,
+        opacityToken: tileOpacityToken,
+        template: tileProcTemplate,
+        seed: tileProcSeed,
+      },
+      code: tileProcCode,
+    };
+    setTileSavedPresets((prev) => [preset, ...prev.filter((item) => item.name !== name)].slice(0, 40));
+    setTileProcStatus(`preset_saved:${name}`);
+  }
+
+  function loadGenerationPreset(name) {
+    const preset = tileSavedPresets.find((item) => item.name === name);
+    if (!preset || typeof preset !== "object") {
+      setNotice(`preset_load: not found ${name}`);
+      return;
+    }
+    const p = preset.params || {};
+    setTileCols(String(p.cols ?? tileCols));
+    setTileRows(String(p.rows ?? tileRows));
+    setTileCellPx(String(p.cellPx ?? tileCellPx));
+    setTileSvgExportScale(String(p.exportScale ?? tileSvgExportScale));
+    setTileNearThreshold(String(p.nearThreshold ?? tileNearThreshold));
+    setTileActiveLayer(String(p.activeLayer ?? tileActiveLayer));
+    setTilePresenceToken(String(p.presenceToken ?? tilePresenceToken));
+    setTileColorToken(String(p.colorToken ?? tileColorToken));
+    setTileOpacityToken(String(p.opacityToken ?? tileOpacityToken));
+    setTileProcTemplate(String(p.template ?? tileProcTemplate));
+    setTileProcSeed(String(p.seed ?? tileProcSeed));
+    setTileProcCode(typeof preset.code === "string" ? preset.code : tileProcCode);
+    setTileProcStatus(`preset_loaded:${name}`);
+  }
+
+  function buildAssetGenerationManifest() {
+    return {
+      profile: "asset-gen-v1",
+      generated_at: new Date().toISOString(),
+      workspace_id: workspaceId,
+      generation: {
+        seed: tileProcSeed,
+        template: tileProcTemplate,
+        code_hash: localStringHash(tileProcCode),
+      },
+      grid: {
+        cols: tileSvgModel.cols,
+        rows: tileSvgModel.rows,
+        cell_px: tileSvgModel.cell,
+        export_scale: clampInt(tileSvgExportScale, 1, 8, 2),
+        width_px: tileSvgModel.width,
+        height_px: tileSvgModel.height,
+      },
+      token_defaults: {
+        presence: tilePresenceToken,
+        color: tileColorToken,
+        opacity: tileOpacityToken,
+      },
+      layers: tileSvgModel.layers.map((layer) => ({ name: layer.name, tile_count: layer.tiles.length })),
+      counts: {
+        tiles: Object.keys(tilePlacements).length,
+        links: tileConnections.length,
+      },
+      hashes: {
+        svg_hash: localStringHash(tileSvgMarkup),
+        placement_hash: localFrontierHash(tilePlacements),
+        links_hash: localFrontierHash(tileConnections),
+      },
+      motion_logic: {
+        near_threshold: Number.parseInt(tileNearThreshold || "2", 10) || 2,
+        tokens: { near: "Ti", far: "Ze" },
+      },
+    };
+  }
+
+  function exportAssetManifest() {
+    const manifest = buildAssetGenerationManifest();
+    downloadJson(`asset-manifest-${workspaceId}.json`, manifest);
   }
 
   async function createEntity(action, path, payload, reset, refresh) {
@@ -1187,6 +2093,96 @@ export function App() {
   const cobraFrameDoc = useMemo(() => buildRendererFrameHtml("cobra", rendererCobra, rendererEngineState), [rendererCobra, rendererEngineState]);
   const jsFrameDoc = useMemo(() => buildRendererFrameHtml("javascript", rendererJs, rendererEngineState), [rendererJs, rendererEngineState]);
   const jsonFrameDoc = useMemo(() => buildRendererFrameHtml("json", rendererJson, rendererEngineState), [rendererJson, rendererEngineState]);
+  const workshopFrontierGraph = useMemo(
+    () => buildFrontierGraph(akinenwunFrontier && akinenwunFrontier.frontier ? akinenwunFrontier.frontier : null),
+    [akinenwunFrontier]
+  );
+  const rendererFrontierGraph = useMemo(
+    () => buildFrontierGraph(
+      rendererAkinenwunFrontier && rendererAkinenwunFrontier.frontier ? rendererAkinenwunFrontier.frontier : null
+    ),
+    [rendererAkinenwunFrontier]
+  );
+  const rendererGameSpec = useMemo(() => parseObjectJson(rendererGameSpecText, {}), [rendererGameSpecText]);
+  const rendererGameEntities = useMemo(
+    () => (Array.isArray(rendererGameSpec.entities) ? rendererGameSpec.entities : []),
+    [rendererGameSpec]
+  );
+  const tileGridCells = useMemo(() => {
+    const cols = clampInt(tileCols, 1, 128, 48);
+    const rows = clampInt(tileRows, 1, 128, 27);
+    const out = [];
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const key = tileKey(x, y);
+        out.push({
+          key,
+          x,
+          y,
+          placement: tilePlacements[key] || null,
+        });
+      }
+    }
+    return out;
+  }, [tileCols, tileRows, tilePlacements]);
+  const tilePreviewCellPx = useMemo(() => clampInt(tileCellPx, 10, 40, 24), [tileCellPx]);
+  const tileLayerList = useMemo(() => {
+    const defaults = ["ground", "base", "detail", "fx", "ui"];
+    const found = Object.values(tilePlacements)
+      .map((item) => String(item.layer || "base"))
+      .filter((item, index, arr) => arr.indexOf(item) === index);
+    return [...defaults.filter((d) => !found.includes(d)), ...found].sort((a, b) => a.localeCompare(b));
+  }, [tilePlacements]);
+  const tileSvgModel = useMemo(() => {
+    const cols = clampInt(tileCols, 1, 256, 48);
+    const rows = clampInt(tileRows, 1, 256, 27);
+    const cell = clampInt(tileCellPx, 8, 128, 24);
+    const width = cols * cell;
+    const height = rows * cell;
+    const layers = tileLayerList.map((layer) => ({
+      name: layer,
+      tiles: Object.values(tilePlacements).filter((item) => String(item.layer || "base") === layer),
+    }));
+    const links = tileConnections.map((link) => {
+      const a = parseTileKey(link.from);
+      const b = parseTileKey(link.to);
+      return {
+        ...link,
+        x1: a.x * cell + cell / 2,
+        y1: a.y * cell + cell / 2,
+        x2: b.x * cell + cell / 2,
+        y2: b.y * cell + cell / 2,
+      };
+    });
+    return { cols, rows, cell, width, height, layers, links };
+  }, [tileCols, tileRows, tileCellPx, tileLayerList, tilePlacements, tileConnections]);
+  const tileSvgMarkup = useMemo(() => {
+    return buildTileSvgMarkup(tileSvgModel, tileSvgShowGrid, tileSvgShowLinks, 1);
+  }, [tileSvgModel, tileSvgShowGrid, tileSvgShowLinks]);
+  const graphMakerFrontierResult = useMemo(() => {
+    if (graphMakerSource === "workshop") {
+      return {
+        frontier: akinenwunFrontier && akinenwunFrontier.frontier ? akinenwunFrontier.frontier : null,
+        error: ""
+      };
+    }
+    if (graphMakerSource === "renderer") {
+      return {
+        frontier: rendererAkinenwunFrontier && rendererAkinenwunFrontier.frontier ? rendererAkinenwunFrontier.frontier : null,
+        error: ""
+      };
+    }
+    try {
+      const parsed = JSON.parse(graphMakerManualFrontierText || "{}");
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return { frontier: null, error: "manual frontier must be an object" };
+      }
+      return { frontier: parsed, error: "" };
+    } catch {
+      return { frontier: null, error: "manual frontier is not valid JSON" };
+    }
+  }, [graphMakerSource, akinenwunFrontier, rendererAkinenwunFrontier, graphMakerManualFrontierText]);
+  const graphMakerGraph = useMemo(() => buildFrontierGraph(graphMakerFrontierResult.frontier), [graphMakerFrontierResult]);
   const calendarCells = useMemo(() => buildCalendarDays(calendarYear, calendarMonth), [calendarYear, calendarMonth]);
   const selectedCalendarRange = useMemo(() => {
     if (!calendarDragStart || !calendarDragEnd) {
@@ -1244,6 +2240,123 @@ export function App() {
       tick: Number(rendererEngineState.tick || 0) + 1
     };
     setRendererEngineStateText(JSON.stringify(next, null, 2));
+  }
+
+  function compileGameSpecToRenderer() {
+    const spec = parseObjectJson(rendererGameSpecText, {});
+    const scene = spec.scene && typeof spec.scene === "object" ? spec.scene : {};
+    const systems = spec.systems && typeof spec.systems === "object" ? spec.systems : {};
+    const entities = Array.isArray(spec.entities) ? spec.entities : [];
+    const tileEntities = Object.values(tilePlacements);
+    const linkEntities = tileConnections.map((link) => ({
+      id: link.id,
+      kind: "tile_link",
+      from: link.from,
+      to: link.to,
+      from_layer: parseTileKey(link.from).layer,
+      to_layer: parseTileKey(link.to).layer,
+      relation_token: link.relation_token,
+      distance: link.distance,
+    }));
+    const mergedEntities = [...entities, ...tileEntities, ...linkEntities];
+    const tileMotion = tileConnections.map((link) => ({
+      from: link.from,
+      to: link.to,
+      relation_token: link.relation_token,
+      distance: link.distance,
+    }));
+    const systemsNext = {
+      ...systems,
+      tile_motion_logic: tileMotion,
+    };
+    const nextEngine = {
+      ...rendererEngineState,
+      camera: systems.camera && typeof systems.camera === "object" ? systems.camera : rendererEngineState.camera || { x: 0, y: 0 },
+      gravity: Number(systems.gravity || 0),
+      scene: scene.name || "prototype",
+      entities: mergedEntities.length
+    };
+    setRendererPython(compilePythonDrawFromEntities(String(scene.name || "prototype"), mergedEntities));
+    setRendererCobra(compileCobraFromEntities(mergedEntities));
+    setRendererJson(JSON.stringify({ scene, systems: systemsNext, entities: mergedEntities }, null, 2));
+    setRendererEngineStateText(JSON.stringify(nextEngine, null, 2));
+    setRendererGameStatus(`compiled:${mergedEntities.length}_entities`);
+  }
+
+  function addEntityToGameSpec() {
+    const spec = parseObjectJson(rendererGameSpecText, {});
+    const existing = Array.isArray(spec.entities) ? spec.entities : [];
+    const nextEntity = {
+      id: rendererNewEntityId || `entity-${Date.now()}`,
+      kind: rendererNewEntityKind || "token",
+      x: Number(rendererNewEntityX || 0),
+      y: Number(rendererNewEntityY || 0)
+    };
+    const merged = { ...spec, entities: [...existing, nextEntity] };
+    setRendererGameSpecText(JSON.stringify(merged, null, 2));
+    setRendererGameStatus(`entity_added:${nextEntity.id}`);
+  }
+
+  function paintTile(x, y) {
+    const key = tileKey(x, y, tileActiveLayer);
+    if (tilePresenceToken === "Zo") {
+      setTilePlacements((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      setRendererGameStatus(`tile_removed:${key}`);
+      return;
+    }
+    const placement = {
+      id: `tile_${tileActiveLayer}_${x}_${y}`,
+      x,
+      y,
+      layer: tileActiveLayer,
+      presence_token: "Ta",
+      color_token: tileColorToken,
+      opacity_token: tileOpacityToken,
+    };
+    setTilePlacements((prev) => ({ ...prev, [key]: placement }));
+    setRendererGameStatus(`tile_painted:${key}`);
+  }
+
+  function connectTile(aKey, bKey) {
+    if (!aKey || !bKey || aKey === bKey) {
+      return;
+    }
+    const a = parseTileKey(aKey);
+    const b = parseTileKey(bKey);
+    const distance = tileDistance(a, b);
+    const nearThreshold = Math.max(1, Number.parseInt(tileNearThreshold || "2", 10) || 2);
+    const relation = relationTokenForDistance(distance, nearThreshold);
+    const connId = [aKey, bKey].sort().join("->");
+    const nextConn = {
+      id: `link_${connId.replace(",", "_").replace("->", "__")}`,
+      from: aKey,
+      to: bKey,
+      distance,
+      relation_token: relation,
+    };
+    setTileConnections((prev) => {
+      const filtered = prev.filter((it) => it.id !== nextConn.id);
+      return [...filtered, nextConn];
+    });
+    setRendererGameStatus(`tile_connected:${nextConn.id}`);
+  }
+
+  function handleTileClick(x, y) {
+    const key = tileKey(x, y, tileActiveLayer);
+    if (tileConnectMode) {
+      if (!tileConnectFrom) {
+        setTileConnectFrom(key);
+        return;
+      }
+      connectTile(tileConnectFrom, key);
+      setTileConnectFrom(null);
+      return;
+    }
+    paintTile(x, y);
   }
 
   function renderSectionTools() {
@@ -1470,13 +2583,81 @@ export function App() {
             </div>
           </section>
           {adminVerified && role === "steward" ? (
-            <section className="panel">
-              <h2>Placement Emitter</h2>
-              <div className="row">
-                <input value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="emit placement line" />
-                <button className="action" onClick={place}>Emit Placement</button>
-              </div>
-            </section>
+            <>
+              <section className="panel">
+                <h2>Placement Emitter</h2>
+                <div className="row">
+                  <input value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="emit placement line" />
+                  <button className="action" onClick={place}>Emit Placement</button>
+                </div>
+              </section>
+              <section className="panel">
+                <h2>Sprite Generator</h2>
+                <p>Emit structural sprite placements (manual or automatic grid) through Ambroflow landing.</p>
+                <div className="row">
+                  <input value={spriteId} onChange={(e) => setSpriteId(e.target.value)} placeholder="sprite id" />
+                  <input value={spriteKind} onChange={(e) => setSpriteKind(e.target.value)} placeholder="sprite kind" />
+                  <input value={spriteLayer} onChange={(e) => setSpriteLayer(e.target.value)} placeholder="layer" />
+                </div>
+                <div className="row">
+                  <input value={spriteX} onChange={(e) => setSpriteX(e.target.value)} placeholder="x" />
+                  <input value={spriteY} onChange={(e) => setSpriteY(e.target.value)} placeholder="y" />
+                  <button className="action" onClick={emitSpriteManual}>Emit Manual Sprite</button>
+                </div>
+                <div className="row">
+                  <input value={spriteAutoPrefix} onChange={(e) => setSpriteAutoPrefix(e.target.value)} placeholder="auto prefix" />
+                  <input value={spriteAutoCount} onChange={(e) => setSpriteAutoCount(e.target.value)} placeholder="count" />
+                  <input value={spriteAutoColumns} onChange={(e) => setSpriteAutoColumns(e.target.value)} placeholder="columns" />
+                </div>
+                <div className="row">
+                  <input value={spriteAutoStartX} onChange={(e) => setSpriteAutoStartX(e.target.value)} placeholder="start x" />
+                  <input value={spriteAutoStartY} onChange={(e) => setSpriteAutoStartY(e.target.value)} placeholder="start y" />
+                  <input value={spriteAutoStepX} onChange={(e) => setSpriteAutoStepX(e.target.value)} placeholder="step x" />
+                  <input value={spriteAutoStepY} onChange={(e) => setSpriteAutoStepY(e.target.value)} placeholder="step y" />
+                  <button className="action" onClick={emitSpriteAuto}>Emit Auto Sprites</button>
+                </div>
+              </section>
+              <section className="panel">
+                <h2>Akinenwun Composer</h2>
+                <p>Compound symbols are contiguous (no spaces). Resolve meaning frontier through kernel lookup.</p>
+                <div className="row">
+                  <input value={akinenwunWord} onChange={(e) => setAkinenwunWord(e.target.value)} placeholder="Akinenwun e.g. TyKoWuVu" />
+                  <select value={akinenwunMode} onChange={(e) => setAkinenwunMode(e.target.value)}>
+                    <option value="prose">Prose mode</option>
+                    <option value="engine">Engine mode</option>
+                  </select>
+                  <label>
+                    <input type="checkbox" checked={akinenwunIngest} onChange={(e) => setAkinenwunIngest(e.target.checked)} /> Ingest dictionary
+                  </label>
+                  <button
+                    className="action"
+                    onClick={() => lookupAkinenwun(akinenwunWord, akinenwunMode, akinenwunIngest, setAkinenwunFrontier, "akinenwun_lookup_workshop")}
+                  >
+                    Resolve Frontier
+                  </button>
+                </div>
+                <div className="row">
+                  <span className="badge">{`Hash: ${akinenwunFrontier?.frontier_hash || "n/a"}`}</span>
+                  <span className="badge">{`Stored: ${akinenwunFrontier?.stored ? "yes" : "no"}`}</span>
+                  <span className="badge">{`Dictionary Size: ${akinenwunFrontier?.dictionary_size ?? 0}`}</span>
+                </div>
+                <pre>{JSON.stringify(akinenwunFrontier || {}, null, 2)}</pre>
+              </section>
+              <GraphBars
+                title="Akinenwun Graph Maker"
+                items={[
+                  { label: "Paths", value: workshopFrontierGraph.stats.paths },
+                  { label: "Nodes", value: workshopFrontierGraph.stats.nodes },
+                  { label: "Edges", value: workshopFrontierGraph.stats.edges },
+                  { label: "Symbols", value: workshopFrontierGraph.stats.symbols }
+                ]}
+              />
+              <section className="panel">
+                <h2>Graph Projection</h2>
+                <p>Projected node/edge view from frontier paths for workshop tooling.</p>
+                <pre>{JSON.stringify({ nodes: workshopFrontierGraph.nodes, edges: workshopFrontierGraph.edges }, null, 2)}</pre>
+              </section>
+            </>
           ) : null}
         </>
       );
@@ -1784,7 +2965,266 @@ export function App() {
           </section>
           <section className="panel">
             <h2>Engine State</h2>
+            <div className="row">
+              <button className="action" onClick={() => setRendererSimPlaying((prev) => !prev)}>
+                {rendererSimPlaying ? "Pause Playtest" : "Start Playtest"}
+              </button>
+              <input value={rendererSimMs} onChange={(e) => setRendererSimMs(e.target.value)} placeholder="tick ms" />
+              <span className="badge">{`Status: ${rendererGameStatus}`}</span>
+            </div>
             <textarea className="editor editor-mono renderer-state" value={rendererEngineStateText} onChange={(e) => setRendererEngineStateText(e.target.value)} />
+          </section>
+          <section className="panel">
+            <h2>Game Design Workbench</h2>
+            <p>Define scene/systems/entities as Game Spec JSON and compile into renderer layers for playtesting.</p>
+            <div className="row">
+              <button className="action" onClick={compileGameSpecToRenderer}>Compile Game Spec</button>
+              <button className="action" onClick={() => downloadJson("renderer-game-spec.json", rendererGameSpec)}>Export Spec</button>
+              <span className="badge">{`Entities: ${rendererGameEntities.length}`}</span>
+            </div>
+            <div className="row">
+              <input value={rendererNewEntityId} onChange={(e) => setRendererNewEntityId(e.target.value)} placeholder="entity id" />
+              <input value={rendererNewEntityKind} onChange={(e) => setRendererNewEntityKind(e.target.value)} placeholder="entity kind" />
+              <input value={rendererNewEntityX} onChange={(e) => setRendererNewEntityX(e.target.value)} placeholder="x" />
+              <input value={rendererNewEntityY} onChange={(e) => setRendererNewEntityY(e.target.value)} placeholder="y" />
+              <button className="action" onClick={addEntityToGameSpec}>Add Entity</button>
+            </div>
+            <textarea
+              className="editor editor-mono renderer-game-spec"
+              value={rendererGameSpecText}
+              onChange={(e) => setRendererGameSpecText(e.target.value)}
+              placeholder='{"scene":{"name":"prototype"},"systems":{"gravity":0.0},"entities":[...]}'
+            />
+          </section>
+          <section className="panel">
+            <h2>Tile Placement Network</h2>
+            <p>
+              Tile semantics: <code>Ta</code> present, <code>Zo</code> absent, color vectors <code>Ru..AE</code>, tone
+              tokens <code>Ha/Ga/Na/Ung/Wu</code>, connection relation by distance with <code>Ti</code> (near) and
+              <code>Ze</code> (far).
+            </p>
+            <div className="row">
+              <input value={tileCols} onChange={(e) => setTileCols(e.target.value)} placeholder="cols" />
+              <input value={tileRows} onChange={(e) => setTileRows(e.target.value)} placeholder="rows" />
+              <input value={tileCellPx} onChange={(e) => setTileCellPx(e.target.value)} placeholder="cell px" />
+              <input value={tileSvgExportScale} onChange={(e) => setTileSvgExportScale(e.target.value)} placeholder="export scale" />
+              <button className="action" onClick={() => applyResolutionPreset("SD")}>Preset SD</button>
+              <button className="action" onClick={() => applyResolutionPreset("HD")}>Preset HD</button>
+              <button className="action" onClick={() => applyResolutionPreset("2K")}>Preset 2K</button>
+              <button className="action" onClick={applyAssetGenProfileV1}>Load asset-gen-v1</button>
+              <select value={tileActiveLayer} onChange={(e) => setTileActiveLayer(e.target.value)}>
+                {tileLayerList.map((layer) => (
+                  <option key={layer} value={layer}>{layer}</option>
+                ))}
+              </select>
+              <select value={tilePresenceToken} onChange={(e) => setTilePresenceToken(e.target.value)}>
+                <option value="Ta">Ta present</option>
+                <option value="Zo">Zo absent</option>
+              </select>
+              <select value={tileColorToken} onChange={(e) => setTileColorToken(e.target.value)}>
+                {["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
+                  <option key={tok} value={tok}>{tok}</option>
+                ))}
+              </select>
+              <select value={tileOpacityToken} onChange={(e) => setTileOpacityToken(e.target.value)}>
+                {["Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
+                  <option key={tok} value={tok}>{tok}</option>
+                ))}
+              </select>
+              <input value={tileNearThreshold} onChange={(e) => setTileNearThreshold(e.target.value)} placeholder="near threshold" />
+              <button className="action" onClick={() => setTileConnectMode((prev) => !prev)}>
+                {tileConnectMode ? "Paint Mode" : "Connect Mode"}
+              </button>
+              <label><input type="checkbox" checked={tileSvgShowGrid} onChange={(e) => setTileSvgShowGrid(e.target.checked)} /> SVG grid</label>
+              <label><input type="checkbox" checked={tileSvgShowLinks} onChange={(e) => setTileSvgShowLinks(e.target.checked)} /> SVG links</label>
+              <button className="action" onClick={downloadTileSvg}>Export SVG</button>
+              <button className="action" onClick={exportAssetManifest}>Export Manifest</button>
+              <button className="action" onClick={() => setTileConnections([])}>Clear Links</button>
+              <button className="action" onClick={() => setTilePlacements({})}>Clear Tiles</button>
+            </div>
+            <div className="row">
+              <span className="badge">{`Tiles: ${Object.keys(tilePlacements).length}`}</span>
+              <span className="badge">{`Links: ${tileConnections.length}`}</span>
+              <span className="badge">{`Mode: ${tileConnectMode ? "connect" : "paint"}`}</span>
+              <span className="badge">{`Layer: ${tileActiveLayer}`}</span>
+              <span className="badge">{`Resolution: ${tileSvgModel.width}x${tileSvgModel.height}`}</span>
+              <span className="badge">{`Connect from: ${tileConnectFrom || "none"}`}</span>
+              <span className="badge">{`Procedural: ${tileProcStatus}`}</span>
+            </div>
+            <div className="row">
+              <input value={tileProcSeed} onChange={(e) => setTileProcSeed(e.target.value)} placeholder="proc seed" />
+              <select value={tileProcTemplate} onChange={(e) => loadProceduralTemplate(e.target.value)}>
+                <option value="ring_bloom">Ring Bloom</option>
+                <option value="maze_carve">Maze Carve</option>
+                <option value="island_chain">Island Chain</option>
+                <option value="corridor_grid">Corridor Grid</option>
+                <option value="noise_caves">Noise Caves</option>
+              </select>
+              <button className="action" onClick={() => loadProceduralTemplate(tileProcTemplate)}>Load Template</button>
+              <button className="action" onClick={() => setTileProcCode(TILE_PROC_FORM_LIBRARY.ring_bloom)}>Reset Code</button>
+              <button className="action" onClick={applyProceduralTiles}>Generate Procedural Form</button>
+            </div>
+            <div className="row">
+              <input value={tilePresetName} onChange={(e) => setTilePresetName(e.target.value)} placeholder="preset name" />
+              <button className="action" onClick={saveGenerationPreset}>Save Preset</button>
+              <select onChange={(e) => loadGenerationPreset(e.target.value)} defaultValue="">
+                <option value="" disabled>load saved preset</option>
+                {tileSavedPresets.map((preset) => (
+                  <option key={preset.name} value={preset.name}>{preset.name}</option>
+                ))}
+              </select>
+            </div>
+            <textarea
+              className="editor editor-mono tile-proc-editor"
+              value={tileProcCode}
+              onChange={(e) => setTileProcCode(e.target.value)}
+              placeholder="// return { tiles, links, entities? }"
+            />
+            <div
+              className="tile-grid"
+              style={{ gridTemplateColumns: `repeat(${clampInt(tileCols, 1, 128, 48)}, minmax(0, 1fr))` }}
+            >
+              {tileGridCells.map((cell) => {
+                const token = cell.placement ? cell.placement.color_token : "";
+                return (
+                  <button
+                    key={cell.key}
+                    className={`tile-cell ${tileConnectFrom === cell.key ? "tile-cell-connect-from" : ""}`}
+                    style={{
+                      background: cell.placement ? tokenColor(token) : "#faf5eb",
+                      color: token === "Ha" || token === "El" || token === "Wu" ? "#111" : "#fff",
+                      width: `${tilePreviewCellPx}px`,
+                      minHeight: `${tilePreviewCellPx}px`,
+                    }}
+                    onClick={() => handleTileClick(cell.x, cell.y)}
+                    title={`${cell.key}${cell.placement ? ` ${cell.placement.presence_token}/${cell.placement.color_token}/${cell.placement.opacity_token}` : ""}`}
+                  >
+                    {cell.placement ? cell.placement.color_token : "·"}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="tile-svg-wrap" dangerouslySetInnerHTML={{ __html: tileSvgMarkup }} />
+            <pre>{JSON.stringify({ tiles: tilePlacements, links: tileConnections }, null, 2)}</pre>
+          </section>
+          <GraphBars
+            title="Game Design Metrics"
+            items={[
+              { label: "Entities", value: rendererGameEntities.length + Object.keys(tilePlacements).length + tileConnections.length },
+              {
+                label: "Systems",
+                value:
+                  rendererGameSpec.systems && typeof rendererGameSpec.systems === "object"
+                    ? Object.keys(rendererGameSpec.systems).length
+                    : 0
+              },
+              { label: "Tick", value: Number(rendererEngineState.tick || 0) },
+              { label: "Snapshots", value: rendererAkinenwunSnapshots.length },
+              { label: "Tile Links", value: tileConnections.length }
+            ]}
+          />
+          <section className="panel">
+            <h2>Akinenwun Renderer Bridge</h2>
+            <p>Load a frontier, inspect graph shape, and pin hash-addressed snapshots for deterministic reuse.</p>
+            <div className="row">
+              <input value={rendererAkinenwunWord} onChange={(e) => setRendererAkinenwunWord(e.target.value)} placeholder="Akinenwun e.g. TyKoWuVu" />
+              <select value={rendererAkinenwunMode} onChange={(e) => setRendererAkinenwunMode(e.target.value)}>
+                <option value="prose">Prose mode</option>
+                <option value="engine">Engine mode</option>
+              </select>
+              <button
+                className="action"
+                onClick={() =>
+                  lookupAkinenwun(
+                    rendererAkinenwunWord,
+                    rendererAkinenwunMode,
+                    false,
+                    setRendererAkinenwunFrontier,
+                    "akinenwun_lookup_renderer"
+                  )
+                }
+              >
+                Load Frontier
+              </button>
+              <button className="action" onClick={pinRendererFrontierSnapshot}>Pin Snapshot</button>
+            </div>
+            <div className="row">
+              <span className="badge">{`Hash: ${rendererAkinenwunFrontier?.frontier_hash || "n/a"}`}</span>
+              <span className="badge">{`Snapshots: ${rendererAkinenwunSnapshots.length}`}</span>
+            </div>
+            <pre>{JSON.stringify(rendererAkinenwunFrontier || {}, null, 2)}</pre>
+          </section>
+          <GraphBars
+            title="Renderer Graph Maker"
+            items={[
+              { label: "Paths", value: rendererFrontierGraph.stats.paths },
+              { label: "Nodes", value: rendererFrontierGraph.stats.nodes },
+              { label: "Edges", value: rendererFrontierGraph.stats.edges },
+              { label: "Symbols", value: rendererFrontierGraph.stats.symbols }
+            ]}
+          />
+          <section className="panel">
+            <h2>Hash-Pinned Snapshots</h2>
+            {rendererAkinenwunSnapshots.length === 0 ? (
+              <p>No pinned snapshots yet.</p>
+            ) : (
+              <div className="snapshot-list">
+                {rendererAkinenwunSnapshots.map((snapshot) => (
+                  <div className="snapshot-row" key={snapshot.hash}>
+                    <code>{snapshot.hash}</code>
+                    <span>{`${snapshot.akinenwun} [${snapshot.mode}]`}</span>
+                    <button className="action" onClick={() => restoreRendererSnapshot(snapshot)}>Restore</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      );
+    }
+    if (section === "Graph Maker") {
+      return (
+        <>
+          <section className="panel">
+            <h2>Unified Graph Workspace</h2>
+            <p>Compose one graph surface from Workshop frontier, Renderer frontier, or a manual frontier payload.</p>
+            <div className="row">
+              <select value={graphMakerSource} onChange={(e) => setGraphMakerSource(e.target.value)}>
+                <option value="workshop">Workshop frontier</option>
+                <option value="renderer">Renderer frontier</option>
+                <option value="manual">Manual JSON frontier</option>
+              </select>
+              <button className="action" onClick={promoteGraphMakerToRendererSnapshot}>Promote to Renderer Snapshot</button>
+              <button className="action" onClick={() => downloadJson("graph-maker-nodes.json", graphMakerGraph.nodes)}>Export Nodes</button>
+              <button className="action" onClick={() => downloadJson("graph-maker-edges.json", graphMakerGraph.edges)}>Export Edges</button>
+              <button className="action" onClick={() => downloadJson("graph-maker-frontier.json", graphMakerFrontierResult.frontier || {})}>Export Frontier</button>
+            </div>
+            {graphMakerSource === "manual" ? (
+              <textarea
+                className="editor editor-mono graph-maker-editor"
+                value={graphMakerManualFrontierText}
+                onChange={(e) => setGraphMakerManualFrontierText(e.target.value)}
+                placeholder='{"paths":[{"symbols":["Ty","Ko"],"decimals":[0,19],"assembly":{"mode":"prose"}}]}'
+              />
+            ) : null}
+            {graphMakerFrontierResult.error ? <p className="graph-maker-error">{graphMakerFrontierResult.error}</p> : null}
+          </section>
+          <GraphBars
+            title="Graph Maker Summary"
+            items={[
+              { label: "Paths", value: graphMakerGraph.stats.paths },
+              { label: "Nodes", value: graphMakerGraph.stats.nodes },
+              { label: "Edges", value: graphMakerGraph.stats.edges },
+              { label: "Symbols", value: graphMakerGraph.stats.symbols }
+            ]}
+          />
+          <section className="panel">
+            <h2>Nodes</h2>
+            <pre>{JSON.stringify(graphMakerGraph.nodes, null, 2)}</pre>
+          </section>
+          <section className="panel">
+            <h2>Edges</h2>
+            <pre>{JSON.stringify(graphMakerGraph.edges, null, 2)}</pre>
           </section>
         </>
       );
