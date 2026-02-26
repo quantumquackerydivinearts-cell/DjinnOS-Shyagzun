@@ -352,6 +352,42 @@ function parseCobraShygazunScript(sourceText) {
   return { entities, words };
 }
 
+function analyzeCobraShygazunScript(sourceText) {
+  const lines = String(sourceText || "").split(/\r?\n/);
+  const warnings = [];
+  let hasEntity = false;
+  lines.forEach((rawLine, index) => {
+    const lineNo = index + 1;
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      return;
+    }
+    if (rawLine.includes("\t")) {
+      warnings.push(`L${lineNo}: tabs detected; use spaces for indentation`);
+    }
+    const indent = rawLine.length - rawLine.trimStart().length;
+    if (trimmed.startsWith("entity ")) {
+      const parts = trimmed.split(/\s+/);
+      if (parts.length < 5) {
+        warnings.push(`L${lineNo}: entity requires 'entity <id> <x> <y> <tag>'`);
+      }
+      hasEntity = true;
+      return;
+    }
+    if (indent > 0 && !hasEntity) {
+      warnings.push(`L${lineNo}: indented attribute without a parent statement`);
+      return;
+    }
+    if (trimmed.startsWith("lex ") || trimmed.startsWith("akinenwun ") || trimmed.startsWith("shygazun ")) {
+      const value = trimmed.replace(/^(lex|akinenwun|shygazun)\s+/, "").trim();
+      if (!value) {
+        warnings.push(`L${lineNo}: empty Shygazun lexical payload`);
+      }
+    }
+  });
+  return warnings;
+}
+
 function compilePythonDrawFromEntities(sceneName, entities) {
   const title = sceneName ? String(sceneName) : "Game Scene";
   const count = Array.isArray(entities) ? entities.length : 0;
@@ -2285,6 +2321,7 @@ export function App() {
   }, [rendererEngineStateText]);
   const pythonFrameDoc = useMemo(() => buildRendererFrameHtml("python", rendererPython, rendererEngineState), [rendererPython, rendererEngineState]);
   const cobraFrameDoc = useMemo(() => buildRendererFrameHtml("cobra", rendererCobra, rendererEngineState), [rendererCobra, rendererEngineState]);
+  const cobraLintWarnings = useMemo(() => analyzeCobraShygazunScript(rendererCobra), [rendererCobra]);
   const jsFrameDoc = useMemo(() => buildRendererFrameHtml("javascript", rendererJs, rendererEngineState), [rendererJs, rendererEngineState]);
   const jsonFrameDoc = useMemo(() => buildRendererFrameHtml("json", rendererJson, rendererEngineState), [rendererJson, rendererEngineState]);
   const workshopFrontierGraph = useMemo(
@@ -3130,6 +3167,7 @@ export function App() {
           <section className="panel">
             <h2>Multi-Frame Renderer</h2>
             <p>Programmable structural renderer with independent Python, Cobra, JavaScript, and JSON frames.</p>
+            <p>Cobra + Shygazun structure follows `COBRA_SHYGAZUN_SPEC.md` (entity statements + indented lexical attributes).</p>
             <div className="row">
               <button className="action" onClick={stepRendererEngine}>Step Engine Tick</button>
               <button className="action" onClick={emitCobraPlacements}>Emit Cobra Placements</button>
@@ -3144,6 +3182,12 @@ export function App() {
               <div className="renderer-cell">
                 <h3>Cobra Layer</h3>
                 <textarea className="editor editor-mono renderer-editor" value={rendererCobra} onChange={(e) => setRendererCobra(e.target.value)} />
+                <div className="row">
+                  <span className="badge">{`Lint: ${cobraLintWarnings.length === 0 ? "clean" : `${cobraLintWarnings.length} warning(s)`}`}</span>
+                </div>
+                {cobraLintWarnings.length > 0 ? (
+                  <pre>{JSON.stringify(cobraLintWarnings, null, 2)}</pre>
+                ) : null}
                 <iframe className="renderer-frame" sandbox="allow-scripts" srcDoc={cobraFrameDoc} title="cobra-renderer" />
               </div>
               <div className="renderer-cell">
