@@ -3,6 +3,7 @@ param(
     [switch]$SkipNpmInstall,
     [switch]$SkipDebug,
     [switch]$DebugOnly,
+    [string]$ApiBaseUrl = "",
     [string]$KeystorePath = "",
     [string]$StorePassword = "",
     [string]$KeyAlias = "",
@@ -51,7 +52,12 @@ try {
     if (-not $SkipNpmInstall) {
         & $node install
     }
-    & $node run mobile:sync
+    if ([string]::IsNullOrWhiteSpace($ApiBaseUrl)) {
+        & $node run mobile:sync
+    } else {
+        $env:VITE_API_BASE = $ApiBaseUrl
+        & $node run mobile:sync
+    }
 } finally {
     Pop-Location
 }
