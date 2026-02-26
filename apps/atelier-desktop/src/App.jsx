@@ -289,6 +289,69 @@ function compileCobraFromEntities(entities) {
     .join("\n");
 }
 
+function parseCobraShygazunScript(sourceText) {
+  const lines = String(sourceText || "").split(/\r?\n/);
+  const entities = [];
+  const words = [];
+  let current = null;
+  lines.forEach((rawLine) => {
+    const indent = rawLine.length - rawLine.trimStart().length;
+    const lineText = rawLine.trim();
+    if (!lineText || lineText.startsWith("#")) {
+      return;
+    }
+    if (indent > 0 && current) {
+      const colonAt = lineText.indexOf(":");
+      let key = "";
+      let value = "";
+      if (colonAt > 0) {
+        key = lineText.slice(0, colonAt).trim();
+        value = lineText.slice(colonAt + 1).trim();
+      } else {
+        const spaceAt = lineText.indexOf(" ");
+        if (spaceAt > 0) {
+          key = lineText.slice(0, spaceAt).trim();
+          value = lineText.slice(spaceAt + 1).trim();
+        } else {
+          key = lineText;
+        }
+      }
+      if (!current.meta) {
+        current.meta = {};
+      }
+      current.meta[key] = value;
+      if (key === "lex" || key === "akinenwun" || key === "shygazun") {
+        current.akinenwun = value;
+        const split = value.match(/[A-Z]+[a-z]*/g);
+        words.push({ word: value, symbols: split && split.length > 0 ? split : [value] });
+      }
+      return;
+    }
+    if (lineText.startsWith("entity ")) {
+      const parts = lineText.split(/\s+/);
+      current = {
+        id: parts[1] || "anon",
+        x: Number(parts[2] || 0),
+        y: Number(parts[3] || 0),
+        tag: parts[4] || "none",
+        meta: {}
+      };
+      entities.push(current);
+      return;
+    }
+    current = null;
+    if (lineText.startsWith("lex ") || lineText.startsWith("akinenwun ") || lineText.startsWith("word ")) {
+      const spaceAt = lineText.indexOf(" ");
+      const word = spaceAt > 0 ? lineText.slice(spaceAt + 1).trim() : "";
+      if (word) {
+        const split = word.match(/[A-Z]+[a-z]*/g);
+        words.push({ word, symbols: split && split.length > 0 ? split : [word] });
+      }
+    }
+  });
+  return { entities, words };
+}
+
 function compilePythonDrawFromEntities(sceneName, entities) {
   const title = sceneName ? String(sceneName) : "Game Scene";
   const count = Array.isArray(entities) ? entities.length : 0;
@@ -1077,6 +1140,9 @@ export function App() {
   const [studioRenameFolderTo, setStudioRenameFolderTo] = useState("");
   const [studioMoveTargetFolder, setStudioMoveTargetFolder] = useState("notes");
   const [studioDraggedFileId, setStudioDraggedFileId] = useState(null);
+  const [studioFsRoot, setStudioFsRoot] = useState(() => localStorage.getItem("atelier.studio_fs_root") || "");
+  const [studioFsScripts, setStudioFsScripts] = useState([]);
+  const [studioFsSelectedScript, setStudioFsSelectedScript] = useState("");
 
   const caps = useMemo(() => capabilitiesForRole(role).join(","), [role]);
   const datasetSummary = useMemo(
@@ -1108,6 +1174,7 @@ export function App() {
   useEffect(() => localStorage.setItem("atelier.studio_folders", JSON.stringify(studioFolders)), [studioFolders]);
   useEffect(() => localStorage.setItem("atelier.studio_files", JSON.stringify(studioFiles)), [studioFiles]);
   useEffect(() => localStorage.setItem("atelier.studio_selected", studioSelectedFileId), [studioSelectedFileId]);
+  useEffect(() => localStorage.setItem("atelier.studio_fs_root", studioFsRoot), [studioFsRoot]);
   useEffect(
     () => localStorage.setItem("atelier.renderer_akinenwun_snapshots", JSON.stringify(rendererAkinenwunSnapshots)),
     [rendererAkinenwunSnapshots]
@@ -1314,6 +1381,28 @@ export function App() {
         context: { workspace_id: workspaceId },
       })
     );
+  }
+
+  async function emitCobraPlacements() {
+    await runAction("cobra_emit_placements", async () => {
+      const parsed = parseCobraShygazunScript(rendererCobra);
+      if (!parsed.entities.length) {
+        throw new Error("cobra_emit: no entities found");
+      }
+      for (const entity of parsed.entities) {
+        const entityRaw = `entity ${entity.id} ${Number(entity.x || 0)} ${Number(entity.y || 0)} ${String(entity.tag || "none")}`;
+        await apiCall("/v1/ambroflow/place", "POST", {
+          raw: entityRaw,
+          scene_id: "renderer-lab",
+          context: {
+            workspace_id: workspaceId,
+            cobra_entity: entity,
+            akinenwun: typeof entity.akinenwun === "string" ? entity.akinenwun : null
+          }
+        });
+      }
+      return { placed: parsed.entities.length };
+    });
   }
 
   function toInt(value, fallback) {
@@ -1980,6 +2069,111 @@ export function App() {
       return;
     }
     setStudioFiles((prev) => prev.map((file) => (file.id === fileId ? { ...file, folder } : file)));
+  }
+
+  function hasDesktopFs() {
+    return Boolean(window.atelierDesktop && window.atelierDesktop.fs);
+  }
+
+  async function chooseStudioFsFolder() {
+    await runAction("studio_fs_choose", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      const result = await window.atelierDesktop.fs.chooseDirectory();
+      if (!result || !result.ok || typeof result.directory !== "string") {
+        throw new Error("studio_fs_choose cancelled");
+      }
+      setStudioFsRoot(result.directory);
+      return result;
+    });
+  }
+
+  async function refreshStudioFsScripts() {
+    await runAction("studio_fs_list", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      const result = await window.atelierDesktop.fs.listCobraScripts(studioFsRoot);
+      if (!result || !result.ok || !Array.isArray(result.files)) {
+        throw new Error("studio_fs_list failed");
+      }
+      setStudioFsScripts(result.files);
+      if (result.files.length > 0) {
+        setStudioFsSelectedScript(String(result.files[0]));
+      }
+      return result;
+    });
+  }
+
+  async function saveSelectedStudioFileToFs() {
+    await runAction("studio_fs_save_selected", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      if (!studioSelectedFile) {
+        throw new Error("studio_fs no selected file");
+      }
+      const sourceName = String(studioSelectedFile.name || "untitled.cobra");
+      const filename = sourceName.toLowerCase().endsWith(".cobra") ? sourceName : `${sourceName}.cobra`;
+      const result = await window.atelierDesktop.fs.writeCobraScript(studioFsRoot, filename, String(studioSelectedFile.content || ""));
+      await refreshStudioFsScripts();
+      return result;
+    });
+  }
+
+  async function importSelectedFsScriptToStudio() {
+    await runAction("studio_fs_import", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      if (!studioFsSelectedScript) {
+        throw new Error("studio_fs no script selected");
+      }
+      const result = await window.atelierDesktop.fs.readCobraScript(studioFsRoot, studioFsSelectedScript);
+      if (!result || !result.ok || typeof result.content !== "string") {
+        throw new Error("studio_fs_read failed");
+      }
+      const nextFile = {
+        id: makeStudioFileId(),
+        name: typeof result.filename === "string" && result.filename ? result.filename : studioFsSelectedScript,
+        folder: "scripts",
+        content: result.content
+      };
+      setStudioFiles((prev) => [...prev, nextFile]);
+      setStudioSelectedFileId(nextFile.id);
+      setRendererCobra(result.content);
+      return result;
+    });
+  }
+
+  async function exportAllCobraScriptsToFs() {
+    await runAction("studio_fs_export_all_cobra", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      const cobraFiles = studioFiles.filter((file) => String(file.name || "").toLowerCase().endsWith(".cobra"));
+      if (cobraFiles.length === 0) {
+        throw new Error("studio_fs no .cobra files in studio");
+      }
+      for (const file of cobraFiles) {
+        await window.atelierDesktop.fs.writeCobraScript(studioFsRoot, file.name, String(file.content || ""));
+      }
+      await refreshStudioFsScripts();
+      return { exported: cobraFiles.length };
+    });
   }
 
   function appendLessonBlock(block) {
@@ -2938,6 +3132,7 @@ export function App() {
             <p>Programmable structural renderer with independent Python, Cobra, JavaScript, and JSON frames.</p>
             <div className="row">
               <button className="action" onClick={stepRendererEngine}>Step Engine Tick</button>
+              <button className="action" onClick={emitCobraPlacements}>Emit Cobra Placements</button>
               <button className="action" onClick={() => setRendererEngineStateText(JSON.stringify({ tick: 0, camera: { x: 0, y: 0 } }, null, 2))}>Reset Engine</button>
             </div>
             <div className="renderer-grid">
@@ -3268,6 +3463,24 @@ export function App() {
         <>
           <section className="panel">
             <h2>Studio Workspace</h2>
+            <div className="row">
+              <input value={studioFsRoot} onChange={(e) => setStudioFsRoot(e.target.value)} placeholder="cobra scripts folder path" />
+              <button className="action" onClick={chooseStudioFsFolder}>Choose Folder</button>
+              <button className="action" onClick={refreshStudioFsScripts}>List .cobra</button>
+              <button className="action" onClick={importSelectedFsScriptToStudio}>Import Selected</button>
+              <button className="action" onClick={saveSelectedStudioFileToFs}>Save Selected</button>
+              <button className="action" onClick={exportAllCobraScriptsToFs}>Export All .cobra</button>
+            </div>
+            <div className="row">
+              <select value={studioFsSelectedScript} onChange={(e) => setStudioFsSelectedScript(e.target.value)}>
+                <option value="">select .cobra from folder</option>
+                {studioFsScripts.map((scriptName) => (
+                  <option key={`studio-fs-${scriptName}`} value={scriptName}>{scriptName}</option>
+                ))}
+              </select>
+              <span className="badge">{`Desktop FS: ${hasDesktopFs() ? "available" : "web-only"}`}</span>
+              <span className="badge">{`.cobra files: ${studioFsScripts.length}`}</span>
+            </div>
             <div className="row">
               <input value={studioNewFolder} onChange={(e) => setStudioNewFolder(e.target.value)} placeholder="new folder name" />
               <button className="action" onClick={createStudioFolder}>Add Folder</button>
