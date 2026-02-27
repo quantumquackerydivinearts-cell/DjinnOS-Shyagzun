@@ -27,6 +27,7 @@ from .models import (
     WorldRegion,
     AssetManifest,
     PlayerState,
+    RuntimePlanRun,
     Quote,
     Supplier,
 )
@@ -368,6 +369,30 @@ class AtelierRepository:
         self._db.commit()
         self._db.refresh(row)
         return row
+
+    def create_runtime_plan_run(self, row: RuntimePlanRun) -> RuntimePlanRun:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_runtime_plan_runs(self, workspace_id: str, actor_id: str, plan_id: str) -> Sequence[RuntimePlanRun]:
+        return self._db.scalars(
+            select(RuntimePlanRun).where(
+                RuntimePlanRun.workspace_id == workspace_id,
+                RuntimePlanRun.actor_id == actor_id,
+                RuntimePlanRun.plan_id == plan_id,
+            ).order_by(RuntimePlanRun.created_at.desc(), RuntimePlanRun.id.desc())
+        ).all()
+
+    def get_latest_runtime_plan_run(self, workspace_id: str, actor_id: str, plan_id: str) -> RuntimePlanRun | None:
+        return self._db.scalar(
+            select(RuntimePlanRun).where(
+                RuntimePlanRun.workspace_id == workspace_id,
+                RuntimePlanRun.actor_id == actor_id,
+                RuntimePlanRun.plan_id == plan_id,
+            ).order_by(RuntimePlanRun.created_at.desc(), RuntimePlanRun.id.desc())
+        )
 
     def list_asset_manifests(self, workspace_id: str) -> Sequence[AssetManifest]:
         return self._db.scalars(select(AssetManifest).where(AssetManifest.workspace_id == workspace_id)).all()

@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 API_APP_DIR = ROOT / "apps" / "atelier-api"
 sys.path.insert(0, str(API_APP_DIR))
 
-from atelier_api.main import app, _kernel_client, _kernel_only_service  # type: ignore[import]
+from atelier_api.main import app, _atelier_service, _kernel_client, _kernel_only_service  # type: ignore[import]
 from atelier_api.kernel_integration import KernelIntegrationService  # type: ignore[import]
 from atelier_api.models import PlayerState, Realm, WorldRegion  # type: ignore[import]
 from atelier_api.services import AtelierService  # type: ignore[import]
@@ -1002,6 +1002,78 @@ def test_game_runtime_consume_reports_per_action_failure() -> None:
     failed = [item for item in out["results"] if not item["ok"]]
     assert len(failed) == 1
     assert "drovitth_requires_sulphera_royalty_ring" in failed[0]["error"]
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_replay_reexecutes_stored_plan_and_verifies_hash() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _RuntimePlanRepo:
+        def __init__(self) -> None:
+            self._runs: list[object] = []
+
+        def create_runtime_plan_run(self, row: object) -> object:
+            if getattr(row, "id", None) is None:
+                setattr(row, "id", f"rpr_{len(self._runs) + 1}")
+            self._runs.append(row)
+            return row
+
+        def get_latest_runtime_plan_run(self, workspace_id: str, actor_id: str, plan_id: str) -> object | None:
+            matches = [
+                row
+                for row in self._runs
+                if getattr(row, "workspace_id", "") == workspace_id
+                and getattr(row, "actor_id", "") == actor_id
+                and getattr(row, "plan_id", "") == plan_id
+            ]
+            return matches[-1] if matches else None
+
+    repo = _RuntimePlanRepo()
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    consume_payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "replayable_plan",
+        "actions": [
+            {
+                "action_id": "compute_vitriol",
+                "kind": "vitriol.compute",
+                "payload": {
+                    "base": {
+                        "vitality": 7,
+                        "introspection": 6,
+                        "tactility": 6,
+                        "reflectivity": 6,
+                        "ingenuity": 6,
+                        "ostentation": 6,
+                        "levity": 6,
+                    },
+                    "modifiers": [],
+                    "current_tick": 42,
+                },
+            }
+        ],
+    }
+    consumed = client.post("/v1/game/runtime/consume", json=consume_payload, headers=headers)
+    assert consumed.status_code == 200
+    consumed_hash = consumed.json()["hash"]
+
+    replayed = client.post(
+        "/v1/game/runtime/replay",
+        json={"workspace_id": "main", "actor_id": "player", "plan_id": "replayable_plan"},
+        headers=headers,
+    )
+    assert replayed.status_code == 200
+    replay_payload = replayed.json()
+    assert replay_payload["hash_match"] is True
+    assert replay_payload["baseline_hash"] == consumed_hash
+    assert replay_payload["replay_hash"] == consumed_hash
+    assert replay_payload["baseline_run_id"] != ""
     app.dependency_overrides.clear()
 
 

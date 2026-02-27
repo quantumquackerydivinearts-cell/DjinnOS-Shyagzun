@@ -88,6 +88,8 @@ from .business_schemas import (
     GateEvaluateOut,
     RuntimeConsumeInput,
     RuntimeConsumeOut,
+    RuntimeReplayInput,
+    RuntimeReplayOut,
     RuntimeActionCatalogOut,
     DialogueEmitInput,
     DialogueEmitOut,
@@ -1987,6 +1989,35 @@ def consume_runtime_plan(
         actor_id=ctx.actor_id,
         workshop_id=workshop.identity.workshop_id,
     )
+
+
+@app.post("/v1/game/runtime/replay")
+def replay_runtime_plan(
+    payload: RuntimeReplayInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> RuntimeReplayOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        token=token,
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+    try:
+        return svc.replay_runtime_plan(
+            payload=payload,
+            actor_id=ctx.actor_id,
+            workshop_id=workshop.identity.workshop_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/v1/game/runtime/actions/catalog")

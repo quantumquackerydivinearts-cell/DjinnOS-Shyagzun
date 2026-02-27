@@ -817,6 +817,23 @@ class RuntimeConsumeOut(BaseModel):
     hash: str
 
 
+class RuntimeReplayInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    plan_id: str
+
+
+class RuntimeReplayOut(BaseModel):
+    workspace_id: str
+    actor_id: str
+    plan_id: str
+    baseline_hash: str
+    replay_hash: str
+    hash_match: bool
+    baseline_run_id: str
+    replay: RuntimeConsumeOut
+
+
 class RuntimeActionCatalogItemOut(BaseModel):
     kind: RuntimeActionKind
     summary: str

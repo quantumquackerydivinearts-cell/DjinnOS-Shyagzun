@@ -377,6 +377,22 @@ class PlayerState(Base):
     workspace: Mapped[Workspace] = relationship()
 
 
+class RuntimePlanRun(Base):
+    __tablename__ = "runtime_plan_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    plan_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    plan_payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    plan_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    result_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    result_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
 class AssetManifest(Base):
     __tablename__ = "asset_manifests"
 

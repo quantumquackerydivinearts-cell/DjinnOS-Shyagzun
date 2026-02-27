@@ -74,6 +74,8 @@ from .business_schemas import (
     RuntimeConsumeInput,
     RuntimeConsumeOut,
     RuntimeActionOut,
+    RuntimeReplayInput,
+    RuntimeReplayOut,
     RuntimeActionCatalogOut,
     RuntimeActionCatalogItemOut,
     CharacterDictionaryCreate,
@@ -164,6 +166,7 @@ from .models import (
     Quote,
     Supplier,
     PlayerState,
+    RuntimePlanRun,
     AssetManifest,
     Realm,
     Scene,
@@ -2833,7 +2836,7 @@ class AtelierService:
             "plan_id": payload.plan_id,
             "results": [item.model_dump(mode="json") for item in results],
         }
-        return RuntimeConsumeOut(
+        out = RuntimeConsumeOut(
             workspace_id=payload.workspace_id,
             actor_id=payload.actor_id,
             plan_id=payload.plan_id,
@@ -2841,6 +2844,75 @@ class AtelierService:
             failed_count=failed_count,
             results=results,
             hash=self._canonical_hash(hash_payload),
+        )
+        if self._repo is not None and hasattr(self._repo, "create_runtime_plan_run"):
+            plan_payload_json = self._canonical_json(
+                {
+                    "workspace_id": payload.workspace_id,
+                    "actor_id": payload.actor_id,
+                    "plan_id": payload.plan_id,
+                    "actions": [item.model_dump(mode="json") for item in payload.actions],
+                }
+            )
+            plan_hash = self._canonical_hash(
+                {
+                    "workspace_id": payload.workspace_id,
+                    "actor_id": payload.actor_id,
+                    "plan_id": payload.plan_id,
+                    "actions": [item.model_dump(mode="json") for item in payload.actions],
+                }
+            )
+            self._repo.create_runtime_plan_run(
+                RuntimePlanRun(
+                    workspace_id=payload.workspace_id,
+                    actor_id=payload.actor_id,
+                    plan_id=payload.plan_id,
+                    plan_payload_json=plan_payload_json,
+                    plan_hash=plan_hash,
+                    result_json=self._canonical_json(out.model_dump(mode="json")),
+                    result_hash=out.hash,
+                )
+            )
+        return out
+
+    def replay_runtime_plan(
+        self,
+        *,
+        payload: RuntimeReplayInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> RuntimeReplayOut:
+        repo = self._require_repo()
+        baseline = repo.get_latest_runtime_plan_run(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            plan_id=payload.plan_id,
+        )
+        if baseline is None:
+            raise ValueError("runtime_plan_not_found")
+        plan_obj = self._json_to_object_map(baseline.plan_payload_json)
+        actions_obj = plan_obj.get("actions")
+        actions = actions_obj if isinstance(actions_obj, list) else []
+        replay_in = RuntimeConsumeInput(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            plan_id=payload.plan_id,
+            actions=actions,
+        )
+        replay_out = self.consume_runtime_plan(
+            payload=replay_in,
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return RuntimeReplayOut(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            plan_id=payload.plan_id,
+            baseline_hash=baseline.result_hash,
+            replay_hash=replay_out.hash,
+            hash_match=baseline.result_hash == replay_out.hash,
+            baseline_run_id=baseline.id,
+            replay=replay_out,
         )
 
     def apply_djinn_influence(
