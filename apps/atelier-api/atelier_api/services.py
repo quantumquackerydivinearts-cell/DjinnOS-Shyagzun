@@ -1090,21 +1090,106 @@ class AtelierService:
         repo = self._require_repo()
         row = self._ensure_player_state(payload.workspace_id, payload.actor_id)
         tables = self._player_state_to_tables(row)
-        results: list[GameTickEventResult] = []
         updated_tables = tables
+        clock = dict(updated_tables.clock)
+        tick_before = self._int_from_table(clock.get("tick"), 0)
+        tick_after = tick_before + 1
+
+        raw_queue = self._list_of_dicts(clock.get("event_queue"))
+        normalized_queue: list[dict[str, object]] = []
+        next_seq = self._int_from_table(clock.get("next_event_seq"), 1)
+        for item in raw_queue:
+            kind = str(item.get("kind") or "").strip()
+            if kind == "":
+                continue
+            payload_obj = item.get("payload")
+            queue_payload = payload_obj if isinstance(payload_obj, dict) else {}
+            event_id = str(item.get("event_id") or "")
+            due_tick = self._int_from_table(item.get("due_tick"), tick_after)
+            seq = self._int_from_table(item.get("seq"), next_seq)
+            next_seq = max(next_seq, seq + 1)
+            normalized_queue.append(
+                {
+                    "event_id": event_id,
+                    "kind": kind,
+                    "due_tick": due_tick,
+                    "seq": seq,
+                    "payload": queue_payload,
+                }
+            )
+
         for event in payload.events:
+            due_tick = event.due_tick if event.due_tick is not None else tick_after
+            normalized_queue.append(
+                {
+                    "event_id": event.event_id,
+                    "kind": event.kind,
+                    "due_tick": int(due_tick),
+                    "seq": next_seq,
+                    "payload": dict(event.payload),
+                }
+            )
+            next_seq += 1
+
+        due_events = [item for item in normalized_queue if self._int_from_table(item.get("due_tick"), tick_after) <= tick_after]
+        pending_events = [item for item in normalized_queue if self._int_from_table(item.get("due_tick"), tick_after) > tick_after]
+        due_events.sort(
+            key=lambda item: (
+                self._int_from_table(item.get("due_tick"), tick_after),
+                self._int_from_table(item.get("seq"), 0),
+                str(item.get("kind") or ""),
+                self._canonical_hash(item.get("payload", {})),
+                str(item.get("event_id") or ""),
+            )
+        )
+
+        results: list[GameTickEventResult] = []
+        for queued in due_events:
+            runtime_event = GameEventInput(
+                event_id=str(queued.get("event_id") or ""),
+                kind=str(queued.get("kind") or ""),
+                due_tick=self._int_from_table(queued.get("due_tick"), tick_after),
+                payload=cast(dict[str, object], queued.get("payload", {})),
+            )
             updated_tables, result = self._apply_game_event(
-                event=event,
+                event=runtime_event,
                 tables=updated_tables,
                 workspace_id=payload.workspace_id,
                 actor_id=payload.actor_id,
                 workshop_id=workshop_id,
             )
-            results.append(result)
+            results.append(
+                result.model_copy(
+                    update={
+                        "event_id": runtime_event.event_id,
+                        "due_tick": runtime_event.due_tick,
+                        "sequence": self._int_from_table(queued.get("seq"), 0),
+                    }
+                )
+            )
+
         clock = dict(updated_tables.clock)
-        tick_before = self._int_from_table(clock.get("tick"), 0)
-        clock["tick"] = tick_before + 1
+        clock["tick"] = tick_after
         clock["dt_ms"] = max(0, int(payload.dt_ms))
+        clock["next_event_seq"] = next_seq
+        clock["event_queue"] = [
+            {
+                "event_id": str(item.get("event_id") or ""),
+                "kind": str(item.get("kind") or ""),
+                "due_tick": self._int_from_table(item.get("due_tick"), tick_after),
+                "seq": self._int_from_table(item.get("seq"), 0),
+                "payload": cast(dict[str, object], item.get("payload", {})),
+            }
+            for item in sorted(
+                pending_events,
+                key=lambda item: (
+                    self._int_from_table(item.get("due_tick"), tick_after),
+                    self._int_from_table(item.get("seq"), 0),
+                ),
+            )
+        ]
+        clock["last_processed_count"] = len(due_events)
+        clock["last_queued_count"] = len(pending_events)
         updated_tables = PlayerStateTables(**{**updated_tables.model_dump(), "clock": clock})
         row.state_version = max(1, int(row.state_version) + 1)
         row.levels_json = self._canonical_json(updated_tables.levels)
@@ -1146,6 +1231,9 @@ class AtelierService:
             tick=clock["tick"],
             dt_ms=payload.dt_ms,
             applied=sum(1 for item in results if item.ok),
+            processed_count=len(due_events),
+            queued_count=len(pending_events),
+            queue_size=len(pending_events),
             results=results,
             hash=self._canonical_hash(hash_payload),
             tables=updated_tables,

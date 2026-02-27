@@ -13,6 +13,7 @@ sys.path.insert(0, str(API_APP_DIR))
 
 from atelier_api.main import app, _kernel_client, _kernel_only_service  # type: ignore[import]
 from atelier_api.kernel_integration import KernelIntegrationService  # type: ignore[import]
+from atelier_api.models import PlayerState  # type: ignore[import]
 from atelier_api.services import AtelierService  # type: ignore[import]
 from atelier_api.types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse  # type: ignore[import]
 
@@ -1157,6 +1158,156 @@ def test_game_runtime_consume_supports_market_sovereignty_transition_with_redist
     assert lapidus["dominance_bp"] == 800
     assert lapidus["redistribution_policy"]["active"] is True
     assert lapidus["redistribution_policy"]["mode"] == "universal_staple_equity"
+    app.dependency_overrides.clear()
+
+
+def test_game_tick_persistent_queue_executes_due_events_only() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _TickRepo:
+        def __init__(self) -> None:
+            self.rows: dict[tuple[str, str], PlayerState] = {}
+
+        def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+            return self.rows.get((workspace_id, actor_id))
+
+        def save_player_state(self, row: PlayerState) -> PlayerState:
+            self.rows[(row.workspace_id, row.actor_id)] = row
+            return row
+
+    repo = _TickRepo()
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    first = client.post(
+        "/v1/game/state/tick",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player_tick_q",
+            "dt_ms": 100,
+            "events": [
+                {
+                    "event_id": "e_future",
+                    "kind": "flags.set",
+                    "due_tick": 2,
+                    "payload": {"key": "future_flag", "value": True},
+                }
+            ],
+        },
+        headers=headers,
+    )
+    assert first.status_code == 200
+    first_payload = first.json()
+    assert first_payload["tick"] == 1
+    assert first_payload["processed_count"] == 0
+    assert first_payload["queue_size"] == 1
+    assert first_payload["tables"]["flags"].get("future_flag") is None
+
+    second = client.post(
+        "/v1/game/state/tick",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player_tick_q",
+            "dt_ms": 100,
+            "events": [],
+        },
+        headers=headers,
+    )
+    assert second.status_code == 200
+    second_payload = second.json()
+    assert second_payload["tick"] == 2
+    assert second_payload["processed_count"] == 1
+    assert second_payload["queue_size"] == 0
+    assert second_payload["tables"]["flags"]["future_flag"] is True
+    assert len(second_payload["results"]) == 1
+    assert second_payload["results"][0]["event_id"] == "e_future"
+    assert second_payload["results"][0]["due_tick"] == 2
+    app.dependency_overrides.clear()
+
+
+def test_game_tick_event_queue_order_is_deterministic() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _TickRepo:
+        def __init__(self) -> None:
+            self.rows: dict[tuple[str, str], PlayerState] = {}
+
+        def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+            return self.rows.get((workspace_id, actor_id))
+
+        def save_player_state(self, row: PlayerState) -> PlayerState:
+            self.rows[(row.workspace_id, row.actor_id)] = row
+            return row
+
+    repo = _TickRepo()
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    body = {
+        "workspace_id": "main",
+        "dt_ms": 50,
+        "events": [
+            {"event_id": "late", "kind": "flags.set", "due_tick": 3, "payload": {"key": "late", "value": True}},
+            {"event_id": "early", "kind": "flags.set", "due_tick": 2, "payload": {"key": "early", "value": True}},
+        ],
+    }
+
+    run_one_t1 = client.post("/v1/game/state/tick", json={**body, "actor_id": "player_tick_d1"}, headers=headers)
+    run_two_t1 = client.post("/v1/game/state/tick", json={**body, "actor_id": "player_tick_d2"}, headers=headers)
+    assert run_one_t1.status_code == 200
+    assert run_two_t1.status_code == 200
+    p1 = run_one_t1.json()
+    p2 = run_two_t1.json()
+    assert p1["queue_size"] == p2["queue_size"] == 2
+    assert p1["processed_count"] == p2["processed_count"] == 0
+    assert p1["queue_size"] == 2
+
+    run_one_t2 = client.post(
+        "/v1/game/state/tick",
+        json={"workspace_id": "main", "actor_id": "player_tick_d1", "events": [], "dt_ms": 50},
+        headers=headers,
+    )
+    run_two_t2 = client.post(
+        "/v1/game/state/tick",
+        json={"workspace_id": "main", "actor_id": "player_tick_d2", "events": [], "dt_ms": 50},
+        headers=headers,
+    )
+    assert run_one_t2.status_code == 200
+    assert run_two_t2.status_code == 200
+    q1 = run_one_t2.json()
+    q2 = run_two_t2.json()
+    assert q1["queue_size"] == q2["queue_size"] == 1
+    assert q1["processed_count"] == 1
+    assert q2["processed_count"] == 1
+    assert q1["results"][0]["event_id"] == "early"
+    assert q2["results"][0]["event_id"] == "early"
+
+    run_one_t3 = client.post(
+        "/v1/game/state/tick",
+        json={"workspace_id": "main", "actor_id": "player_tick_d1", "events": [], "dt_ms": 50},
+        headers=headers,
+    )
+    run_two_t3 = client.post(
+        "/v1/game/state/tick",
+        json={"workspace_id": "main", "actor_id": "player_tick_d2", "events": [], "dt_ms": 50},
+        headers=headers,
+    )
+    assert run_one_t3.status_code == 200
+    assert run_two_t3.status_code == 200
+    r1 = run_one_t3.json()
+    r2 = run_two_t3.json()
+    assert r1["queue_size"] == r2["queue_size"] == 0
+    assert r1["processed_count"] == 1
+    assert r2["processed_count"] == 1
+    assert r1["results"][0]["event_id"] == "late"
+    assert r2["results"][0]["event_id"] == "late"
+    assert r1["tables"]["flags"]["early"] is True
+    assert r1["tables"]["flags"]["late"] is True
     app.dependency_overrides.clear()
 
 

@@ -1018,7 +1018,9 @@ class PlayerStateApplyInput(BaseModel):
 
 
 class GameEventInput(BaseModel):
+    event_id: str = ""
     kind: str
+    due_tick: int | None = None
     payload: dict[str, object] = Field(default_factory=dict)
 
 
@@ -1030,6 +1032,9 @@ class GameTickInput(BaseModel):
 
 
 class GameTickEventResult(BaseModel):
+    event_id: str = ""
+    due_tick: int | None = None
+    sequence: int | None = None
     kind: str
     ok: bool
     detail: str
@@ -1043,6 +1048,9 @@ class GameTickOut(BaseModel):
     tick: int
     dt_ms: int
     applied: int
+    processed_count: int
+    queued_count: int
+    queue_size: int
     results: list[GameTickEventResult]
     hash: str
     tables: PlayerStateTables
