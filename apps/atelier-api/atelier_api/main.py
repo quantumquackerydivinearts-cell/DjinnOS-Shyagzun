@@ -84,6 +84,8 @@ from .business_schemas import (
     WorldRegionOut,
     WorldRegionUnloadOut,
     WorldStreamStatusOut,
+    RealmCoinOut,
+    RealmMarketOut,
     GateEvaluateInput,
     GateEvaluateOut,
     RuntimeConsumeInput,
@@ -1123,6 +1125,30 @@ def world_stream_status(
     _enforce(ctx, "scene.read")
     _enforce_role(role, "scene.read")
     return svc.world_stream_status(workspace_id=workspace_id, realm_id=realm_id)
+
+
+@app.get("/v1/game/world/coins")
+def list_world_coins(
+    realm_id: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Sequence[RealmCoinOut]:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    return svc.list_realm_coins(realm_id=realm_id)
+
+
+@app.get("/v1/game/world/markets")
+def list_world_markets(
+    realm_id: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Sequence[RealmMarketOut]:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    return svc.list_realm_markets(realm_id=realm_id)
 
 
 @app.get("/v1/game/layers/nodes")

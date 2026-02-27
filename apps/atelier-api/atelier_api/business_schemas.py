@@ -507,6 +507,7 @@ class CombatResolveOut(BaseModel):
 class MarketQuoteInput(BaseModel):
     workspace_id: str
     actor_id: str
+    realm_id: str = "lapidus"
     item_id: str
     side: str
     quantity: int
@@ -517,9 +518,16 @@ class MarketQuoteInput(BaseModel):
 
 class MarketQuoteOut(BaseModel):
     actor_id: str
+    realm_id: str
+    market_id: str
+    currency_code: str
+    currency_name: str
+    currency_backing: str
     item_id: str
     side: str
     quantity: int
+    stock_available: int
+    market_volatility_bp: int
     unit_price_cents: int
     subtotal_cents: int
 
@@ -527,6 +535,7 @@ class MarketQuoteOut(BaseModel):
 class MarketTradeInput(BaseModel):
     workspace_id: str
     actor_id: str
+    realm_id: str = "lapidus"
     item_id: str
     side: str
     quantity: int
@@ -539,10 +548,17 @@ class MarketTradeInput(BaseModel):
 
 class MarketTradeOut(BaseModel):
     actor_id: str
+    realm_id: str
+    market_id: str
+    currency_code: str
+    currency_name: str
+    currency_backing: str
     item_id: str
     side: str
     requested_qty: int
     filled_qty: int
+    stock_available: int
+    market_volatility_bp: int
     unit_price_cents: int
     subtotal_cents: int
     fee_cents: int
@@ -1170,3 +1186,20 @@ class WorldStreamStatusOut(BaseModel):
     pressure_components: dict[str, float]
     demon_pressures: dict[str, float]
     demon_maladies: dict[str, str]
+
+
+class RealmCoinOut(BaseModel):
+    realm_id: str
+    currency_code: str
+    currency_name: str
+    backing: str
+
+
+class RealmMarketOut(BaseModel):
+    realm_id: str
+    market_id: str
+    display_name: str
+    volatility_bp: int
+    spread_bp: int
+    fee_bp: int
+    stock: dict[str, int]

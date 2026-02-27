@@ -114,6 +114,8 @@ from .business_schemas import (
     WorldRegionOut,
     WorldRegionUnloadOut,
     WorldStreamStatusOut,
+    RealmCoinOut,
+    RealmMarketOut,
     DialogueEmitInput,
     DialogueEmitOut,
     VitriolApplyRulerInfluenceInput,
@@ -130,6 +132,7 @@ from .business_schemas import (
     SupplierOut,
 )
 from .kernel_integration import KernelIntegrationService
+from .market_logic import get_realm_coin, get_realm_market, list_realm_coins, list_realm_markets
 from .models import (
     ArtisanAccount,
     Booking,
@@ -1515,19 +1518,29 @@ class AtelierService:
         workshop_id: str,
         emit_kernel: bool = True,
     ) -> MarketQuoteOut:
+        market = get_realm_market(payload.realm_id)
+        coin = get_realm_coin(payload.realm_id)
         quantity = max(0, payload.quantity)
         base = max(1, payload.base_price_cents)
-        scarcity_multiplier_bp = 10000 + payload.scarcity_bp
-        spread_bp = max(0, payload.spread_bp)
+        scarcity_multiplier_bp = 10000 + payload.scarcity_bp + market.volatility_bp
+        spread_bp = max(0, payload.spread_bp + market.spread_bp)
         side_adjust_bp = spread_bp if payload.side.lower() == "buy" else -spread_bp
         effective_bp = max(1, scarcity_multiplier_bp + side_adjust_bp)
         unit_price = max(1, (base * effective_bp) // 10000)
         subtotal = unit_price * quantity
+        stock_available = max(0, int(market.stock.get(payload.item_id, 0)))
         result = MarketQuoteOut(
             actor_id=payload.actor_id,
+            realm_id=market.realm_id,
+            market_id=market.market_id,
+            currency_code=coin.currency_code,
+            currency_name=coin.currency_name,
+            currency_backing=coin.backing,
             item_id=payload.item_id,
             side=payload.side.lower(),
             quantity=quantity,
+            stock_available=stock_available,
+            market_volatility_bp=market.volatility_bp,
             unit_price_cents=unit_price,
             subtotal_cents=subtotal,
         )
@@ -1552,13 +1565,16 @@ class AtelierService:
         workshop_id: str,
         emit_kernel: bool = True,
     ) -> MarketTradeOut:
+        market = get_realm_market(payload.realm_id)
+        coin = get_realm_coin(payload.realm_id)
         side = payload.side.lower()
         requested_qty = max(0, payload.quantity)
-        liquidity = max(0, payload.available_liquidity)
+        stock_available = max(0, int(market.stock.get(payload.item_id, 0)))
+        liquidity = max(0, min(payload.available_liquidity, stock_available))
         filled_qty = min(requested_qty, liquidity)
         unit_price = max(1, payload.unit_price_cents)
         subtotal = filled_qty * unit_price
-        fee_bp = max(0, payload.fee_bp)
+        fee_bp = max(0, payload.fee_bp + market.fee_bp)
         fee_cents = (subtotal * fee_bp) // 10000
         total_cents = subtotal + fee_cents
 
@@ -1597,10 +1613,17 @@ class AtelierService:
 
         result = MarketTradeOut(
             actor_id=payload.actor_id,
+            realm_id=market.realm_id,
+            market_id=market.market_id,
+            currency_code=coin.currency_code,
+            currency_name=coin.currency_name,
+            currency_backing=coin.backing,
             item_id=payload.item_id,
             side=side,
             requested_qty=requested_qty,
             filled_qty=filled_qty,
+            stock_available=stock_available,
+            market_volatility_bp=market.volatility_bp,
             unit_price_cents=unit_price,
             subtotal_cents=subtotal,
             fee_cents=fee_cents,
@@ -1621,6 +1644,31 @@ class AtelierService:
                 workshop_id=workshop_id,
             )
         return result
+
+    def list_realm_coins(self, realm_id: str | None = None) -> Sequence[RealmCoinOut]:
+        return [
+            RealmCoinOut(
+                realm_id=item.realm_id,
+                currency_code=item.currency_code,
+                currency_name=item.currency_name,
+                backing=item.backing,
+            )
+            for item in list_realm_coins(realm_id)
+        ]
+
+    def list_realm_markets(self, realm_id: str | None = None) -> Sequence[RealmMarketOut]:
+        return [
+            RealmMarketOut(
+                realm_id=item.realm_id,
+                market_id=item.market_id,
+                display_name=item.display_name,
+                volatility_bp=item.volatility_bp,
+                spread_bp=item.spread_bp,
+                fee_bp=item.fee_bp,
+                stock={key: int(value) for key, value in item.stock.items()},
+            )
+            for item in list_realm_markets(realm_id)
+        ]
 
     def evaluate_radio_availability(
         self,

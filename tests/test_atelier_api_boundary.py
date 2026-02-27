@@ -347,7 +347,79 @@ def test_game_rule_market_trade_rejects_when_wallet_insufficient() -> None:
     data = res.json()
     assert data["filled_qty"] == 0
     assert data["status"] == "rejected_insufficient_funds"
+    assert data["currency_backing"] == "Silver"
     assert fake.place_calls == 1
+    app.dependency_overrides.clear()
+
+
+def test_game_world_coin_and_market_catalog_are_realm_aware() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    headers = _headers("kernel.observe", role="artisan")
+
+    coins = client.get("/v1/game/world/coins", headers=headers)
+    assert coins.status_code == 200
+    coins_payload = coins.json()
+    assert len(coins_payload) >= 3
+    by_realm = {item["realm_id"]: item for item in coins_payload}
+    assert by_realm["lapidus"]["backing"] == "Silver"
+    assert by_realm["mercurie"]["backing"] == "Water"
+    assert by_realm["sulphera"]["backing"] == "Despair"
+
+    markets = client.get("/v1/game/world/markets", headers=headers)
+    assert markets.status_code == 200
+    markets_payload = markets.json()
+    assert len(markets_payload) >= 3
+    market_by_realm = {item["realm_id"]: item for item in markets_payload}
+    assert market_by_realm["lapidus"]["stock"]["iron_ingot"] > market_by_realm["mercurie"]["stock"]["iron_ingot"]
+    app.dependency_overrides.clear()
+
+
+def test_game_market_quote_differs_by_realm_market_profile() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    lapidus = client.post(
+        "/v1/game/rules/market/quote",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "realm_id": "lapidus",
+            "item_id": "iron_ingot",
+            "side": "buy",
+            "quantity": 1,
+            "base_price_cents": 1000,
+            "scarcity_bp": 0,
+            "spread_bp": 0,
+        },
+        headers=headers,
+    )
+    sulphera = client.post(
+        "/v1/game/rules/market/quote",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "realm_id": "sulphera",
+            "item_id": "iron_ingot",
+            "side": "buy",
+            "quantity": 1,
+            "base_price_cents": 1000,
+            "scarcity_bp": 0,
+            "spread_bp": 0,
+        },
+        headers=headers,
+    )
+    assert lapidus.status_code == 200
+    assert sulphera.status_code == 200
+    lap = lapidus.json()
+    sul = sulphera.json()
+    assert lap["currency_code"] == "LAP"
+    assert sul["currency_code"] == "SUL"
+    assert sul["unit_price_cents"] > lap["unit_price_cents"]
     app.dependency_overrides.clear()
 
 
