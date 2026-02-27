@@ -135,6 +135,9 @@ from .rendering_schemas import (
     IsometricRenderContractInput,
     IsometricRenderContractOut,
     IsometricDrawableOut,
+    RenderGraphContractInput,
+    RenderGraphContractOut,
+    RenderGraphNodeOut,
 )
 from .kernel_integration import KernelIntegrationService
 from .market_logic import get_realm_coin, get_realm_market, list_realm_coins, list_realm_markets
@@ -2965,6 +2968,61 @@ class AtelierService:
                 "region_count": len(world_regions),
                 "asset_manifest_count": len(manifest_rows),
                 "fallback_count": fallback_count,
+            },
+            hash=self._canonical_hash(hash_payload),
+        )
+
+    def build_render_graph_contract(
+        self,
+        *,
+        payload: RenderGraphContractInput,
+    ) -> RenderGraphContractOut:
+        iso = self.build_isometric_render_contract(
+            payload=IsometricRenderContractInput(
+                workspace_id=payload.workspace_id,
+                realm_id=payload.realm_id,
+                scene_id=payload.scene_id,
+                include_unloaded_regions=payload.include_unloaded_regions,
+                include_material_constraints=payload.include_material_constraints,
+            )
+        )
+        nodes: list[RenderGraphNodeOut] = []
+        for drawable in iso.drawables:
+            nodes.append(
+                RenderGraphNodeOut(
+                    node_id=drawable.drawable_id,
+                    source=drawable.source,
+                    kind=drawable.kind,
+                    transform={
+                        "position": {"x": drawable.x, "y": float(drawable.z), "z": drawable.y},
+                        "screen_hint": {"x": drawable.screen_x, "y": drawable.screen_y},
+                        "depth_key": drawable.depth_key,
+                    },
+                    material=drawable.material,
+                    sprite=drawable.sprite,
+                    metadata=drawable.metadata,
+                )
+            )
+
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "realm_id": payload.realm_id.strip().lower(),
+            "scene_id": payload.scene_id,
+            "coordinate_space": payload.coordinate_space,
+            "nodes": [item.model_dump() for item in nodes],
+            "asset_pack": iso.asset_pack,
+        }
+        return RenderGraphContractOut(
+            workspace_id=payload.workspace_id,
+            realm_id=payload.realm_id.strip().lower(),
+            scene_id=payload.scene_id,
+            coordinate_space=payload.coordinate_space,
+            node_count=len(nodes),
+            nodes=nodes,
+            asset_pack=iso.asset_pack,
+            stats={
+                **iso.stats,
+                "source_contract": "isometric_2_5d",
             },
             hash=self._canonical_hash(hash_payload),
         )

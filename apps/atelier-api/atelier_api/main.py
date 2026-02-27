@@ -127,6 +127,8 @@ from .rendering_schemas import (
     RendererTablesOut,
     IsometricRenderContractInput,
     IsometricRenderContractOut,
+    RenderGraphContractInput,
+    RenderGraphContractOut,
 )
 from .capabilities import CapabilityContext, parse_capabilities, require_capability
 from .config import Settings, load_settings
@@ -1799,6 +1801,21 @@ def build_isometric_render_contract(
     _enforce_role(role, "kernel.observe")
     try:
         return svc.build_isometric_render_contract(payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/renderer/render-graph")
+def build_render_graph_contract(
+    payload: RenderGraphContractInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> RenderGraphContractOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    try:
+        return svc.build_render_graph_contract(payload=payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

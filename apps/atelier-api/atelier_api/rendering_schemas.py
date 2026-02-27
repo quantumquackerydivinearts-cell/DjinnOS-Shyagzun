@@ -75,3 +75,34 @@ class IsometricRenderContractOut(BaseModel):
     drawables: list[IsometricDrawableOut] = Field(default_factory=list)
     stats: dict[str, object] = Field(default_factory=dict)
     hash: str
+
+
+class RenderGraphContractInput(BaseModel):
+    workspace_id: str
+    realm_id: str
+    scene_id: str
+    include_unloaded_regions: bool = False
+    include_material_constraints: bool = True
+    coordinate_space: str = "world_right_handed_y_up"
+
+
+class RenderGraphNodeOut(BaseModel):
+    node_id: str
+    source: str
+    kind: str
+    transform: dict[str, object] = Field(default_factory=dict)
+    material: str
+    sprite: str
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class RenderGraphContractOut(BaseModel):
+    workspace_id: str
+    realm_id: str
+    scene_id: str
+    coordinate_space: str
+    node_count: int
+    nodes: list[RenderGraphNodeOut] = Field(default_factory=list)
+    asset_pack: dict[str, object] = Field(default_factory=dict)
+    stats: dict[str, object] = Field(default_factory=dict)
+    hash: str
