@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
 import sys
@@ -1477,4 +1478,93 @@ def test_scene_graph_emit_requires_realm_scene_match() -> None:
     )
     assert ok.status_code == 200
     assert fake.place_calls == 1
+    app.dependency_overrides.clear()
+
+
+def test_isometric_render_contract_compiles_scene_regions_and_assets() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    now = datetime.now(timezone.utc)
+
+    class _SceneRow:
+        id = "scene-row-1"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        scene_id = "lapidus/intro"
+        name = "Intro"
+        description = ""
+        content_json = (
+            '{"nodes":[{"node_id":"desk_1","kind":"desk","x":4,"y":2,'
+            '"metadata":{"z":1,"akinenwun":"TyKoWuVu"}}],"edges":[]}'
+        )
+        content_hash = "h_scene"
+        created_at = now
+        updated_at = now
+
+    class _RegionRow:
+        id = "region-row-1"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        region_key = "lapidus/sector-001"
+        payload_json = '{"entities":[{"id":"npc_1","kind":"npc","x":5,"y":3,"z":0,"sprite":"npc_idle"}]}'
+        payload_hash = "h_region"
+        cache_policy = "cache"
+        loaded = True
+        created_at = now
+        updated_at = now
+
+    class _ManifestRow:
+        id = "manifest-row-1"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        manifest_id = "sprite_pack_1"
+        name = "Sprites"
+        kind = "sprite"
+        payload_json = '{"desk":"atlas/desk.png","npc":"atlas/npc.png"}'
+        payload_hash = "h_manifest"
+        created_at = now
+
+    class _RenderRepo:
+        def get_scene(self, workspace_id: str, realm_id: str, scene_id: str) -> _SceneRow | None:
+            if workspace_id == "main" and realm_id == "lapidus" and scene_id == "lapidus/intro":
+                return _SceneRow()
+            return None
+
+        def list_world_regions(self, workspace_id: str, realm_id: str | None = None) -> Sequence[_RegionRow]:
+            if workspace_id != "main":
+                return []
+            if realm_id is not None and realm_id != "lapidus":
+                return []
+            return [_RegionRow()]
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[_ManifestRow]:
+            if workspace_id != "main":
+                return []
+            return [_ManifestRow()]
+
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=_RenderRepo(), kernel=kernel)
+    client = TestClient(app)
+    res = client.post(
+        "/v1/game/renderer/isometric-contract",
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/intro",
+            "tile_width": 64,
+            "tile_height": 32,
+            "elevation_step": 16,
+        },
+        headers=_headers("kernel.observe"),
+    )
+    assert res.status_code == 200
+    out = res.json()
+    assert out["projection"]["type"] == "isometric_2_5d"
+    assert out["drawable_count"] == 2
+    ids = [item["drawable_id"] for item in out["drawables"]]
+    assert "desk_1" in ids
+    assert "lapidus/sector-001:npc_1" in ids
+    first = out["drawables"][0]
+    assert "screen_x" in first
+    assert "screen_y" in first
+    assert isinstance(first["depth_key"], (int, float))
     app.dependency_overrides.clear()

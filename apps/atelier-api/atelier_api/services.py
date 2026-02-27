@@ -68,6 +68,9 @@ from .business_schemas import (
     InfernalMeditationUnlockOut,
     RendererTablesInput,
     RendererTablesOut,
+    IsometricRenderContractInput,
+    IsometricRenderContractOut,
+    IsometricDrawableOut,
     GateEvaluateInput,
     GateEvaluateOut,
     GateRequirement,
@@ -2721,6 +2724,172 @@ class AtelierService:
             generated_at=datetime.now(timezone.utc).isoformat(),
             hash=self._canonical_hash(hash_payload),
             tables=tables,
+        )
+
+    def build_isometric_render_contract(
+        self,
+        *,
+        payload: IsometricRenderContractInput,
+    ) -> IsometricRenderContractOut:
+        tile_width = max(8, int(payload.tile_width))
+        tile_height = max(4, int(payload.tile_height))
+        elevation_step = max(1, int(payload.elevation_step))
+        realm_id = payload.realm_id.strip().lower()
+        scene = self.get_scene(
+            workspace_id=payload.workspace_id,
+            realm_id=realm_id,
+            scene_id=payload.scene_id,
+        )
+        if scene is None:
+            raise ValueError("scene_not_found")
+
+        drawables: list[IsometricDrawableOut] = []
+        scene_nodes_raw = scene.content.get("nodes")
+        scene_nodes = scene_nodes_raw if isinstance(scene_nodes_raw, list) else []
+
+        manifest_rows = self.list_asset_manifests(payload.workspace_id)
+        sprite_lookup: dict[str, str] = {}
+        material_lookup: dict[str, str] = {}
+        for row in manifest_rows:
+            if row.realm_id != realm_id:
+                continue
+            if row.kind.strip().lower() == "sprite":
+                for key, value in row.payload.items():
+                    if isinstance(value, str):
+                        sprite_lookup[str(key)] = value
+            if row.kind.strip().lower() == "material":
+                for key, value in row.payload.items():
+                    if isinstance(value, str):
+                        material_lookup[str(key)] = value
+
+        for index, node in enumerate(scene_nodes):
+            if not isinstance(node, dict):
+                continue
+            metadata_obj = node.get("metadata")
+            metadata = metadata_obj if isinstance(metadata_obj, dict) else {}
+            x = float(node.get("x") or 0.0)
+            y = float(node.get("y") or 0.0)
+            z = self._int_from_table(metadata.get("z"), 0)
+            node_id = str(node.get("node_id") or f"scene_node_{index}")
+            kind = str(node.get("kind") or "entity")
+            sprite = str(metadata.get("sprite") or sprite_lookup.get(kind) or kind)
+            material = str(metadata.get("material") or material_lookup.get(kind) or "default")
+            screen_x = (x - y) * (tile_width / 2.0)
+            screen_y = (x + y) * (tile_height / 2.0) - (z * elevation_step)
+            depth_key = (x + y) + (z * 0.01)
+            out_meta = dict(metadata)
+            if payload.include_material_constraints:
+                akinenwun = str(metadata.get("akinenwun") or "").strip()
+                if akinenwun != "":
+                    try:
+                        from qqva.shygazun_compiler import compile_akinenwun_to_ir, derive_render_constraints
+
+                        constraints = derive_render_constraints(compile_akinenwun_to_ir(akinenwun))
+                        out_meta["render_constraints"] = constraints
+                    except Exception:
+                        out_meta["render_constraints"] = {"status": "unavailable"}
+            drawables.append(
+                IsometricDrawableOut(
+                    drawable_id=node_id,
+                    source="scene",
+                    kind=kind,
+                    x=x,
+                    y=y,
+                    z=z,
+                    screen_x=screen_x,
+                    screen_y=screen_y,
+                    depth_key=depth_key,
+                    sprite=sprite,
+                    material=material,
+                    metadata=out_meta,
+                )
+            )
+
+        world_regions = self.list_world_regions(workspace_id=payload.workspace_id, realm_id=realm_id)
+        for row in world_regions:
+            if not payload.include_unloaded_regions and not row.loaded:
+                continue
+            entities_obj = row.payload.get("entities")
+            entities = entities_obj if isinstance(entities_obj, list) else []
+            for index, entity in enumerate(entities):
+                if isinstance(entity, str):
+                    entity_id = entity
+                    ex = float(index)
+                    ey = 0.0
+                    ez = 0
+                    kind = "region_entity"
+                    meta: dict[str, object] = {}
+                    sprite = sprite_lookup.get(entity_id, entity_id)
+                    material = "default"
+                elif isinstance(entity, dict):
+                    entity_id = str(entity.get("id") or entity.get("entity_id") or f"{row.region_key}:{index}")
+                    ex = float(entity.get("x") or index)
+                    ey = float(entity.get("y") or 0.0)
+                    ez = self._int_from_table(entity.get("z"), 0)
+                    kind = str(entity.get("kind") or entity.get("tag") or "region_entity")
+                    meta = dict(entity.get("metadata") or {}) if isinstance(entity.get("metadata"), dict) else {}
+                    sprite = str(entity.get("sprite") or sprite_lookup.get(kind) or kind)
+                    material = str(entity.get("material") or material_lookup.get(kind) or "default")
+                else:
+                    continue
+                screen_x = (ex - ey) * (tile_width / 2.0)
+                screen_y = (ex + ey) * (tile_height / 2.0) - (ez * elevation_step)
+                depth_key = (ex + ey) + (ez * 0.01)
+                drawables.append(
+                    IsometricDrawableOut(
+                        drawable_id=f"{row.region_key}:{entity_id}",
+                        source="region",
+                        kind=kind,
+                        x=ex,
+                        y=ey,
+                        z=ez,
+                        screen_x=screen_x,
+                        screen_y=screen_y,
+                        depth_key=depth_key,
+                        sprite=sprite,
+                        material=material,
+                        metadata=meta,
+                    )
+                )
+
+        drawables.sort(
+            key=lambda item: (
+                item.depth_key,
+                item.screen_y,
+                item.screen_x,
+                item.drawable_id,
+            )
+        )
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "realm_id": realm_id,
+            "scene_id": payload.scene_id,
+            "projection": {
+                "type": "isometric_2_5d",
+                "tile_width": tile_width,
+                "tile_height": tile_height,
+                "elevation_step": elevation_step,
+            },
+            "drawables": [item.model_dump() for item in drawables],
+        }
+        return IsometricRenderContractOut(
+            workspace_id=payload.workspace_id,
+            realm_id=realm_id,
+            scene_id=payload.scene_id,
+            projection={
+                "type": "isometric_2_5d",
+                "tile_width": tile_width,
+                "tile_height": tile_height,
+                "elevation_step": elevation_step,
+            },
+            drawable_count=len(drawables),
+            drawables=drawables,
+            stats={
+                "scene_nodes": len(scene_nodes),
+                "region_count": len(world_regions),
+                "asset_manifest_count": len(manifest_rows),
+            },
+            hash=self._canonical_hash(hash_payload),
         )
 
     def list_suppliers(self, workspace_id: str) -> Sequence[SupplierOut]:

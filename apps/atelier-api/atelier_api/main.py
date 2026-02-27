@@ -67,6 +67,8 @@ from .business_schemas import (
     InfernalMeditationUnlockOut,
     RendererTablesInput,
     RendererTablesOut,
+    IsometricRenderContractInput,
+    IsometricRenderContractOut,
     AssetManifestCreate,
     AssetManifestOut,
     ContentValidateInput,
@@ -1782,6 +1784,21 @@ def build_renderer_tables(
     _enforce(ctx, "kernel.observe")
     _enforce_role(role, "kernel.observe")
     return svc.renderer_tables(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/renderer/isometric-contract")
+def build_isometric_render_contract(
+    payload: IsometricRenderContractInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> IsometricRenderContractOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    try:
+        return svc.build_isometric_render_contract(payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/v1/game/rules/gates/evaluate")
