@@ -2099,6 +2099,7 @@ class AtelierService:
         results: list[RuntimeActionOut] = []
         runtime_regions: dict[str, dict[str, object]] = {}
         runtime_market_stock: dict[str, dict[str, int]] = {}
+        runtime_market_meta: dict[str, dict[str, object]] = {}
 
         def _normalize_realm_for_runtime(value: object) -> str:
             realm = str(value or "").strip().lower()
@@ -2271,12 +2272,16 @@ class AtelierService:
                             policy = str(row.get("cache_policy", "cache")).strip().lower()
                             policy_counts[policy] = policy_counts.get(policy, 0) + 1
                         capacity = self._world_stream.max_loaded_regions
+                        total_regions = len(runtime_regions)
                         loaded_count = len(loaded_rows)
+                        unloaded_count = max(0, total_regions - loaded_count)
                         pressure = 0.0 if capacity <= 0 else float(loaded_count) / float(capacity)
                         result = {
                             "workspace_id": payload.workspace_id,
                             "realm_id": realm_norm,
+                            "total_regions": total_regions,
                             "loaded_count": loaded_count,
+                            "unloaded_count": unloaded_count,
                             "capacity": capacity,
                             "pressure": pressure,
                             "policy_counts": policy_counts,
@@ -2306,6 +2311,9 @@ class AtelierService:
                         for item_id, qty in realm_overrides.items():
                             stock_map[item_id] = max(0, int(qty))
                         row["stock"] = stock_map
+                        meta_overrides = runtime_market_meta.get(market.realm_id, {})
+                        for key, value in meta_overrides.items():
+                            row[key] = value
                         market_rows.append(row)
                     result = market_rows
                 elif action.kind == "world.market.stock.adjust":
@@ -2327,6 +2335,58 @@ class AtelierService:
                         "item_id": item_id,
                         "stock_before_qty": stock_before,
                         "stock_after_qty": stock_after,
+                    }
+                elif action.kind == "world.market.sovereignty.transition":
+                    realm_id = _normalize_realm_for_runtime(action_payload.get("realm_id"))
+                    market = get_realm_market(realm_id)
+                    victor_id = str(action_payload.get("victor_id", "player_commonwealth")).strip().lower()
+                    if victor_id == "":
+                        raise ValueError("victor_id_required")
+                    if not bool(action_payload.get("overthrow", True)):
+                        raise ValueError("sovereignty_transition_requires_overthrow")
+                    prior_operator = str(
+                        runtime_market_meta.get(realm_id, {}).get("dominant_operator", market.dominant_operator)
+                    )
+                    redistribution_mode = str(
+                        action_payload.get("redistribution_mode", "equalized_public_distribution")
+                    ).strip().lower() or "equalized_public_distribution"
+                    beneficiary_groups_raw = action_payload.get("beneficiary_groups", [])
+                    beneficiary_groups: list[str] = []
+                    if isinstance(beneficiary_groups_raw, list):
+                        for item in beneficiary_groups_raw:
+                            token = str(item).strip().lower()
+                            if token != "":
+                                beneficiary_groups.append(token)
+                    if len(beneficiary_groups) == 0:
+                        beneficiary_groups = ["citizens", "artisans", "travelers"]
+                    dominant_network = str(
+                        action_payload.get("market_network", "public_redistribution_council")
+                    ).strip().lower() or "public_redistribution_council"
+                    dominance_bp_raw = int(action_payload.get("dominance_bp", 1000))
+                    dominance_bp = max(0, min(10000, dominance_bp_raw))
+                    transition_tick = int(action_payload.get("tick", 0))
+                    transition_note = str(action_payload.get("note", "market_sovereignty_transition")).strip()
+                    runtime_market_meta[realm_id] = {
+                        "dominant_operator": victor_id,
+                        "market_network": dominant_network,
+                        "dominance_bp": dominance_bp,
+                        "redistribution_policy": {
+                            "mode": redistribution_mode,
+                            "beneficiary_groups": beneficiary_groups,
+                            "active": True,
+                            "transition_tick": transition_tick,
+                            "note": transition_note,
+                        },
+                    }
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "realm_id": realm_id,
+                        "overthrow": True,
+                        "prior_operator": prior_operator,
+                        "new_operator": victor_id,
+                        "market_network": dominant_network,
+                        "dominance_bp": dominance_bp,
+                        "redistribution_policy": runtime_market_meta[realm_id]["redistribution_policy"],
                     }
                 else:
                     raise ValueError(f"unsupported_runtime_action:{action.kind}")
@@ -2912,6 +2972,7 @@ class AtelierService:
     def world_stream_status(self, workspace_id: str, realm_id: str | None = None) -> WorldStreamStatusOut:
         normalized_realm = realm_id.strip().lower() if isinstance(realm_id, str) and realm_id.strip() != "" else None
         rows = self._require_repo().list_world_regions(workspace_id=workspace_id, realm_id=normalized_realm)
+        total_regions = len(rows)
         loaded_rows = [row for row in rows if row.loaded]
         policy_counts: dict[str, int] = {"cache": 0, "stream": 0, "pin": 0}
         for row in loaded_rows:
@@ -2922,6 +2983,7 @@ class AtelierService:
                 policy_counts[policy] = policy_counts.get(policy, 0) + 1
         capacity = self._world_stream.max_loaded_regions
         loaded_count = len(loaded_rows)
+        unloaded_count = max(0, total_regions - loaded_count)
         pressure = 0.0 if capacity <= 0 else float(loaded_count) / float(capacity)
         pressure_components = {
             "stream_occupancy": pressure,
@@ -2931,7 +2993,9 @@ class AtelierService:
         return WorldStreamStatusOut(
             workspace_id=workspace_id,
             realm_id=normalized_realm,
+            total_regions=total_regions,
             loaded_count=loaded_count,
+            unloaded_count=unloaded_count,
             capacity=capacity,
             pressure=pressure,
             policy_counts=policy_counts,

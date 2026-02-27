@@ -768,6 +768,7 @@ RuntimeActionKind = Literal[
     "world.coins.list",
     "world.markets.list",
     "world.market.stock.adjust",
+    "world.market.sovereignty.transition",
 ]
 
 
@@ -1185,7 +1186,9 @@ class WorldRegionUnloadOut(BaseModel):
 class WorldStreamStatusOut(BaseModel):
     workspace_id: str
     realm_id: str | None = None
+    total_regions: int
     loaded_count: int
+    unloaded_count: int
     capacity: int
     pressure: float
     policy_counts: dict[str, int]

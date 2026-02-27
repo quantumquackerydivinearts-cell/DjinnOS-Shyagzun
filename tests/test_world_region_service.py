@@ -126,7 +126,9 @@ def test_world_region_service_status_reports_occupancy_and_policy_counts() -> No
         )
 
     status = svc.world_stream_status(workspace_id="main", realm_id="lapidus")
+    assert status.total_regions == 2
     assert status.loaded_count == 2
+    assert status.unloaded_count == 0
     assert status.capacity == 3
     assert status.policy_counts["pin"] == 1
     assert status.policy_counts["cache"] == 1
@@ -136,3 +138,29 @@ def test_world_region_service_status_reports_occupancy_and_policy_counts() -> No
     assert status.demon_pressures["lucifer"] == 0.0
     assert status.demon_pressures["po_elfan"] == 0.0
     assert status.demon_maladies["zukoru"] == "nihilism"
+
+
+def test_world_region_service_soak_keeps_loaded_count_bounded() -> None:
+    svc, repo = _service(max_loaded_regions=16)
+    for index in range(256):
+        key = f"lapidus/chunk-{index:03d}"
+        svc.load_world_region(
+            payload=type(
+                "Obj",
+                (),
+                {
+                    "workspace_id": "main",
+                    "realm_id": "lapidus",
+                    "region_key": key,
+                    "payload": {"chunk": index, "tiles": [index % 7, (index + 1) % 7, (index + 2) % 7]},
+                    "cache_policy": "stream",
+                },
+            )()
+        )
+    status = svc.world_stream_status(workspace_id="main", realm_id="lapidus")
+    assert status.total_regions == 256
+    assert status.loaded_count <= status.capacity
+    assert status.capacity == 16
+    assert status.unloaded_count == status.total_regions - status.loaded_count
+    loaded_rows = [row for row in repo.list_world_regions("main", "lapidus") if row.loaded]
+    assert len(loaded_rows) == status.loaded_count

@@ -63,6 +63,27 @@
       }
     },
     {
+      "action_id": "lapidus_sovereignty_transition",
+      "kind": "world.market.sovereignty.transition",
+      "payload": {
+        "realm_id": "lapidus",
+        "overthrow": true,
+        "victor_id": "player_commonwealth",
+        "market_network": "realm_redistribution_council",
+        "dominance_bp": 900,
+        "redistribution_mode": "universal_staple_equity",
+        "beneficiary_groups": ["citizens", "artisans", "travelers"],
+        "tick": 1200
+      }
+    },
+    {
+      "action_id": "realm_markets_after_transition",
+      "kind": "world.markets.list",
+      "payload": {
+        "realm_id": "lapidus"
+      }
+    },
+    {
       "action_id": "unload_mercurie_tide_002",
       "kind": "world.region.unload",
       "payload": {

@@ -1106,6 +1106,60 @@ def test_game_runtime_consume_supports_market_stock_adjust_and_trade_override() 
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_consume_supports_market_sovereignty_transition_with_redistribution() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "lapidus_sovereignty_plan",
+        "actions": [
+            {
+                "action_id": "transition",
+                "kind": "world.market.sovereignty.transition",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "overthrow": True,
+                    "victor_id": "player_commonwealth",
+                    "market_network": "realm_redistribution_council",
+                    "dominance_bp": 800,
+                    "redistribution_mode": "universal_staple_equity",
+                    "beneficiary_groups": ["citizens", "artisans", "farmers"],
+                    "tick": 999,
+                },
+            },
+            {
+                "action_id": "markets_after_transition",
+                "kind": "world.markets.list",
+                "payload": {"realm_id": "lapidus"},
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+    assert results["transition"]["ok"] is True
+    assert results["transition"]["result"]["prior_operator"] == "lord_nexiott"
+    assert results["transition"]["result"]["new_operator"] == "player_commonwealth"
+    assert results["transition"]["result"]["market_network"] == "realm_redistribution_council"
+    assert results["transition"]["result"]["dominance_bp"] == 800
+    markets = results["markets_after_transition"]["result"]["items"]
+    assert isinstance(markets, list)
+    assert len(markets) == 1
+    lapidus = markets[0]
+    assert lapidus["dominant_operator"] == "player_commonwealth"
+    assert lapidus["market_network"] == "realm_redistribution_council"
+    assert lapidus["dominance_bp"] == 800
+    assert lapidus["redistribution_policy"]["active"] is True
+    assert lapidus["redistribution_policy"]["mode"] == "universal_staple_equity"
+    app.dependency_overrides.clear()
+
+
 def test_game_gate_evaluate_supports_xor_and_nor_with_multi_source_state() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

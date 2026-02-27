@@ -30,7 +30,17 @@ Supported runtime kinds include world streaming and realm economy catalog access
 - `world.coins.list`
 - `world.markets.list`
 - `world.market.stock.adjust`
+- `world.market.sovereignty.transition`
 
 Lapidus market metadata is synced to Caravan dominance:
 - `dominant_operator: "lord_nexiott"`
 - `market_network: "caravan"`
+
+Endgame sovereignty transition can be scripted to overthrow market dominance and
+activate redistribution policy via `world.market.sovereignty.transition`.
+
+`world.stream.status` now exposes bounded-stream observability:
+- `total_regions`
+- `loaded_count`
+- `unloaded_count`
+- `capacity`
