@@ -29,6 +29,15 @@ class KernelClient(Protocol):
 
     def frontiers(self) -> Sequence[FrontierObj]: ...
 
+    def akinenwun_lookup(
+        self,
+        *,
+        akinenwun: str,
+        mode: str,
+        ingest: bool,
+        policy: Mapping[str, Any],
+    ) -> Mapping[str, Any]: ...
+
 
 @dataclass
 class HttpKernelClient:
@@ -104,4 +113,18 @@ class HttpKernelClient:
             if isinstance(item, dict):
                 out.append(cast(FrontierObj, item))
         return out
+
+    def akinenwun_lookup(
+        self,
+        *,
+        akinenwun: str,
+        mode: str,
+        ingest: bool,
+        policy: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        return self._call(
+            "POST",
+            "/v0.1/akinenwun/lookup",
+            body={"akinenwun": akinenwun, "mode": mode, "ingest": ingest, "policy": dict(policy)},
+        )
 

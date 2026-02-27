@@ -74,6 +74,19 @@ class KernelIntegrationService:
             target=target,
         )
 
+    def akinenwun_lookup(
+        self,
+        *,
+        akinenwun: str,
+        mode: str,
+        ingest: bool,
+        policy: Mapping[str, Any] | None = None,
+        actor_id: str,
+        workshop_id: str,
+    ) -> Mapping[str, Any]:
+        self._stamp("akinenwun_lookup", actor_id, workshop_id)
+        return self._client.akinenwun_lookup(akinenwun=akinenwun, mode=mode, ingest=ingest, policy=policy or {})
+
     def audit_log(self) -> Sequence[KernelInvocation]:
         return list(self._audit)
 

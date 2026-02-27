@@ -39,6 +39,23 @@ function registerIpcHandlers() {
     return { ok: true, files };
   });
 
+  ipcMain.handle("studio:list-assets-by-suffix", async (_event, rootDir, suffix) => {
+    if (typeof rootDir !== "string" || rootDir.trim() === "") {
+      throw new Error("studio_fs_root_required");
+    }
+    if (typeof suffix !== "string" || suffix.trim() === "") {
+      throw new Error("studio_fs_suffix_required");
+    }
+    const normalizedRoot = path.resolve(rootDir);
+    const normalizedSuffix = suffix.toLowerCase();
+    const entries = await fs.readdir(normalizedRoot, { withFileTypes: true });
+    const files = entries
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(normalizedSuffix))
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b));
+    return { ok: true, files };
+  });
+
   ipcMain.handle("studio:read-cobra-script", async (_event, rootDir, filename) => {
     if (typeof rootDir !== "string" || rootDir.trim() === "") {
       throw new Error("studio_fs_root_required");
@@ -74,6 +91,65 @@ function registerIpcHandlers() {
     await fs.mkdir(path.dirname(absolutePath), { recursive: true });
     await fs.writeFile(absolutePath, content, "utf8");
     return { ok: true, filename: path.basename(absolutePath) };
+  });
+
+  ipcMain.handle("studio:read-text-file", async (_event, rootDir, filename) => {
+    if (typeof rootDir !== "string" || rootDir.trim() === "") {
+      throw new Error("studio_fs_root_required");
+    }
+    if (typeof filename !== "string" || filename.trim() === "") {
+      throw new Error("studio_fs_filename_required");
+    }
+    const normalizedRoot = path.resolve(rootDir);
+    const absolutePath = assertWithinRoot(normalizedRoot, path.join(normalizedRoot, filename));
+    const stat = await fs.stat(absolutePath);
+    if (!stat.isFile()) {
+      throw new Error("studio_fs_not_file");
+    }
+    if (stat.size > STUDIO_FILE_LIMIT) {
+      throw new Error("studio_fs_file_too_large");
+    }
+    const content = await fs.readFile(absolutePath, "utf8");
+    return { ok: true, filename: path.basename(absolutePath), content };
+  });
+
+  ipcMain.handle("studio:write-text-file", async (_event, rootDir, filename, content) => {
+    if (typeof rootDir !== "string" || rootDir.trim() === "") {
+      throw new Error("studio_fs_root_required");
+    }
+    if (typeof filename !== "string" || filename.trim() === "") {
+      throw new Error("studio_fs_filename_required");
+    }
+    if (typeof content !== "string") {
+      throw new Error("studio_fs_content_required");
+    }
+    const normalizedRoot = path.resolve(rootDir);
+    const absolutePath = assertWithinRoot(normalizedRoot, path.join(normalizedRoot, filename));
+    await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+    await fs.writeFile(absolutePath, content, "utf8");
+    return { ok: true, filename: path.basename(absolutePath) };
+  });
+
+  ipcMain.handle("renderer:open-window", async (_event, payload) => {
+    const view = payload && payload.view ? payload.view : "renderer-full";
+    const renderWin = new BrowserWindow({
+      width: 1280,
+      height: 720,
+      fullscreen: true,
+      autoHideMenuBar: true,
+      webPreferences: {
+        contextIsolation: true,
+        sandbox: true,
+        nodeIntegration: false,
+        preload: path.join(__dirname, "preload.js")
+      }
+    });
+    if (isDev) {
+      renderWin.loadURL(`http://127.0.0.1:5173/?view=${view}`);
+    } else {
+      renderWin.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query: { view } });
+    }
+    return { ok: true };
   });
 }
 

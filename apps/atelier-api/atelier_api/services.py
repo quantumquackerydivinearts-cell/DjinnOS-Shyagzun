@@ -23,6 +23,8 @@ from .business_schemas import (
     InventoryItemOut,
     LessonCreate,
     LessonOut,
+    LessonProgressOut,
+    LessonConsumeInput,
     ModuleCreate,
     ModuleOut,
     OrderCreate,
@@ -47,6 +49,10 @@ from .business_schemas import (
     PerkUnlockOut,
     AlchemyCraftInput,
     AlchemyCraftOut,
+    AlchemyInterfaceInput,
+    AlchemyInterfaceOut,
+    AlchemyCrystalInput,
+    AlchemyCrystalOut,
     BlacksmithForgeInput,
     BlacksmithForgeOut,
     CombatResolveInput,
@@ -55,6 +61,12 @@ from .business_schemas import (
     MarketQuoteOut,
     MarketTradeInput,
     MarketTradeOut,
+    RadioEvaluateInput,
+    RadioEvaluateOut,
+    InfernalMeditationUnlockInput,
+    InfernalMeditationUnlockOut,
+    RendererTablesInput,
+    RendererTablesOut,
     GateEvaluateInput,
     GateEvaluateOut,
     GateRequirement,
@@ -74,6 +86,25 @@ from .business_schemas import (
     LayerTraceOut,
     FunctionStoreCreate,
     FunctionStoreOut,
+    PlayerStateApplyInput,
+    PlayerStateOut,
+    PlayerStateTables,
+    GameEventInput,
+    GameTickInput,
+    GameTickOut,
+    GameTickEventResult,
+    AssetManifestCreate,
+    AssetManifestOut,
+    ContentValidateInput,
+    ContentValidateOut,
+    RealmOut,
+    RealmValidateInput,
+    RealmValidateOut,
+    SceneCreateInput,
+    SceneUpdateInput,
+    SceneOut,
+    SceneEmitOut,
+    SceneCompileInput,
     DialogueEmitInput,
     DialogueEmitOut,
     VitriolApplyRulerInfluenceInput,
@@ -101,13 +132,19 @@ from .models import (
     LayerEvent,
     LayerNode,
     Lesson,
+    LessonProgress,
     LearningModule,
     NamedQuest,
     Order,
     Quote,
     Supplier,
+    PlayerState,
+    AssetManifest,
+    Realm,
+    Scene,
 )
 from .repositories import AtelierRepository
+from .validators import build_scene_graph_content_from_cobra, validate_cobra_content, validate_json_content, validate_scene_realm
 from .types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse
 
 
@@ -171,6 +208,41 @@ class AtelierService:
                 out[key] = cast(object, item)
         return out
 
+    @staticmethod
+    def _default_player_tables() -> PlayerStateTables:
+        return PlayerStateTables(
+            levels={},
+            skills={},
+            perks={},
+            vitriol={},
+            inventory={},
+            market={},
+            flags={},
+            clock={},
+        )
+
+    @staticmethod
+    def _merge_player_tables(base: PlayerStateTables, incoming: PlayerStateTables) -> PlayerStateTables:
+        def merge_map(left: dict[str, object], right: dict[str, object]) -> dict[str, object]:
+            merged = dict(left)
+            for key, value in right.items():
+                if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+                    merged[key] = merge_map(cast(dict[str, object], merged[key]), cast(dict[str, object], value))
+                else:
+                    merged[key] = value
+            return merged
+
+        return PlayerStateTables(
+            levels=merge_map(base.levels, incoming.levels),
+            skills=merge_map(base.skills, incoming.skills),
+            perks=merge_map(base.perks, incoming.perks),
+            vitriol=merge_map(base.vitriol, incoming.vitriol),
+            inventory=merge_map(base.inventory, incoming.inventory),
+            market=merge_map(base.market, incoming.market),
+            flags=merge_map(base.flags, incoming.flags),
+            clock=merge_map(base.clock, incoming.clock),
+        )
+
     def health(self) -> None:
         self._require_repo().ping()
 
@@ -228,6 +300,7 @@ class AtelierService:
         akinenwun: str,
         mode: str,
         ingest: bool,
+        policy: Mapping[str, Any] | None = None,
         actor_id: str,
         workshop_id: str,
     ) -> Mapping[str, Any]:
@@ -235,6 +308,7 @@ class AtelierService:
             akinenwun=akinenwun,
             mode=mode,
             ingest=ingest,
+            policy=policy or {},
             actor_id=actor_id,
             workshop_id=workshop_id,
         )
@@ -283,6 +357,31 @@ class AtelierService:
         )
         out = self._require_repo().create_lesson(row)
         return LessonOut.model_validate(out, from_attributes=True)
+
+    def list_lesson_progress(self, workspace_id: str, actor_id: str) -> Sequence[LessonProgressOut]:
+        rows = self._require_repo().list_lesson_progress(workspace_id=workspace_id, actor_id=actor_id)
+        return [LessonProgressOut.model_validate(row, from_attributes=True) for row in rows]
+
+    def consume_lesson(self, payload: LessonConsumeInput) -> LessonProgressOut:
+        repo = self._require_repo()
+        row = repo.get_lesson_progress(payload.workspace_id, payload.actor_id, payload.lesson_id)
+        now = datetime.now(timezone.utc)
+        if row is None:
+            row = LessonProgress(
+                workspace_id=payload.workspace_id,
+                actor_id=payload.actor_id,
+                lesson_id=payload.lesson_id,
+                status=payload.status,
+                completed_at=now if payload.status == "consumed" else None,
+                updated_at=now,
+            )
+        else:
+            row.status = payload.status
+            if payload.status == "consumed" and row.completed_at is None:
+                row.completed_at = now
+            row.updated_at = now
+        saved = repo.save_lesson_progress(row)
+        return LessonProgressOut.model_validate(saved, from_attributes=True)
 
     def list_modules(self, workspace_id: str) -> Sequence[ModuleOut]:
         rows = self._require_repo().list_modules(workspace_id=workspace_id)
@@ -457,12 +556,16 @@ class AtelierService:
         actor_id: str,
         workshop_id: str,
     ) -> SceneGraphEmitOut:
+        realm_error = validate_scene_realm(payload.scene_id, payload.realm_id)
+        if realm_error:
+            raise ValueError(realm_error)
         sorted_nodes = sorted(payload.nodes, key=lambda node: node.node_id)
         sorted_edges = sorted(payload.edges, key=lambda edge: (edge.from_node_id, edge.to_node_id, edge.relation))
         for node in sorted_nodes:
             raw = f"scene.node {payload.scene_id} {node.node_id} {node.kind} {node.x} {node.y}"
             context: dict[str, object] = {
                 "workspace_id": payload.workspace_id,
+                "realm_id": payload.realm_id,
                 "scene_id": payload.scene_id,
                 "node_id": node.node_id,
                 "metadata": dict(node.metadata),
@@ -472,6 +575,7 @@ class AtelierService:
             raw = f"scene.edge {payload.scene_id} {edge.from_node_id} {edge.to_node_id} {edge.relation}"
             context = {
                 "workspace_id": payload.workspace_id,
+                "realm_id": payload.realm_id,
                 "scene_id": payload.scene_id,
                 "from_node_id": edge.from_node_id,
                 "to_node_id": edge.to_node_id,
@@ -513,12 +617,487 @@ class AtelierService:
             payload=payload,
         )
 
+    def _player_state_to_tables(self, row: PlayerState) -> PlayerStateTables:
+        return PlayerStateTables(
+            levels=self._json_to_object_map(row.levels_json),
+            skills=self._json_to_object_map(row.skills_json),
+            perks=self._json_to_object_map(row.perks_json),
+            vitriol=self._json_to_object_map(row.vitriol_json),
+            inventory=self._json_to_object_map(row.inventory_json),
+            market=self._json_to_object_map(row.market_json),
+            flags=self._json_to_object_map(row.flags_json),
+            clock=self._json_to_object_map(row.clock_json),
+        )
+
+    def _ensure_player_state(self, workspace_id: str, actor_id: str) -> PlayerState:
+        repo = self._require_repo()
+        row = repo.get_player_state(workspace_id, actor_id)
+        if row is not None:
+            return row
+        defaults = self._default_player_tables()
+        row = PlayerState(
+            workspace_id=workspace_id,
+            actor_id=actor_id,
+            state_version=1,
+            levels_json=self._canonical_json(defaults.levels),
+            skills_json=self._canonical_json(defaults.skills),
+            perks_json=self._canonical_json(defaults.perks),
+            vitriol_json=self._canonical_json(defaults.vitriol),
+            inventory_json=self._canonical_json(defaults.inventory),
+            market_json=self._canonical_json(defaults.market),
+            flags_json=self._canonical_json(defaults.flags),
+            clock_json=self._canonical_json(defaults.clock),
+        )
+        return repo.save_player_state(row)
+
+    def get_player_state(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+    ) -> PlayerStateOut:
+        row = self._ensure_player_state(workspace_id, actor_id)
+        tables = self._player_state_to_tables(row)
+        hash_payload: dict[str, object] = {
+            "workspace_id": workspace_id,
+            "actor_id": actor_id,
+            "state_version": row.state_version,
+            "tables": tables.model_dump(),
+        }
+        return PlayerStateOut(
+            workspace_id=workspace_id,
+            actor_id=actor_id,
+            state_version=row.state_version,
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            hash=self._canonical_hash(hash_payload),
+            tables=tables,
+        )
+
+    def apply_player_state(
+        self,
+        *,
+        payload: PlayerStateApplyInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> PlayerStateOut:
+        repo = self._require_repo()
+        row = self._ensure_player_state(payload.workspace_id, payload.actor_id)
+        current = self._player_state_to_tables(row)
+        if payload.mode == "replace":
+            next_tables = payload.tables
+        else:
+            next_tables = self._merge_player_tables(current, payload.tables)
+        row.state_version = max(1, int(row.state_version) + 1)
+        row.levels_json = self._canonical_json(next_tables.levels)
+        row.skills_json = self._canonical_json(next_tables.skills)
+        row.perks_json = self._canonical_json(next_tables.perks)
+        row.vitriol_json = self._canonical_json(next_tables.vitriol)
+        row.inventory_json = self._canonical_json(next_tables.inventory)
+        row.market_json = self._canonical_json(next_tables.market)
+        row.flags_json = self._canonical_json(next_tables.flags)
+        row.clock_json = self._canonical_json(next_tables.clock)
+        row.updated_at = datetime.now(timezone.utc)
+        repo.save_player_state(row)
+
+        self._kernel.place(
+            raw=f"game.state.apply {payload.actor_id} mode={payload.mode}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "player_state_apply",
+                "state_version": row.state_version,
+                "tables": next_tables.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "actor_id": payload.actor_id,
+            "state_version": row.state_version,
+            "tables": next_tables.model_dump(),
+        }
+        return PlayerStateOut(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            state_version=row.state_version,
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            hash=self._canonical_hash(hash_payload),
+            tables=next_tables,
+        )
+
+    @staticmethod
+    def _int_from_table(value: object, fallback: int) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return fallback
+
+    @staticmethod
+    def _list_from_table(value: object) -> list[str]:
+        if isinstance(value, list):
+            return [str(item) for item in value]
+        return []
+
+    @staticmethod
+    def _dict_from_table(value: object) -> dict[str, object]:
+        if isinstance(value, dict):
+            return value
+        return {}
+
+    @staticmethod
+    def _list_of_dicts(value: object) -> list[dict[str, object]]:
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+        return []
+
+    def _event_payload_with_defaults(
+        self,
+        payload: Mapping[str, object],
+        workspace_id: str,
+        actor_id: str,
+    ) -> dict[str, object]:
+        merged = dict(payload)
+        merged.setdefault("workspace_id", workspace_id)
+        merged.setdefault("actor_id", actor_id)
+        return merged
+
+    def _apply_game_event(
+        self,
+        *,
+        event: GameEventInput,
+        tables: PlayerStateTables,
+        workspace_id: str,
+        actor_id: str,
+        workshop_id: str,
+    ) -> tuple[PlayerStateTables, GameTickEventResult]:
+        kind = event.kind.strip().lower()
+        payload = self._event_payload_with_defaults(event.payload, workspace_id, actor_id)
+        updated_tables = tables
+        try:
+            if kind == "levels.apply":
+                current_level = self._int_from_table(tables.levels.get("current_level"), 1)
+                current_xp = self._int_from_table(tables.levels.get("current_xp"), 0)
+                payload.setdefault("current_level", current_level)
+                payload.setdefault("current_xp", current_xp)
+                level_payload = LevelApplyInput.model_validate(payload)
+                result = self.apply_level_progress(
+                    payload=level_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                levels = dict(tables.levels)
+                levels["current_level"] = result.level_after
+                levels["current_xp"] = result.xp_after
+                levels["last"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "levels": levels})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
+            if kind == "skills.train":
+                ranks = self._dict_from_table(tables.skills.get("ranks"))
+                skill_id = str(payload.get("skill_id") or "")
+                payload.setdefault("current_rank", self._int_from_table(ranks.get(skill_id, 0), 0))
+                payload.setdefault("points_available", self._int_from_table(tables.skills.get("points_available"), 0))
+                skill_payload = SkillTrainInput.model_validate(payload)
+                result = self.train_skill(
+                    payload=skill_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                ranks[skill_payload.skill_id] = result.rank_after
+                skills = dict(tables.skills)
+                skills["ranks"] = ranks
+                skills["points_available"] = result.points_remaining
+                skills["last"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "skills": skills})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
+            if kind == "perks.unlock":
+                unlocked = self._list_from_table(tables.perks.get("unlocked"))
+                payload.setdefault("unlocked_perks", unlocked)
+                payload.setdefault("actor_level", self._int_from_table(tables.levels.get("current_level"), 1))
+                payload.setdefault("actor_skills", self._dict_from_table(tables.skills.get("ranks")))
+                perk_payload = PerkUnlockInput.model_validate(payload)
+                result = self.unlock_perk(
+                    payload=perk_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                perks = dict(tables.perks)
+                perks["unlocked"] = result.unlocked_perks
+                perks["last"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "perks": perks})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail=result.reason, payload=result.model_dump())
+            if kind == "alchemy.craft":
+                inventory = self._dict_from_table(tables.inventory.get("items"))
+                payload.setdefault("inventory", inventory)
+                alchemy_payload = AlchemyCraftInput.model_validate(payload)
+                result = self.craft_alchemy(
+                    payload=alchemy_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                inv = dict(tables.inventory)
+                inv["items"] = result.inventory_after
+                alchemy = dict(tables.alchemy)
+                alchemy["last"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "inventory": inv, "alchemy": alchemy})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail=result.reason, payload=result.model_dump())
+            if kind == "alchemy.interface":
+                alchemy_payload = AlchemyInterfaceInput.model_validate(payload)
+                result = self.build_alchemy_interface(
+                    payload=alchemy_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                alchemy = dict(tables.alchemy)
+                alchemy["interface"] = result.interface
+                alchemy["constraints"] = result.render_constraints
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "alchemy": alchemy})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
+            if kind == "alchemy.crystal":
+                inventory = self._dict_from_table(tables.inventory.get("items"))
+                payload.setdefault("inventory", inventory)
+                flags = self._dict_from_table(tables.flags)
+                payload.setdefault("infernal_meditation", bool(flags.get("infernal_meditation")))
+                payload.setdefault("vitriol_trials_cleared", bool(flags.get("vitriol_trials_cleared")))
+                crystal_payload = AlchemyCrystalInput.model_validate(payload)
+                result = self.craft_alchemy_crystal(
+                    payload=crystal_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                inv = dict(tables.inventory)
+                inv["items"] = result.inventory_after
+                alchemy = dict(tables.alchemy)
+                alchemy["last_crystal"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "inventory": inv, "alchemy": alchemy})
+                if result.key_flags:
+                    flags = dict(updated_tables.flags)
+                    flags.update(result.key_flags)
+                    updated_tables = PlayerStateTables(**{**updated_tables.model_dump(), "flags": flags})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=result.crafted, detail=result.reason, payload=result.model_dump())
+            if kind == "blacksmith.forge":
+                inventory = self._dict_from_table(tables.inventory.get("items"))
+                payload.setdefault("inventory", inventory)
+                forge_payload = BlacksmithForgeInput.model_validate(payload)
+                result = self.forge_blacksmith(
+                    payload=forge_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                inv = dict(tables.inventory)
+                inv["items"] = result.inventory_after
+                blacksmith = dict(tables.blacksmith)
+                blacksmith["last"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "inventory": inv, "blacksmith": blacksmith})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail=result.reason, payload=result.model_dump())
+            if kind == "market.quote":
+                quote_payload = MarketQuoteInput.model_validate(payload)
+                result = self.market_quote(
+                    payload=quote_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                market = dict(tables.market)
+                market["last_quote"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "market": market})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
+            if kind == "market.trade":
+                market_inv = self._dict_from_table(tables.market.get("inventory"))
+                payload.setdefault("wallet_cents", self._int_from_table(tables.market.get("wallet_cents"), 0))
+                payload.setdefault("inventory_qty", self._int_from_table(market_inv.get(str(payload.get("item_id") or "")), 0))
+                payload.setdefault("available_liquidity", self._int_from_table(tables.market.get("available_liquidity"), 0))
+                trade_payload = MarketTradeInput.model_validate(payload)
+                result = self.market_trade(
+                    payload=trade_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                market = dict(tables.market)
+                market_inv = dict(market_inv)
+                market_inv[result.item_id] = result.inventory_after_qty
+                market["inventory"] = market_inv
+                market["wallet_cents"] = result.wallet_after_cents
+                market["last_trade"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "market": market})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail=result.status, payload=result.model_dump())
+            if kind == "radio.evaluate":
+                radio_payload = RadioEvaluateInput.model_validate(payload)
+                result = self.evaluate_radio_availability(
+                    payload=radio_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                flags = dict(tables.flags)
+                flags.update(result.flags)
+                flags["last_radio"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail=result.reason, payload=result.model_dump())
+            if kind == "infernal_meditation.unlock":
+                unlock_payload = InfernalMeditationUnlockInput.model_validate(payload)
+                result = self.unlock_infernal_meditation(
+                    payload=unlock_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                flags = dict(tables.flags)
+                flags.update(result.flags)
+                flags["last_infernal_meditation"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=result.unlocked, detail=result.reason, payload=result.model_dump())
+            if kind == "vitriol.apply":
+                payload.setdefault("base", self._dict_from_table(tables.vitriol.get("base")))
+                payload.setdefault("modifiers", self._list_of_dicts(tables.vitriol.get("modifiers")))
+                vitriol_payload = VitriolApplyRulerInfluenceInput.model_validate(payload)
+                result = self.vitriol_apply_ruler_influence(
+                    payload=vitriol_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                vitriol = dict(tables.vitriol)
+                vitriol["effective"] = result.effective
+                vitriol["modifiers"] = [item.model_dump() for item in result.active_modifiers]
+                vitriol["base"] = vitriol_payload.base
+                vitriol["last"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "vitriol": vitriol})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
+            if kind == "vitriol.compute":
+                payload.setdefault("base", self._dict_from_table(tables.vitriol.get("base")))
+                payload.setdefault("modifiers", self._list_of_dicts(tables.vitriol.get("modifiers")))
+                vitriol_payload = VitriolComputeInput.model_validate(payload)
+                result = self.vitriol_compute(payload=vitriol_payload)
+                vitriol = dict(tables.vitriol)
+                vitriol["effective"] = result.effective
+                vitriol["modifiers"] = [item.model_dump() for item in result.active_modifiers]
+                vitriol["base"] = vitriol_payload.base
+                vitriol["last"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "vitriol": vitriol})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
+            if kind == "vitriol.clear":
+                payload.setdefault("base", self._dict_from_table(tables.vitriol.get("base")))
+                payload.setdefault("modifiers", self._list_of_dicts(tables.vitriol.get("modifiers")))
+                vitriol_payload = VitriolClearExpiredInput.model_validate(payload)
+                result = self.vitriol_clear_expired(
+                    payload=vitriol_payload,
+                    actor_id=actor_id,
+                    workshop_id=workshop_id,
+                    emit_kernel=False,
+                )
+                vitriol = dict(tables.vitriol)
+                vitriol["effective"] = result.effective
+                vitriol["modifiers"] = [item.model_dump() for item in result.active_modifiers]
+                vitriol["base"] = vitriol_payload.base
+                vitriol["last"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "vitriol": vitriol})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
+            if kind == "inventory.adjust":
+                item_id = str(payload.get("item_id") or "")
+                delta = self._int_from_table(payload.get("delta"), 0)
+                inventory = dict(tables.inventory)
+                items = dict(self._dict_from_table(inventory.get("items")))
+                items[item_id] = self._int_from_table(items.get(item_id, 0), 0) + delta
+                inventory["items"] = items
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "inventory": inventory})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload={"item_id": item_id, "delta": delta})
+            if kind == "flags.set":
+                key = str(payload.get("key") or "")
+                value = bool(payload.get("value"))
+                flags = dict(tables.flags)
+                flags[key] = value
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload={"key": key, "value": value})
+        except Exception as exc:
+            return tables, GameTickEventResult(kind=event.kind, ok=False, detail=str(exc), payload=dict(payload))
+        return tables, GameTickEventResult(kind=event.kind, ok=False, detail="unsupported_event", payload=dict(payload))
+
+    def game_tick(
+        self,
+        *,
+        payload: GameTickInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> GameTickOut:
+        repo = self._require_repo()
+        row = self._ensure_player_state(payload.workspace_id, payload.actor_id)
+        tables = self._player_state_to_tables(row)
+        results: list[GameTickEventResult] = []
+        updated_tables = tables
+        for event in payload.events:
+            updated_tables, result = self._apply_game_event(
+                event=event,
+                tables=updated_tables,
+                workspace_id=payload.workspace_id,
+                actor_id=payload.actor_id,
+                workshop_id=workshop_id,
+            )
+            results.append(result)
+        clock = dict(updated_tables.clock)
+        tick_before = self._int_from_table(clock.get("tick"), 0)
+        clock["tick"] = tick_before + 1
+        clock["dt_ms"] = max(0, int(payload.dt_ms))
+        updated_tables = PlayerStateTables(**{**updated_tables.model_dump(), "clock": clock})
+        row.state_version = max(1, int(row.state_version) + 1)
+        row.levels_json = self._canonical_json(updated_tables.levels)
+        row.skills_json = self._canonical_json(updated_tables.skills)
+        row.perks_json = self._canonical_json(updated_tables.perks)
+        row.vitriol_json = self._canonical_json(updated_tables.vitriol)
+        row.inventory_json = self._canonical_json(updated_tables.inventory)
+        row.market_json = self._canonical_json(updated_tables.market)
+        row.flags_json = self._canonical_json(updated_tables.flags)
+        row.clock_json = self._canonical_json(updated_tables.clock)
+        row.updated_at = datetime.now(timezone.utc)
+        repo.save_player_state(row)
+
+        self._kernel.place(
+            raw=f"game.state.tick {payload.actor_id} events={len(payload.events)}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "game_tick",
+                "state_version": row.state_version,
+                "tick": clock["tick"],
+                "results": [item.model_dump() for item in results],
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "actor_id": payload.actor_id,
+            "state_version": row.state_version,
+            "tick": clock["tick"],
+            "dt_ms": payload.dt_ms,
+            "results": [item.model_dump() for item in results],
+            "tables": updated_tables.model_dump(),
+        }
+        return GameTickOut(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            state_version=row.state_version,
+            tick=clock["tick"],
+            dt_ms=payload.dt_ms,
+            applied=sum(1 for item in results if item.ok),
+            results=results,
+            hash=self._canonical_hash(hash_payload),
+            tables=updated_tables,
+        )
+
     def apply_level_progress(
         self,
         *,
         payload: LevelApplyInput,
         actor_id: str,
         workshop_id: str,
+        emit_kernel: bool = True,
     ) -> LevelApplyOut:
         level_before = max(1, payload.current_level)
         xp = max(0, payload.current_xp) + max(0, payload.gained_xp)
@@ -541,16 +1120,17 @@ class AtelierService:
             leveled_up=gained_levels > 0,
             levels_gained=gained_levels,
         )
-        self._kernel.place(
-            raw=f"game.level.apply {payload.actor_id} +xp={payload.gained_xp}",
-            context={
-                "workspace_id": payload.workspace_id,
-                "rule": "level_progress",
-                "result": result.model_dump(),
-            },
-            actor_id=actor_id,
-            workshop_id=workshop_id,
-        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.level.apply {payload.actor_id} +xp={payload.gained_xp}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "level_progress",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
         return result
 
     def train_skill(
@@ -559,6 +1139,7 @@ class AtelierService:
         payload: SkillTrainInput,
         actor_id: str,
         workshop_id: str,
+        emit_kernel: bool = True,
     ) -> SkillTrainOut:
         rank_before = max(0, payload.current_rank)
         points = max(0, payload.points_available)
@@ -574,16 +1155,17 @@ class AtelierService:
             points_remaining=points_after,
             trained=trained,
         )
-        self._kernel.place(
-            raw=f"game.skill.train {payload.actor_id} {payload.skill_id}",
-            context={
-                "workspace_id": payload.workspace_id,
-                "rule": "skill_train",
-                "result": result.model_dump(),
-            },
-            actor_id=actor_id,
-            workshop_id=workshop_id,
-        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.skill.train {payload.actor_id} {payload.skill_id}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "skill_train",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
         return result
 
     def unlock_perk(
@@ -592,6 +1174,7 @@ class AtelierService:
         payload: PerkUnlockInput,
         actor_id: str,
         workshop_id: str,
+        emit_kernel: bool = True,
     ) -> PerkUnlockOut:
         unlocked_set = set(payload.unlocked_perks)
         if payload.perk_id in unlocked_set:
@@ -633,16 +1216,17 @@ class AtelierService:
                     reason="ok",
                     unlocked_perks=sorted(unlocked_set),
                 )
-        self._kernel.place(
-            raw=f"game.perk.unlock {payload.actor_id} {payload.perk_id}",
-            context={
-                "workspace_id": payload.workspace_id,
-                "rule": "perk_unlock",
-                "result": result.model_dump(),
-            },
-            actor_id=actor_id,
-            workshop_id=workshop_id,
-        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.perk.unlock {payload.actor_id} {payload.perk_id}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "perk_unlock",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
         return result
 
     @staticmethod
@@ -671,6 +1255,7 @@ class AtelierService:
         payload: AlchemyCraftInput,
         actor_id: str,
         workshop_id: str,
+        emit_kernel: bool = True,
     ) -> AlchemyCraftOut:
         crafted, reason, inventory_after = self._apply_recipe(
             inventory=payload.inventory,
@@ -684,16 +1269,116 @@ class AtelierService:
             reason=reason,
             inventory_after=inventory_after,
         )
-        self._kernel.place(
-            raw=f"game.alchemy.craft {payload.actor_id} {payload.recipe_id}",
-            context={
-                "workspace_id": payload.workspace_id,
-                "rule": "alchemy_craft",
-                "result": result.model_dump(),
-            },
-            actor_id=actor_id,
-            workshop_id=workshop_id,
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.alchemy.craft {payload.actor_id} {payload.recipe_id}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "alchemy_craft",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
+        return result
+
+    @staticmethod
+    def _asmodian_ring_for_purity(purity: int) -> tuple[str, int]:
+        rings = ["Pride", "Greed", "Gluttony", "Envy", "Sloth", "Wrath", "Lust"]
+        normalized = max(0, min(100, int(purity)))
+        idx = round((normalized / 100) * (len(rings) - 1))
+        return rings[idx], idx
+
+    def craft_alchemy_crystal(
+        self,
+        *,
+        payload: AlchemyCrystalInput,
+        actor_id: str,
+        workshop_id: str,
+        emit_kernel: bool = True,
+    ) -> AlchemyCrystalOut:
+        crafted, reason, inventory_after = self._apply_recipe(
+            inventory=payload.inventory,
+            consume=payload.ingredients,
+            produce=payload.outputs,
         )
+        purity = max(0, min(100, int(payload.purity)))
+        crystal_type = str(payload.crystal_type or "").strip().lower()
+        key_flags: dict[str, object] = {}
+        infernal_meditation = bool(payload.infernal_meditation)
+        vitriol_trials_cleared = bool(payload.vitriol_trials_cleared)
+        if crafted:
+            if crystal_type == "radio":
+                key_flags = {
+                    "radio_key": True,
+                    "radio_crystal_purity": purity,
+                    "overworld_key": True,
+                }
+            elif crystal_type == "asmodian":
+                ring, ring_index = self._asmodian_ring_for_purity(purity)
+                key_flags = {
+                    "asmodian_key": True,
+                    "asmodian_crystal_purity": purity,
+                    "underworld_ring": ring,
+                    "underworld_ring_index": ring_index,
+                    "underworld_visitors_access": infernal_meditation,
+                    "underworld_royalty_access": vitriol_trials_cleared,
+                }
+            else:
+                reason = "unknown_crystal_type"
+                crafted = False
+        result = AlchemyCrystalOut(
+            actor_id=payload.actor_id,
+            crystal_type=crystal_type,
+            purity=purity,
+            crafted=crafted,
+            reason=reason,
+            inventory_after=inventory_after,
+            key_flags=key_flags,
+        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.alchemy.crystal {payload.actor_id} {crystal_type}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "alchemy_crystal",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
+        return result
+
+    def build_alchemy_interface(
+        self,
+        *,
+        payload: AlchemyInterfaceInput,
+        actor_id: str,
+        workshop_id: str,
+        emit_kernel: bool = True,
+    ) -> AlchemyInterfaceOut:
+        from qqva.shygazun_compiler import compile_akinenwun_to_ir, derive_render_constraints
+
+        ir = compile_akinenwun_to_ir(payload.akinenwun)
+        constraints = derive_render_constraints(ir)
+        interface = constraints.get("alchemy_interface", {})
+        result = AlchemyInterfaceOut(
+            actor_id=payload.actor_id,
+            akinenwun=payload.akinenwun,
+            interface=cast(dict[str, object], interface),
+            render_constraints=cast(dict[str, object], constraints),
+        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.alchemy.interface {payload.actor_id}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "alchemy_interface",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
         return result
 
     def forge_blacksmith(
@@ -702,6 +1387,7 @@ class AtelierService:
         payload: BlacksmithForgeInput,
         actor_id: str,
         workshop_id: str,
+        emit_kernel: bool = True,
     ) -> BlacksmithForgeOut:
         forged, reason, inventory_after = self._apply_recipe(
             inventory=payload.inventory,
@@ -719,16 +1405,17 @@ class AtelierService:
             durability_score=durability,
             inventory_after=inventory_after,
         )
-        self._kernel.place(
-            raw=f"game.blacksmith.forge {payload.actor_id} {payload.blueprint_id}",
-            context={
-                "workspace_id": payload.workspace_id,
-                "rule": "blacksmith_forge",
-                "result": result.model_dump(),
-            },
-            actor_id=actor_id,
-            workshop_id=workshop_id,
-        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.blacksmith.forge {payload.actor_id} {payload.blueprint_id}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "blacksmith_forge",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
         return result
 
     def resolve_combat(
@@ -769,6 +1456,7 @@ class AtelierService:
         payload: MarketQuoteInput,
         actor_id: str,
         workshop_id: str,
+        emit_kernel: bool = True,
     ) -> MarketQuoteOut:
         quantity = max(0, payload.quantity)
         base = max(1, payload.base_price_cents)
@@ -786,16 +1474,17 @@ class AtelierService:
             unit_price_cents=unit_price,
             subtotal_cents=subtotal,
         )
-        self._kernel.place(
-            raw=f"game.market.quote {payload.actor_id} {payload.item_id} {payload.side}",
-            context={
-                "workspace_id": payload.workspace_id,
-                "rule": "market_quote",
-                "result": result.model_dump(),
-            },
-            actor_id=actor_id,
-            workshop_id=workshop_id,
-        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.market.quote {payload.actor_id} {payload.item_id} {payload.side}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "market_quote",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
         return result
 
     def market_trade(
@@ -804,6 +1493,7 @@ class AtelierService:
         payload: MarketTradeInput,
         actor_id: str,
         workshop_id: str,
+        emit_kernel: bool = True,
     ) -> MarketTradeOut:
         side = payload.side.lower()
         requested_qty = max(0, payload.quantity)
@@ -862,16 +1552,104 @@ class AtelierService:
             inventory_after_qty=inventory_after,
             status=status,
         )
-        self._kernel.place(
-            raw=f"game.market.trade {payload.actor_id} {payload.item_id} {side}",
-            context={
-                "workspace_id": payload.workspace_id,
-                "rule": "market_trade",
-                "result": result.model_dump(),
-            },
-            actor_id=actor_id,
-            workshop_id=workshop_id,
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.market.trade {payload.actor_id} {payload.item_id} {side}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "market_trade",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
+        return result
+
+    def evaluate_radio_availability(
+        self,
+        *,
+        payload: RadioEvaluateInput,
+        actor_id: str,
+        workshop_id: str,
+        emit_kernel: bool = True,
+    ) -> RadioEvaluateOut:
+        state = str(payload.underworld_state or "").strip().lower()
+        override = payload.override_available
+        if override is not None:
+            available = bool(override)
+            reason = "override"
+        else:
+            if state in {"open", "active", "unstable", "awakened"}:
+                available = True
+                reason = "state_allows_radio"
+            elif state in {"sealed", "silent", "collapsed", "dormant", "closed"}:
+                available = False
+                reason = "state_blocks_radio"
+            else:
+                available = False
+                reason = "unknown_state"
+        flags = {
+            "radio_available": available,
+            "underworld_state": state,
+        }
+        result = RadioEvaluateOut(
+            actor_id=payload.actor_id,
+            underworld_state=state,
+            available=available,
+            reason=reason,
+            flags=flags,
         )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.radio.evaluate {payload.actor_id} {state}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "radio_evaluate",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
+        return result
+
+    def unlock_infernal_meditation(
+        self,
+        *,
+        payload: InfernalMeditationUnlockInput,
+        actor_id: str,
+        workshop_id: str,
+        emit_kernel: bool = True,
+    ) -> InfernalMeditationUnlockOut:
+        mentor = str(payload.mentor or "").strip().lower()
+        location = str(payload.location or "").strip().lower()
+        section = str(payload.section or "").strip().lower()
+        time_of_day = str(payload.time_of_day or "").strip().lower()
+        ok = (
+            mentor == "alfir"
+            and location == "castle azoth library"
+            and section == "restricted"
+            and time_of_day == "night"
+        )
+        reason = "ok" if ok else "conditions_not_met"
+        flags = {
+            "infernal_meditation": ok,
+            "infernal_meditation_mentor": mentor,
+            "infernal_meditation_location": location,
+            "infernal_meditation_section": section,
+            "infernal_meditation_time": time_of_day,
+        }
+        result = InfernalMeditationUnlockOut(actor_id=payload.actor_id, unlocked=ok, reason=reason, flags=flags)
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.infernal_meditation.unlock {payload.actor_id}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "infernal_meditation_unlock",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
         return result
 
     @staticmethod
@@ -1095,6 +1873,7 @@ class AtelierService:
         payload: VitriolApplyRulerInfluenceInput,
         actor_id: str,
         workshop_id: str,
+        emit_kernel: bool = True,
     ) -> VitriolApplyOut:
         self._validate_ruler_delta(payload.ruler_id, payload.delta)
         modifier = VitriolModifier(
@@ -1125,16 +1904,17 @@ class AtelierService:
             active_modifiers=active_modifiers,
             hash=self._canonical_hash(hash_payload),
         )
-        self._kernel.place(
-            raw=f"game.vitriol.apply {payload.actor_id} {modifier.source_ruler}",
-            context={
-                "workspace_id": payload.workspace_id,
-                "rule": "vitriol_apply_ruler_influence",
-                "result": result.model_dump(),
-            },
-            actor_id=actor_id,
-            workshop_id=workshop_id,
-        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.vitriol.apply {payload.actor_id} {modifier.source_ruler}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "vitriol_apply_ruler_influence",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
         return result
 
     def vitriol_clear_expired(
@@ -1143,6 +1923,7 @@ class AtelierService:
         payload: VitriolClearExpiredInput,
         actor_id: str,
         workshop_id: str,
+        emit_kernel: bool = True,
     ) -> VitriolClearExpiredOut:
         kept: list[VitriolModifier] = [
             modifier for modifier in payload.modifiers if self._is_modifier_active(modifier, payload.current_tick)
@@ -1166,17 +1947,111 @@ class AtelierService:
             effective=effective,
             hash=self._canonical_hash(hash_payload),
         )
-        self._kernel.place(
-            raw=f"game.vitriol.clear_expired {payload.actor_id} removed={removed_count}",
-            context={
-                "workspace_id": payload.workspace_id,
-                "rule": "vitriol_clear_expired",
-                "result": result.model_dump(),
-            },
-            actor_id=actor_id,
-            workshop_id=workshop_id,
-        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.vitriol.clear_expired {payload.actor_id} removed={removed_count}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "vitriol_clear_expired",
+                    "result": result.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
         return result
+
+    def renderer_tables(
+        self,
+        *,
+        payload: RendererTablesInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> RendererTablesOut:
+        tables: dict[str, object] = {}
+        if payload.level is not None:
+            tables["levels"] = self.apply_level_progress(
+                payload=payload.level,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+                emit_kernel=False,
+            ).model_dump()
+        if payload.skill is not None:
+            tables["skills"] = self.train_skill(
+                payload=payload.skill,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+                emit_kernel=False,
+            ).model_dump()
+        if payload.perk is not None:
+            tables["perks"] = self.unlock_perk(
+                payload=payload.perk,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+                emit_kernel=False,
+            ).model_dump()
+        if payload.alchemy is not None:
+            tables["alchemy"] = self.craft_alchemy(
+                payload=payload.alchemy,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+                emit_kernel=False,
+            ).model_dump()
+        if payload.blacksmith is not None:
+            tables["blacksmith"] = self.forge_blacksmith(
+                payload=payload.blacksmith,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+                emit_kernel=False,
+            ).model_dump()
+        market: dict[str, object] = {}
+        if payload.market_quote is not None:
+            market["quote"] = self.market_quote(
+                payload=payload.market_quote,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+                emit_kernel=False,
+            ).model_dump()
+        if payload.market_trade is not None:
+            market["trade"] = self.market_trade(
+                payload=payload.market_trade,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+                emit_kernel=False,
+            ).model_dump()
+        if market:
+            tables["market"] = market
+        vitriol: dict[str, object] = {}
+        if payload.vitriol_apply is not None:
+            vitriol["apply"] = self.vitriol_apply_ruler_influence(
+                payload=payload.vitriol_apply,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+                emit_kernel=False,
+            ).model_dump()
+        if payload.vitriol_compute is not None:
+            vitriol["compute"] = self.vitriol_compute(payload=payload.vitriol_compute).model_dump()
+        if payload.vitriol_clear is not None:
+            vitriol["clear"] = self.vitriol_clear_expired(
+                payload=payload.vitriol_clear,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+                emit_kernel=False,
+            ).model_dump()
+        if vitriol:
+            tables["vitriol"] = vitriol
+
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "actor_id": payload.actor_id,
+            "tables": tables,
+        }
+        return RendererTablesOut(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            hash=self._canonical_hash(hash_payload),
+            tables=tables,
+        )
 
     def list_suppliers(self, workspace_id: str) -> Sequence[SupplierOut]:
         rows = self._require_repo().list_suppliers(workspace_id=workspace_id)
@@ -1220,6 +2095,231 @@ class AtelierService:
             )
             for row in rows
         ]
+
+    def list_asset_manifests(self, workspace_id: str) -> Sequence[AssetManifestOut]:
+        rows = self._require_repo().list_asset_manifests(workspace_id=workspace_id)
+        return [
+            AssetManifestOut(
+                id=row.id,
+                workspace_id=row.workspace_id,
+                realm_id=row.realm_id,
+                manifest_id=row.manifest_id,
+                name=row.name,
+                kind=row.kind,
+                payload=self._json_to_object_map(row.payload_json),
+                payload_hash=row.payload_hash,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ]
+
+    def create_asset_manifest(self, payload: AssetManifestCreate) -> AssetManifestOut:
+        payload_hash = self._canonical_hash(payload.payload)
+        row = AssetManifest(
+            workspace_id=payload.workspace_id,
+            realm_id=payload.realm_id.strip().lower() or "lapidus",
+            manifest_id=payload.manifest_id,
+            name=payload.name,
+            kind=payload.kind,
+            payload_json=self._canonical_json(payload.payload),
+            payload_hash=payload_hash,
+        )
+        saved = self._require_repo().create_asset_manifest(row)
+        return AssetManifestOut(
+            id=saved.id,
+            workspace_id=saved.workspace_id,
+            realm_id=saved.realm_id,
+            manifest_id=saved.manifest_id,
+            name=saved.name,
+            kind=saved.kind,
+            payload=self._json_to_object_map(saved.payload_json),
+            payload_hash=saved.payload_hash,
+            created_at=saved.created_at,
+        )
+
+    def list_realms(self) -> Sequence[RealmOut]:
+        rows = self._require_repo().list_realms()
+        return [
+            RealmOut(
+                id=row.id,
+                slug=row.slug,
+                name=row.name,
+                description=row.description,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ]
+
+    def validate_realm(self, payload: RealmValidateInput) -> RealmValidateOut:
+        slug = payload.realm_id.strip().lower()
+        row = self._require_repo().get_realm_by_slug(slug)
+        if row is None:
+            return RealmValidateOut(realm_id=payload.realm_id, ok=False, reason="unknown_realm")
+        return RealmValidateOut(realm_id=row.slug, ok=True, reason="ok")
+
+    def validate_content(self, payload: ContentValidateInput) -> ContentValidateOut:
+        realm_validation = self.validate_realm(RealmValidateInput(realm_id=payload.realm_id))
+        errors: list[str] = []
+        warnings: list[str] = []
+        stats: dict[str, object] = {}
+        if not realm_validation.ok:
+            errors.append(f"unknown_realm:{payload.realm_id}")
+        if payload.source == "cobra":
+            result = validate_cobra_content(payload.payload, realm_id=payload.realm_id, scene_id=payload.scene_id)
+        else:
+            result = validate_json_content(payload.payload, realm_id=payload.realm_id, scene_id=payload.scene_id)
+        errors.extend(result.errors)
+        warnings.extend(result.warnings)
+        stats.update(result.stats)
+        ok = len(errors) == 0
+        return ContentValidateOut(
+            workspace_id=payload.workspace_id,
+            realm_id=payload.realm_id,
+            scene_id=payload.scene_id,
+            source=payload.source,
+            ok=ok,
+            errors=errors,
+            warnings=warnings,
+            stats=stats,
+        )
+
+    def list_scenes(self, workspace_id: str, realm_id: str | None = None) -> Sequence[SceneOut]:
+        rows = self._require_repo().list_scenes(workspace_id=workspace_id, realm_id=realm_id)
+        return [
+            SceneOut(
+                id=row.id,
+                workspace_id=row.workspace_id,
+                realm_id=row.realm_id,
+                scene_id=row.scene_id,
+                name=row.name,
+                description=row.description,
+                content=self._json_to_object_map(row.content_json),
+                content_hash=row.content_hash,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+            for row in rows
+        ]
+
+    def get_scene(self, workspace_id: str, realm_id: str, scene_id: str) -> SceneOut | None:
+        row = self._require_repo().get_scene(workspace_id=workspace_id, realm_id=realm_id, scene_id=scene_id)
+        if row is None:
+            return None
+        return SceneOut(
+            id=row.id,
+            workspace_id=row.workspace_id,
+            realm_id=row.realm_id,
+            scene_id=row.scene_id,
+            name=row.name,
+            description=row.description,
+            content=self._json_to_object_map(row.content_json),
+            content_hash=row.content_hash,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+    def create_scene(self, payload: SceneCreateInput) -> SceneOut:
+        realm_error = validate_scene_realm(payload.scene_id, payload.realm_id)
+        if realm_error:
+            raise ValueError(realm_error)
+        content_hash = self._canonical_hash(payload.content)
+        row = Scene(
+            workspace_id=payload.workspace_id,
+            realm_id=payload.realm_id.strip().lower(),
+            scene_id=payload.scene_id.strip(),
+            name=payload.name,
+            description=payload.description,
+            content_json=self._canonical_json(payload.content),
+            content_hash=content_hash,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        saved = self._require_repo().create_scene(row)
+        return SceneOut(
+            id=saved.id,
+            workspace_id=saved.workspace_id,
+            realm_id=saved.realm_id,
+            scene_id=saved.scene_id,
+            name=saved.name,
+            description=saved.description,
+            content=self._json_to_object_map(saved.content_json),
+            content_hash=saved.content_hash,
+            created_at=saved.created_at,
+            updated_at=saved.updated_at,
+        )
+
+    def update_scene(self, workspace_id: str, realm_id: str, scene_id: str, payload: SceneUpdateInput) -> SceneOut:
+        row = self._require_repo().get_scene(workspace_id=workspace_id, realm_id=realm_id, scene_id=scene_id)
+        if row is None:
+            raise ValueError("scene_not_found")
+        if payload.name is not None:
+            row.name = payload.name
+        if payload.description is not None:
+            row.description = payload.description
+        if payload.content is not None:
+            row.content_json = self._canonical_json(payload.content)
+            row.content_hash = self._canonical_hash(payload.content)
+        row.updated_at = datetime.utcnow()
+        saved = self._require_repo().save_scene(row)
+        return SceneOut(
+            id=saved.id,
+            workspace_id=saved.workspace_id,
+            realm_id=saved.realm_id,
+            scene_id=saved.scene_id,
+            name=saved.name,
+            description=saved.description,
+            content=self._json_to_object_map(saved.content_json),
+            content_hash=saved.content_hash,
+            created_at=saved.created_at,
+            updated_at=saved.updated_at,
+        )
+
+    def emit_scene_from_library(
+        self,
+        *,
+        workspace_id: str,
+        realm_id: str,
+        scene_id: str,
+        actor_id: str,
+        workshop_id: str,
+    ) -> SceneEmitOut:
+        row = self._require_repo().get_scene(workspace_id=workspace_id, realm_id=realm_id, scene_id=scene_id)
+        if row is None:
+            raise ValueError("scene_not_found")
+        content = self._json_to_object_map(row.content_json)
+        nodes_obj = content.get("nodes")
+        edges_obj = content.get("edges")
+        if not isinstance(nodes_obj, list) or not isinstance(edges_obj, list):
+            raise ValueError("scene_graph_invalid")
+        payload = SceneGraphEmitInput(
+            workspace_id=workspace_id,
+            realm_id=realm_id,
+            scene_id=scene_id,
+            nodes=nodes_obj,
+            edges=edges_obj,
+        )
+        result = self.emit_scene_graph(payload=payload, actor_id=actor_id, workshop_id=workshop_id)
+        return SceneEmitOut(
+            scene_id=result.scene_id,
+            nodes_emitted=result.nodes_emitted,
+            edges_emitted=result.edges_emitted,
+        )
+
+    def create_scene_from_cobra(self, payload: SceneCompileInput) -> SceneOut:
+        content = build_scene_graph_content_from_cobra(
+            payload.cobra_source,
+            realm_id=payload.realm_id,
+            scene_id=payload.scene_id,
+        )
+        create_payload = SceneCreateInput(
+            workspace_id=payload.workspace_id,
+            realm_id=payload.realm_id,
+            scene_id=payload.scene_id,
+            name=payload.name,
+            description=payload.description,
+            content=content,
+        )
+        return self.create_scene(create_payload)
 
     def list_character_dictionary_entries(self, workspace_id: str) -> Sequence[CharacterDictionaryOut]:
         rows = self._require_repo().list_character_dictionary_entries(workspace_id=workspace_id)

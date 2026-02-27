@@ -36,6 +36,7 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
             "journal.read",
             "layer.read",
             "function.read",
+            "scene.read",
         }
     ),
     ROLE_ARTISAN: frozenset(
@@ -73,6 +74,8 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
             "layer.write",
             "function.read",
             "function.write",
+            "scene.read",
+            "scene.write",
         }
     ),
     ROLE_SENIOR_ARTISAN: frozenset(
@@ -113,6 +116,8 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
             "layer.write",
             "function.read",
             "function.write",
+            "scene.read",
+            "scene.write",
         }
     ),
     ROLE_STEWARD: frozenset(
@@ -153,6 +158,8 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
             "layer.write",
             "function.read",
             "function.write",
+            "scene.read",
+            "scene.write",
         }
     ),
 }

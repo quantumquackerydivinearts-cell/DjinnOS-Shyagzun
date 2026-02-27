@@ -88,10 +88,11 @@ class KernelBridgeClient(KernelClient):
         akinenwun: str,
         mode: str,
         ingest: bool,
+        policy: Optional[Mapping[str, Any]] = None,
     ) -> Mapping[str, Any]:
         response = self._client.post(
             "/v0.1/akinenwun/lookup",
-            json={"akinenwun": akinenwun, "mode": mode, "ingest": ingest},
+            json={"akinenwun": akinenwun, "mode": mode, "ingest": ingest, "policy": policy or {}},
         )
         assert response.status_code == 200
         payload = response.json()
@@ -143,7 +144,7 @@ def test_atelier_ambroflow_lookup_matches_kernel_surface_hash() -> None:
     client = TestClient(atelier_app)
     response = client.post(
         "/v1/ambroflow/akinenwun/lookup",
-        json={"akinenwun": "TyKoWuVu", "mode": "prose", "ingest": False},
+        json={"akinenwun": "TyKoWuVu", "mode": "prose", "ingest": False, "policy": {"edge_weight_bias": {"relation": 0.2}}},
         headers=_headers(),
     )
     assert response.status_code == 200
@@ -151,7 +152,12 @@ def test_atelier_ambroflow_lookup_matches_kernel_surface_hash() -> None:
 
     kernel_response = kernel_client.post(
         "/v0.1/akinenwun/lookup",
-        json={"akinenwun": "TyKoWuVu", "mode": "prose", "ingest": False},
+        json={
+            "akinenwun": "TyKoWuVu",
+            "mode": "prose",
+            "ingest": False,
+            "policy": {"edge_weight_bias": {"relation": 0.2}},
+        },
     )
     assert kernel_response.status_code == 200
     kernel_payload = kernel_response.json()

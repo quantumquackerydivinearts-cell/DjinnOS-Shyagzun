@@ -21,6 +21,33 @@ class Workspace(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
 
+class Realm(Base):
+    __tablename__ = "realms"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    slug: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class Scene(Base):
+    __tablename__ = "scenes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    realm_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    scene_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    name: Mapped[str] = mapped_column(String(240), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    content_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    content_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
 class ArtisanAccount(Base):
     __tablename__ = "artisan_accounts"
 
@@ -190,7 +217,21 @@ class InventoryItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
     workspace: Mapped[Workspace] = relationship()
-    supplier: Mapped[Supplier | None] = relationship()
+
+
+class LessonProgress(Base):
+    __tablename__ = "lesson_progress"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    lesson_id: Mapped[str] = mapped_column(String(36), ForeignKey("lessons.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), nullable=False, default="consumed")
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+    lesson: Mapped[Lesson] = relationship()
 
 
 class CharacterDictionaryEntry(Base):
@@ -296,5 +337,42 @@ class FunctionStoreEntry(Base):
     metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     function_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class PlayerState(Base):
+    __tablename__ = "player_states"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    state_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    levels_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    skills_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    perks_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    vitriol_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    inventory_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    market_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    flags_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    clock_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
+class AssetManifest(Base):
+    __tablename__ = "asset_manifests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    realm_id: Mapped[str] = mapped_column(String(80), nullable=False, default="lapidus")
+    manifest_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    name: Mapped[str] = mapped_column(String(240), nullable=False)
+    kind: Mapped[str] = mapped_column(String(80), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    payload_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
 
     workspace: Mapped[Workspace] = relationship()

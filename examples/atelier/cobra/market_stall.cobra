@@ -1,0 +1,11 @@
+entity stallkeeper 4 5 npc
+  lex MeKo
+  trade true
+
+entity iron_ingot 5 5 item
+  lex RuUng
+  stack 25
+
+entity herb_bundle 6 5 item
+  lex LyNe
+  stack 12

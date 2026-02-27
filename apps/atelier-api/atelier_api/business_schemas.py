@@ -60,6 +60,23 @@ class LessonOut(BaseModel):
     created_at: datetime
 
 
+class LessonProgressOut(BaseModel):
+    id: str
+    workspace_id: str
+    actor_id: str
+    lesson_id: str
+    status: str
+    completed_at: datetime | None
+    updated_at: datetime
+
+
+class LessonConsumeInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    lesson_id: str
+    status: str = "consumed"
+
+
 class ModuleCreate(BaseModel):
     workspace_id: str
     title: str
@@ -309,6 +326,7 @@ class SceneGraphEdge(BaseModel):
 
 class SceneGraphEmitInput(BaseModel):
     workspace_id: str
+    realm_id: str
     scene_id: str
     nodes: list[SceneGraphNode]
     edges: list[SceneGraphEdge]
@@ -409,6 +427,41 @@ class AlchemyCraftOut(BaseModel):
     inventory_after: dict[str, int]
 
 
+class AlchemyInterfaceInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    akinenwun: str
+
+
+class AlchemyInterfaceOut(BaseModel):
+    actor_id: str
+    akinenwun: str
+    interface: dict[str, object]
+    render_constraints: dict[str, object]
+
+
+class AlchemyCrystalInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    crystal_type: str
+    purity: int = 0
+    infernal_meditation: bool = False
+    vitriol_trials_cleared: bool = False
+    ingredients: dict[str, int] = Field(default_factory=dict)
+    outputs: dict[str, int] = Field(default_factory=dict)
+    inventory: dict[str, int] = Field(default_factory=dict)
+
+
+class AlchemyCrystalOut(BaseModel):
+    actor_id: str
+    crystal_type: str
+    purity: int
+    crafted: bool
+    reason: str
+    inventory_after: dict[str, int]
+    key_flags: dict[str, object] = Field(default_factory=dict)
+
+
 class BlacksmithForgeInput(BaseModel):
     workspace_id: str
     actor_id: str
@@ -497,6 +550,60 @@ class MarketTradeOut(BaseModel):
     wallet_after_cents: int
     inventory_after_qty: int
     status: str
+
+
+class RadioEvaluateInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    underworld_state: str
+    override_available: bool | None = None
+
+
+class RadioEvaluateOut(BaseModel):
+    actor_id: str
+    underworld_state: str
+    available: bool
+    reason: str
+    flags: dict[str, object] = Field(default_factory=dict)
+
+
+class InfernalMeditationUnlockInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    mentor: str
+    location: str
+    section: str
+    time_of_day: str
+
+
+class InfernalMeditationUnlockOut(BaseModel):
+    actor_id: str
+    unlocked: bool
+    reason: str
+    flags: dict[str, object] = Field(default_factory=dict)
+
+
+class RendererTablesInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    level: LevelApplyInput | None = None
+    skill: SkillTrainInput | None = None
+    perk: PerkUnlockInput | None = None
+    alchemy: AlchemyCraftInput | None = None
+    blacksmith: BlacksmithForgeInput | None = None
+    market_quote: MarketQuoteInput | None = None
+    market_trade: MarketTradeInput | None = None
+    vitriol_apply: VitriolApplyRulerInfluenceInput | None = None
+    vitriol_compute: VitriolComputeInput | None = None
+    vitriol_clear: VitriolClearExpiredInput | None = None
+
+
+class RendererTablesOut(BaseModel):
+    workspace_id: str
+    actor_id: str
+    generated_at: str
+    hash: str
+    tables: dict[str, object] = Field(default_factory=dict)
 
 
 class DialogueTurn(BaseModel):
@@ -773,3 +880,162 @@ class FunctionStoreOut(BaseModel):
     metadata: dict[str, object]
     function_hash: str
     created_at: datetime
+
+
+class PlayerStateTables(BaseModel):
+    levels: dict[str, object] = Field(default_factory=dict)
+    skills: dict[str, object] = Field(default_factory=dict)
+    perks: dict[str, object] = Field(default_factory=dict)
+    vitriol: dict[str, object] = Field(default_factory=dict)
+    inventory: dict[str, object] = Field(default_factory=dict)
+    market: dict[str, object] = Field(default_factory=dict)
+    flags: dict[str, object] = Field(default_factory=dict)
+    clock: dict[str, object] = Field(default_factory=dict)
+
+
+class PlayerStateOut(BaseModel):
+    workspace_id: str
+    actor_id: str
+    state_version: int
+    generated_at: str
+    hash: str
+    tables: PlayerStateTables
+
+
+class PlayerStateApplyInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    tables: PlayerStateTables
+    mode: Literal["merge", "replace"] = "merge"
+
+
+class GameEventInput(BaseModel):
+    kind: str
+    payload: dict[str, object] = Field(default_factory=dict)
+
+
+class GameTickInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    dt_ms: int = 100
+    events: list[GameEventInput] = Field(default_factory=list)
+
+
+class GameTickEventResult(BaseModel):
+    kind: str
+    ok: bool
+    detail: str
+    payload: dict[str, object] = Field(default_factory=dict)
+
+
+class GameTickOut(BaseModel):
+    workspace_id: str
+    actor_id: str
+    state_version: int
+    tick: int
+    dt_ms: int
+    applied: int
+    results: list[GameTickEventResult]
+    hash: str
+    tables: PlayerStateTables
+
+
+class AssetManifestCreate(BaseModel):
+    workspace_id: str
+    realm_id: str = "lapidus"
+    manifest_id: str
+    name: str
+    kind: str
+    payload: dict[str, object] = Field(default_factory=dict)
+
+
+class AssetManifestOut(BaseModel):
+    id: str
+    workspace_id: str
+    realm_id: str
+    manifest_id: str
+    name: str
+    kind: str
+    payload: dict[str, object]
+    payload_hash: str
+    created_at: datetime
+
+
+class RealmOut(BaseModel):
+    id: str
+    slug: str
+    name: str
+    description: str
+    created_at: datetime
+
+
+class RealmValidateInput(BaseModel):
+    realm_id: str
+
+
+class RealmValidateOut(BaseModel):
+    realm_id: str
+    ok: bool
+    reason: str
+
+
+class ContentValidateInput(BaseModel):
+    workspace_id: str
+    realm_id: str
+    scene_id: str
+    source: Literal["cobra", "json"] = "cobra"
+    payload: str
+
+
+class ContentValidateOut(BaseModel):
+    workspace_id: str
+    realm_id: str
+    scene_id: str
+    source: str
+    ok: bool
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    stats: dict[str, object] = Field(default_factory=dict)
+
+
+class SceneCreateInput(BaseModel):
+    workspace_id: str
+    realm_id: str
+    scene_id: str
+    name: str
+    description: str = ""
+    content: dict[str, object] = Field(default_factory=dict)
+
+
+class SceneUpdateInput(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    content: dict[str, object] | None = None
+
+
+class SceneOut(BaseModel):
+    id: str
+    workspace_id: str
+    realm_id: str
+    scene_id: str
+    name: str
+    description: str
+    content: dict[str, object]
+    content_hash: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class SceneEmitOut(BaseModel):
+    scene_id: str
+    nodes_emitted: int
+    edges_emitted: int
+
+
+class SceneCompileInput(BaseModel):
+    workspace_id: str
+    realm_id: str
+    scene_id: str
+    name: str
+    description: str = ""
+    cobra_source: str

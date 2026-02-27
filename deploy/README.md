@@ -1,0 +1,48 @@
+﻿# Deploy Automation (API + Kernel)
+
+This folder provides one-time setup and repeatable update scripts for hosting the stack behind one public API domain.
+
+## Files
+
+- `setup_server.sh`: initial server setup (packages, repo, venv, systemd, nginx).
+- `update_release.sh`: pull latest code, reinstall deps, restart services.
+- `.env.template`: template for `/etc/djinnos/atelier-api.env`.
+- `systemd/atelier-kernel.service`: template kernel unit.
+- `systemd/atelier-api.service`: template API unit.
+
+## One-time setup (Ubuntu)
+
+```bash
+sudo bash deploy/setup_server.sh \
+  --repo-url https://github.com/quantumquackerydivinearts-cell/DjinnOS-Shyagzun.git \
+  --domain atelier-api.quantumquackery.com \
+  --email you@quantumquackery.com
+```
+
+Then edit env file:
+
+```bash
+sudo nano /etc/djinnos/atelier-api.env
+```
+
+Set real values (DB URL, admin gate code, CORS).
+
+Restart API:
+
+```bash
+sudo systemctl restart atelier-api
+```
+
+## Update on each release
+
+```bash
+sudo bash deploy/update_release.sh
+```
+
+## Verify
+
+```bash
+curl -sSf http://127.0.0.1:8000/events > /dev/null
+curl -sSf http://127.0.0.1:9000/health
+curl -sSf https://atelier-api.quantumquackery.com/health
+```

@@ -1,0 +1,10 @@
+{
+  "layer_order": ["background", "midground", "foreground", "overlay", "ui"],
+  "layer_z": {
+    "background": 0,
+    "midground": 10,
+    "foreground": 20,
+    "overlay": 30,
+    "ui": 40
+  }
+}

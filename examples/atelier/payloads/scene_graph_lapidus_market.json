@@ -1,0 +1,41 @@
+{
+  "workspace_id": "main",
+  "scene_id": "lapidus_market",
+  "nodes": [
+    {
+      "node_id": "spawn",
+      "kind": "spawn",
+      "x": 0,
+      "y": 0,
+      "metadata": {}
+    },
+    {
+      "node_id": "market",
+      "kind": "hub",
+      "x": 8,
+      "y": 2,
+      "metadata": {}
+    },
+    {
+      "node_id": "forge",
+      "kind": "station",
+      "x": 14,
+      "y": 4,
+      "metadata": {}
+    }
+  ],
+  "edges": [
+    {
+      "from_node_id": "spawn",
+      "to_node_id": "market",
+      "relation": "path",
+      "metadata": {}
+    },
+    {
+      "from_node_id": "market",
+      "to_node_id": "forge",
+      "relation": "path",
+      "metadata": {}
+    }
+  ]
+}

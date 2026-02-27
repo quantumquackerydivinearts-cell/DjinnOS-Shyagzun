@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 import sys
 from typing import Any, Dict, Sequence
@@ -459,8 +460,100 @@ class FakeAtelierService:
             "created_at": "2026-02-25T00:00:00Z",
         }
 
+    def list_scenes(self, workspace_id: str, realm_id: str | None = None) -> Sequence[Dict[str, Any]]:
+        _ = realm_id
+        return [
+            {
+                "id": "scene-1",
+                "workspace_id": workspace_id,
+                "realm_id": "lapidus",
+                "scene_id": "lapidus/intro",
+                "name": "Intro",
+                "description": "First scene",
+                "content": {"nodes": [], "edges": []},
+                "content_hash": "h-scene-1",
+                "created_at": "2026-02-25T00:00:00Z",
+                "updated_at": "2026-02-25T00:00:00Z",
+            }
+        ]
 
-def _headers(caps: str, role: str = "steward") -> Dict[str, str]:
+    def get_scene(self, workspace_id: str, realm_id: str, scene_id: str) -> Dict[str, Any] | None:
+        if realm_id != "lapidus" or scene_id != "lapidus/intro":
+            return None
+        return {
+            "id": "scene-1",
+            "workspace_id": workspace_id,
+            "realm_id": realm_id,
+            "scene_id": scene_id,
+            "name": "Intro",
+            "description": "First scene",
+            "content": {"nodes": [], "edges": []},
+            "content_hash": "h-scene-1",
+            "created_at": "2026-02-25T00:00:00Z",
+            "updated_at": "2026-02-25T00:00:00Z",
+        }
+
+    def create_scene(self, payload: Any) -> Dict[str, Any]:
+        return {
+            "id": "scene-created",
+            "workspace_id": payload.workspace_id,
+            "realm_id": payload.realm_id,
+            "scene_id": payload.scene_id,
+            "name": payload.name,
+            "description": payload.description,
+            "content": payload.content,
+            "content_hash": "h-scene-created",
+            "created_at": "2026-02-25T00:00:00Z",
+            "updated_at": "2026-02-25T00:00:00Z",
+        }
+
+    def update_scene(self, workspace_id: str, realm_id: str, scene_id: str, payload: Any) -> Dict[str, Any]:
+        return {
+            "id": "scene-updated",
+            "workspace_id": workspace_id,
+            "realm_id": realm_id,
+            "scene_id": scene_id,
+            "name": payload.name or "Intro",
+            "description": payload.description or "First scene",
+            "content": payload.content or {"nodes": [], "edges": []},
+            "content_hash": "h-scene-updated",
+            "created_at": "2026-02-25T00:00:00Z",
+            "updated_at": "2026-02-25T00:00:00Z",
+        }
+
+    def emit_scene_from_library(
+        self,
+        *,
+        workspace_id: str,
+        realm_id: str,
+        scene_id: str,
+        actor_id: str,
+        workshop_id: str,
+    ) -> Dict[str, Any]:
+        _ = (actor_id, workshop_id)
+        return {"scene_id": scene_id, "nodes_emitted": 1, "edges_emitted": 0}
+
+    def create_scene_from_cobra(self, payload: Any) -> Dict[str, Any]:
+        return {
+            "id": "scene-compiled",
+            "workspace_id": payload.workspace_id,
+            "realm_id": payload.realm_id,
+            "scene_id": payload.scene_id,
+            "name": payload.name,
+            "description": payload.description,
+            "content": {"nodes": [{"node_id": "n1", "kind": "spawn", "x": 0, "y": 0, "metadata": {}}], "edges": []},
+            "content_hash": "h-scene-compiled",
+            "created_at": "2026-02-25T00:00:00Z",
+            "updated_at": "2026-02-25T00:00:00Z",
+        }
+
+
+def _admin_gate_token(actor_id: str, workshop_id: str, gate_code: str = "STEWARD_DEV_GATE") -> str:
+    payload = f"{gate_code}:{actor_id}:{workshop_id}".encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _headers(caps: str, role: str = "steward", token: str | None = None) -> Dict[str, str]:
     return {
         "X-Atelier-Actor": "tester",
         "X-Atelier-Capabilities": caps,
@@ -468,6 +561,7 @@ def _headers(caps: str, role: str = "steward") -> Dict[str, str]:
         "X-Artisan-Role": role,
         "X-Workshop-Id": "workshop-1",
         "X-Workshop-Scopes": "scene:*,workspace:*",
+        **({ "X-Admin-Gate-Token": token } if token else {}),
     }
 
 
@@ -813,4 +907,67 @@ def test_layered_lineage_and_function_store_routes() -> None:
     )
     assert function_create.status_code == 200
     assert function_create.json()["id"] == "fn-created"
+    app.dependency_overrides.clear()
+
+
+def test_scene_library_routes() -> None:
+    app.dependency_overrides[_atelier_service] = lambda: FakeAtelierService()
+    client = TestClient(app)
+
+    scenes = client.get("/v1/game/scenes?workspace_id=main", headers=_headers("scene.read"))
+    assert scenes.status_code == 200
+    assert scenes.json()[0]["scene_id"] == "lapidus/intro"
+
+    scene = client.get(
+        "/v1/game/scenes/lapidus/intro?workspace_id=main&realm_id=lapidus",
+        headers=_headers("scene.read"),
+    )
+    assert scene.status_code == 200
+    assert scene.json()["scene_id"] == "lapidus/intro"
+
+    created = client.post(
+        "/v1/game/scenes",
+        headers=_headers("scene.write"),
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/intro",
+            "name": "Intro",
+            "description": "",
+            "content": {"nodes": [], "edges": []},
+        },
+    )
+    assert created.status_code == 200
+    assert created.json()["id"] == "scene-created"
+
+    updated = client.put(
+        "/v1/game/scenes/lapidus/intro?workspace_id=main&realm_id=lapidus",
+        headers=_headers("scene.write"),
+        json={"name": "Intro 2"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["id"] == "scene-updated"
+
+    token = _admin_gate_token("tester", "workshop-1")
+    emitted = client.post(
+        "/v1/game/scenes/lapidus/intro/emit?workspace_id=main&realm_id=lapidus",
+        headers=_headers("kernel.place", token=token),
+    )
+    assert emitted.status_code == 200
+    assert emitted.json()["nodes_emitted"] == 1
+
+    compiled = client.post(
+        "/v1/game/scenes/compile",
+        headers=_headers("scene.write"),
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/intro",
+            "name": "Intro",
+            "description": "",
+            "cobra_source": "entity demo 1 2 marker\n  lex TyKoWuVu",
+        },
+    )
+    assert compiled.status_code == 200
+    assert compiled.json()["id"] == "scene-compiled"
     app.dependency_overrides.clear()

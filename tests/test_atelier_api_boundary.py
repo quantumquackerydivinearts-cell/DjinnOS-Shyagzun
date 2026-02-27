@@ -11,7 +11,9 @@ ROOT = Path(__file__).resolve().parent.parent
 API_APP_DIR = ROOT / "apps" / "atelier-api"
 sys.path.insert(0, str(API_APP_DIR))
 
-from atelier_api.main import app, _kernel_client  # type: ignore[import]
+from atelier_api.main import app, _kernel_client, _kernel_only_service  # type: ignore[import]
+from atelier_api.kernel_integration import KernelIntegrationService  # type: ignore[import]
+from atelier_api.services import AtelierService  # type: ignore[import]
 from atelier_api.types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse  # type: ignore[import]
 
 
@@ -61,6 +63,7 @@ class FakeKernelClient:
         akinenwun: str,
         mode: str,
         ingest: bool,
+        policy: Optional[Mapping[str, Any]] = None,
     ) -> Mapping[str, Any]:
         return {
             "akinenwun": akinenwun,
@@ -407,6 +410,27 @@ def test_game_rule_alchemy_craft_success_and_failure() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_rule_alchemy_interface() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    res = client.post(
+        "/v1/game/rules/alchemy/interface",
+        json={"workspace_id": "main", "actor_id": "player", "akinenwun": "RuKiAE"},
+        headers=headers,
+    )
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["actor_id"] == "player"
+    assert payload["akinenwun"] == "RuKiAE"
+    assert "interface" in payload
+    assert "render_constraints" in payload
+    app.dependency_overrides.clear()
+
+
 def test_game_rule_blacksmith_and_combat_paths() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake
@@ -448,6 +472,80 @@ def test_game_rule_blacksmith_and_combat_paths() -> None:
     assert combat_payload["damage"] == 14
     assert combat_payload["defender_hp_after"] == 0
     assert combat_payload["defender_defeated"] is True
+    app.dependency_overrides.clear()
+
+
+def test_game_rule_radio_evaluate() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    res = client.post(
+        "/v1/game/rules/radio/evaluate",
+        json={"workspace_id": "main", "actor_id": "player", "underworld_state": "active"},
+        headers=headers,
+    )
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["available"] is True
+    assert payload["reason"] == "state_allows_radio"
+    app.dependency_overrides.clear()
+
+
+def test_game_rule_alchemy_crystal_asmodian() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    res = client.post(
+        "/v1/game/rules/alchemy/crystal",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "crystal_type": "asmodian",
+            "purity": 100,
+            "ingredients": {"ore": 1},
+            "outputs": {"asmodian_crystal": 1},
+            "inventory": {"ore": 2},
+        },
+        headers=headers,
+    )
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["crafted"] is True
+    assert payload["key_flags"]["underworld_ring"] == "Lust"
+    assert payload["key_flags"]["underworld_visitors_access"] is False
+    assert payload["key_flags"]["underworld_royalty_access"] is False
+    app.dependency_overrides.clear()
+
+
+def test_game_rule_infernal_meditation_unlock() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    res = client.post(
+        "/v1/game/rules/infernal-meditation/unlock",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "mentor": "Alfir",
+            "location": "Castle Azoth Library",
+            "section": "restricted",
+            "time_of_day": "night",
+        },
+        headers=headers,
+    )
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["unlocked"] is True
+    assert payload["flags"]["infernal_meditation"] is True
     app.dependency_overrides.clear()
 
 
@@ -697,4 +795,72 @@ def test_game_gate_evaluate_deterministic_for_same_payload() -> None:
     assert first_payload["allowed"] is True
     assert first_payload["matched_count"] == first_payload["total_count"]
     assert fake.place_calls == 2
+    app.dependency_overrides.clear()
+
+
+def test_content_validate_does_not_touch_kernel() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _RealmRow:
+        def __init__(self, slug: str) -> None:
+            self.slug = slug
+
+    class _FakeRepo:
+        def get_realm_by_slug(self, slug: str) -> _RealmRow:
+            return _RealmRow(slug)
+
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=_FakeRepo(), kernel=kernel)
+    client = TestClient(app)
+    res = client.post(
+        "/v1/content/validate",
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "scene_1",
+            "source": "cobra",
+            "payload": "entity demo_gate 1 2 portal\n  lex TyKoWuVu",
+        },
+        headers=_headers("lesson.read"),
+    )
+    assert res.status_code == 200
+    assert fake.place_calls == 0
+    assert fake.attest_calls == 0
+    app.dependency_overrides.clear()
+
+
+def test_scene_graph_emit_requires_realm_scene_match() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    bad = client.post(
+        "/v1/game/scene-graph/emit",
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "scene_1",
+            "nodes": [{"node_id": "n1", "kind": "spawn", "x": 0, "y": 0, "metadata": {}}],
+            "edges": [],
+        },
+        headers=headers,
+    )
+    assert bad.status_code == 400
+    assert fake.place_calls == 0
+
+    ok = client.post(
+        "/v1/game/scene-graph/emit",
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/scene_1",
+            "nodes": [{"node_id": "n1", "kind": "spawn", "x": 0, "y": 0, "metadata": {}}],
+            "edges": [],
+        },
+        headers=headers,
+    )
+    assert ok.status_code == 200
+    assert fake.place_calls == 1
     app.dependency_overrides.clear()

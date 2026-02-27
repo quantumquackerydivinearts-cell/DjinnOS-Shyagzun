@@ -1,0 +1,13 @@
+# Intro scene bootstrap
+entity hero 2 2 player
+  lex TyKoWuVu
+  hp 100
+  faction guild
+
+entity guide 6 2 npc
+  lex TaFiShi
+  role mentor
+
+entity gate 10 2 object
+  lex ZeRo
+  state locked

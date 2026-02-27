@@ -37,6 +37,10 @@ from .business_schemas import (
     LayerTraceOut,
     FunctionStoreCreate,
     FunctionStoreOut,
+    PlayerStateApplyInput,
+    PlayerStateOut,
+    GameTickInput,
+    GameTickOut,
     LevelApplyInput,
     LevelApplyOut,
     SkillTrainInput,
@@ -45,6 +49,10 @@ from .business_schemas import (
     PerkUnlockOut,
     AlchemyCraftInput,
     AlchemyCraftOut,
+    AlchemyInterfaceInput,
+    AlchemyInterfaceOut,
+    AlchemyCrystalInput,
+    AlchemyCrystalOut,
     BlacksmithForgeInput,
     BlacksmithForgeOut,
     CombatResolveInput,
@@ -53,6 +61,24 @@ from .business_schemas import (
     MarketQuoteOut,
     MarketTradeInput,
     MarketTradeOut,
+    RadioEvaluateInput,
+    RadioEvaluateOut,
+    InfernalMeditationUnlockInput,
+    InfernalMeditationUnlockOut,
+    RendererTablesInput,
+    RendererTablesOut,
+    AssetManifestCreate,
+    AssetManifestOut,
+    ContentValidateInput,
+    ContentValidateOut,
+    RealmOut,
+    RealmValidateInput,
+    RealmValidateOut,
+    SceneCreateInput,
+    SceneUpdateInput,
+    SceneOut,
+    SceneEmitOut,
+    SceneCompileInput,
     GateEvaluateInput,
     GateEvaluateOut,
     DialogueEmitInput,
@@ -67,6 +93,8 @@ from .business_schemas import (
     LeadOut,
     LessonCreate,
     LessonOut,
+    LessonProgressOut,
+    LessonConsumeInput,
     ModuleCreate,
     ModuleOut,
     OrderCreate,
@@ -130,6 +158,7 @@ class AkinenwunLookupInput(BaseModel):
     akinenwun: str
     mode: str = "prose"
     ingest: bool = True
+    policy: Dict[str, Any] = Field(default_factory=dict)
 
 
 class AdminGateVerifyInput(BaseModel):
@@ -508,6 +537,7 @@ def ambroflow_akinenwun_lookup(
         akinenwun=payload.akinenwun,
         mode=payload.mode,
         ingest=payload.ingest,
+        policy=payload.policy,
         actor_id=ctx.actor_id,
         workshop_id=workshop.identity.workshop_id,
     )
@@ -652,6 +682,31 @@ def create_lesson(
     _enforce(ctx, "lesson.write")
     _enforce_role(role, "lesson.write")
     return svc.create_lesson(payload)
+
+
+@app.get("/v1/lessons/progress")
+def list_lesson_progress(
+    workspace_id: str,
+    actor_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Sequence[LessonProgressOut]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_lesson_progress(workspace_id=workspace_id, actor_id=actor_id)
+
+
+@app.post("/v1/lessons/consume")
+def consume_lesson(
+    payload: LessonConsumeInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> LessonProgressOut:
+    _enforce(ctx, "lesson.write")
+    _enforce_role(role, "lesson.write")
+    return svc.consume_lesson(payload)
 
 
 @app.get("/v1/modules")
@@ -889,6 +944,122 @@ def create_journal_entry(
     return svc.create_journal_entry(payload)
 
 
+@app.get("/v1/game/scenes")
+def list_scenes(
+    workspace_id: str,
+    realm_id: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[SceneOut]:
+    _enforce(ctx, "scene.read")
+    _enforce_role(role, "scene.read")
+    return svc.list_scenes(workspace_id=workspace_id, realm_id=realm_id)
+
+
+@app.get("/v1/game/scenes/{scene_id:path}")
+def get_scene(
+    scene_id: str,
+    workspace_id: str,
+    realm_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> SceneOut:
+    _enforce(ctx, "scene.read")
+    _enforce_role(role, "scene.read")
+    scene = svc.get_scene(workspace_id=workspace_id, realm_id=realm_id, scene_id=scene_id)
+    if scene is None:
+        raise HTTPException(status_code=404, detail="scene_not_found")
+    return scene
+
+
+@app.post("/v1/game/scenes")
+def create_scene(
+    payload: SceneCreateInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> SceneOut:
+    _enforce(ctx, "scene.write")
+    _enforce_role(role, "scene.write")
+    try:
+        return svc.create_scene(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.put("/v1/game/scenes/{scene_id:path}")
+def update_scene(
+    scene_id: str,
+    payload: SceneUpdateInput,
+    workspace_id: str,
+    realm_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> SceneOut:
+    _enforce(ctx, "scene.write")
+    _enforce_role(role, "scene.write")
+    try:
+        return svc.update_scene(workspace_id=workspace_id, realm_id=realm_id, scene_id=scene_id, payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/scenes/{scene_id:path}/emit")
+def emit_scene_from_library(
+    scene_id: str,
+    workspace_id: str,
+    realm_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> SceneEmitOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    try:
+        return svc.emit_scene_from_library(
+            workspace_id=workspace_id,
+            realm_id=realm_id,
+            scene_id=scene_id,
+            actor_id=ctx.actor_id,
+            workshop_id=workshop.identity.workshop_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/scenes/compile")
+def compile_scene_from_cobra(
+    payload: SceneCompileInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> SceneOut:
+    _enforce(ctx, "scene.write")
+    _enforce_role(role, "scene.write")
+    try:
+        return svc.create_scene_from_cobra(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.get("/v1/game/layers/nodes")
 def list_layer_nodes(
     workspace_id: str,
@@ -1099,11 +1270,14 @@ def emit_scene_graph(
         workshop_id=workshop.identity.workshop_id,
         token=token,
     )
-    return svc.emit_scene_graph(
-        payload=payload,
-        actor_id=ctx.actor_id,
-        workshop_id=workshop.identity.workshop_id,
-    )
+    try:
+        return svc.emit_scene_graph(
+            payload=payload,
+            actor_id=ctx.actor_id,
+            workshop_id=workshop.identity.workshop_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/v1/game/saves/export")
@@ -1121,6 +1295,125 @@ def export_game_save(
         actor_id=ctx.actor_id,
         workshop_id=workshop.identity.workshop_id,
     )
+
+
+@app.get("/v1/game/state")
+def get_game_state(
+    workspace_id: str,
+    actor_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> PlayerStateOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    return svc.get_player_state(workspace_id=workspace_id, actor_id=actor_id)
+
+
+@app.post("/v1/game/state/apply")
+def apply_game_state(
+    payload: PlayerStateApplyInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> PlayerStateOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.apply_player_state(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/state/tick")
+def tick_game_state(
+    payload: GameTickInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> GameTickOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.game_tick(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.get("/v1/assets/manifests")
+def list_asset_manifests(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Sequence[AssetManifestOut]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_asset_manifests(workspace_id=workspace_id)
+
+
+@app.post("/v1/assets/manifests")
+def create_asset_manifest(
+    payload: AssetManifestCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> AssetManifestOut:
+    _enforce(ctx, "lesson.write")
+    _enforce_role(role, "lesson.write")
+    validation = svc.validate_realm(RealmValidateInput(realm_id=payload.realm_id))
+    if not validation.ok:
+        raise HTTPException(status_code=400, detail=f"unknown_realm:{payload.realm_id}")
+    return svc.create_asset_manifest(payload)
+
+
+@app.get("/v1/realms")
+def list_realms(
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Sequence[RealmOut]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_realms()
+
+
+@app.post("/v1/realms/validate")
+def validate_realm(
+    payload: RealmValidateInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> RealmValidateOut:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.validate_realm(payload)
+
+
+@app.post("/v1/content/validate")
+def validate_content(
+    payload: ContentValidateInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> ContentValidateOut:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.validate_content(payload)
 
 
 @app.post("/v1/game/rules/levels/apply")
@@ -1211,6 +1504,50 @@ def craft_alchemy_rule(
     return svc.craft_alchemy(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
 
 
+@app.post("/v1/game/rules/alchemy/interface")
+def alchemy_interface_rule(
+    payload: AlchemyInterfaceInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> AlchemyInterfaceOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.build_alchemy_interface(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/rules/alchemy/crystal")
+def craft_alchemy_crystal_rule(
+    payload: AlchemyCrystalInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> AlchemyCrystalOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.craft_alchemy_crystal(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
 @app.post("/v1/game/rules/blacksmith/forge")
 def forge_blacksmith_rule(
     payload: BlacksmithForgeInput,
@@ -1297,6 +1634,63 @@ def market_trade_rule(
         token=token,
     )
     return svc.market_trade(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/rules/radio/evaluate")
+def evaluate_radio_rule(
+    payload: RadioEvaluateInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> RadioEvaluateOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.evaluate_radio_availability(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/rules/infernal-meditation/unlock")
+def unlock_infernal_meditation_rule(
+    payload: InfernalMeditationUnlockInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> InfernalMeditationUnlockOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.unlock_infernal_meditation(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/renderer/tables")
+def build_renderer_tables(
+    payload: RendererTablesInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> RendererTablesOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    return svc.renderer_tables(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
 
 
 @app.post("/v1/game/rules/gates/evaluate")

@@ -79,6 +79,8 @@ Assert-True -Condition ([string]$ambroLookup.frontier_hash -eq [string]$lookupB.
 
 Write-Host "[verify] cobra compiler path"
 $pyCmd = @'
+import sys
+sys.path.insert(0, "C:/DjinnOS")
 from qqva.shygazun_compiler import compile_akinenwun_to_ir
 ir = compile_akinenwun_to_ir("TyKoWuVu")
 assert ir["canonical_compound"] == "TyKoWuVu"

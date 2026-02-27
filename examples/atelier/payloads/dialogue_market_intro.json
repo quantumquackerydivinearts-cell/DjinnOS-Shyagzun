@@ -1,0 +1,28 @@
+{
+  "workspace_id": "main",
+  "scene_id": "scene_prototype",
+  "dialogue_id": "dlg_market_intro",
+  "turns": [
+    {
+      "line_id": "l1",
+      "speaker_id": "stallkeeper",
+      "raw": "Welcome, traveler.",
+      "tags": {},
+      "metadata": {}
+    },
+    {
+      "line_id": "l2",
+      "speaker_id": "player",
+      "raw": "Show me your goods.",
+      "tags": {},
+      "metadata": {}
+    },
+    {
+      "line_id": "l3",
+      "speaker_id": "stallkeeper",
+      "raw": "Iron, herbs, and rare salts.",
+      "tags": {},
+      "metadata": {}
+    }
+  ]
+}

@@ -18,9 +18,14 @@ from .models import (
     LayerEvent,
     LayerNode,
     Lesson,
+    LessonProgress,
     LearningModule,
     NamedQuest,
     Order,
+    Realm,
+    Scene,
+    AssetManifest,
+    PlayerState,
     Quote,
     Supplier,
 )
@@ -55,6 +60,29 @@ class AtelierRepository:
         return self._db.scalars(select(Lesson).where(Lesson.workspace_id == workspace_id)).all()
 
     def create_lesson(self, row: Lesson) -> Lesson:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_lesson_progress(self, workspace_id: str, actor_id: str) -> Sequence[LessonProgress]:
+        return self._db.scalars(
+            select(LessonProgress).where(
+                LessonProgress.workspace_id == workspace_id,
+                LessonProgress.actor_id == actor_id,
+            )
+        ).all()
+
+    def get_lesson_progress(self, workspace_id: str, actor_id: str, lesson_id: str) -> LessonProgress | None:
+        return self._db.scalar(
+            select(LessonProgress).where(
+                LessonProgress.workspace_id == workspace_id,
+                LessonProgress.actor_id == actor_id,
+                LessonProgress.lesson_id == lesson_id,
+            )
+        )
+
+    def save_lesson_progress(self, row: LessonProgress) -> LessonProgress:
         self._db.add(row)
         self._db.commit()
         self._db.refresh(row)
@@ -216,6 +244,39 @@ class AtelierRepository:
         self._db.refresh(row)
         return row
 
+    def list_realms(self) -> Sequence[Realm]:
+        return self._db.scalars(select(Realm).order_by(Realm.slug)).all()
+
+    def get_realm_by_slug(self, slug: str) -> Realm | None:
+        return self._db.scalar(select(Realm).where(Realm.slug == slug))
+
+    def list_scenes(self, workspace_id: str, realm_id: str | None = None) -> Sequence[Scene]:
+        stmt = select(Scene).where(Scene.workspace_id == workspace_id)
+        if realm_id is not None:
+            stmt = stmt.where(Scene.realm_id == realm_id)
+        return self._db.scalars(stmt).all()
+
+    def get_scene(self, workspace_id: str, realm_id: str, scene_id: str) -> Scene | None:
+        return self._db.scalar(
+            select(Scene).where(
+                Scene.workspace_id == workspace_id,
+                Scene.realm_id == realm_id,
+                Scene.scene_id == scene_id,
+            )
+        )
+
+    def create_scene(self, row: Scene) -> Scene:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def save_scene(self, row: Scene) -> Scene:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
     def list_layer_nodes(self, workspace_id: str, layer_index: int | None = None) -> Sequence[LayerNode]:
         stmt = select(LayerNode).where(LayerNode.workspace_id == workspace_id)
         if layer_index is not None:
@@ -261,6 +322,29 @@ class AtelierRepository:
         return self._db.scalars(select(FunctionStoreEntry).where(FunctionStoreEntry.workspace_id == workspace_id)).all()
 
     def create_function_store_entry(self, row: FunctionStoreEntry) -> FunctionStoreEntry:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+        return self._db.scalar(
+            select(PlayerState).where(
+                PlayerState.workspace_id == workspace_id,
+                PlayerState.actor_id == actor_id,
+            )
+        )
+
+    def save_player_state(self, row: PlayerState) -> PlayerState:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_asset_manifests(self, workspace_id: str) -> Sequence[AssetManifest]:
+        return self._db.scalars(select(AssetManifest).where(AssetManifest.workspace_id == workspace_id)).all()
+
+    def create_asset_manifest(self, row: AssetManifest) -> AssetManifest:
         self._db.add(row)
         self._db.commit()
         self._db.refresh(row)

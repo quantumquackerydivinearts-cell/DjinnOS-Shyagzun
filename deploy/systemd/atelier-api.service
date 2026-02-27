@@ -1,0 +1,17 @@
+﻿[Unit]
+Description=Quantum Quackery Atelier API Service
+After=network.target atelier-kernel.service
+Requires=atelier-kernel.service
+
+[Service]
+Type=simple
+User=djinn
+Group=djinn
+EnvironmentFile=/etc/djinnos/atelier-api.env
+WorkingDirectory=/opt/djinnos
+ExecStart=/opt/djinnos/.venv/bin/python -m uvicorn atelier_api.main:app --host 127.0.0.1 --port 9000 --app-dir /opt/djinnos/apps/atelier-api
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
