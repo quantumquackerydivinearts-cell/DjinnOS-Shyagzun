@@ -1082,3 +1082,5 @@ class WorldStreamStatusOut(BaseModel):
     capacity: int
     pressure: float
     policy_counts: dict[str, int]
+    pressure_components: dict[str, float]
+    demon_pressures: dict[str, float]

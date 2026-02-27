@@ -593,6 +593,16 @@ class FakeAtelierService:
             "capacity": 128,
             "pressure": 2 / 128,
             "policy_counts": {"cache": 1, "stream": 1, "pin": 0},
+            "pressure_components": {"stream_occupancy": 2 / 128, "demon_total": 0.0, "composite": 2 / 128},
+            "demon_pressures": {
+                "asmodeus": 0.0,
+                "satan": 0.0,
+                "beelzebub": 0.0,
+                "belphegor": 0.0,
+                "leviathan": 0.0,
+                "mammon": 0.0,
+                "lucifer": 0.0,
+            },
         }
 
 
@@ -1068,4 +1078,6 @@ def test_world_region_streaming_routes() -> None:
     assert status_payload["loaded_count"] == 2
     assert status_payload["capacity"] == 128
     assert status_payload["policy_counts"]["cache"] == 1
+    assert status_payload["pressure_components"]["demon_total"] == 0.0
+    assert status_payload["demon_pressures"]["asmodeus"] == 0.0
     app.dependency_overrides.clear()

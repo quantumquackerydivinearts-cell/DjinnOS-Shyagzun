@@ -174,6 +174,15 @@ class AtelierService:
         "mammon": "ostentation",
         "lucifer": "levity",
     }
+    _DEMON_PRESSURE_DEFAULTS: dict[str, float] = {
+        "asmodeus": 0.0,
+        "satan": 0.0,
+        "beelzebub": 0.0,
+        "belphegor": 0.0,
+        "leviathan": 0.0,
+        "mammon": 0.0,
+        "lucifer": 0.0,
+    }
     _WORLD_STREAM_MAX_LOADED_REGIONS = 128
 
     def __init__(
@@ -2417,6 +2426,11 @@ class AtelierService:
         capacity = self._world_stream.max_loaded_regions
         loaded_count = len(loaded_rows)
         pressure = 0.0 if capacity <= 0 else float(loaded_count) / float(capacity)
+        pressure_components = {
+            "stream_occupancy": pressure,
+            "demon_total": 0.0,
+            "composite": pressure,
+        }
         return WorldStreamStatusOut(
             workspace_id=workspace_id,
             realm_id=normalized_realm,
@@ -2424,6 +2438,8 @@ class AtelierService:
             capacity=capacity,
             pressure=pressure,
             policy_counts=policy_counts,
+            pressure_components=pressure_components,
+            demon_pressures=dict(self._DEMON_PRESSURE_DEFAULTS),
         )
 
     def load_world_region(self, payload: WorldRegionLoadInput) -> WorldRegionOut:

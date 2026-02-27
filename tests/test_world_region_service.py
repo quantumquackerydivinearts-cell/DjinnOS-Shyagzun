@@ -131,3 +131,6 @@ def test_world_region_service_status_reports_occupancy_and_policy_counts() -> No
     assert status.policy_counts["pin"] == 1
     assert status.policy_counts["cache"] == 1
     assert status.policy_counts["stream"] == 0
+    assert status.pressure_components["stream_occupancy"] == status.pressure
+    assert status.pressure_components["demon_total"] == 0.0
+    assert status.demon_pressures["lucifer"] == 0.0
