@@ -1059,6 +1059,109 @@ def test_game_quest_graph_catalog_and_advance_by_graph_are_headless_and_persiste
     app.dependency_overrides.clear()
 
 
+def test_game_quest_graph_list_supports_filters_and_paging() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _ManifestRow:
+        def __init__(
+            self,
+            *,
+            id: str,
+            workspace_id: str,
+            realm_id: str,
+            manifest_id: str,
+            name: str,
+            kind: str,
+            payload_json: str,
+            payload_hash: str,
+            created_at: datetime,
+        ) -> None:
+            self.id = id
+            self.workspace_id = workspace_id
+            self.realm_id = realm_id
+            self.manifest_id = manifest_id
+            self.name = name
+            self.kind = kind
+            self.payload_json = payload_json
+            self.payload_hash = payload_hash
+            self.created_at = created_at
+
+    class _QuestGraphListRepo:
+        def __init__(self) -> None:
+            self.manifests: list[_ManifestRow] = []
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[_ManifestRow]:
+            return [row for row in self.manifests if row.workspace_id == workspace_id]
+
+        def create_asset_manifest(self, row: object) -> object:
+            idx = len(self.manifests) + 1
+            manifest = _ManifestRow(
+                id=f"m_{idx}",
+                workspace_id=str(getattr(row, "workspace_id")),
+                realm_id=str(getattr(row, "realm_id")),
+                manifest_id=str(getattr(row, "manifest_id")),
+                name=str(getattr(row, "name")),
+                kind=str(getattr(row, "kind")),
+                payload_json=str(getattr(row, "payload_json")),
+                payload_hash=str(getattr(row, "payload_hash")),
+                created_at=datetime.now(timezone.utc),
+            )
+            self.manifests.append(manifest)
+            return manifest
+
+    repo = _QuestGraphListRepo()
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    write_headers = _headers("quest.write", role="steward")
+    read_headers = _headers("quest.read", role="artisan")
+
+    for quest_id, version in [("q_alpha", "v1"), ("q_alpha", "v2"), ("q_beta", "v1")]:
+        res = client.post(
+            "/v1/game/quests/graphs",
+            json={
+                "workspace_id": "main",
+                "quest_id": quest_id,
+                "version": version,
+                "start_step_id": "s0",
+                "headless": True,
+                "steps": [{"step_id": "s0", "edges": []}],
+            },
+            headers=write_headers,
+        )
+        assert res.status_code == 200
+
+    full = client.get(
+        "/v1/game/quests/graphs/all?workspace_id=main",
+        headers=read_headers,
+    )
+    assert full.status_code == 200
+    full_payload = full.json()
+    assert full_payload["total"] == 3
+    assert len(full_payload["items"]) == 3
+
+    filtered = client.get(
+        "/v1/game/quests/graphs/all?workspace_id=main&quest_id=q_alpha",
+        headers=read_headers,
+    )
+    assert filtered.status_code == 200
+    filtered_payload = filtered.json()
+    assert filtered_payload["total"] == 2
+    assert all(item["quest_id"] == "q_alpha" for item in filtered_payload["items"])
+
+    paged = client.get(
+        "/v1/game/quests/graphs/all?workspace_id=main&limit=1&offset=1",
+        headers=read_headers,
+    )
+    assert paged.status_code == 200
+    paged_payload = paged.json()
+    assert paged_payload["total"] == 3
+    assert paged_payload["limit"] == 1
+    assert paged_payload["offset"] == 1
+    assert len(paged_payload["items"]) == 1
+    app.dependency_overrides.clear()
+
+
 def test_vitriol_apply_ruler_influence_clamps_to_one_to_ten() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

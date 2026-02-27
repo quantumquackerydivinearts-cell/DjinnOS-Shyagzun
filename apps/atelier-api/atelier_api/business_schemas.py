@@ -1047,6 +1047,13 @@ class QuestGraphOut(BaseModel):
     created_at: datetime
 
 
+class QuestGraphListOut(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[QuestGraphOut] = Field(default_factory=list)
+
+
 class QuestAdvanceByGraphInput(BaseModel):
     workspace_id: str
     actor_id: str

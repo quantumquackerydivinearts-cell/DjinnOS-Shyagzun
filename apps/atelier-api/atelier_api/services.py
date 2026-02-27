@@ -94,6 +94,7 @@ from .business_schemas import (
     QuestAdvanceByGraphOut,
     QuestAdvanceOut,
     QuestGraphOut,
+    QuestGraphListOut,
     QuestGraphStepInput,
     QuestGraphUpsertInput,
     QuestStepEdgeResolveOut,
@@ -2495,6 +2496,43 @@ class AtelierService:
             raise ValueError("quest_graph_not_found")
         candidates.sort(key=lambda item: (item.created_at, item.version, item.manifest_id), reverse=True)
         return candidates[0]
+
+    def list_quest_graphs(
+        self,
+        *,
+        workspace_id: str,
+        quest_id: str | None = None,
+        version: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> QuestGraphListOut:
+        quest_filter = (quest_id or "").strip()
+        version_filter = (version or "").strip()
+        page_limit = max(1, min(500, int(limit)))
+        page_offset = max(0, int(offset))
+
+        manifests = self.list_asset_manifests(workspace_id)
+        items: list[QuestGraphOut] = []
+        for row in manifests:
+            if row.kind.strip().lower() != "quest.graph.v1":
+                continue
+            parsed = self._quest_graph_from_manifest(row)
+            if not parsed.headless:
+                continue
+            if quest_filter != "" and parsed.quest_id != quest_filter:
+                continue
+            if version_filter != "" and parsed.version != version_filter:
+                continue
+            items.append(parsed)
+        items.sort(key=lambda item: (item.created_at, item.quest_id, item.version, item.manifest_id), reverse=True)
+        total = len(items)
+        paged = items[page_offset : page_offset + page_limit]
+        return QuestGraphListOut(
+            total=total,
+            limit=page_limit,
+            offset=page_offset,
+            items=paged,
+        )
 
     def advance_quest_step_by_graph(
         self,
