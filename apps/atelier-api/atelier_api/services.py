@@ -110,6 +110,7 @@ from .business_schemas import (
     WorldRegionUnloadInput,
     WorldRegionOut,
     WorldRegionUnloadOut,
+    WorldStreamStatusOut,
     DialogueEmitInput,
     DialogueEmitOut,
     VitriolApplyRulerInfluenceInput,
@@ -2401,6 +2402,29 @@ class AtelierService:
                 row.loaded = should_be_loaded
                 row.updated_at = now
                 repo.save_world_region(row)
+
+    def world_stream_status(self, workspace_id: str, realm_id: str | None = None) -> WorldStreamStatusOut:
+        normalized_realm = realm_id.strip().lower() if isinstance(realm_id, str) and realm_id.strip() != "" else None
+        rows = self._require_repo().list_world_regions(workspace_id=workspace_id, realm_id=normalized_realm)
+        loaded_rows = [row for row in rows if row.loaded]
+        policy_counts: dict[str, int] = {"cache": 0, "stream": 0, "pin": 0}
+        for row in loaded_rows:
+            policy = row.cache_policy.strip().lower()
+            if policy in policy_counts:
+                policy_counts[policy] += 1
+            else:
+                policy_counts[policy] = policy_counts.get(policy, 0) + 1
+        capacity = self._world_stream.max_loaded_regions
+        loaded_count = len(loaded_rows)
+        pressure = 0.0 if capacity <= 0 else float(loaded_count) / float(capacity)
+        return WorldStreamStatusOut(
+            workspace_id=workspace_id,
+            realm_id=normalized_realm,
+            loaded_count=loaded_count,
+            capacity=capacity,
+            pressure=pressure,
+            policy_counts=policy_counts,
+        )
 
     def load_world_region(self, payload: WorldRegionLoadInput) -> WorldRegionOut:
         realm_validation = self.validate_realm(RealmValidateInput(realm_id=payload.realm_id))

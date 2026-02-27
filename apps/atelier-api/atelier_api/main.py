@@ -83,6 +83,7 @@ from .business_schemas import (
     WorldRegionUnloadInput,
     WorldRegionOut,
     WorldRegionUnloadOut,
+    WorldStreamStatusOut,
     GateEvaluateInput,
     GateEvaluateOut,
     DialogueEmitInput,
@@ -1105,6 +1106,19 @@ def unload_world_region(
         return svc.unload_world_region(payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/game/world/stream/status")
+def world_stream_status(
+    workspace_id: str,
+    realm_id: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> WorldStreamStatusOut:
+    _enforce(ctx, "scene.read")
+    _enforce_role(role, "scene.read")
+    return svc.world_stream_status(workspace_id=workspace_id, realm_id=realm_id)
 
 
 @app.get("/v1/game/layers/nodes")

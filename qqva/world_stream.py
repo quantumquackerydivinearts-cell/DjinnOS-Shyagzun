@@ -62,6 +62,10 @@ class WorldStreamController:
             raise ValueError("max_loaded_regions_must_be_positive")
         self._max_loaded_regions = int(max_loaded_regions)
 
+    @property
+    def max_loaded_regions(self) -> int:
+        return self._max_loaded_regions
+
     def load(
         self,
         engine_state: Mapping[str, Any],
@@ -140,4 +144,3 @@ class WorldStreamController:
             region_id, _ = evictable.pop(0)
             loaded.pop(region_id, None)
         return loaded
-

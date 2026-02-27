@@ -585,6 +585,16 @@ class FakeAtelierService:
             "unloaded": True,
         }
 
+    def world_stream_status(self, workspace_id: str, realm_id: str | None = None) -> Dict[str, Any]:
+        return {
+            "workspace_id": workspace_id,
+            "realm_id": realm_id,
+            "loaded_count": 2,
+            "capacity": 128,
+            "pressure": 2 / 128,
+            "policy_counts": {"cache": 1, "stream": 1, "pin": 0},
+        }
+
 
 def _admin_gate_token(actor_id: str, workshop_id: str, gate_code: str = "STEWARD_DEV_GATE") -> str:
     payload = f"{gate_code}:{actor_id}:{workshop_id}".encode("utf-8")
@@ -1048,4 +1058,14 @@ def test_world_region_streaming_routes() -> None:
     )
     assert unloaded.status_code == 200
     assert unloaded.json()["unloaded"] is True
+
+    status = client.get(
+        "/v1/game/world/stream/status?workspace_id=main&realm_id=lapidus",
+        headers=_headers("scene.read"),
+    )
+    assert status.status_code == 200
+    status_payload = status.json()
+    assert status_payload["loaded_count"] == 2
+    assert status_payload["capacity"] == 128
+    assert status_payload["policy_counts"]["cache"] == 1
     app.dependency_overrides.clear()

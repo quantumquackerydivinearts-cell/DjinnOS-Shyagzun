@@ -1073,3 +1073,12 @@ class WorldRegionUnloadOut(BaseModel):
     realm_id: str
     region_key: str
     unloaded: bool
+
+
+class WorldStreamStatusOut(BaseModel):
+    workspace_id: str
+    realm_id: str | None = None
+    loaded_count: int
+    capacity: int
+    pressure: float
+    policy_counts: dict[str, int]

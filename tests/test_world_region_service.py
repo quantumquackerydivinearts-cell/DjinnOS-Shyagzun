@@ -104,3 +104,30 @@ def test_world_region_service_load_is_deterministic_for_same_payload() -> None:
     assert first.region_key == second.region_key
     assert second.loaded is True
 
+
+def test_world_region_service_status_reports_occupancy_and_policy_counts() -> None:
+    svc, _ = _service(max_loaded_regions=3)
+    for key, policy in [
+        ("lapidus/p1", "pin"),
+        ("lapidus/c1", "cache"),
+    ]:
+        svc.load_world_region(
+            payload=type(
+                "Obj",
+                (),
+                {
+                    "workspace_id": "main",
+                    "realm_id": "lapidus",
+                    "region_key": key,
+                    "payload": {},
+                    "cache_policy": policy,
+                },
+            )()
+        )
+
+    status = svc.world_stream_status(workspace_id="main", realm_id="lapidus")
+    assert status.loaded_count == 2
+    assert status.capacity == 3
+    assert status.policy_counts["pin"] == 1
+    assert status.policy_counts["cache"] == 1
+    assert status.policy_counts["stream"] == 0

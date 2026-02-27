@@ -2087,6 +2087,7 @@ export function App() {
   const [rendererPipelineJson, setRendererPipelineJson] = useState("");
   const [worldRegions, setWorldRegions] = useState([]);
   const [worldRegionLast, setWorldRegionLast] = useState(null);
+  const [worldStreamStatus, setWorldStreamStatus] = useState(null);
   const [fullscreenState, setFullscreenState] = useState(() => readRendererLocalState());
   const fullscreenCanvasRef = useRef(null);
 
@@ -4900,6 +4901,8 @@ export function App() {
       const data = await requestWorldRegionLoad();
       setWorldRegionLast(data);
       setRendererEngineStateText((prev) => mergeLoadedWorldRegionIntoEngineText(prev, data));
+      const status = await requestWorldStreamStatus();
+      setWorldStreamStatus(status && typeof status === "object" ? status : null);
       setRendererGameStatus(`world_loaded:${String(data.region_key || worldRegionPipelineKey)}`);
       return data;
     });
@@ -4910,6 +4913,8 @@ export function App() {
       const data = await requestWorldRegionUnload();
       setWorldRegionLast(data);
       setRendererEngineStateText((prev) => mergeUnloadedWorldRegionIntoEngineText(prev, worldRegionPipelineRealmId, worldRegionPipelineKey));
+      const status = await requestWorldStreamStatus();
+      setWorldStreamStatus(status && typeof status === "object" ? status : null);
       setRendererGameStatus(`world_unloaded:${worldRegionPipelineKey}`);
       return data;
     });
@@ -4920,8 +4925,23 @@ export function App() {
       const path = `/v1/game/world/regions?workspace_id=${encodeURIComponent(workspaceId)}&realm_id=${encodeURIComponent(worldRegionPipelineRealmId)}`;
       const data = await apiCall(path, "GET", null);
       setWorldRegions(Array.isArray(data) ? data : []);
+      const status = await requestWorldStreamStatus();
+      setWorldStreamStatus(status && typeof status === "object" ? status : null);
       return data;
     });
+  };
+
+  const fetchWorldStreamStatus = async () => {
+    await runAction("world_stream_status", async () => {
+      const data = await requestWorldStreamStatus();
+      setWorldStreamStatus(data && typeof data === "object" ? data : null);
+      return data;
+    });
+  };
+
+  const requestWorldStreamStatus = async () => {
+    const path = `/v1/game/world/stream/status?workspace_id=${encodeURIComponent(workspaceId)}&realm_id=${encodeURIComponent(worldRegionPipelineRealmId)}`;
+    return apiCall(path, "GET", null);
   };
 
   const applyRendererPipeline = async () => {
@@ -6044,9 +6064,11 @@ export function App() {
                   ))}
                 </select>
                 <button className="action" onClick={listWorldRegionsFromApi}>List Regions</button>
+                <button className="action" onClick={fetchWorldStreamStatus}>Stream Status</button>
                 <button className="action" onClick={loadWorldRegionIntoEngine}>WorldStream.load</button>
                 <button className="action" onClick={unloadWorldRegionFromEngine}>WorldStream.unload</button>
                 <span className="badge">{`Regions: ${worldRegions.length}`}</span>
+                <span className="badge">{`Loaded: ${worldStreamStatus?.loaded_count ?? "-"}/${worldStreamStatus?.capacity ?? "-"}`}</span>
                 <label className="inline-toggle">
                   <input
                     type="checkbox"
@@ -6067,7 +6089,7 @@ export function App() {
                 <button className="action" onClick={validatePipelineIfNeeded}>Validate Now</button>
                 <button className="action" onClick={exportRendererPipeline}>Export Pipeline</button>
               </div>
-              <pre>{JSON.stringify({ last: worldRegionLast, regions: worldRegions }, null, 2)}</pre>
+              <pre>{JSON.stringify({ last: worldRegionLast, status: worldStreamStatus, regions: worldRegions }, null, 2)}</pre>
               <textarea
                 className="editor editor-mono renderer-editor"
                 value={rendererPipelineJson}
