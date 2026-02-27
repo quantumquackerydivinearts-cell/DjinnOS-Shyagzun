@@ -105,6 +105,10 @@ from .business_schemas import (
     SceneOut,
     SceneEmitOut,
     SceneCompileInput,
+    WorldRegionLoadInput,
+    WorldRegionUnloadInput,
+    WorldRegionOut,
+    WorldRegionUnloadOut,
     DialogueEmitInput,
     DialogueEmitOut,
     VitriolApplyRulerInfluenceInput,
@@ -142,6 +146,7 @@ from .models import (
     AssetManifest,
     Realm,
     Scene,
+    WorldRegion,
 )
 from .repositories import AtelierRepository
 from .validators import build_scene_graph_content_from_cobra, validate_cobra_content, validate_json_content, validate_scene_realm
@@ -2320,6 +2325,102 @@ class AtelierService:
             content=content,
         )
         return self.create_scene(create_payload)
+
+    def list_world_regions(self, workspace_id: str, realm_id: str | None = None) -> Sequence[WorldRegionOut]:
+        rows = self._require_repo().list_world_regions(workspace_id=workspace_id, realm_id=realm_id)
+        return [
+            WorldRegionOut(
+                id=row.id,
+                workspace_id=row.workspace_id,
+                realm_id=row.realm_id,
+                region_key=row.region_key,
+                payload=self._json_to_object_map(row.payload_json),
+                payload_hash=row.payload_hash,
+                cache_policy=row.cache_policy,
+                loaded=row.loaded,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+            for row in rows
+        ]
+
+    def load_world_region(self, payload: WorldRegionLoadInput) -> WorldRegionOut:
+        realm_validation = self.validate_realm(RealmValidateInput(realm_id=payload.realm_id))
+        if not realm_validation.ok:
+            raise ValueError(f"unknown_realm:{payload.realm_id}")
+        region_key = payload.region_key.strip()
+        if not region_key:
+            raise ValueError("region_key_required")
+        cache_policy = payload.cache_policy.strip().lower() or "cache"
+        if cache_policy not in {"cache", "stream", "pin"}:
+            raise ValueError("invalid_cache_policy")
+        repo = self._require_repo()
+        existing = repo.get_world_region(
+            workspace_id=payload.workspace_id,
+            realm_id=payload.realm_id.strip().lower(),
+            region_key=region_key,
+        )
+        payload_hash = self._canonical_hash(payload.payload)
+        now = datetime.utcnow()
+        if existing is None:
+            row = WorldRegion(
+                workspace_id=payload.workspace_id,
+                realm_id=payload.realm_id.strip().lower(),
+                region_key=region_key,
+                payload_json=self._canonical_json(payload.payload),
+                payload_hash=payload_hash,
+                cache_policy=cache_policy,
+                loaded=True,
+                created_at=now,
+                updated_at=now,
+            )
+            saved = repo.create_world_region(row)
+        else:
+            existing.payload_json = self._canonical_json(payload.payload)
+            existing.payload_hash = payload_hash
+            existing.cache_policy = cache_policy
+            existing.loaded = True
+            existing.updated_at = now
+            saved = repo.save_world_region(existing)
+        return WorldRegionOut(
+            id=saved.id,
+            workspace_id=saved.workspace_id,
+            realm_id=saved.realm_id,
+            region_key=saved.region_key,
+            payload=self._json_to_object_map(saved.payload_json),
+            payload_hash=saved.payload_hash,
+            cache_policy=saved.cache_policy,
+            loaded=saved.loaded,
+            created_at=saved.created_at,
+            updated_at=saved.updated_at,
+        )
+
+    def unload_world_region(self, payload: WorldRegionUnloadInput) -> WorldRegionUnloadOut:
+        region_key = payload.region_key.strip()
+        if not region_key:
+            raise ValueError("region_key_required")
+        repo = self._require_repo()
+        row = repo.get_world_region(
+            workspace_id=payload.workspace_id,
+            realm_id=payload.realm_id.strip().lower(),
+            region_key=region_key,
+        )
+        if row is None:
+            return WorldRegionUnloadOut(
+                workspace_id=payload.workspace_id,
+                realm_id=payload.realm_id.strip().lower(),
+                region_key=region_key,
+                unloaded=False,
+            )
+        row.loaded = False
+        row.updated_at = datetime.utcnow()
+        repo.save_world_region(row)
+        return WorldRegionUnloadOut(
+            workspace_id=row.workspace_id,
+            realm_id=row.realm_id,
+            region_key=row.region_key,
+            unloaded=True,
+        )
 
     def list_character_dictionary_entries(self, workspace_id: str) -> Sequence[CharacterDictionaryOut]:
         rows = self._require_repo().list_character_dictionary_entries(workspace_id=workspace_id)

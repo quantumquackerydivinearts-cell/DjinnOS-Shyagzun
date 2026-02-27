@@ -24,6 +24,7 @@ from .models import (
     Order,
     Realm,
     Scene,
+    WorldRegion,
     AssetManifest,
     PlayerState,
     Quote,
@@ -272,6 +273,33 @@ class AtelierRepository:
         return row
 
     def save_scene(self, row: Scene) -> Scene:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_world_regions(self, workspace_id: str, realm_id: str | None = None) -> Sequence[WorldRegion]:
+        stmt = select(WorldRegion).where(WorldRegion.workspace_id == workspace_id)
+        if realm_id is not None:
+            stmt = stmt.where(WorldRegion.realm_id == realm_id)
+        return self._db.scalars(stmt).all()
+
+    def get_world_region(self, workspace_id: str, realm_id: str, region_key: str) -> WorldRegion | None:
+        return self._db.scalar(
+            select(WorldRegion).where(
+                WorldRegion.workspace_id == workspace_id,
+                WorldRegion.realm_id == realm_id,
+                WorldRegion.region_key == region_key,
+            )
+        )
+
+    def create_world_region(self, row: WorldRegion) -> WorldRegion:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def save_world_region(self, row: WorldRegion) -> WorldRegion:
         self._db.add(row)
         self._db.commit()
         self._db.refresh(row)

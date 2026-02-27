@@ -1039,3 +1039,37 @@ class SceneCompileInput(BaseModel):
     name: str
     description: str = ""
     cobra_source: str
+
+
+class WorldRegionLoadInput(BaseModel):
+    workspace_id: str
+    realm_id: str
+    region_key: str
+    payload: dict[str, object] = Field(default_factory=dict)
+    cache_policy: str = "cache"
+
+
+class WorldRegionUnloadInput(BaseModel):
+    workspace_id: str
+    realm_id: str
+    region_key: str
+
+
+class WorldRegionOut(BaseModel):
+    id: str
+    workspace_id: str
+    realm_id: str
+    region_key: str
+    payload: dict[str, object]
+    payload_hash: str
+    cache_policy: str
+    loaded: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class WorldRegionUnloadOut(BaseModel):
+    workspace_id: str
+    realm_id: str
+    region_key: str
+    unloaded: bool

@@ -79,6 +79,10 @@ from .business_schemas import (
     SceneOut,
     SceneEmitOut,
     SceneCompileInput,
+    WorldRegionLoadInput,
+    WorldRegionUnloadInput,
+    WorldRegionOut,
+    WorldRegionUnloadOut,
     GateEvaluateInput,
     GateEvaluateOut,
     DialogueEmitInput,
@@ -1056,6 +1060,49 @@ def compile_scene_from_cobra(
     _enforce_role(role, "scene.write")
     try:
         return svc.create_scene_from_cobra(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/game/world/regions")
+def list_world_regions(
+    workspace_id: str,
+    realm_id: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[WorldRegionOut]:
+    _enforce(ctx, "scene.read")
+    _enforce_role(role, "scene.read")
+    return svc.list_world_regions(workspace_id=workspace_id, realm_id=realm_id)
+
+
+@app.post("/v1/game/world/regions/load")
+def load_world_region(
+    payload: WorldRegionLoadInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> WorldRegionOut:
+    _enforce(ctx, "scene.write")
+    _enforce_role(role, "scene.write")
+    try:
+        return svc.load_world_region(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/world/regions/unload")
+def unload_world_region(
+    payload: WorldRegionUnloadInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> WorldRegionUnloadOut:
+    _enforce(ctx, "scene.write")
+    _enforce_role(role, "scene.write")
+    try:
+        return svc.unload_world_region(payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

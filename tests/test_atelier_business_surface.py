@@ -547,6 +547,44 @@ class FakeAtelierService:
             "updated_at": "2026-02-25T00:00:00Z",
         }
 
+    def list_world_regions(self, workspace_id: str, realm_id: str | None = None) -> Sequence[Dict[str, Any]]:
+        return [
+            {
+                "id": "region-1",
+                "workspace_id": workspace_id,
+                "realm_id": realm_id or "lapidus",
+                "region_key": "lapidus/sector-001",
+                "payload": {"tiles": [1, 2, 3]},
+                "payload_hash": "h-region-1",
+                "cache_policy": "cache",
+                "loaded": True,
+                "created_at": "2026-02-25T00:00:00Z",
+                "updated_at": "2026-02-25T00:00:00Z",
+            }
+        ]
+
+    def load_world_region(self, payload: Any) -> Dict[str, Any]:
+        return {
+            "id": "region-loaded",
+            "workspace_id": payload.workspace_id,
+            "realm_id": payload.realm_id,
+            "region_key": payload.region_key,
+            "payload": payload.payload,
+            "payload_hash": "h-region-loaded",
+            "cache_policy": payload.cache_policy,
+            "loaded": True,
+            "created_at": "2026-02-25T00:00:00Z",
+            "updated_at": "2026-02-25T00:00:00Z",
+        }
+
+    def unload_world_region(self, payload: Any) -> Dict[str, Any]:
+        return {
+            "workspace_id": payload.workspace_id,
+            "realm_id": payload.realm_id,
+            "region_key": payload.region_key,
+            "unloaded": True,
+        }
+
 
 def _admin_gate_token(actor_id: str, workshop_id: str, gate_code: str = "STEWARD_DEV_GATE") -> str:
     payload = f"{gate_code}:{actor_id}:{workshop_id}".encode("utf-8")
@@ -970,4 +1008,44 @@ def test_scene_library_routes() -> None:
     )
     assert compiled.status_code == 200
     assert compiled.json()["id"] == "scene-compiled"
+    app.dependency_overrides.clear()
+
+
+def test_world_region_streaming_routes() -> None:
+    app.dependency_overrides[_atelier_service] = lambda: FakeAtelierService()
+    client = TestClient(app)
+
+    listed = client.get(
+        "/v1/game/world/regions?workspace_id=main&realm_id=lapidus",
+        headers=_headers("scene.read"),
+    )
+    assert listed.status_code == 200
+    assert listed.json()[0]["region_key"] == "lapidus/sector-001"
+
+    loaded = client.post(
+        "/v1/game/world/regions/load",
+        headers=_headers("scene.write"),
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "region_key": "lapidus/sector-002",
+            "payload": {"tiles": [4, 5, 6]},
+            "cache_policy": "stream",
+        },
+    )
+    assert loaded.status_code == 200
+    assert loaded.json()["id"] == "region-loaded"
+    assert loaded.json()["loaded"] is True
+
+    unloaded = client.post(
+        "/v1/game/world/regions/unload",
+        headers=_headers("scene.write"),
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "region_key": "lapidus/sector-002",
+        },
+    )
+    assert unloaded.status_code == 200
+    assert unloaded.json()["unloaded"] is True
     app.dependency_overrides.clear()

@@ -48,6 +48,23 @@ class Scene(Base):
     workspace: Mapped[Workspace] = relationship()
 
 
+class WorldRegion(Base):
+    __tablename__ = "world_regions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    realm_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    region_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    payload_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    cache_policy: Mapped[str] = mapped_column(String(40), nullable=False, default="cache")
+    loaded: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
 class ArtisanAccount(Base):
     __tablename__ = "artisan_accounts"
 
