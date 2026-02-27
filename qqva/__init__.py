@@ -10,6 +10,7 @@ from .shygazun_compiler import (
     derive_render_constraints,
     emit_cobra_entity,
 )
+from .world_stream import WorldStreamController
 
 __all__ = [
     "AmbroflowShim",
@@ -22,5 +23,6 @@ __all__ = [
     "emit_cobra_entity",
     "cobra_to_placement_payloads",
     "cobra_to_scene_graph",
+    "WorldStreamController",
 ]
 
