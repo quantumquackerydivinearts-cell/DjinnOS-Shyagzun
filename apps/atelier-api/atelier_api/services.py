@@ -1662,6 +1662,9 @@ class AtelierService:
                 realm_id=item.realm_id,
                 market_id=item.market_id,
                 display_name=item.display_name,
+                dominant_operator=item.dominant_operator,
+                market_network=item.market_network,
+                dominance_bp=item.dominance_bp,
                 volatility_bp=item.volatility_bp,
                 spread_bp=item.spread_bp,
                 fee_bp=item.fee_bp,
@@ -2095,6 +2098,28 @@ class AtelierService:
     ) -> RuntimeConsumeOut:
         results: list[RuntimeActionOut] = []
         runtime_regions: dict[str, dict[str, object]] = {}
+        runtime_market_stock: dict[str, dict[str, int]] = {}
+
+        def _normalize_realm_for_runtime(value: object) -> str:
+            realm = str(value or "").strip().lower()
+            if realm == "":
+                raise ValueError("realm_id_required")
+            return realm
+
+        def _stock_overrides_for_realm(realm_id: str) -> dict[str, int]:
+            overrides = runtime_market_stock.get(realm_id)
+            if overrides is None:
+                overrides = {}
+                runtime_market_stock[realm_id] = overrides
+            return overrides
+
+        def _effective_stock(realm_id: str, item_id: str) -> int:
+            market = get_realm_market(realm_id)
+            overrides = _stock_overrides_for_realm(realm_id)
+            if item_id in overrides:
+                return max(0, int(overrides[item_id]))
+            return max(0, int(market.stock.get(item_id, 0)))
+
         for action in payload.actions:
             action_payload = dict(action.payload)
             action_payload.setdefault("workspace_id", payload.workspace_id)
@@ -2143,11 +2168,28 @@ class AtelierService:
                         workshop_id=workshop_id,
                     )
                 elif action.kind == "market.trade":
-                    result = self.market_trade(
-                        payload=MarketTradeInput(**action_payload),
+                    trade_input = MarketTradeInput(**action_payload)
+                    realm_id = _normalize_realm_for_runtime(trade_input.realm_id)
+                    stock_before = _effective_stock(realm_id, trade_input.item_id)
+                    adjusted_payload = trade_input.model_copy(
+                        update={"available_liquidity": min(trade_input.available_liquidity, stock_before)}
+                    )
+                    trade_result = self.market_trade(
+                        payload=adjusted_payload,
                         actor_id=actor_id,
                         workshop_id=workshop_id,
                     )
+                    stock_after = stock_before
+                    if trade_result.side == "buy":
+                        stock_after = max(0, stock_before - trade_result.filled_qty)
+                    elif trade_result.side == "sell":
+                        stock_after = max(0, stock_before + trade_result.filled_qty)
+                    _stock_overrides_for_realm(realm_id)[trade_input.item_id] = stock_after
+                    result = {
+                        **trade_result.model_dump(),
+                        "stock_before_qty": stock_before,
+                        "stock_after_qty": stock_after,
+                    }
                 elif action.kind == "vitriol.apply":
                     result = self.vitriol_apply_ruler_influence(
                         payload=VitriolApplyRulerInfluenceInput(**action_payload),
@@ -2254,7 +2296,38 @@ class AtelierService:
                 elif action.kind == "world.coins.list":
                     result = [item.model_dump() for item in self.list_realm_coins(cast(Optional[str], action_payload.get("realm_id")))]
                 elif action.kind == "world.markets.list":
-                    result = [item.model_dump() for item in self.list_realm_markets(cast(Optional[str], action_payload.get("realm_id")))]
+                    realm_filter = cast(Optional[str], action_payload.get("realm_id"))
+                    markets = self.list_realm_markets(realm_filter)
+                    market_rows: list[dict[str, object]] = []
+                    for market in markets:
+                        row = market.model_dump()
+                        stock_map = {key: int(value) for key, value in market.stock.items()}
+                        realm_overrides = runtime_market_stock.get(market.realm_id, {})
+                        for item_id, qty in realm_overrides.items():
+                            stock_map[item_id] = max(0, int(qty))
+                        row["stock"] = stock_map
+                        market_rows.append(row)
+                    result = market_rows
+                elif action.kind == "world.market.stock.adjust":
+                    realm_id = _normalize_realm_for_runtime(action_payload.get("realm_id"))
+                    item_id = str(action_payload.get("item_id", "")).strip()
+                    if item_id == "":
+                        raise ValueError("item_id_required")
+                    stock_before = _effective_stock(realm_id, item_id)
+                    set_qty_raw = action_payload.get("set_qty")
+                    if set_qty_raw is None:
+                        delta = int(action_payload.get("delta", 0))
+                        stock_after = max(0, stock_before + delta)
+                    else:
+                        stock_after = max(0, int(set_qty_raw))
+                    _stock_overrides_for_realm(realm_id)[item_id] = stock_after
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "realm_id": realm_id,
+                        "item_id": item_id,
+                        "stock_before_qty": stock_before,
+                        "stock_after_qty": stock_after,
+                    }
                 else:
                     raise ValueError(f"unsupported_runtime_action:{action.kind}")
                 results.append(

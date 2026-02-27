@@ -47,6 +47,22 @@
       "payload": {}
     },
     {
+      "action_id": "lapidus_set_iron_stock",
+      "kind": "world.market.stock.adjust",
+      "payload": {
+        "realm_id": "lapidus",
+        "item_id": "iron_ingot",
+        "set_qty": 450
+      }
+    },
+    {
+      "action_id": "realm_markets_after_adjust",
+      "kind": "world.markets.list",
+      "payload": {
+        "realm_id": "lapidus"
+      }
+    },
+    {
       "action_id": "unload_mercurie_tide_002",
       "kind": "world.region.unload",
       "payload": {

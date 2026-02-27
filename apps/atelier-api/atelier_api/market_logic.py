@@ -17,6 +17,9 @@ class RealmMarketSpec:
     realm_id: str
     market_id: str
     display_name: str
+    dominant_operator: str
+    market_network: str
+    dominance_bp: int
     volatility_bp: int
     spread_bp: int
     fee_bp: int
@@ -34,6 +37,9 @@ REALM_MARKETS: Dict[str, RealmMarketSpec] = {
         realm_id="lapidus",
         market_id="lapidus_exchange",
         display_name="Lapidus Exchange",
+        dominant_operator="lord_nexiott",
+        market_network="caravan",
+        dominance_bp=9200,
         volatility_bp=120,
         spread_bp=80,
         fee_bp=45,
@@ -43,6 +49,9 @@ REALM_MARKETS: Dict[str, RealmMarketSpec] = {
         realm_id="mercurie",
         market_id="mercurie_tide_market",
         display_name="Mercurie Tide Market",
+        dominant_operator="free_tide_cooperative",
+        market_network="tide_markets",
+        dominance_bp=5100,
         volatility_bp=260,
         spread_bp=120,
         fee_bp=60,
@@ -52,6 +61,9 @@ REALM_MARKETS: Dict[str, RealmMarketSpec] = {
         realm_id="sulphera",
         market_id="sulphera_royal_bazaar",
         display_name="Sulphera Royal Bazaar",
+        dominant_operator="royal_ring_brokerage",
+        market_network="royal_bazaar",
+        dominance_bp=7600,
         volatility_bp=420,
         spread_bp=180,
         fee_bp=90,

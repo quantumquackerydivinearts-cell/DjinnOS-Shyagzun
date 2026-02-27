@@ -767,6 +767,7 @@ RuntimeActionKind = Literal[
     "world.stream.status",
     "world.coins.list",
     "world.markets.list",
+    "world.market.stock.adjust",
 ]
 
 
@@ -1204,6 +1205,9 @@ class RealmMarketOut(BaseModel):
     realm_id: str
     market_id: str
     display_name: str
+    dominant_operator: str
+    market_network: str
+    dominance_bp: int
     volatility_bp: int
     spread_bp: int
     fee_bp: int

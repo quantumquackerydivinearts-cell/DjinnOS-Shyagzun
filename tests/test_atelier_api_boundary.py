@@ -1025,10 +1025,84 @@ def test_game_runtime_consume_supports_world_stream_and_realm_economy_actions() 
     assert results["markets"]["ok"] is True
     assert isinstance(results["markets"]["result"]["items"], list)
     assert any(item["realm_id"] == "mercurie" for item in results["markets"]["result"]["items"])
+    assert any(
+        item["realm_id"] == "lapidus" and item["dominant_operator"] == "lord_nexiott"
+        for item in results["markets"]["result"]["items"]
+    )
     assert results["status"]["ok"] is True
     assert results["status"]["result"]["realm_id"] == "lapidus"
     assert results["runload"]["ok"] is True
     assert results["runload"]["result"]["unloaded"] is True
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_supports_market_stock_adjust_and_trade_override() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "market_stock_runtime_plan",
+        "actions": [
+            {
+                "action_id": "set_stock",
+                "kind": "world.market.stock.adjust",
+                "payload": {"realm_id": "lapidus", "item_id": "iron_ingot", "set_qty": 3},
+            },
+            {
+                "action_id": "buy_trade",
+                "kind": "market.trade",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "item_id": "iron_ingot",
+                    "side": "buy",
+                    "quantity": 5,
+                    "unit_price_cents": 1000,
+                    "fee_bp": 0,
+                    "wallet_cents": 10000,
+                    "inventory_qty": 0,
+                    "available_liquidity": 999,
+                },
+            },
+            {
+                "action_id": "list_markets",
+                "kind": "world.markets.list",
+                "payload": {"realm_id": "lapidus"},
+            },
+            {
+                "action_id": "add_stock",
+                "kind": "world.market.stock.adjust",
+                "payload": {"realm_id": "lapidus", "item_id": "iron_ingot", "delta": 2},
+            },
+            {
+                "action_id": "list_markets_after",
+                "kind": "world.markets.list",
+                "payload": {"realm_id": "lapidus"},
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+    assert results["set_stock"]["result"]["stock_before_qty"] == 1200
+    assert results["set_stock"]["result"]["stock_after_qty"] == 3
+    assert results["buy_trade"]["ok"] is True
+    assert results["buy_trade"]["result"]["filled_qty"] == 3
+    assert results["buy_trade"]["result"]["stock_before_qty"] == 3
+    assert results["buy_trade"]["result"]["stock_after_qty"] == 0
+    first_market_items = results["list_markets"]["result"]["items"]
+    assert isinstance(first_market_items, list)
+    assert first_market_items[0]["stock"]["iron_ingot"] == 0
+    assert results["add_stock"]["result"]["stock_before_qty"] == 0
+    assert results["add_stock"]["result"]["stock_after_qty"] == 2
+    second_market_items = results["list_markets_after"]["result"]["items"]
+    assert isinstance(second_market_items, list)
+    assert second_market_items[0]["stock"]["iron_ingot"] == 2
     app.dependency_overrides.clear()
 
 

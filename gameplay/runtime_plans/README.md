@@ -29,3 +29,8 @@ Supported runtime kinds include world streaming and realm economy catalog access
 - `world.stream.status`
 - `world.coins.list`
 - `world.markets.list`
+- `world.market.stock.adjust`
+
+Lapidus market metadata is synced to Caravan dominance:
+- `dominant_operator: "lord_nexiott"`
+- `market_network: "caravan"`
