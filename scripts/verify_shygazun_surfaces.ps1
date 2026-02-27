@@ -1,6 +1,3 @@
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-
 param(
     [string]$KernelBaseUrl = "http://127.0.0.1:8000",
     [string]$AtelierApiBaseUrl = "http://127.0.0.1:9000",
@@ -10,6 +7,9 @@ param(
     [string]$WorkshopId = "workshop-1",
     [string]$CobraRoot = "C:\DjinnOS\apps\atelier-desktop\studio-cobra"
 )
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
 function Invoke-Json {
     param(
@@ -78,12 +78,12 @@ $ambroLookup = Invoke-Json -Method POST -Url "$AtelierApiBaseUrl/v1/ambroflow/ak
 Assert-True -Condition ([string]$ambroLookup.frontier_hash -eq [string]$lookupB.frontier_hash) -Message "atelier lookup frontier_hash mismatch vs kernel"
 
 Write-Host "[verify] cobra compiler path"
-$pyCmd = @"
+$pyCmd = @'
 from qqva.shygazun_compiler import compile_akinenwun_to_ir
 ir = compile_akinenwun_to_ir("TyKoWuVu")
 assert ir["canonical_compound"] == "TyKoWuVu"
 assert len(ir["symbols"]) == 4
-"@
+'@
 & py -c $pyCmd
 if ($LASTEXITCODE -ne 0) {
     throw "verification_failed: python cobra compiler check failed"
