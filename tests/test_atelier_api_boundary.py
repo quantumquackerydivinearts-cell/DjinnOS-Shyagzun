@@ -14,7 +14,7 @@ sys.path.insert(0, str(API_APP_DIR))
 
 from atelier_api.main import app, _kernel_client, _kernel_only_service  # type: ignore[import]
 from atelier_api.kernel_integration import KernelIntegrationService  # type: ignore[import]
-from atelier_api.models import PlayerState  # type: ignore[import]
+from atelier_api.models import PlayerState, Realm, WorldRegion  # type: ignore[import]
 from atelier_api.services import AtelierService  # type: ignore[import]
 from atelier_api.types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse  # type: ignore[import]
 from qqva.world_stream import WorldStreamController  # type: ignore[import]
@@ -1548,6 +1548,251 @@ def test_game_tick_event_queue_order_is_deterministic() -> None:
     assert r1["tables"]["flags"]["early"] is True
     assert r1["tables"]["flags"]["late"] is True
     app.dependency_overrides.clear()
+
+
+def test_game_tick_soak_mixed_systems_is_deterministic_and_queue_bounded() -> None:
+    def _run_soak() -> dict[str, object]:
+        fake = FakeKernelClient()
+        kernel = KernelIntegrationService(fake)
+
+        class _SoakRepo:
+            def __init__(self) -> None:
+                now = datetime.now(timezone.utc)
+                self.player_rows: dict[tuple[str, str], PlayerState] = {}
+                self.realms: dict[str, Realm] = {
+                    "lapidus": Realm(id="realm_lapidus", slug="lapidus", name="Lapidus", description="", created_at=now),
+                    "mercurie": Realm(id="realm_mercurie", slug="mercurie", name="Mercurie", description="", created_at=now),
+                    "sulphera": Realm(id="realm_sulphera", slug="sulphera", name="Sulphera", description="", created_at=now),
+                }
+                self.region_rows: dict[tuple[str, str, str], WorldRegion] = {}
+
+            def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+                return self.player_rows.get((workspace_id, actor_id))
+
+            def save_player_state(self, row: PlayerState) -> PlayerState:
+                self.player_rows[(row.workspace_id, row.actor_id)] = row
+                return row
+
+            def get_realm_by_slug(self, slug: str) -> Realm | None:
+                return self.realms.get(slug)
+
+            def list_world_regions(self, workspace_id: str, realm_id: str | None = None):
+                rows = [row for (ws, _, _), row in self.region_rows.items() if ws == workspace_id]
+                if realm_id is not None:
+                    rows = [row for row in rows if row.realm_id == realm_id]
+                return rows
+
+            def get_world_region(self, workspace_id: str, realm_id: str, region_key: str) -> WorldRegion | None:
+                return self.region_rows.get((workspace_id, realm_id, region_key))
+
+            def create_world_region(self, row: WorldRegion) -> WorldRegion:
+                if row.id is None:
+                    row.id = f"wr_{len(self.region_rows) + 1}"
+                self.region_rows[(row.workspace_id, row.realm_id, row.region_key)] = row
+                return row
+
+            def save_world_region(self, row: WorldRegion) -> WorldRegion:
+                if row.id is None:
+                    row.id = f"wr_{len(self.region_rows) + 1}"
+                self.region_rows[(row.workspace_id, row.realm_id, row.region_key)] = row
+                return row
+
+        repo = _SoakRepo()
+        app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+        client = TestClient(app)
+        token = _admin_gate_token("tester", "workshop-1")
+        place_headers = _headers("kernel.place", role="steward", token=token)
+        observe_headers = _headers("kernel.observe", role="artisan")
+        actor_id = "player_tick_soak"
+
+        tick_hashes: list[str] = []
+        queue_sizes: list[int] = []
+
+        for step in range(1, 321):
+            if step % 10 == 0:
+                runtime_res = client.post(
+                    "/v1/game/runtime/consume",
+                    json={
+                        "workspace_id": "main",
+                        "actor_id": actor_id,
+                        "plan_id": f"soak_plan_{step}",
+                        "actions": [
+                            {
+                                "action_id": f"load_{step}",
+                                "kind": "world.region.load",
+                                "payload": {
+                                    "realm_id": "lapidus",
+                                    "region_key": f"lapidus/sector-{step // 10:03d}",
+                                    "payload": {"seed": step, "tiles": [step % 7, (step + 1) % 7]},
+                                    "cache_policy": "stream",
+                                },
+                            },
+                            {
+                                "action_id": f"status_{step}",
+                                "kind": "world.stream.status",
+                                "payload": {"realm_id": "lapidus"},
+                            },
+                            {
+                                "action_id": f"markets_{step}",
+                                "kind": "world.markets.list",
+                                "payload": {"realm_id": "lapidus"},
+                            },
+                        ],
+                    },
+                    headers=place_headers,
+                )
+                assert runtime_res.status_code == 200
+                runtime_payload = runtime_res.json()
+                assert runtime_payload["failed_count"] == 0
+
+            if step % 15 == 0:
+                djinn_res = client.post(
+                    "/v1/game/djinn/apply",
+                    json={
+                        "workspace_id": "main",
+                        "actor_id": actor_id,
+                        "djinn_id": "giann",
+                        "realm_id": "lapidus",
+                        "scene_id": "lapidus/intro",
+                        "ring_id": "overworld",
+                        "target_frontiers": [f"F{step % 9}"],
+                        "tick": step,
+                        "reason": "soak",
+                    },
+                    headers=place_headers,
+                )
+                assert djinn_res.status_code == 200
+                assert djinn_res.json()["effect"] == "open"
+
+            if step % 20 == 0:
+                dialogue_res = client.post(
+                    "/v1/game/dialogue/emit",
+                    json={
+                        "workspace_id": "main",
+                        "scene_id": "lapidus/intro",
+                        "dialogue_id": f"dlg_soak_{step}",
+                        "turns": [
+                            {"line_id": "l2", "speaker_id": "npc", "raw": "second"},
+                            {"line_id": "l1", "speaker_id": "player", "raw": "first"},
+                        ],
+                    },
+                    headers=place_headers,
+                )
+                assert dialogue_res.status_code == 200
+                assert dialogue_res.json()["emitted_line_ids"] == ["l1", "l2"]
+
+            events: list[dict[str, object]] = [
+                {"event_id": f"flag_{step}", "kind": "flags.set", "payload": {"key": "tick_parity_even", "value": step % 2 == 0}},
+            ]
+            if step % 3 == 0:
+                events.append(
+                    {
+                        "event_id": f"quote_{step}",
+                        "kind": "market.quote",
+                        "payload": {
+                            "realm_id": "lapidus",
+                            "item_id": "iron_ingot",
+                            "side": "buy",
+                            "quantity": 1,
+                            "base_price_cents": 1000,
+                            "scarcity_bp": 10,
+                            "spread_bp": 120,
+                        },
+                    }
+                )
+            if step % 4 == 0:
+                events.append(
+                    {
+                        "event_id": f"trade_{step}",
+                        "kind": "market.trade",
+                        "payload": {
+                            "realm_id": "lapidus",
+                            "item_id": "iron_ingot",
+                            "side": "buy",
+                            "quantity": 1,
+                            "unit_price_cents": 1000,
+                            "wallet_cents": 100000,
+                            "inventory_qty": 0,
+                            "available_liquidity": 1000,
+                        },
+                    }
+                )
+            if step % 5 == 0:
+                events.append(
+                    {
+                        "event_id": f"vitriol_{step}",
+                        "kind": "vitriol.compute",
+                        "payload": {
+                            "base": {
+                                "vitality": 6,
+                                "introspection": 6,
+                                "tactility": 6,
+                                "reflectivity": 6,
+                                "ingenuity": 6,
+                                "ostentation": 6,
+                                "levity": 6,
+                            },
+                            "modifiers": [],
+                            "current_tick": step,
+                        },
+                    }
+                )
+            if step % 7 == 0:
+                events.append(
+                    {
+                        "event_id": f"future_{step}",
+                        "kind": "flags.set",
+                        "due_tick": step + 2,
+                        "payload": {"key": f"future_{step}", "value": True},
+                    }
+                )
+
+            tick_res = client.post(
+                "/v1/game/state/tick",
+                json={
+                    "workspace_id": "main",
+                    "actor_id": actor_id,
+                    "dt_ms": 16,
+                    "events": events,
+                },
+                headers=place_headers,
+            )
+            assert tick_res.status_code == 200
+            tick_payload = tick_res.json()
+            tick_hashes.append(str(tick_payload["hash"]))
+            queue_sizes.append(int(tick_payload["queue_size"]))
+            assert int(tick_payload["queue_size"]) <= 32
+
+        for _ in range(6):
+            drain_res = client.post(
+                "/v1/game/state/tick",
+                json={"workspace_id": "main", "actor_id": actor_id, "dt_ms": 16, "events": []},
+                headers=place_headers,
+            )
+            assert drain_res.status_code == 200
+            drain_payload = drain_res.json()
+            tick_hashes.append(str(drain_payload["hash"]))
+            queue_sizes.append(int(drain_payload["queue_size"]))
+            assert int(drain_payload["queue_size"]) <= 32
+
+        state_res = client.get(
+            f"/v1/game/state?workspace_id=main&actor_id={actor_id}",
+            headers=observe_headers,
+        )
+        assert state_res.status_code == 200
+        state_payload = state_res.json()
+        app.dependency_overrides.clear()
+        return {
+            "tick_hashes": tick_hashes,
+            "queue_sizes": queue_sizes,
+            "state_hash": state_payload["hash"],
+        }
+
+    first = _run_soak()
+    second = _run_soak()
+    assert first["tick_hashes"] == second["tick_hashes"]
+    assert first["queue_sizes"] == second["queue_sizes"]
+    assert first["state_hash"] == second["state_hash"]
 
 
 def test_game_gate_evaluate_supports_xor_and_nor_with_multi_source_state() -> None:

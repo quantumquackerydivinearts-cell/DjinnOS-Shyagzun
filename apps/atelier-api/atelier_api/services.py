@@ -2831,7 +2831,7 @@ class AtelierService:
             "workspace_id": payload.workspace_id,
             "actor_id": payload.actor_id,
             "plan_id": payload.plan_id,
-            "results": [item.model_dump() for item in results],
+            "results": [item.model_dump(mode="json") for item in results],
         }
         return RuntimeConsumeOut(
             workspace_id=payload.workspace_id,
