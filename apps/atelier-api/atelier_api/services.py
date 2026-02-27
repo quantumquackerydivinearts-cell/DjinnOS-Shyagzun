@@ -2217,6 +2217,30 @@ class AtelierService:
                 return max(0, int(overrides[item_id]))
             return max(0, int(market.stock.get(item_id, 0)))
 
+        def _runtime_loaded_regions() -> dict[str, dict[str, object]]:
+            loaded_regions: dict[str, dict[str, object]] = {}
+            for region_id, row in runtime_regions.items():
+                if not bool(row.get("loaded")):
+                    continue
+                loaded_regions[region_id] = {
+                    "realm_id": str(row.get("realm_id", "")),
+                    "region_key": str(row.get("region_key", "")),
+                    "payload": cast(dict[str, object], row.get("payload", {})),
+                    "payload_hash": str(row.get("payload_hash", "")),
+                    "cache_policy": str(row.get("cache_policy", "cache")),
+                    "loaded_at": str(row.get("updated_at", row.get("created_at", ""))),
+                }
+            return loaded_regions
+
+        def _sync_runtime_region_loaded_flags(projected_loaded: Mapping[str, object]) -> None:
+            projected_ids = {str(key) for key in projected_loaded.keys()}
+            now_iso = datetime.utcnow().isoformat()
+            for region_id, row in runtime_regions.items():
+                should_be_loaded = region_id in projected_ids
+                if bool(row.get("loaded")) != should_be_loaded:
+                    row["loaded"] = should_be_loaded
+                    row["updated_at"] = now_iso
+
         for action in payload.actions:
             action_payload = dict(action.payload)
             action_payload.setdefault("workspace_id", payload.workspace_id)
@@ -2313,21 +2337,47 @@ class AtelierService:
                         region_key = str(action_payload.get("region_key", "")).strip()
                         if realm_id == "" or region_key == "":
                             raise ValueError("realm_or_region_required")
+                        payload_obj = action_payload.get("payload", {})
+                        if not isinstance(payload_obj, dict):
+                            payload_obj = {}
                         cache_policy = str(action_payload.get("cache_policy", "cache")).strip().lower() or "cache"
                         region_id = f"{realm_id}::{region_key}"
                         now_iso = datetime.utcnow().isoformat()
+                        existing_region = runtime_regions.get(region_id)
+                        created_at = (
+                            str(existing_region.get("created_at", now_iso))
+                            if isinstance(existing_region, dict)
+                            else now_iso
+                        )
+                        payload_hash = self._canonical_hash(payload_obj)
                         runtime_regions[region_id] = {
                             "id": region_id,
                             "workspace_id": payload.workspace_id,
                             "realm_id": realm_id,
                             "region_key": region_key,
-                            "payload": cast(dict[str, object], action_payload.get("payload", {})),
-                            "payload_hash": self._canonical_hash(action_payload.get("payload", {})),
+                            "payload": cast(dict[str, object], payload_obj),
+                            "payload_hash": payload_hash,
                             "cache_policy": cache_policy,
                             "loaded": True,
-                            "created_at": now_iso,
+                            "created_at": created_at,
                             "updated_at": now_iso,
                         }
+                        projected_state = self._world_stream.load(
+                            {"world_stream": {"loaded_regions": _runtime_loaded_regions()}},
+                            realm_id=realm_id,
+                            region_key=region_key,
+                            payload=cast(dict[str, object], payload_obj),
+                            payload_hash=payload_hash,
+                            cache_policy=cache_policy,
+                        )
+                        projected_stream = projected_state.get("world_stream")
+                        projected_loaded_obj = (
+                            projected_stream.get("loaded_regions")
+                            if isinstance(projected_stream, dict)
+                            else {}
+                        )
+                        projected_loaded = projected_loaded_obj if isinstance(projected_loaded_obj, dict) else {}
+                        _sync_runtime_region_loaded_flags(projected_loaded)
                         result = dict(runtime_regions[region_id])
                     else:
                         result = self.load_world_region(payload=WorldRegionLoadInput(**action_payload))
@@ -2335,13 +2385,27 @@ class AtelierService:
                     if self._repo is None:
                         realm_id = str(action_payload.get("realm_id", "")).strip().lower()
                         region_key = str(action_payload.get("region_key", "")).strip()
+                        if realm_id == "" or region_key == "":
+                            raise ValueError("realm_or_region_required")
                         region_id = f"{realm_id}::{region_key}"
-                        unloaded = False
+                        unloaded = bool(runtime_regions.get(region_id, {}).get("loaded"))
+                        projected_state = self._world_stream.unload(
+                            {"world_stream": {"loaded_regions": _runtime_loaded_regions()}},
+                            realm_id=realm_id,
+                            region_key=region_key,
+                        )
+                        projected_stream = projected_state.get("world_stream")
+                        projected_loaded_obj = (
+                            projected_stream.get("loaded_regions")
+                            if isinstance(projected_stream, dict)
+                            else {}
+                        )
+                        projected_loaded = projected_loaded_obj if isinstance(projected_loaded_obj, dict) else {}
+                        _sync_runtime_region_loaded_flags(projected_loaded)
                         row = runtime_regions.get(region_id)
                         if row is not None:
                             row["loaded"] = False
                             row["updated_at"] = datetime.utcnow().isoformat()
-                            unloaded = True
                         result = {
                             "workspace_id": payload.workspace_id,
                             "realm_id": realm_id,
@@ -2358,17 +2422,22 @@ class AtelierService:
                             if isinstance(realm_filter, str) and str(realm_filter).strip() != ""
                             else None
                         )
-                        loaded_rows = [
+                        scoped_rows = [
                             row
                             for row in runtime_regions.values()
-                            if bool(row.get("loaded")) and (realm_norm is None or row.get("realm_id") == realm_norm)
+                            if realm_norm is None or row.get("realm_id") == realm_norm
+                        ]
+                        loaded_rows = [
+                            row
+                            for row in scoped_rows
+                            if bool(row.get("loaded"))
                         ]
                         policy_counts: dict[str, int] = {"cache": 0, "stream": 0, "pin": 0}
                         for row in loaded_rows:
                             policy = str(row.get("cache_policy", "cache")).strip().lower()
                             policy_counts[policy] = policy_counts.get(policy, 0) + 1
                         capacity = self._world_stream.max_loaded_regions
-                        total_regions = len(runtime_regions)
+                        total_regions = len(scoped_rows)
                         loaded_count = len(loaded_rows)
                         unloaded_count = max(0, total_regions - loaded_count)
                         pressure = 0.0 if capacity <= 0 else float(loaded_count) / float(capacity)

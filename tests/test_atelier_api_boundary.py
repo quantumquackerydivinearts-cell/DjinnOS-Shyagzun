@@ -17,6 +17,7 @@ from atelier_api.kernel_integration import KernelIntegrationService  # type: ign
 from atelier_api.models import PlayerState  # type: ignore[import]
 from atelier_api.services import AtelierService  # type: ignore[import]
 from atelier_api.types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse  # type: ignore[import]
+from qqva.world_stream import WorldStreamController  # type: ignore[import]
 
 
 class FakeKernelClient:
@@ -1035,6 +1036,97 @@ def test_game_runtime_consume_supports_world_stream_and_realm_economy_actions() 
     assert results["status"]["result"]["realm_id"] == "lapidus"
     assert results["runload"]["ok"] is True
     assert results["runload"]["result"]["unloaded"] is True
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_world_stream_runtime_path_applies_capacity_and_realm_scoping() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=2),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "world_runtime_capacity_plan",
+        "actions": [
+            {
+                "action_id": "load_pin",
+                "kind": "world.region.load",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "region_key": "lapidus/pinned",
+                    "payload": {"seed": 1},
+                    "cache_policy": "pin",
+                },
+            },
+            {
+                "action_id": "load_cache",
+                "kind": "world.region.load",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "region_key": "lapidus/cache",
+                    "payload": {"seed": 2},
+                    "cache_policy": "cache",
+                },
+            },
+            {
+                "action_id": "load_stream",
+                "kind": "world.region.load",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "region_key": "lapidus/stream",
+                    "payload": {"seed": 3},
+                    "cache_policy": "stream",
+                },
+            },
+            {
+                "action_id": "status_lapidus",
+                "kind": "world.stream.status",
+                "payload": {"realm_id": "lapidus"},
+            },
+            {
+                "action_id": "load_mercurie",
+                "kind": "world.region.load",
+                "payload": {
+                    "realm_id": "mercurie",
+                    "region_key": "mercurie/glade",
+                    "payload": {"seed": 4},
+                    "cache_policy": "cache",
+                },
+            },
+            {
+                "action_id": "status_mercurie",
+                "kind": "world.stream.status",
+                "payload": {"realm_id": "mercurie"},
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+    assert results["load_pin"]["ok"] is True
+    assert results["load_cache"]["ok"] is True
+    assert results["load_stream"]["ok"] is True
+    lapidus_status = results["status_lapidus"]["result"]
+    assert lapidus_status["total_regions"] == 3
+    assert lapidus_status["loaded_count"] == 2
+    assert lapidus_status["unloaded_count"] == 1
+    assert lapidus_status["policy_counts"]["pin"] == 1
+    assert lapidus_status["policy_counts"]["stream"] == 1
+    assert lapidus_status["policy_counts"]["cache"] == 0
+    mercurie_status = results["status_mercurie"]["result"]
+    assert mercurie_status["realm_id"] == "mercurie"
+    assert mercurie_status["total_regions"] == 1
+    assert mercurie_status["loaded_count"] == 1
+    assert mercurie_status["unloaded_count"] == 0
     app.dependency_overrides.clear()
 
 
