@@ -191,3 +191,110 @@ class InventoryItem(Base):
 
     workspace: Mapped[Workspace] = relationship()
     supplier: Mapped[Supplier | None] = relationship()
+
+
+class CharacterDictionaryEntry(Base):
+    __tablename__ = "character_dictionary_entries"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    character_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    aliases_csv: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    bio: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    tags_csv: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    faction: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
+class NamedQuest(Base):
+    __tablename__ = "named_quests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    quest_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    name: Mapped[str] = mapped_column(String(300), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), nullable=False, default="inactive")
+    current_step: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    requirements_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    rewards_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
+class JournalEntry(Base):
+    __tablename__ = "journal_entries"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    entry_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    kind: Mapped[str] = mapped_column(String(40), nullable=False, default="manual")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
+class LayerNode(Base):
+    __tablename__ = "layer_nodes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    layer_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    node_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    payload_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
+class LayerEdge(Base):
+    __tablename__ = "layer_edges"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    from_node_id: Mapped[str] = mapped_column(String(36), ForeignKey("layer_nodes.id"), nullable=False)
+    to_node_id: Mapped[str] = mapped_column(String(36), ForeignKey("layer_nodes.id"), nullable=False)
+    edge_kind: Mapped[str] = mapped_column(String(120), nullable=False)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
+class LayerEvent(Base):
+    __tablename__ = "layer_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    event_kind: Mapped[str] = mapped_column(String(120), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    node_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("layer_nodes.id"), nullable=True)
+    edge_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("layer_edges.id"), nullable=True)
+    payload_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
+class FunctionStoreEntry(Base):
+    __tablename__ = "function_store_entries"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    function_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    version: Mapped[str] = mapped_column(String(80), nullable=False)
+    signature: Mapped[str] = mapped_column(String(300), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    function_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()

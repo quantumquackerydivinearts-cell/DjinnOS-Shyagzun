@@ -1,11 +1,29 @@
 from __future__ import annotations
-
 from typing import Sequence
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from .models import ArtisanAccount, Booking, CRMContact, Client, InventoryItem, Lead, Lesson, LearningModule, Order, Quote, Supplier
+from .models import (
+    ArtisanAccount,
+    Booking,
+    CRMContact,
+    CharacterDictionaryEntry,
+    Client,
+    FunctionStoreEntry,
+    InventoryItem,
+    JournalEntry,
+    Lead,
+    LayerEdge,
+    LayerEvent,
+    LayerNode,
+    Lesson,
+    LearningModule,
+    NamedQuest,
+    Order,
+    Quote,
+    Supplier,
+)
 
 
 class AtelierRepository:
@@ -161,6 +179,88 @@ class AtelierRepository:
         return row
 
     def save_artisan_account(self, row: ArtisanAccount) -> ArtisanAccount:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_character_dictionary_entries(self, workspace_id: str) -> Sequence[CharacterDictionaryEntry]:
+        return self._db.scalars(
+            select(CharacterDictionaryEntry).where(CharacterDictionaryEntry.workspace_id == workspace_id)
+        ).all()
+
+    def create_character_dictionary_entry(self, row: CharacterDictionaryEntry) -> CharacterDictionaryEntry:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_named_quests(self, workspace_id: str) -> Sequence[NamedQuest]:
+        return self._db.scalars(select(NamedQuest).where(NamedQuest.workspace_id == workspace_id)).all()
+
+    def create_named_quest(self, row: NamedQuest) -> NamedQuest:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_journal_entries(self, workspace_id: str, actor_id: str | None = None) -> Sequence[JournalEntry]:
+        stmt = select(JournalEntry).where(JournalEntry.workspace_id == workspace_id)
+        if actor_id is not None:
+            stmt = stmt.where(JournalEntry.actor_id == actor_id)
+        return self._db.scalars(stmt).all()
+
+    def create_journal_entry(self, row: JournalEntry) -> JournalEntry:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_layer_nodes(self, workspace_id: str, layer_index: int | None = None) -> Sequence[LayerNode]:
+        stmt = select(LayerNode).where(LayerNode.workspace_id == workspace_id)
+        if layer_index is not None:
+            stmt = stmt.where(LayerNode.layer_index == layer_index)
+        return self._db.scalars(stmt).all()
+
+    def get_layer_node(self, workspace_id: str, node_id: str) -> LayerNode | None:
+        return self._db.scalar(
+            select(LayerNode).where(
+                LayerNode.workspace_id == workspace_id,
+                LayerNode.id == node_id,
+            )
+        )
+
+    def create_layer_node(self, row: LayerNode) -> LayerNode:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_layer_edges(self, workspace_id: str, node_id: str | None = None) -> Sequence[LayerEdge]:
+        stmt = select(LayerEdge).where(LayerEdge.workspace_id == workspace_id)
+        if node_id is not None:
+            stmt = stmt.where((LayerEdge.from_node_id == node_id) | (LayerEdge.to_node_id == node_id))
+        return self._db.scalars(stmt).all()
+
+    def create_layer_edge(self, row: LayerEdge) -> LayerEdge:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_layer_events(self, workspace_id: str) -> Sequence[LayerEvent]:
+        return self._db.scalars(select(LayerEvent).where(LayerEvent.workspace_id == workspace_id)).all()
+
+    def create_layer_event(self, row: LayerEvent) -> LayerEvent:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_function_store_entries(self, workspace_id: str) -> Sequence[FunctionStoreEntry]:
+        return self._db.scalars(select(FunctionStoreEntry).where(FunctionStoreEntry.workspace_id == workspace_id)).all()
+
+    def create_function_store_entry(self, row: FunctionStoreEntry) -> FunctionStoreEntry:
         self._db.add(row)
         self._db.commit()
         self._db.refresh(row)

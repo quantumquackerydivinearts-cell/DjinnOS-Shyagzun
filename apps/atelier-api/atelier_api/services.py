@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence, cast
 
 from .business_schemas import (
     ArtisanBootstrapInput,
@@ -60,6 +60,20 @@ from .business_schemas import (
     GateRequirement,
     GateRequirementResult,
     GateOperator,
+    CharacterDictionaryCreate,
+    CharacterDictionaryOut,
+    NamedQuestCreate,
+    NamedQuestOut,
+    JournalEntryCreate,
+    JournalEntryOut,
+    LayerNodeCreate,
+    LayerNodeOut,
+    LayerEdgeCreate,
+    LayerEdgeOut,
+    LayerEventOut,
+    LayerTraceOut,
+    FunctionStoreCreate,
+    FunctionStoreOut,
     DialogueEmitInput,
     DialogueEmitOut,
     VitriolApplyRulerInfluenceInput,
@@ -73,7 +87,26 @@ from .business_schemas import (
     SupplierOut,
 )
 from .kernel_integration import KernelIntegrationService
-from .models import ArtisanAccount, Booking, CRMContact, Client, InventoryItem, Lead, Lesson, LearningModule, Order, Quote, Supplier
+from .models import (
+    ArtisanAccount,
+    Booking,
+    CRMContact,
+    CharacterDictionaryEntry,
+    Client,
+    FunctionStoreEntry,
+    InventoryItem,
+    JournalEntry,
+    Lead,
+    LayerEdge,
+    LayerEvent,
+    LayerNode,
+    Lesson,
+    LearningModule,
+    NamedQuest,
+    Order,
+    Quote,
+    Supplier,
+)
 from .repositories import AtelierRepository
 from .types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse
 
@@ -114,6 +147,29 @@ class AtelierService:
     @staticmethod
     def _canonical_hash(payload: object) -> str:
         return hashlib.sha256(AtelierService._canonical_json(payload).encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _csv_to_list(value: str) -> list[str]:
+        if value.strip() == "":
+            return []
+        return [item for item in value.split(",") if item]
+
+    @staticmethod
+    def _list_to_csv(values: Sequence[str]) -> str:
+        return ",".join(item.strip() for item in values if item.strip() != "")
+
+    @staticmethod
+    def _json_to_object_map(value: str) -> dict[str, object]:
+        if value.strip() == "":
+            return {}
+        parsed = json.loads(value)
+        if not isinstance(parsed, dict):
+            return {}
+        out: dict[str, object] = {}
+        for key, item in parsed.items():
+            if isinstance(key, str):
+                out[key] = cast(object, item)
+        return out
 
     def health(self) -> None:
         self._require_repo().ping()
@@ -1164,6 +1220,333 @@ class AtelierService:
             )
             for row in rows
         ]
+
+    def list_character_dictionary_entries(self, workspace_id: str) -> Sequence[CharacterDictionaryOut]:
+        rows = self._require_repo().list_character_dictionary_entries(workspace_id=workspace_id)
+        return [
+            CharacterDictionaryOut(
+                id=row.id,
+                workspace_id=row.workspace_id,
+                character_id=row.character_id,
+                name=row.name,
+                aliases=self._csv_to_list(row.aliases_csv),
+                bio=row.bio,
+                tags=self._csv_to_list(row.tags_csv),
+                faction=row.faction,
+                metadata=self._json_to_object_map(row.metadata_json),
+                created_at=row.created_at,
+            )
+            for row in rows
+        ]
+
+    def create_character_dictionary_entry(self, payload: CharacterDictionaryCreate) -> CharacterDictionaryOut:
+        row = CharacterDictionaryEntry(
+            workspace_id=payload.workspace_id,
+            character_id=payload.character_id,
+            name=payload.name,
+            aliases_csv=self._list_to_csv(payload.aliases),
+            bio=payload.bio,
+            tags_csv=self._list_to_csv(payload.tags),
+            faction=payload.faction,
+            metadata_json=self._canonical_json(payload.metadata),
+        )
+        out = self._require_repo().create_character_dictionary_entry(row)
+        return CharacterDictionaryOut(
+            id=out.id,
+            workspace_id=out.workspace_id,
+            character_id=out.character_id,
+            name=out.name,
+            aliases=self._csv_to_list(out.aliases_csv),
+            bio=out.bio,
+            tags=self._csv_to_list(out.tags_csv),
+            faction=out.faction,
+            metadata=self._json_to_object_map(out.metadata_json),
+            created_at=out.created_at,
+        )
+
+    def list_named_quests(self, workspace_id: str) -> Sequence[NamedQuestOut]:
+        rows = self._require_repo().list_named_quests(workspace_id=workspace_id)
+        return [
+            NamedQuestOut(
+                id=row.id,
+                workspace_id=row.workspace_id,
+                quest_id=row.quest_id,
+                name=row.name,
+                status=row.status,
+                current_step=row.current_step,
+                requirements=self._json_to_object_map(row.requirements_json),
+                rewards=self._json_to_object_map(row.rewards_json),
+                created_at=row.created_at,
+            )
+            for row in rows
+        ]
+
+    def create_named_quest(self, payload: NamedQuestCreate) -> NamedQuestOut:
+        row = NamedQuest(
+            workspace_id=payload.workspace_id,
+            quest_id=payload.quest_id,
+            name=payload.name,
+            status=payload.status,
+            current_step=payload.current_step,
+            requirements_json=self._canonical_json(payload.requirements),
+            rewards_json=self._canonical_json(payload.rewards),
+        )
+        out = self._require_repo().create_named_quest(row)
+        return NamedQuestOut(
+            id=out.id,
+            workspace_id=out.workspace_id,
+            quest_id=out.quest_id,
+            name=out.name,
+            status=out.status,
+            current_step=out.current_step,
+            requirements=self._json_to_object_map(out.requirements_json),
+            rewards=self._json_to_object_map(out.rewards_json),
+            created_at=out.created_at,
+        )
+
+    def list_journal_entries(self, workspace_id: str, actor_id: str | None = None) -> Sequence[JournalEntryOut]:
+        rows = self._require_repo().list_journal_entries(workspace_id=workspace_id, actor_id=actor_id)
+        return [
+            JournalEntryOut(
+                id=row.id,
+                workspace_id=row.workspace_id,
+                actor_id=row.actor_id,
+                entry_id=row.entry_id,
+                title=row.title,
+                body=row.body,
+                kind=row.kind,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ]
+
+    def create_journal_entry(self, payload: JournalEntryCreate) -> JournalEntryOut:
+        row = JournalEntry(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            entry_id=payload.entry_id,
+            title=payload.title,
+            body=payload.body,
+            kind=payload.kind,
+        )
+        out = self._require_repo().create_journal_entry(row)
+        return JournalEntryOut(
+            id=out.id,
+            workspace_id=out.workspace_id,
+            actor_id=out.actor_id,
+            entry_id=out.entry_id,
+            title=out.title,
+            body=out.body,
+            kind=out.kind,
+            created_at=out.created_at,
+        )
+
+    def _to_layer_node_out(self, row: LayerNode) -> LayerNodeOut:
+        return LayerNodeOut(
+            id=row.id,
+            workspace_id=row.workspace_id,
+            layer_index=row.layer_index,
+            node_key=row.node_key,
+            payload=self._json_to_object_map(row.payload_json),
+            payload_hash=row.payload_hash,
+            created_at=row.created_at,
+        )
+
+    def _to_layer_edge_out(self, row: LayerEdge) -> LayerEdgeOut:
+        return LayerEdgeOut(
+            id=row.id,
+            workspace_id=row.workspace_id,
+            from_node_id=row.from_node_id,
+            to_node_id=row.to_node_id,
+            edge_kind=row.edge_kind,
+            metadata=self._json_to_object_map(row.metadata_json),
+            created_at=row.created_at,
+        )
+
+    def _to_layer_event_out(self, row: LayerEvent) -> LayerEventOut:
+        return LayerEventOut(
+            id=row.id,
+            workspace_id=row.workspace_id,
+            event_kind=row.event_kind,
+            actor_id=row.actor_id,
+            node_id=row.node_id,
+            edge_id=row.edge_id,
+            payload_hash=row.payload_hash,
+            created_at=row.created_at,
+        )
+
+    def list_layer_nodes(self, workspace_id: str, layer_index: int | None = None) -> Sequence[LayerNodeOut]:
+        rows = self._require_repo().list_layer_nodes(workspace_id=workspace_id, layer_index=layer_index)
+        return [self._to_layer_node_out(row) for row in rows]
+
+    def create_layer_node(
+        self,
+        *,
+        payload: LayerNodeCreate,
+        actor_id: str,
+    ) -> LayerNodeOut:
+        repo = self._require_repo()
+        node_payload_hash = self._canonical_hash(
+            {
+                "workspace_id": payload.workspace_id,
+                "layer_index": payload.layer_index,
+                "node_key": payload.node_key,
+                "payload": payload.payload,
+            }
+        )
+        row = LayerNode(
+            workspace_id=payload.workspace_id,
+            layer_index=payload.layer_index,
+            node_key=payload.node_key,
+            payload_json=self._canonical_json(payload.payload),
+            payload_hash=node_payload_hash,
+        )
+        saved = repo.create_layer_node(row)
+        repo.create_layer_event(
+            LayerEvent(
+                workspace_id=payload.workspace_id,
+                event_kind="layer_node_created",
+                actor_id=actor_id,
+                node_id=saved.id,
+                edge_id=None,
+                payload_hash=node_payload_hash,
+            )
+        )
+        return self._to_layer_node_out(saved)
+
+    def list_layer_edges(self, workspace_id: str, node_id: str | None = None) -> Sequence[LayerEdgeOut]:
+        rows = self._require_repo().list_layer_edges(workspace_id=workspace_id, node_id=node_id)
+        return [self._to_layer_edge_out(row) for row in rows]
+
+    def create_layer_edge(
+        self,
+        *,
+        payload: LayerEdgeCreate,
+        actor_id: str,
+    ) -> LayerEdgeOut:
+        repo = self._require_repo()
+        from_node = repo.get_layer_node(payload.workspace_id, payload.from_node_id)
+        to_node = repo.get_layer_node(payload.workspace_id, payload.to_node_id)
+        if from_node is None or to_node is None:
+            raise ValueError("layer_node_not_found")
+        edge_payload_hash = self._canonical_hash(
+            {
+                "workspace_id": payload.workspace_id,
+                "from_node_id": payload.from_node_id,
+                "to_node_id": payload.to_node_id,
+                "edge_kind": payload.edge_kind,
+                "metadata": payload.metadata,
+            }
+        )
+        row = LayerEdge(
+            workspace_id=payload.workspace_id,
+            from_node_id=payload.from_node_id,
+            to_node_id=payload.to_node_id,
+            edge_kind=payload.edge_kind,
+            metadata_json=self._canonical_json(payload.metadata),
+        )
+        saved = repo.create_layer_edge(row)
+        repo.create_layer_event(
+            LayerEvent(
+                workspace_id=payload.workspace_id,
+                event_kind="layer_edge_created",
+                actor_id=actor_id,
+                node_id=None,
+                edge_id=saved.id,
+                payload_hash=edge_payload_hash,
+            )
+        )
+        return self._to_layer_edge_out(saved)
+
+    def list_layer_events(self, workspace_id: str) -> Sequence[LayerEventOut]:
+        rows = self._require_repo().list_layer_events(workspace_id=workspace_id)
+        return [self._to_layer_event_out(row) for row in rows]
+
+    def trace_layer_node(self, workspace_id: str, node_id: str) -> LayerTraceOut:
+        repo = self._require_repo()
+        node = repo.get_layer_node(workspace_id=workspace_id, node_id=node_id)
+        if node is None:
+            raise ValueError("layer_node_not_found")
+        all_edges = repo.list_layer_edges(workspace_id=workspace_id, node_id=node_id)
+        inbound: list[LayerEdgeOut] = []
+        outbound: list[LayerEdgeOut] = []
+        for edge in all_edges:
+            edge_out = self._to_layer_edge_out(edge)
+            if edge.to_node_id == node_id:
+                inbound.append(edge_out)
+            if edge.from_node_id == node_id:
+                outbound.append(edge_out)
+        return LayerTraceOut(
+            node=self._to_layer_node_out(node),
+            inbound=sorted(inbound, key=lambda item: item.id),
+            outbound=sorted(outbound, key=lambda item: item.id),
+        )
+
+    def list_function_store_entries(self, workspace_id: str) -> Sequence[FunctionStoreOut]:
+        rows = self._require_repo().list_function_store_entries(workspace_id=workspace_id)
+        return [
+            FunctionStoreOut(
+                id=row.id,
+                workspace_id=row.workspace_id,
+                function_id=row.function_id,
+                version=row.version,
+                signature=row.signature,
+                body=row.body,
+                metadata=self._json_to_object_map(row.metadata_json),
+                function_hash=row.function_hash,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ]
+
+    def create_function_store_entry(
+        self,
+        *,
+        payload: FunctionStoreCreate,
+        actor_id: str,
+    ) -> FunctionStoreOut:
+        repo = self._require_repo()
+        function_hash = self._canonical_hash(
+            {
+                "workspace_id": payload.workspace_id,
+                "function_id": payload.function_id,
+                "version": payload.version,
+                "signature": payload.signature,
+                "body": payload.body,
+                "metadata": payload.metadata,
+            }
+        )
+        row = FunctionStoreEntry(
+            workspace_id=payload.workspace_id,
+            function_id=payload.function_id,
+            version=payload.version,
+            signature=payload.signature,
+            body=payload.body,
+            metadata_json=self._canonical_json(payload.metadata),
+            function_hash=function_hash,
+        )
+        saved = repo.create_function_store_entry(row)
+        repo.create_layer_event(
+            LayerEvent(
+                workspace_id=payload.workspace_id,
+                event_kind="function_store_entry_created",
+                actor_id=actor_id,
+                node_id=None,
+                edge_id=None,
+                payload_hash=function_hash,
+            )
+        )
+        return FunctionStoreOut(
+            id=saved.id,
+            workspace_id=saved.workspace_id,
+            function_id=saved.function_id,
+            version=saved.version,
+            signature=saved.signature,
+            body=saved.body,
+            metadata=self._json_to_object_map(saved.metadata_json),
+            function_hash=saved.function_hash,
+            created_at=saved.created_at,
+        )
 
     @staticmethod
     def _derive_artisan_code(

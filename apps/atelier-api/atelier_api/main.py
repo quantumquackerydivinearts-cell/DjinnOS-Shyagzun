@@ -23,6 +23,20 @@ from .business_schemas import (
     InventoryItemCreate,
     InventoryItemOut,
     InventoryAdjustInput,
+    CharacterDictionaryCreate,
+    CharacterDictionaryOut,
+    NamedQuestCreate,
+    NamedQuestOut,
+    JournalEntryCreate,
+    JournalEntryOut,
+    LayerNodeCreate,
+    LayerNodeOut,
+    LayerEdgeCreate,
+    LayerEdgeOut,
+    LayerEventOut,
+    LayerTraceOut,
+    FunctionStoreCreate,
+    FunctionStoreOut,
     LevelApplyInput,
     LevelApplyOut,
     SkillTrainInput,
@@ -794,6 +808,198 @@ def create_inventory_item(
     _enforce(ctx, "inventory.write")
     _enforce_role(role, "inventory.write")
     return svc.create_inventory_item(payload)
+
+
+@app.get("/v1/game/characters")
+def list_character_dictionary_entries(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[CharacterDictionaryOut]:
+    _enforce(ctx, "character.read")
+    _enforce_role(role, "character.read")
+    return svc.list_character_dictionary_entries(workspace_id=workspace_id)
+
+
+@app.post("/v1/game/characters")
+def create_character_dictionary_entry(
+    payload: CharacterDictionaryCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> CharacterDictionaryOut:
+    _enforce(ctx, "character.write")
+    _enforce_role(role, "character.write")
+    return svc.create_character_dictionary_entry(payload)
+
+
+@app.get("/v1/game/quests")
+def list_named_quests(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[NamedQuestOut]:
+    _enforce(ctx, "quest.read")
+    _enforce_role(role, "quest.read")
+    return svc.list_named_quests(workspace_id=workspace_id)
+
+
+@app.post("/v1/game/quests")
+def create_named_quest(
+    payload: NamedQuestCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> NamedQuestOut:
+    _enforce(ctx, "quest.write")
+    _enforce_role(role, "quest.write")
+    return svc.create_named_quest(payload)
+
+
+@app.get("/v1/game/journal")
+def list_journal_entries(
+    workspace_id: str,
+    actor_id: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[JournalEntryOut]:
+    _enforce(ctx, "journal.read")
+    _enforce_role(role, "journal.read")
+    return svc.list_journal_entries(workspace_id=workspace_id, actor_id=actor_id)
+
+
+@app.post("/v1/game/journal")
+def create_journal_entry(
+    payload: JournalEntryCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> JournalEntryOut:
+    _enforce(ctx, "journal.write")
+    _enforce_role(role, "journal.write")
+    return svc.create_journal_entry(payload)
+
+
+@app.get("/v1/game/layers/nodes")
+def list_layer_nodes(
+    workspace_id: str,
+    layer_index: Optional[int] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[LayerNodeOut]:
+    _enforce(ctx, "layer.read")
+    _enforce_role(role, "layer.read")
+    return svc.list_layer_nodes(workspace_id=workspace_id, layer_index=layer_index)
+
+
+@app.post("/v1/game/layers/nodes")
+def create_layer_node(
+    payload: LayerNodeCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> LayerNodeOut:
+    _enforce(ctx, "layer.write")
+    _enforce_role(role, "layer.write")
+    return svc.create_layer_node(payload=payload, actor_id=ctx.actor_id)
+
+
+@app.get("/v1/game/layers/edges")
+def list_layer_edges(
+    workspace_id: str,
+    node_id: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[LayerEdgeOut]:
+    _enforce(ctx, "layer.read")
+    _enforce_role(role, "layer.read")
+    return svc.list_layer_edges(workspace_id=workspace_id, node_id=node_id)
+
+
+@app.post("/v1/game/layers/edges")
+def create_layer_edge(
+    payload: LayerEdgeCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> LayerEdgeOut:
+    _enforce(ctx, "layer.write")
+    _enforce_role(role, "layer.write")
+    try:
+        return svc.create_layer_edge(payload=payload, actor_id=ctx.actor_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/game/layers/events")
+def list_layer_events(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[LayerEventOut]:
+    _enforce(ctx, "layer.read")
+    _enforce_role(role, "layer.read")
+    return svc.list_layer_events(workspace_id=workspace_id)
+
+
+@app.get("/v1/game/layers/trace/{node_id}")
+def trace_layer_node(
+    node_id: str,
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> LayerTraceOut:
+    _enforce(ctx, "layer.read")
+    _enforce_role(role, "layer.read")
+    try:
+        return svc.trace_layer_node(workspace_id=workspace_id, node_id=node_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/v1/game/functions")
+def list_function_store_entries(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[FunctionStoreOut]:
+    _enforce(ctx, "function.read")
+    _enforce_role(role, "function.read")
+    return svc.list_function_store_entries(workspace_id=workspace_id)
+
+
+@app.post("/v1/game/functions")
+def create_function_store_entry(
+    payload: FunctionStoreCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> FunctionStoreOut:
+    _enforce(ctx, "function.write")
+    _enforce_role(role, "function.write")
+    return svc.create_function_store_entry(payload=payload, actor_id=ctx.actor_id)
 
 
 @app.post("/v1/game/inventory/adjust")

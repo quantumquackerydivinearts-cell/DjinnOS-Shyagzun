@@ -31,6 +31,11 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
             "order.read",
             "inventory.read",
             "supplier.read",
+            "character.read",
+            "quest.read",
+            "journal.read",
+            "layer.read",
+            "function.read",
         }
     ),
     ROLE_ARTISAN: frozenset(
@@ -58,6 +63,16 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
             "inventory.write",
             "supplier.read",
             "supplier.write",
+            "character.read",
+            "character.write",
+            "quest.read",
+            "quest.write",
+            "journal.read",
+            "journal.write",
+            "layer.read",
+            "layer.write",
+            "function.read",
+            "function.write",
         }
     ),
     ROLE_SENIOR_ARTISAN: frozenset(
@@ -88,6 +103,16 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
             "inventory.write",
             "supplier.read",
             "supplier.write",
+            "character.read",
+            "character.write",
+            "quest.read",
+            "quest.write",
+            "journal.read",
+            "journal.write",
+            "layer.read",
+            "layer.write",
+            "function.read",
+            "function.write",
         }
     ),
     ROLE_STEWARD: frozenset(
@@ -118,6 +143,16 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
             "inventory.write",
             "supplier.read",
             "supplier.write",
+            "character.read",
+            "character.write",
+            "quest.read",
+            "quest.write",
+            "journal.read",
+            "journal.write",
+            "layer.read",
+            "layer.write",
+            "function.read",
+            "function.write",
         }
     ),
 }

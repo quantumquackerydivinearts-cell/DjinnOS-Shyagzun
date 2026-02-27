@@ -255,6 +255,210 @@ class FakeAtelierService:
             "created_at": "2026-02-25T00:00:00Z",
         }
 
+    def list_character_dictionary_entries(self, workspace_id: str) -> Sequence[Dict[str, Any]]:
+        return [
+            {
+                "id": "char-1",
+                "workspace_id": workspace_id,
+                "character_id": "npc_kael",
+                "name": "Kael",
+                "aliases": ["Kael the Steward"],
+                "bio": "Workshop steward and quest-giver.",
+                "tags": ["steward", "mentor"],
+                "faction": "guild_hall",
+                "metadata": {"rank": "senior"},
+                "created_at": "2026-02-25T00:00:00Z",
+            }
+        ]
+
+    def create_character_dictionary_entry(self, payload: Any) -> Dict[str, Any]:
+        return {
+            "id": "char-created",
+            "workspace_id": payload.workspace_id,
+            "character_id": payload.character_id,
+            "name": payload.name,
+            "aliases": payload.aliases,
+            "bio": payload.bio,
+            "tags": payload.tags,
+            "faction": payload.faction,
+            "metadata": payload.metadata,
+            "created_at": "2026-02-25T00:00:00Z",
+        }
+
+    def list_named_quests(self, workspace_id: str) -> Sequence[Dict[str, Any]]:
+        return [
+            {
+                "id": "quest-1",
+                "workspace_id": workspace_id,
+                "quest_id": "q_intro",
+                "name": "Atelier Initiation",
+                "status": "active",
+                "current_step": "meet_steward",
+                "requirements": {"skills": {"speech": 1}},
+                "rewards": {"xp": 100},
+                "created_at": "2026-02-25T00:00:00Z",
+            }
+        ]
+
+    def create_named_quest(self, payload: Any) -> Dict[str, Any]:
+        return {
+            "id": "quest-created",
+            "workspace_id": payload.workspace_id,
+            "quest_id": payload.quest_id,
+            "name": payload.name,
+            "status": payload.status,
+            "current_step": payload.current_step,
+            "requirements": payload.requirements,
+            "rewards": payload.rewards,
+            "created_at": "2026-02-25T00:00:00Z",
+        }
+
+    def list_journal_entries(self, workspace_id: str, actor_id: str | None = None) -> Sequence[Dict[str, Any]]:
+        return [
+            {
+                "id": "journal-1",
+                "workspace_id": workspace_id,
+                "actor_id": actor_id or "player",
+                "entry_id": "entry_intro",
+                "title": "First Entry",
+                "body": "Met Kael in the foyer.",
+                "kind": "quest",
+                "created_at": "2026-02-25T00:00:00Z",
+            }
+        ]
+
+    def create_journal_entry(self, payload: Any) -> Dict[str, Any]:
+        return {
+            "id": "journal-created",
+            "workspace_id": payload.workspace_id,
+            "actor_id": payload.actor_id,
+            "entry_id": payload.entry_id,
+            "title": payload.title,
+            "body": payload.body,
+            "kind": payload.kind,
+            "created_at": "2026-02-25T00:00:00Z",
+        }
+
+    def list_layer_nodes(self, workspace_id: str, layer_index: int | None = None) -> Sequence[Dict[str, Any]]:
+        _ = layer_index
+        return [
+            {
+                "id": "node-1",
+                "workspace_id": workspace_id,
+                "layer_index": 5,
+                "node_key": "entity.player",
+                "payload": {"hp": 100},
+                "payload_hash": "h-node-1",
+                "created_at": "2026-02-25T00:00:00Z",
+            }
+        ]
+
+    def create_layer_node(self, *, payload: Any, actor_id: str) -> Dict[str, Any]:
+        _ = actor_id
+        return {
+            "id": "node-created",
+            "workspace_id": payload.workspace_id,
+            "layer_index": payload.layer_index,
+            "node_key": payload.node_key,
+            "payload": payload.payload,
+            "payload_hash": "h-node-created",
+            "created_at": "2026-02-25T00:00:00Z",
+        }
+
+    def list_layer_edges(self, workspace_id: str, node_id: str | None = None) -> Sequence[Dict[str, Any]]:
+        _ = node_id
+        return [
+            {
+                "id": "edge-1",
+                "workspace_id": workspace_id,
+                "from_node_id": "node-1",
+                "to_node_id": "node-2",
+                "edge_kind": "derives_from",
+                "metadata": {"weight": 1},
+                "created_at": "2026-02-25T00:00:00Z",
+            }
+        ]
+
+    def create_layer_edge(self, *, payload: Any, actor_id: str) -> Dict[str, Any]:
+        _ = actor_id
+        return {
+            "id": "edge-created",
+            "workspace_id": payload.workspace_id,
+            "from_node_id": payload.from_node_id,
+            "to_node_id": payload.to_node_id,
+            "edge_kind": payload.edge_kind,
+            "metadata": payload.metadata,
+            "created_at": "2026-02-25T00:00:00Z",
+        }
+
+    def list_layer_events(self, workspace_id: str) -> Sequence[Dict[str, Any]]:
+        return [
+            {
+                "id": "event-1",
+                "workspace_id": workspace_id,
+                "event_kind": "layer_node_created",
+                "actor_id": "tester",
+                "node_id": "node-1",
+                "edge_id": None,
+                "payload_hash": "h-node-1",
+                "created_at": "2026-02-25T00:00:00Z",
+            }
+        ]
+
+    def trace_layer_node(self, workspace_id: str, node_id: str) -> Dict[str, Any]:
+        return {
+            "node": {
+                "id": node_id,
+                "workspace_id": workspace_id,
+                "layer_index": 5,
+                "node_key": "entity.player",
+                "payload": {"hp": 100},
+                "payload_hash": "h-node-1",
+                "created_at": "2026-02-25T00:00:00Z",
+            },
+            "inbound": [],
+            "outbound": [
+                {
+                    "id": "edge-1",
+                    "workspace_id": workspace_id,
+                    "from_node_id": node_id,
+                    "to_node_id": "node-2",
+                    "edge_kind": "derives_from",
+                    "metadata": {},
+                    "created_at": "2026-02-25T00:00:00Z",
+                }
+            ],
+        }
+
+    def list_function_store_entries(self, workspace_id: str) -> Sequence[Dict[str, Any]]:
+        return [
+            {
+                "id": "fn-1",
+                "workspace_id": workspace_id,
+                "function_id": "combat.resolve",
+                "version": "1.0.0",
+                "signature": "(attacker,defender)->result",
+                "body": "return {}",
+                "metadata": {"layer": 12},
+                "function_hash": "h-fn-1",
+                "created_at": "2026-02-25T00:00:00Z",
+            }
+        ]
+
+    def create_function_store_entry(self, *, payload: Any, actor_id: str) -> Dict[str, Any]:
+        _ = actor_id
+        return {
+            "id": "fn-created",
+            "workspace_id": payload.workspace_id,
+            "function_id": payload.function_id,
+            "version": payload.version,
+            "signature": payload.signature,
+            "body": payload.body,
+            "metadata": payload.metadata,
+            "function_hash": "h-fn-created",
+            "created_at": "2026-02-25T00:00:00Z",
+        }
+
 
 def _headers(caps: str, role: str = "steward") -> Dict[str, str]:
     return {
@@ -472,4 +676,141 @@ def test_admin_bootstrap_artisan_account() -> None:
     assert payload["status"]["artisan_id"] == "kael-001"
     assert payload["status"]["role"] == "steward"
     assert payload["status"]["artisan_access_verified"] is True
+    app.dependency_overrides.clear()
+
+
+def test_character_quest_journal_routes() -> None:
+    app.dependency_overrides[_atelier_service] = lambda: FakeAtelierService()
+    client = TestClient(app)
+
+    characters = client.get("/v1/game/characters?workspace_id=main", headers=_headers("character.read"))
+    assert characters.status_code == 200
+    assert characters.json()[0]["id"] == "char-1"
+
+    character_create = client.post(
+        "/v1/game/characters",
+        headers=_headers("character.write"),
+        json={
+            "workspace_id": "main",
+            "character_id": "npc_rin",
+            "name": "Rin",
+            "aliases": ["Quartermaster"],
+            "bio": "Keeps inventory in order.",
+            "tags": ["supplier", "inventory"],
+            "faction": "workshop",
+            "metadata": {"shift": "night"},
+        },
+    )
+    assert character_create.status_code == 200
+    assert character_create.json()["id"] == "char-created"
+
+    quests = client.get("/v1/game/quests?workspace_id=main", headers=_headers("quest.read"))
+    assert quests.status_code == 200
+    assert quests.json()[0]["id"] == "quest-1"
+
+    quest_create = client.post(
+        "/v1/game/quests",
+        headers=_headers("quest.write"),
+        json={
+            "workspace_id": "main",
+            "quest_id": "q_supply_run",
+            "name": "Supply Run",
+            "status": "active",
+            "current_step": "collect_ink",
+            "requirements": {"inventory": {"INK-001": 1}},
+            "rewards": {"xp": 50, "gold": 20},
+        },
+    )
+    assert quest_create.status_code == 200
+    assert quest_create.json()["id"] == "quest-created"
+
+    journal = client.get(
+        "/v1/game/journal?workspace_id=main&actor_id=player",
+        headers=_headers("journal.read"),
+    )
+    assert journal.status_code == 200
+    assert journal.json()[0]["id"] == "journal-1"
+
+    journal_create = client.post(
+        "/v1/game/journal",
+        headers=_headers("journal.write"),
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "entry_id": "entry_supply_run_start",
+            "title": "Supply Run Started",
+            "body": "Need to gather ink and parchment.",
+            "kind": "quest",
+        },
+    )
+    assert journal_create.status_code == 200
+    assert journal_create.json()["id"] == "journal-created"
+    app.dependency_overrides.clear()
+
+
+def test_layered_lineage_and_function_store_routes() -> None:
+    app.dependency_overrides[_atelier_service] = lambda: FakeAtelierService()
+    client = TestClient(app)
+
+    nodes = client.get("/v1/game/layers/nodes?workspace_id=main", headers=_headers("layer.read"))
+    assert nodes.status_code == 200
+    assert nodes.json()[0]["id"] == "node-1"
+
+    node_create = client.post(
+        "/v1/game/layers/nodes",
+        headers=_headers("layer.write"),
+        json={
+            "workspace_id": "main",
+            "layer_index": 5,
+            "node_key": "entity.enemy.wolf",
+            "payload": {"hp": 40},
+        },
+    )
+    assert node_create.status_code == 200
+    assert node_create.json()["id"] == "node-created"
+
+    edges = client.get("/v1/game/layers/edges?workspace_id=main", headers=_headers("layer.read"))
+    assert edges.status_code == 200
+    assert edges.json()[0]["id"] == "edge-1"
+
+    edge_create = client.post(
+        "/v1/game/layers/edges",
+        headers=_headers("layer.write"),
+        json={
+            "workspace_id": "main",
+            "from_node_id": "node-1",
+            "to_node_id": "node-2",
+            "edge_kind": "references",
+            "metadata": {"weight": 2},
+        },
+    )
+    assert edge_create.status_code == 200
+    assert edge_create.json()["id"] == "edge-created"
+
+    events = client.get("/v1/game/layers/events?workspace_id=main", headers=_headers("layer.read"))
+    assert events.status_code == 200
+    assert events.json()[0]["id"] == "event-1"
+
+    trace = client.get("/v1/game/layers/trace/node-1?workspace_id=main", headers=_headers("layer.read"))
+    assert trace.status_code == 200
+    assert trace.json()["node"]["id"] == "node-1"
+
+    functions = client.get("/v1/game/functions?workspace_id=main", headers=_headers("function.read"))
+    assert functions.status_code == 200
+    assert functions.json()[0]["id"] == "fn-1"
+
+    function_create = client.post(
+        "/v1/game/functions",
+        headers=_headers("function.write"),
+        json={
+            "workspace_id": "main",
+            "function_id": "quest.advance",
+            "version": "1.0.0",
+            "signature": "(state,input)->state",
+            "body": "return state",
+            "metadata": {"layer": 12},
+        },
+    )
+    assert function_create.status_code == 200
+    assert function_create.json()["id"] == "fn-created"
     app.dependency_overrides.clear()

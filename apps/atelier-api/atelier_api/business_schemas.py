@@ -634,3 +634,142 @@ class GateEvaluateOut(BaseModel):
     total_count: int
     results: list[GateRequirementResult]
     hash: str
+
+
+class CharacterDictionaryCreate(BaseModel):
+    workspace_id: str
+    character_id: str
+    name: str
+    aliases: list[str] = Field(default_factory=list)
+    bio: str = ""
+    tags: list[str] = Field(default_factory=list)
+    faction: str = ""
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class CharacterDictionaryOut(BaseModel):
+    id: str
+    workspace_id: str
+    character_id: str
+    name: str
+    aliases: list[str]
+    bio: str
+    tags: list[str]
+    faction: str
+    metadata: dict[str, object]
+    created_at: datetime
+
+
+class NamedQuestCreate(BaseModel):
+    workspace_id: str
+    quest_id: str
+    name: str
+    status: str = "inactive"
+    current_step: str = ""
+    requirements: dict[str, object] = Field(default_factory=dict)
+    rewards: dict[str, object] = Field(default_factory=dict)
+
+
+class NamedQuestOut(BaseModel):
+    id: str
+    workspace_id: str
+    quest_id: str
+    name: str
+    status: str
+    current_step: str
+    requirements: dict[str, object]
+    rewards: dict[str, object]
+    created_at: datetime
+
+
+class JournalEntryCreate(BaseModel):
+    workspace_id: str
+    actor_id: str
+    entry_id: str
+    title: str
+    body: str = ""
+    kind: str = "manual"
+
+
+class JournalEntryOut(BaseModel):
+    id: str
+    workspace_id: str
+    actor_id: str
+    entry_id: str
+    title: str
+    body: str
+    kind: str
+    created_at: datetime
+
+
+class LayerNodeCreate(BaseModel):
+    workspace_id: str
+    layer_index: int
+    node_key: str
+    payload: dict[str, object] = Field(default_factory=dict)
+
+
+class LayerNodeOut(BaseModel):
+    id: str
+    workspace_id: str
+    layer_index: int
+    node_key: str
+    payload: dict[str, object]
+    payload_hash: str
+    created_at: datetime
+
+
+class LayerEdgeCreate(BaseModel):
+    workspace_id: str
+    from_node_id: str
+    to_node_id: str
+    edge_kind: str
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class LayerEdgeOut(BaseModel):
+    id: str
+    workspace_id: str
+    from_node_id: str
+    to_node_id: str
+    edge_kind: str
+    metadata: dict[str, object]
+    created_at: datetime
+
+
+class LayerEventOut(BaseModel):
+    id: str
+    workspace_id: str
+    event_kind: str
+    actor_id: str
+    node_id: str | None
+    edge_id: str | None
+    payload_hash: str
+    created_at: datetime
+
+
+class LayerTraceOut(BaseModel):
+    node: LayerNodeOut
+    inbound: list[LayerEdgeOut]
+    outbound: list[LayerEdgeOut]
+
+
+class FunctionStoreCreate(BaseModel):
+    workspace_id: str
+    function_id: str
+    version: str
+    signature: str
+    body: str
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class FunctionStoreOut(BaseModel):
+    id: str
+    workspace_id: str
+    function_id: str
+    version: str
+    signature: str
+    body: str
+    metadata: dict[str, object]
+    function_hash: str
+    created_at: datetime
