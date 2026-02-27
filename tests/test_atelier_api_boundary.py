@@ -1130,6 +1130,131 @@ def test_game_runtime_consume_world_stream_runtime_path_applies_capacity_and_rea
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_consume_mixed_realm_world_stream_plan_is_hash_deterministic() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=3),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "mixed_realm_world_stream_plan",
+        "actions": [
+            {
+                "action_id": "l1",
+                "kind": "world.region.load",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "region_key": "lapidus/a",
+                    "payload": {"seed": 11},
+                    "cache_policy": "pin",
+                },
+            },
+            {
+                "action_id": "l2",
+                "kind": "world.region.load",
+                "payload": {
+                    "realm_id": "mercurie",
+                    "region_key": "mercurie/a",
+                    "payload": {"seed": 12},
+                    "cache_policy": "cache",
+                },
+            },
+            {
+                "action_id": "l3",
+                "kind": "world.region.load",
+                "payload": {
+                    "realm_id": "sulphera",
+                    "region_key": "sulphera/a",
+                    "payload": {"seed": 13},
+                    "cache_policy": "stream",
+                },
+            },
+            {
+                "action_id": "u1",
+                "kind": "world.region.unload",
+                "payload": {"realm_id": "mercurie", "region_key": "mercurie/a"},
+            },
+            {"action_id": "s1", "kind": "world.stream.status", "payload": {"realm_id": "lapidus"}},
+            {"action_id": "s2", "kind": "world.stream.status", "payload": {"realm_id": "mercurie"}},
+            {"action_id": "s3", "kind": "world.stream.status", "payload": {"realm_id": "sulphera"}},
+        ],
+    }
+    first = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    second = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["hash"] == second_payload["hash"]
+    assert first_payload["applied_count"] == 7
+    assert first_payload["failed_count"] == 0
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_supports_scenegraph_region_preload_action() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=8),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "scenegraph_preload_plan",
+        "actions": [
+            {
+                "action_id": "preload",
+                "kind": "world.region.preload.scenegraph",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "scene_id": "lapidus/player_home",
+                    "chunk_size": 10,
+                    "cache_policy": "stream",
+                    "region_prefix": "lapidus/player_home",
+                    "scene_content": {
+                        "nodes": [
+                            {"node_id": "desk", "kind": "furniture", "x": 2, "y": 3, "metadata": {"z": 0}},
+                            {"node_id": "bed", "kind": "furniture", "x": 12, "y": 3, "metadata": {"z": 0}},
+                            {"node_id": "alembic", "kind": "tool", "x": 2, "y": 14, "metadata": {"z": 1}},
+                        ],
+                        "edges": [],
+                    },
+                },
+            },
+            {"action_id": "status", "kind": "world.stream.status", "payload": {"realm_id": "lapidus"}},
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+    preload_result = results["preload"]["result"]
+    assert preload_result["region_count"] == 3
+    assert sorted(preload_result["region_keys"]) == [
+        "lapidus/player_home/chunk_0_0",
+        "lapidus/player_home/chunk_0_1",
+        "lapidus/player_home/chunk_1_0",
+    ]
+    status_result = results["status"]["result"]
+    assert status_result["total_regions"] == 3
+    assert status_result["loaded_count"] == 3
+    assert status_result["policy_counts"]["stream"] == 3
+    app.dependency_overrides.clear()
+
+
 def test_game_runtime_consume_supports_market_stock_adjust_and_trade_override() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

@@ -2234,12 +2234,95 @@ class AtelierService:
 
         def _sync_runtime_region_loaded_flags(projected_loaded: Mapping[str, object]) -> None:
             projected_ids = {str(key) for key in projected_loaded.keys()}
-            now_iso = datetime.utcnow().isoformat()
+            now_iso = "runtime"
             for region_id, row in runtime_regions.items():
                 should_be_loaded = region_id in projected_ids
                 if bool(row.get("loaded")) != should_be_loaded:
                     row["loaded"] = should_be_loaded
                     row["updated_at"] = now_iso
+
+        def _runtime_load_region(action_payload: Mapping[str, object]) -> object:
+            if self._repo is None:
+                realm_id = str(action_payload.get("realm_id", "")).strip().lower()
+                region_key = str(action_payload.get("region_key", "")).strip()
+                if realm_id == "" or region_key == "":
+                    raise ValueError("realm_or_region_required")
+                payload_obj = action_payload.get("payload", {})
+                if not isinstance(payload_obj, dict):
+                    payload_obj = {}
+                cache_policy = str(action_payload.get("cache_policy", "cache")).strip().lower() or "cache"
+                region_id = f"{realm_id}::{region_key}"
+                now_iso = "runtime"
+                existing_region = runtime_regions.get(region_id)
+                created_at = (
+                    str(existing_region.get("created_at", now_iso))
+                    if isinstance(existing_region, dict)
+                    else now_iso
+                )
+                payload_hash = self._canonical_hash(payload_obj)
+                runtime_regions[region_id] = {
+                    "id": region_id,
+                    "workspace_id": payload.workspace_id,
+                    "realm_id": realm_id,
+                    "region_key": region_key,
+                    "payload": cast(dict[str, object], payload_obj),
+                    "payload_hash": payload_hash,
+                    "cache_policy": cache_policy,
+                    "loaded": True,
+                    "created_at": created_at,
+                    "updated_at": now_iso,
+                }
+                projected_state = self._world_stream.load(
+                    {"world_stream": {"loaded_regions": _runtime_loaded_regions()}},
+                    realm_id=realm_id,
+                    region_key=region_key,
+                    payload=cast(dict[str, object], payload_obj),
+                    payload_hash=payload_hash,
+                    cache_policy=cache_policy,
+                )
+                projected_stream = projected_state.get("world_stream")
+                projected_loaded_obj = (
+                    projected_stream.get("loaded_regions")
+                    if isinstance(projected_stream, dict)
+                    else {}
+                )
+                projected_loaded = projected_loaded_obj if isinstance(projected_loaded_obj, dict) else {}
+                _sync_runtime_region_loaded_flags(projected_loaded)
+                return dict(runtime_regions[region_id])
+            return self.load_world_region(payload=WorldRegionLoadInput(**dict(action_payload)))
+
+        def _runtime_unload_region(action_payload: Mapping[str, object]) -> object:
+            if self._repo is None:
+                realm_id = str(action_payload.get("realm_id", "")).strip().lower()
+                region_key = str(action_payload.get("region_key", "")).strip()
+                if realm_id == "" or region_key == "":
+                    raise ValueError("realm_or_region_required")
+                region_id = f"{realm_id}::{region_key}"
+                unloaded = bool(runtime_regions.get(region_id, {}).get("loaded"))
+                projected_state = self._world_stream.unload(
+                    {"world_stream": {"loaded_regions": _runtime_loaded_regions()}},
+                    realm_id=realm_id,
+                    region_key=region_key,
+                )
+                projected_stream = projected_state.get("world_stream")
+                projected_loaded_obj = (
+                    projected_stream.get("loaded_regions")
+                    if isinstance(projected_stream, dict)
+                    else {}
+                )
+                projected_loaded = projected_loaded_obj if isinstance(projected_loaded_obj, dict) else {}
+                _sync_runtime_region_loaded_flags(projected_loaded)
+                row = runtime_regions.get(region_id)
+                if row is not None:
+                    row["loaded"] = False
+                    row["updated_at"] = "runtime"
+                return {
+                    "workspace_id": payload.workspace_id,
+                    "realm_id": realm_id,
+                    "region_key": region_key,
+                    "unloaded": unloaded,
+                }
+            return self.unload_world_region(payload=WorldRegionUnloadInput(**dict(action_payload)))
 
         for action in payload.actions:
             action_payload = dict(action.payload)
@@ -2332,88 +2415,109 @@ class AtelierService:
                         workshop_id=workshop_id,
                     )
                 elif action.kind == "world.region.load":
-                    if self._repo is None:
-                        realm_id = str(action_payload.get("realm_id", "")).strip().lower()
-                        region_key = str(action_payload.get("region_key", "")).strip()
-                        if realm_id == "" or region_key == "":
-                            raise ValueError("realm_or_region_required")
-                        payload_obj = action_payload.get("payload", {})
-                        if not isinstance(payload_obj, dict):
-                            payload_obj = {}
-                        cache_policy = str(action_payload.get("cache_policy", "cache")).strip().lower() or "cache"
-                        region_id = f"{realm_id}::{region_key}"
-                        now_iso = datetime.utcnow().isoformat()
-                        existing_region = runtime_regions.get(region_id)
-                        created_at = (
-                            str(existing_region.get("created_at", now_iso))
-                            if isinstance(existing_region, dict)
-                            else now_iso
-                        )
-                        payload_hash = self._canonical_hash(payload_obj)
-                        runtime_regions[region_id] = {
-                            "id": region_id,
-                            "workspace_id": payload.workspace_id,
-                            "realm_id": realm_id,
-                            "region_key": region_key,
-                            "payload": cast(dict[str, object], payload_obj),
-                            "payload_hash": payload_hash,
-                            "cache_policy": cache_policy,
-                            "loaded": True,
-                            "created_at": created_at,
-                            "updated_at": now_iso,
-                        }
-                        projected_state = self._world_stream.load(
-                            {"world_stream": {"loaded_regions": _runtime_loaded_regions()}},
-                            realm_id=realm_id,
-                            region_key=region_key,
-                            payload=cast(dict[str, object], payload_obj),
-                            payload_hash=payload_hash,
-                            cache_policy=cache_policy,
-                        )
-                        projected_stream = projected_state.get("world_stream")
-                        projected_loaded_obj = (
-                            projected_stream.get("loaded_regions")
-                            if isinstance(projected_stream, dict)
-                            else {}
-                        )
-                        projected_loaded = projected_loaded_obj if isinstance(projected_loaded_obj, dict) else {}
-                        _sync_runtime_region_loaded_flags(projected_loaded)
-                        result = dict(runtime_regions[region_id])
-                    else:
-                        result = self.load_world_region(payload=WorldRegionLoadInput(**action_payload))
+                    result = _runtime_load_region(action_payload)
                 elif action.kind == "world.region.unload":
-                    if self._repo is None:
-                        realm_id = str(action_payload.get("realm_id", "")).strip().lower()
-                        region_key = str(action_payload.get("region_key", "")).strip()
-                        if realm_id == "" or region_key == "":
-                            raise ValueError("realm_or_region_required")
-                        region_id = f"{realm_id}::{region_key}"
-                        unloaded = bool(runtime_regions.get(region_id, {}).get("loaded"))
-                        projected_state = self._world_stream.unload(
-                            {"world_stream": {"loaded_regions": _runtime_loaded_regions()}},
+                    result = _runtime_unload_region(action_payload)
+                elif action.kind == "world.region.preload.scenegraph":
+                    scene_content_obj: dict[str, object] | None = None
+                    realm_id = str(action_payload.get("realm_id", "")).strip().lower()
+                    scene_id = str(action_payload.get("scene_id", "")).strip()
+                    if isinstance(action_payload.get("scene_content"), dict):
+                        scene_content_obj = cast(dict[str, object], action_payload.get("scene_content"))
+                    elif scene_id != "" and self._repo is not None:
+                        if realm_id == "":
+                            raise ValueError("realm_id_required")
+                        scene_row = self.get_scene(
+                            workspace_id=payload.workspace_id,
                             realm_id=realm_id,
-                            region_key=region_key,
+                            scene_id=scene_id,
                         )
-                        projected_stream = projected_state.get("world_stream")
-                        projected_loaded_obj = (
-                            projected_stream.get("loaded_regions")
-                            if isinstance(projected_stream, dict)
-                            else {}
+                        if scene_row is None:
+                            raise ValueError("scene_not_found")
+                        scene_content_obj = scene_row.content
+                    if scene_content_obj is None:
+                        raise ValueError("scene_content_or_scene_id_required")
+                    if realm_id == "":
+                        realm_from_content = str(scene_content_obj.get("realm_id", "")).strip().lower()
+                        if realm_from_content != "":
+                            realm_id = realm_from_content
+                    if realm_id == "":
+                        raise ValueError("realm_id_required")
+                    chunk_size_raw = int(action_payload.get("chunk_size", 16))
+                    chunk_size = max(1, chunk_size_raw)
+                    cache_policy = str(action_payload.get("cache_policy", "stream")).strip().lower() or "stream"
+                    region_prefix_raw = str(action_payload.get("region_prefix", "")).strip()
+                    if region_prefix_raw != "":
+                        region_prefix = region_prefix_raw
+                    elif scene_id != "":
+                        safe_scene = "".join(ch if (ch.isalnum() or ch in {"_", "-", "/"}) else "_" for ch in scene_id)
+                        region_prefix = f"{realm_id}/scene/{safe_scene}"
+                    else:
+                        region_prefix = f"{realm_id}/scene/runtime"
+                    nodes_obj = scene_content_obj.get("nodes")
+                    nodes = nodes_obj if isinstance(nodes_obj, list) else []
+                    regions: dict[str, list[dict[str, object]]] = {}
+                    for node_index, node in enumerate(nodes):
+                        if not isinstance(node, dict):
+                            continue
+                        node_id = str(node.get("node_id") or f"node_{node_index}")
+                        kind = str(node.get("kind") or "entity")
+                        x = float(node.get("x") or 0.0)
+                        y = float(node.get("y") or 0.0)
+                        metadata_obj = node.get("metadata")
+                        metadata = metadata_obj if isinstance(metadata_obj, dict) else {}
+                        z = self._int_from_table(metadata.get("z"), 0)
+                        chunk_x = int(x) // chunk_size
+                        chunk_y = int(y) // chunk_size
+                        region_key = f"{region_prefix}/chunk_{chunk_x}_{chunk_y}"
+                        entities = regions.get(region_key)
+                        if entities is None:
+                            entities = []
+                            regions[region_key] = entities
+                        entities.append(
+                            {
+                                "id": node_id,
+                                "kind": kind,
+                                "x": x,
+                                "y": y,
+                                "z": z,
+                                "metadata": dict(metadata),
+                            }
                         )
-                        projected_loaded = projected_loaded_obj if isinstance(projected_loaded_obj, dict) else {}
-                        _sync_runtime_region_loaded_flags(projected_loaded)
-                        row = runtime_regions.get(region_id)
-                        if row is not None:
-                            row["loaded"] = False
-                            row["updated_at"] = datetime.utcnow().isoformat()
-                        result = {
+                    preload_limit_raw = action_payload.get("preload_limit")
+                    preload_limit = int(preload_limit_raw) if preload_limit_raw is not None else 0
+                    region_results: list[dict[str, object]] = []
+                    preloaded_keys: list[str] = []
+                    for index, region_key in enumerate(sorted(regions.keys())):
+                        if preload_limit > 0 and index >= preload_limit:
+                            break
+                        entities = sorted(regions[region_key], key=lambda item: str(item.get("id", "")))
+                        load_payload = {
                             "workspace_id": payload.workspace_id,
                             "realm_id": realm_id,
                             "region_key": region_key,
-                            "unloaded": unloaded,
+                            "payload": {
+                                "scene_id": scene_id,
+                                "chunk_size": chunk_size,
+                                "entities": entities,
+                            },
+                            "cache_policy": cache_policy,
                         }
-                    else:
-                        result = self.unload_world_region(payload=WorldRegionUnloadInput(**action_payload))
+                        loaded = _runtime_load_region(load_payload)
+                        loaded_map = self._dict_result(loaded)
+                        loaded_map["source"] = "scenegraph_preload"
+                        region_results.append(loaded_map)
+                        preloaded_keys.append(region_key)
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "realm_id": realm_id,
+                        "scene_id": scene_id,
+                        "chunk_size": chunk_size,
+                        "cache_policy": cache_policy,
+                        "region_count": len(region_results),
+                        "region_keys": preloaded_keys,
+                        "regions": region_results,
+                    }
                 elif action.kind == "world.stream.status":
                     if self._repo is None:
                         realm_filter = cast(Optional[str], action_payload.get("realm_id"))

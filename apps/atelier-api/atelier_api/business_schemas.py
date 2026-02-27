@@ -740,6 +740,7 @@ RuntimeActionKind = Literal[
     "vitriol.clear",
     "djinn.apply",
     "world.region.load",
+    "world.region.preload.scenegraph",
     "world.region.unload",
     "world.stream.status",
     "world.coins.list",
@@ -750,6 +751,12 @@ RuntimeActionKind = Literal[
 
 
 class RuntimeActionInput(BaseModel):
+    """Single runtime action in an ordered execution plan.
+
+    Use `world.region.preload.scenegraph` to chunk scenegraph nodes into streamable
+    world regions and enqueue deterministic region loads.
+    """
+
     action_id: str
     kind: RuntimeActionKind
     payload: dict[str, object] = Field(default_factory=dict)
@@ -760,6 +767,36 @@ class RuntimeConsumeInput(BaseModel):
     actor_id: str
     plan_id: str = "runtime.plan"
     actions: list[RuntimeActionInput] = Field(default_factory=list)
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "workspace_id": "main",
+                    "actor_id": "player",
+                    "plan_id": "world_stream_bootstrap",
+                    "actions": [
+                        {
+                            "action_id": "preload_home",
+                            "kind": "world.region.preload.scenegraph",
+                            "payload": {
+                                "realm_id": "lapidus",
+                                "scene_id": "lapidus/player_home",
+                                "chunk_size": 12,
+                                "cache_policy": "stream",
+                                "region_prefix": "lapidus/home",
+                            },
+                        },
+                        {
+                            "action_id": "stream_status",
+                            "kind": "world.stream.status",
+                            "payload": {"realm_id": "lapidus"},
+                        },
+                    ],
+                }
+            ]
+        }
+    }
 
 
 class RuntimeActionOut(BaseModel):
