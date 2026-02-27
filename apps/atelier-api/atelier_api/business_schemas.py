@@ -817,6 +817,19 @@ class RuntimeConsumeOut(BaseModel):
     hash: str
 
 
+class RuntimeActionCatalogItemOut(BaseModel):
+    kind: RuntimeActionKind
+    summary: str
+    requires_realm: bool = False
+    payload_fields: dict[str, str] = Field(default_factory=dict)
+    example_payload: dict[str, object] = Field(default_factory=dict)
+
+
+class RuntimeActionCatalogOut(BaseModel):
+    action_count: int
+    actions: list[RuntimeActionCatalogItemOut] = Field(default_factory=list)
+
+
 class GateStateInput(BaseModel):
     skills: dict[str, int] = Field(default_factory=dict)
     inventory: dict[str, int] = Field(default_factory=dict)

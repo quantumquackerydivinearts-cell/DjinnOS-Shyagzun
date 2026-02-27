@@ -379,6 +379,27 @@ def test_game_world_coin_and_market_catalog_are_realm_aware() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_action_catalog_lists_supported_runtime_actions() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    headers = _headers("kernel.observe", role="artisan")
+    res = client.get("/v1/game/runtime/actions/catalog", headers=headers)
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["action_count"] >= 20
+    actions = payload["actions"]
+    by_kind = {item["kind"]: item for item in actions}
+    assert "world.region.preload.scenegraph" in by_kind
+    preload = by_kind["world.region.preload.scenegraph"]
+    assert preload["requires_realm"] is True
+    assert "chunk_size" in preload["payload_fields"]
+    assert "scene_content" in preload["payload_fields"]
+    assert "world.stream.status" in by_kind
+    assert "market.trade" in by_kind
+    app.dependency_overrides.clear()
+
+
 def test_game_market_quote_differs_by_realm_market_profile() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

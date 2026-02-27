@@ -88,6 +88,7 @@ from .business_schemas import (
     GateEvaluateOut,
     RuntimeConsumeInput,
     RuntimeConsumeOut,
+    RuntimeActionCatalogOut,
     DialogueEmitInput,
     DialogueEmitOut,
     VitriolApplyRulerInfluenceInput,
@@ -1986,6 +1987,19 @@ def consume_runtime_plan(
         actor_id=ctx.actor_id,
         workshop_id=workshop.identity.workshop_id,
     )
+
+
+@app.get("/v1/game/runtime/actions/catalog")
+def runtime_action_catalog(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> RuntimeActionCatalogOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    _ = workshop
+    return svc.runtime_action_catalog()
 
 
 @app.get("/v1/suppliers")

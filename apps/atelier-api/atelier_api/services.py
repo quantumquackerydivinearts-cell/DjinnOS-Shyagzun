@@ -74,6 +74,8 @@ from .business_schemas import (
     RuntimeConsumeInput,
     RuntimeConsumeOut,
     RuntimeActionOut,
+    RuntimeActionCatalogOut,
+    RuntimeActionCatalogItemOut,
     CharacterDictionaryCreate,
     CharacterDictionaryOut,
     NamedQuestCreate,
@@ -2184,6 +2186,153 @@ class AtelierService:
         if isinstance(value, list):
             return {"items": cast(list[object], value)}
         return {"value": cast(object, value)}
+
+    def runtime_action_catalog(self) -> RuntimeActionCatalogOut:
+        actions: list[RuntimeActionCatalogItemOut] = [
+            RuntimeActionCatalogItemOut(
+                kind="levels.apply",
+                summary="Apply deterministic level progression.",
+                payload_fields={"workspace_id": "str", "actor_id": "str", "xp_delta": "int"},
+                example_payload={"xp_delta": 25},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="skills.train",
+                summary="Train a named skill by deterministic delta.",
+                payload_fields={"workspace_id": "str", "actor_id": "str", "skill_id": "str", "delta": "int"},
+                example_payload={"skill_id": "alchemy", "delta": 1},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="perks.unlock",
+                summary="Unlock a perk when requirements are met.",
+                payload_fields={"workspace_id": "str", "actor_id": "str", "perk_id": "str"},
+                example_payload={"perk_id": "steady_hands"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="alchemy.craft",
+                summary="Resolve alchemy craft transaction.",
+                payload_fields={"workspace_id": "str", "actor_id": "str", "recipe_id": "str"},
+                example_payload={"recipe_id": "minor_heal"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="blacksmith.forge",
+                summary="Resolve blacksmith forging transaction.",
+                payload_fields={"workspace_id": "str", "actor_id": "str", "recipe_id": "str"},
+                example_payload={"recipe_id": "iron_blade"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="combat.resolve",
+                summary="Resolve deterministic combat exchange.",
+                payload_fields={"workspace_id": "str", "actor_id": "str", "enemy_id": "str"},
+                example_payload={"enemy_id": "arena_bandit"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="market.quote",
+                summary="Compute market quote for side/quantity.",
+                requires_realm=True,
+                payload_fields={"workspace_id": "str", "actor_id": "str", "realm_id": "str", "item_id": "str"},
+                example_payload={"realm_id": "lapidus", "item_id": "iron_ingot", "side": "buy", "quantity": 1},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="market.trade",
+                summary="Execute market trade with liquidity limits.",
+                requires_realm=True,
+                payload_fields={"workspace_id": "str", "actor_id": "str", "realm_id": "str", "item_id": "str"},
+                example_payload={"realm_id": "lapidus", "item_id": "iron_ingot", "side": "buy", "quantity": 2},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="vitriol.apply",
+                summary="Apply ruler modifier to VITRIOL state.",
+                payload_fields={"workspace_id": "str", "actor_id": "str", "ruler_id": "str"},
+                example_payload={"ruler_id": "asmodeus", "delta": {"vitality": 1}, "applied_tick": 1},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="vitriol.compute",
+                summary="Compute effective VITRIOL values from base+modifiers.",
+                payload_fields={"base": "dict", "modifiers": "list", "current_tick": "int"},
+                example_payload={"base": {"vitality": 7}, "modifiers": [], "current_tick": 1},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="vitriol.clear",
+                summary="Clear expired VITRIOL modifiers by tick.",
+                payload_fields={"base": "dict", "modifiers": "list", "current_tick": "int"},
+                example_payload={"base": {"vitality": 7}, "modifiers": [], "current_tick": 50},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="djinn.apply",
+                summary="Apply Djinn frontier influence and marks.",
+                requires_realm=True,
+                payload_fields={"workspace_id": "str", "actor_id": "str", "djinn_id": "str", "realm_id": "str"},
+                example_payload={"djinn_id": "giann", "realm_id": "lapidus", "scene_id": "lapidus/intro"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="world.region.load",
+                summary="Load one world region into stream state.",
+                requires_realm=True,
+                payload_fields={"workspace_id": "str", "realm_id": "str", "region_key": "str", "payload": "dict"},
+                example_payload={"realm_id": "lapidus", "region_key": "lapidus/chunk_0_0", "cache_policy": "stream"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="world.region.preload.scenegraph",
+                summary="Chunk scenegraph nodes and preload derived regions.",
+                requires_realm=True,
+                payload_fields={
+                    "realm_id": "str",
+                    "scene_id": "str",
+                    "scene_content": "dict",
+                    "chunk_size": "int",
+                    "cache_policy": "str",
+                },
+                example_payload={
+                    "realm_id": "lapidus",
+                    "scene_id": "lapidus/player_home",
+                    "chunk_size": 12,
+                    "cache_policy": "stream",
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="world.region.unload",
+                summary="Unload one region from stream state.",
+                requires_realm=True,
+                payload_fields={"workspace_id": "str", "realm_id": "str", "region_key": "str"},
+                example_payload={"realm_id": "lapidus", "region_key": "lapidus/chunk_0_0"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="world.stream.status",
+                summary="Inspect stream occupancy/capacity and policy counts.",
+                requires_realm=True,
+                payload_fields={"workspace_id": "str", "realm_id": "str"},
+                example_payload={"realm_id": "lapidus"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="world.coins.list",
+                summary="List realm currencies.",
+                requires_realm=False,
+                payload_fields={"realm_id": "str(optional)"},
+                example_payload={},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="world.markets.list",
+                summary="List realm market profiles/stocks.",
+                requires_realm=False,
+                payload_fields={"realm_id": "str(optional)"},
+                example_payload={"realm_id": "lapidus"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="world.market.stock.adjust",
+                summary="Override market stock during runtime plan.",
+                requires_realm=True,
+                payload_fields={"realm_id": "str", "item_id": "str", "delta": "int|optional", "set_qty": "int|optional"},
+                example_payload={"realm_id": "lapidus", "item_id": "iron_ingot", "set_qty": 10},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="world.market.sovereignty.transition",
+                summary="Apply market control transition + redistribution policy.",
+                requires_realm=True,
+                payload_fields={"realm_id": "str", "overthrow": "bool", "victor_id": "str"},
+                example_payload={"realm_id": "lapidus", "overthrow": True, "victor_id": "player_commonwealth"},
+            ),
+        ]
+        return RuntimeActionCatalogOut(action_count=len(actions), actions=actions)
 
     def consume_runtime_plan(
         self,
