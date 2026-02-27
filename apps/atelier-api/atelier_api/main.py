@@ -39,6 +39,8 @@ from .business_schemas import (
     MarketQuoteOut,
     MarketTradeInput,
     MarketTradeOut,
+    DialogueEmitInput,
+    DialogueEmitOut,
     LeadCreate,
     LeadOut,
     LessonCreate,
@@ -1081,6 +1083,28 @@ def market_trade_rule(
         token=token,
     )
     return svc.market_trade(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/dialogue/emit")
+def emit_game_dialogue(
+    payload: DialogueEmitInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> DialogueEmitOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.emit_dialogue(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
 
 
 @app.get("/v1/suppliers")

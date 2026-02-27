@@ -362,3 +362,118 @@ def test_game_save_export_hash_stable_for_same_kernel_state() -> None:
     assert first_payload["hash"] == second_payload["hash"]
     assert first_payload["payload"] == second_payload["payload"]
     app.dependency_overrides.clear()
+
+
+def test_game_rule_alchemy_craft_success_and_failure() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    success = client.post(
+        "/v1/game/rules/alchemy/craft",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "recipe_id": "minor_heal",
+            "ingredients": {"herb": 2, "water": 1},
+            "outputs": {"potion_minor_heal": 1},
+            "inventory": {"herb": 5, "water": 3},
+        },
+        headers=headers,
+    )
+    assert success.status_code == 200
+    success_payload = success.json()
+    assert success_payload["crafted"] is True
+    assert success_payload["inventory_after"]["potion_minor_heal"] == 1
+
+    failure = client.post(
+        "/v1/game/rules/alchemy/craft",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "recipe_id": "minor_heal",
+            "ingredients": {"herb": 99},
+            "outputs": {"potion_minor_heal": 1},
+            "inventory": {"herb": 1},
+        },
+        headers=headers,
+    )
+    assert failure.status_code == 200
+    failure_payload = failure.json()
+    assert failure_payload["crafted"] is False
+    assert failure_payload["reason"].startswith("missing:")
+    app.dependency_overrides.clear()
+
+
+def test_game_rule_blacksmith_and_combat_paths() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    forge = client.post(
+        "/v1/game/rules/blacksmith/forge",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "blueprint_id": "iron_sword",
+            "materials": {"iron_ingot": 3, "wood": 1},
+            "outputs": {"iron_sword": 1},
+            "inventory": {"iron_ingot": 4, "wood": 2},
+            "durability_bonus": 2,
+        },
+        headers=headers,
+    )
+    assert forge.status_code == 200
+    forge_payload = forge.json()
+    assert forge_payload["forged"] is True
+    assert forge_payload["durability_score"] >= 1
+
+    combat = client.post(
+        "/v1/game/rules/combat/resolve",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "round_id": "r1",
+            "attacker": {"id": "player", "hp": 100, "attack": 18, "defense": 6},
+            "defender": {"id": "wolf", "hp": 10, "attack": 9, "defense": 4},
+        },
+        headers=headers,
+    )
+    assert combat.status_code == 200
+    combat_payload = combat.json()
+    assert combat_payload["damage"] == 14
+    assert combat_payload["defender_hp_after"] == 0
+    assert combat_payload["defender_defeated"] is True
+    app.dependency_overrides.clear()
+
+
+def test_game_dialogue_emit_sorted_by_line_id() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    response = client.post(
+        "/v1/game/dialogue/emit",
+        json={
+            "workspace_id": "main",
+            "scene_id": "scene_1",
+            "dialogue_id": "dlg_intro",
+            "turns": [
+                {"line_id": "l2", "speaker_id": "npc", "raw": "second"},
+                {"line_id": "l1", "speaker_id": "player", "raw": "first"},
+            ],
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["emitted"] == 2
+    assert payload["emitted_line_ids"] == ["l1", "l2"]
+    assert fake.place_calls == 2
+    app.dependency_overrides.clear()

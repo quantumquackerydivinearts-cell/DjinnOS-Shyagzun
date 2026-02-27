@@ -55,6 +55,8 @@ from .business_schemas import (
     MarketQuoteOut,
     MarketTradeInput,
     MarketTradeOut,
+    DialogueEmitInput,
+    DialogueEmitOut,
     SupplierCreate,
     SupplierOut,
 )
@@ -784,6 +786,41 @@ class AtelierService:
             workshop_id=workshop_id,
         )
         return result
+
+    def emit_dialogue(
+        self,
+        *,
+        payload: DialogueEmitInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> DialogueEmitOut:
+        sorted_turns = sorted(payload.turns, key=lambda turn: turn.line_id)
+        emitted_line_ids: list[str] = []
+        for turn in sorted_turns:
+            context: dict[str, object] = {
+                "workspace_id": payload.workspace_id,
+                "scene_id": payload.scene_id,
+                "dialogue_id": payload.dialogue_id,
+                "line_id": turn.line_id,
+                "speaker_id": turn.speaker_id,
+            }
+            if turn.tags:
+                context["tags"] = dict(turn.tags)
+            if turn.metadata:
+                context["metadata"] = dict(turn.metadata)
+            self._kernel.place(
+                raw=turn.raw,
+                context=context,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
+            emitted_line_ids.append(turn.line_id)
+        return DialogueEmitOut(
+            dialogue_id=payload.dialogue_id,
+            scene_id=payload.scene_id,
+            emitted=len(emitted_line_ids),
+            emitted_line_ids=emitted_line_ids,
+        )
 
     def list_suppliers(self, workspace_id: str) -> Sequence[SupplierOut]:
         rows = self._require_repo().list_suppliers(workspace_id=workspace_id)

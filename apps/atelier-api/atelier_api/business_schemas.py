@@ -495,3 +495,25 @@ class MarketTradeOut(BaseModel):
     wallet_after_cents: int
     inventory_after_qty: int
     status: str
+
+
+class DialogueTurn(BaseModel):
+    line_id: str
+    speaker_id: str
+    raw: str
+    tags: dict[str, str] = Field(default_factory=dict)
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class DialogueEmitInput(BaseModel):
+    workspace_id: str
+    scene_id: str
+    dialogue_id: str
+    turns: list[DialogueTurn]
+
+
+class DialogueEmitOut(BaseModel):
+    dialogue_id: str
+    scene_id: str
+    emitted: int
+    emitted_line_ids: list[str]
