@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -578,4 +580,57 @@ class VitriolClearExpiredOut(BaseModel):
     removed_count: int
     active_modifiers: list[VitriolModifier]
     effective: dict[str, int]
+    hash: str
+
+
+GateOperator = Literal["and", "or", "xor", "nor"]
+GateSource = Literal["skills", "inventory", "vitriol", "dialogue_flags", "previous_dialogue", "flags"]
+GateComparator = Literal["gte", "eq", "present"]
+
+
+class GateStateInput(BaseModel):
+    skills: dict[str, int] = Field(default_factory=dict)
+    inventory: dict[str, int] = Field(default_factory=dict)
+    vitriol: dict[str, int] = Field(default_factory=dict)
+    dialogue_flags: list[str] = Field(default_factory=list)
+    previous_dialogue: list[str] = Field(default_factory=list)
+    flags: dict[str, bool] = Field(default_factory=dict)
+
+
+class GateRequirement(BaseModel):
+    source: GateSource
+    key: str
+    comparator: GateComparator
+    int_value: int | None = None
+    str_value: str | None = None
+    bool_value: bool | None = None
+
+
+class GateRequirementResult(BaseModel):
+    source: GateSource
+    key: str
+    comparator: GateComparator
+    matched: bool
+    actual: int | str | bool | None
+    expected: int | str | bool | None
+    reason: str
+
+
+class GateEvaluateInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    gate_id: str
+    operator: GateOperator = "and"
+    state: GateStateInput
+    requirements: list[GateRequirement] = Field(default_factory=list)
+
+
+class GateEvaluateOut(BaseModel):
+    actor_id: str
+    gate_id: str
+    operator: GateOperator
+    allowed: bool
+    matched_count: int
+    total_count: int
+    results: list[GateRequirementResult]
     hash: str

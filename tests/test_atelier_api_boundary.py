@@ -597,3 +597,104 @@ def test_vitriol_compute_and_clear_expired_are_deterministic() -> None:
     assert clear_out["effective"]["ostentation"] == 6
     assert fake.place_calls == 1
     app.dependency_overrides.clear()
+
+
+def test_game_gate_evaluate_supports_xor_and_nor_with_multi_source_state() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    base_state = {
+        "skills": {"alchemy": 3},
+        "inventory": {"key_sulphera_ring1": 1},
+        "vitriol": {"vitality": 7, "ingenuity": 4},
+        "dialogue_flags": ["met_guard"],
+        "previous_dialogue": ["dlg_intro_001"],
+        "flags": {"boss_seen": False},
+    }
+
+    xor_res = client.post(
+        "/v1/game/rules/gates/evaluate",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "gate_id": "gate_xor_demo",
+            "operator": "xor",
+            "state": base_state,
+            "requirements": [
+                {"source": "skills", "key": "alchemy", "comparator": "gte", "int_value": 5},
+                {"source": "previous_dialogue", "key": "dlg_intro_001", "comparator": "present", "bool_value": True},
+                {"source": "flags", "key": "boss_seen", "comparator": "eq", "bool_value": False},
+            ],
+        },
+        headers=headers,
+    )
+    assert xor_res.status_code == 200
+    xor_payload = xor_res.json()
+    assert xor_payload["operator"] == "xor"
+    assert xor_payload["allowed"] is False
+    assert xor_payload["matched_count"] == 2
+
+    nor_res = client.post(
+        "/v1/game/rules/gates/evaluate",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "gate_id": "gate_nor_demo",
+            "operator": "nor",
+            "state": base_state,
+            "requirements": [
+                {"source": "dialogue_flags", "key": "missing_flag", "comparator": "present", "bool_value": True},
+                {"source": "inventory", "key": "key_sulphera_ring9", "comparator": "gte", "int_value": 1},
+            ],
+        },
+        headers=headers,
+    )
+    assert nor_res.status_code == 200
+    nor_payload = nor_res.json()
+    assert nor_payload["operator"] == "nor"
+    assert nor_payload["allowed"] is True
+    assert nor_payload["matched_count"] == 0
+    assert fake.place_calls == 2
+    app.dependency_overrides.clear()
+
+
+def test_game_gate_evaluate_deterministic_for_same_payload() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "gate_id": "gate_skill_dialogue_join",
+        "operator": "and",
+        "state": {
+            "skills": {"speech": 2},
+            "inventory": {"royal_seal": 1},
+            "vitriol": {"introspection": 6},
+            "dialogue_flags": ["oath_taken"],
+            "previous_dialogue": ["dlg_oath_accepted"],
+            "flags": {"steward_marked": True},
+        },
+        "requirements": [
+            {"source": "skills", "key": "speech", "comparator": "gte", "int_value": 2},
+            {"source": "previous_dialogue", "key": "dlg_oath_accepted", "comparator": "present", "bool_value": True},
+            {"source": "inventory", "key": "royal_seal", "comparator": "gte", "int_value": 1},
+            {"source": "vitriol", "key": "introspection", "comparator": "gte", "int_value": 5},
+            {"source": "flags", "key": "steward_marked", "comparator": "eq", "bool_value": True},
+        ],
+    }
+    first = client.post("/v1/game/rules/gates/evaluate", json=payload, headers=headers)
+    second = client.post("/v1/game/rules/gates/evaluate", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload == second_payload
+    assert first_payload["allowed"] is True
+    assert first_payload["matched_count"] == first_payload["total_count"]
+    assert fake.place_calls == 2
+    app.dependency_overrides.clear()

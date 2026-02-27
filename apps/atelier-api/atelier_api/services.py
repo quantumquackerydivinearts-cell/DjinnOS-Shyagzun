@@ -55,6 +55,11 @@ from .business_schemas import (
     MarketQuoteOut,
     MarketTradeInput,
     MarketTradeOut,
+    GateEvaluateInput,
+    GateEvaluateOut,
+    GateRequirement,
+    GateRequirementResult,
+    GateOperator,
     DialogueEmitInput,
     DialogueEmitOut,
     VitriolApplyRulerInfluenceInput,
@@ -806,6 +811,121 @@ class AtelierService:
             context={
                 "workspace_id": payload.workspace_id,
                 "rule": "market_trade",
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
+
+    @staticmethod
+    def _gate_expected_value(requirement: GateRequirement) -> int | str | bool | None:
+        if requirement.int_value is not None:
+            return int(requirement.int_value)
+        if requirement.str_value is not None:
+            return requirement.str_value
+        if requirement.bool_value is not None:
+            return bool(requirement.bool_value)
+        return None
+
+    @staticmethod
+    def _gate_actual_value(payload: GateEvaluateInput, requirement: GateRequirement) -> int | str | bool | None:
+        source = requirement.source
+        key = requirement.key
+        if source == "skills":
+            return int(payload.state.skills.get(key, 0))
+        if source == "inventory":
+            return int(payload.state.inventory.get(key, 0))
+        if source == "vitriol":
+            return int(payload.state.vitriol.get(key, 0))
+        if source == "flags":
+            return bool(payload.state.flags.get(key, False))
+        if source == "dialogue_flags":
+            return key in payload.state.dialogue_flags
+        return key in payload.state.previous_dialogue
+
+    @classmethod
+    def _evaluate_gate_requirement(cls, payload: GateEvaluateInput, requirement: GateRequirement) -> GateRequirementResult:
+        actual = cls._gate_actual_value(payload, requirement)
+        expected = cls._gate_expected_value(requirement)
+        matched = False
+        reason = "not_matched"
+        if requirement.comparator == "gte":
+            if not isinstance(actual, int):
+                reason = "invalid_actual_type_for_gte"
+            elif requirement.int_value is None:
+                reason = "missing_int_value"
+            else:
+                matched = actual >= requirement.int_value
+                reason = "ok" if matched else "below_threshold"
+        elif requirement.comparator == "eq":
+            if expected is None:
+                reason = "missing_expected_value"
+            else:
+                matched = actual == expected
+                reason = "ok" if matched else "not_equal"
+        else:
+            expected_present = requirement.bool_value if requirement.bool_value is not None else True
+            actual_present = bool(actual)
+            matched = actual_present == expected_present
+            expected = expected_present
+            actual = actual_present
+            reason = "ok" if matched else "presence_mismatch"
+        return GateRequirementResult(
+            source=requirement.source,
+            key=requirement.key,
+            comparator=requirement.comparator,
+            matched=matched,
+            actual=actual,
+            expected=expected,
+            reason=reason,
+        )
+
+    @staticmethod
+    def _combine_gate_results(operator: GateOperator, result_flags: Sequence[bool]) -> bool:
+        if operator == "and":
+            return all(result_flags)
+        if operator == "or":
+            return any(result_flags)
+        if operator == "xor":
+            return sum(1 for value in result_flags if value) == 1
+        return not any(result_flags)
+
+    def evaluate_gate(
+        self,
+        *,
+        payload: GateEvaluateInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> GateEvaluateOut:
+        requirement_results = [self._evaluate_gate_requirement(payload, requirement) for requirement in payload.requirements]
+        result_flags = [item.matched for item in requirement_results]
+        allowed = self._combine_gate_results(payload.operator, result_flags)
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "actor_id": payload.actor_id,
+            "gate_id": payload.gate_id,
+            "operator": payload.operator,
+            "state": payload.state.model_dump(),
+            "requirements": [item.model_dump() for item in payload.requirements],
+            "results": [item.model_dump() for item in requirement_results],
+            "allowed": allowed,
+        }
+        result = GateEvaluateOut(
+            actor_id=payload.actor_id,
+            gate_id=payload.gate_id,
+            operator=payload.operator,
+            allowed=allowed,
+            matched_count=sum(1 for value in result_flags if value),
+            total_count=len(result_flags),
+            results=requirement_results,
+            hash=self._canonical_hash(hash_payload),
+        )
+        self._kernel.place(
+            raw=f"game.gate.evaluate {payload.actor_id} {payload.gate_id}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "gate_evaluate",
                 "result": result.model_dump(),
             },
             actor_id=actor_id,
