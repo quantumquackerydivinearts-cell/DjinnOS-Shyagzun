@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import sceneGraphDefaults from "../../../scene_graph_defaults.json";
+import { consumeInboxBatch } from "./engineInbox";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:9000";
 
@@ -1879,6 +1880,23 @@ export function App() {
   const [notice, setNotice] = useState("Ready");
   const [busyAction, setBusyAction] = useState(null);
   const [activityLog, setActivityLog] = useState([]);
+  const [actionPostTarget, setActionPostTarget] = useState(() => localStorage.getItem("atelier.post_target") || "api");
+  const [actionPostEngineFileId, setActionPostEngineFileId] = useState(
+    () => localStorage.getItem("atelier.post_engine_file_id") || ""
+  );
+  const [actionPostRepoFolder, setActionPostRepoFolder] = useState(
+    () => localStorage.getItem("atelier.post_repo_folder") || "runtime-posts"
+  );
+  const [engineInboxConsumeMax, setEngineInboxConsumeMax] = useState(
+    () => localStorage.getItem("atelier.engine_inbox_consume_max") || "25"
+  );
+  const [engineInboxPreviewOnly, setEngineInboxPreviewOnly] = useState(
+    () => localStorage.getItem("atelier.engine_inbox_preview_only") === "1"
+  );
+  const [engineInboxStrictValidation, setEngineInboxStrictValidation] = useState(
+    () => localStorage.getItem("atelier.engine_inbox_strict_validation") !== "0"
+  );
+  const [engineInboxResult, setEngineInboxResult] = useState(null);
 
   const [gateCode, setGateCode] = useState("");
   const [adminGateToken, setAdminGateToken] = useState(null);
@@ -2170,6 +2188,7 @@ export function App() {
     "{\"workspace_id\":\"main\",\"realm_id\":\"lapidus\",\"scene_id\":\"lapidus/scene_prototype\",\"nodes\":[{\"node_id\":\"n1\",\"kind\":\"spawn\",\"x\":0,\"y\":0,\"metadata\":{}},{\"node_id\":\"n2\",\"kind\":\"goal\",\"x\":8,\"y\":4,\"metadata\":{}}],\"edges\":[{\"from_node_id\":\"n1\",\"to_node_id\":\"n2\",\"relation\":\"path\",\"metadata\":{}}]}"
   );
   const [sceneCompileSceneId, setSceneCompileSceneId] = useState("lapidus/scene_prototype");
+  const [rendererLibrarySceneId, setRendererLibrarySceneId] = useState("lapidus/scene_prototype");
   const [sceneCompileName, setSceneCompileName] = useState("Scene Prototype");
   const [sceneCompileDescription, setSceneCompileDescription] = useState("");
   const [dialogueSceneId, setDialogueSceneId] = useState("scene_prototype");
@@ -2404,6 +2423,18 @@ export function App() {
   useEffect(() => localStorage.setItem("atelier.profile_name", profileName), [profileName]);
   useEffect(() => localStorage.setItem("atelier.profile_email", profileEmail), [profileEmail]);
   useEffect(() => localStorage.setItem("atelier.profile_tz", profileTimezone), [profileTimezone]);
+  useEffect(() => localStorage.setItem("atelier.post_target", actionPostTarget), [actionPostTarget]);
+  useEffect(() => localStorage.setItem("atelier.post_engine_file_id", actionPostEngineFileId), [actionPostEngineFileId]);
+  useEffect(() => localStorage.setItem("atelier.post_repo_folder", actionPostRepoFolder), [actionPostRepoFolder]);
+  useEffect(() => localStorage.setItem("atelier.engine_inbox_consume_max", engineInboxConsumeMax), [engineInboxConsumeMax]);
+  useEffect(
+    () => localStorage.setItem("atelier.engine_inbox_preview_only", engineInboxPreviewOnly ? "1" : "0"),
+    [engineInboxPreviewOnly]
+  );
+  useEffect(
+    () => localStorage.setItem("atelier.engine_inbox_strict_validation", engineInboxStrictValidation ? "1" : "0"),
+    [engineInboxStrictValidation]
+  );
   useEffect(() => localStorage.setItem("atelier.studio_folders", JSON.stringify(studioFolders)), [studioFolders]);
   useEffect(() => localStorage.setItem("atelier.studio_files", JSON.stringify(studioFiles)), [studioFiles]);
   useEffect(() => localStorage.setItem("atelier.studio_selected", studioSelectedFileId), [studioSelectedFileId]);
@@ -2518,6 +2549,120 @@ export function App() {
       throw new Error(JSON.stringify(data));
     }
     return data;
+  }
+
+  function buildPostEnvelope(path, body, actionName) {
+    return {
+      action: actionName,
+      method: "POST",
+      path,
+      workspace_id: workspaceId,
+      realm_id: rendererRealmId,
+      posted_at: new Date().toISOString(),
+      target: actionPostTarget,
+      payload: body && typeof body === "object" ? body : {}
+    };
+  }
+
+  function postToEngineInbox(path, body, actionName) {
+    const envelope = buildPostEnvelope(path, body, actionName);
+    const engineState = parseObjectJson(rendererEngineStateText, {});
+    const currentInbox = Array.isArray(engineState.post_inbox) ? engineState.post_inbox : [];
+    const nextInbox = [...currentInbox, envelope].slice(-200);
+    const nextState = { ...engineState, post_inbox: nextInbox };
+    setRendererEngineStateText(JSON.stringify(nextState, null, 2));
+    setRendererGameStatus(`post_inbox:${nextInbox.length}`);
+    const selectedEngineFile = studioFiles.find((file) => file.id === actionPostEngineFileId) || null;
+    return {
+      ok: true,
+      target: "engine_inbox",
+      queued: 1,
+      queue_size: nextInbox.length,
+      engine_file_id: selectedEngineFile ? selectedEngineFile.id : null,
+      engine_file_name: selectedEngineFile ? `${selectedEngineFile.folder}/${selectedEngineFile.name}` : null,
+      envelope
+    };
+  }
+
+  function postToRepo(path, body, actionName) {
+    const envelope = buildPostEnvelope(path, body, actionName);
+    const folder = String(actionPostRepoFolder || "runtime-posts").trim() || "runtime-posts";
+    if (!studioFolders.includes(folder)) {
+      setStudioFolders((prev) => [...prev, folder]);
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const fileName = `${stamp}-${String(actionName || "post").replace(/[^a-zA-Z0-9_-]/g, "_")}.json`;
+    const nextFile = {
+      id: makeStudioFileId(),
+      name: fileName,
+      folder,
+      content: JSON.stringify(envelope, null, 2)
+    };
+    setStudioFiles((prev) => [...prev, nextFile]);
+    setStudioSelectedFileId(nextFile.id);
+    return {
+      ok: true,
+      target: "repo",
+      file_id: nextFile.id,
+      file: `${folder}/${fileName}`,
+      envelope
+    };
+  }
+
+  async function postAction(path, body, actionName) {
+    if (actionPostTarget === "api") {
+      return apiCall(path, "POST", body);
+    }
+    const data =
+      actionPostTarget === "engine_inbox"
+        ? postToEngineInbox(path, body, actionName)
+        : postToRepo(path, body, actionName);
+    setOutput(JSON.stringify(data, null, 2));
+    return data;
+  }
+
+  async function consumeEngineInbox() {
+    await runAction("engine_inbox_consume", async () => {
+      const parsedState = parseObjectJson(rendererEngineStateText, {});
+      const currentInbox = Array.isArray(parsedState.post_inbox) ? parsedState.post_inbox : [];
+      const selectedEngineFile = studioFiles.find((file) => file.id === actionPostEngineFileId) || null;
+      let handlerMap = {};
+      if (selectedEngineFile && typeof selectedEngineFile.content === "string" && selectedEngineFile.content.trim()) {
+        const parsed = parseObjectJson(selectedEngineFile.content, {});
+        if (parsed && typeof parsed === "object" && parsed.post_handlers && typeof parsed.post_handlers === "object") {
+          handlerMap = parsed.post_handlers;
+        }
+      }
+      const consume = consumeInboxBatch(parsedState, currentInbox, {
+        take: engineInboxConsumeMax,
+        strictValidation: engineInboxStrictValidation,
+        handlerMap
+      });
+      const nextState = consume.state;
+      const result = {
+        ...consume.result,
+        preview_only: Boolean(engineInboxPreviewOnly)
+      };
+      setEngineInboxResult(result);
+      setOutput(JSON.stringify(result, null, 2));
+
+      if (engineInboxPreviewOnly) {
+        return result;
+      }
+
+      setRendererEngineStateText(JSON.stringify(nextState, null, 2));
+      setRendererGameStatus(`inbox_consumed:${Number(result.consumed || 0)}`);
+      if (actionPostEngineFileId) {
+        setStudioFiles((prev) =>
+          prev.map((file) => (
+            file.id === actionPostEngineFileId
+              ? { ...file, content: JSON.stringify(nextState, null, 2) }
+              : file
+          ))
+        );
+      }
+      return result;
+    });
   }
 
   async function refreshGateStatus(tokenOverride) {
@@ -2739,14 +2884,14 @@ export function App() {
   async function emitHeadlessQuest() {
     await runAction("game_headless_quest_emit", async () => {
       const payload = parseObjectJson(headlessQuestText, {});
-      return apiCall("/v1/game/quests/headless/emit", "POST", payload);
+      return postAction("/v1/game/quests/headless/emit", payload, "game_headless_quest_emit");
     });
   }
 
   async function emitMeditation() {
     await runAction("game_meditation_emit", async () => {
       const payload = parseObjectJson(meditationText, {});
-      return apiCall("/v1/game/meditation/emit", "POST", payload);
+      return postAction("/v1/game/meditation/emit", payload, "game_meditation_emit");
     });
   }
 
@@ -2756,7 +2901,7 @@ export function App() {
       if (!payload.realm_id) {
         payload.realm_id = rendererRealmId;
       }
-      return apiCall("/v1/game/scene-graph/emit", "POST", payload);
+      return postAction("/v1/game/scene-graph/emit", payload, "game_scene_graph_emit");
     });
   }
 
@@ -2770,7 +2915,55 @@ export function App() {
         description: sceneCompileDescription || "",
         cobra_source: rendererCobra,
       };
-      return apiCall("/v1/game/scenes/compile", "POST", payload);
+      const data = await apiCall("/v1/game/scenes/compile", "POST", payload);
+      const content = data && typeof data.content === "object" ? data.content : {};
+      const graph = content.graph && typeof content.graph === "object" ? content.graph : content;
+      setRendererGraphPreview(graph);
+      setRendererVisualSource("engine");
+      setRendererEngineStateText(
+        JSON.stringify(
+          {
+            graph,
+            realm_id: data.realm_id || rendererRealmId,
+            scene_id: data.scene_id || sceneCompileSceneId,
+          },
+          null,
+          2
+        )
+      );
+      setSceneGraphText(JSON.stringify(graph, null, 2));
+      setRendererLibrarySceneId(String(data.scene_id || sceneCompileSceneId));
+      setRendererGameStatus(`scene_compiled:${String(data.scene_id || sceneCompileSceneId)}`);
+      return data;
+    });
+  }
+
+  async function loadSceneFromLibraryToRenderer() {
+    await runAction("scene_load_from_library", async () => {
+      const sceneId = String(rendererLibrarySceneId || "").trim();
+      if (!sceneId) {
+        throw new Error("scene_id_required");
+      }
+      const path = `/v1/game/scenes/${encodeURI(sceneId)}?workspace_id=${encodeURIComponent(workspaceId)}&realm_id=${encodeURIComponent(rendererRealmId)}`;
+      const data = await apiCall(path, "GET", null);
+      const content = data && typeof data.content === "object" ? data.content : {};
+      const graph = content.graph && typeof content.graph === "object" ? content.graph : content;
+      setRendererGraphPreview(graph);
+      setRendererVisualSource("engine");
+      setRendererEngineStateText(
+        JSON.stringify(
+          {
+            graph,
+            realm_id: data.realm_id || rendererRealmId,
+            scene_id: data.scene_id || sceneId,
+          },
+          null,
+          2
+        )
+      );
+      setSceneGraphText(JSON.stringify(graph, null, 2));
+      setRendererGameStatus(`scene_loaded:${String(data.scene_id || sceneId)}`);
+      return data;
     });
   }
 
@@ -2850,7 +3043,7 @@ export function App() {
   async function runGameRule(path, payloadText, actionName) {
     await runAction(actionName, async () => {
       const payload = parseObjectJson(payloadText, {});
-      const data = await apiCall(path, "POST", payload);
+      const data = await postAction(path, payload, actionName);
       setGameRulesOutput(data);
       return data;
     });
@@ -5748,6 +5941,36 @@ export function App() {
               <input value={rendererSimMs} onChange={(e) => setRendererSimMs(e.target.value)} placeholder="tick ms" />
               <span className="badge">{`Status: ${rendererGameStatus}`}</span>
             </div>
+            <div className="row">
+              <input
+                value={engineInboxConsumeMax}
+                onChange={(e) => setEngineInboxConsumeMax(e.target.value)}
+                placeholder="consume max"
+              />
+              <label className="inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={engineInboxPreviewOnly}
+                  onChange={(e) => setEngineInboxPreviewOnly(e.target.checked)}
+                />
+                Preview only
+              </label>
+              <label className="inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={engineInboxStrictValidation}
+                  onChange={(e) => setEngineInboxStrictValidation(e.target.checked)}
+                />
+                Strict contract validation
+              </label>
+              <button className="action" onClick={consumeEngineInbox}>Consume Engine Inbox</button>
+              <span className="badge">{`Inbox: ${Array.isArray(rendererEngineState.post_inbox) ? rendererEngineState.post_inbox.length : 0}`}</span>
+            </div>
+            <p>
+              Optional engine script handler map format:
+              <code>{" { \"post_handlers\": { \"/v1/game/rules/levels/apply\": { \"target\": \"tables.levels_rules\", \"mode\": \"append\" } } } "}</code>
+            </p>
+            <pre>{JSON.stringify(engineInboxResult || {}, null, 2)}</pre>
             <textarea className="editor editor-mono renderer-state" value={rendererEngineStateText} onChange={(e) => setRendererEngineStateText(e.target.value)} />
           </section>
           <section className="panel">
@@ -5781,17 +6004,44 @@ export function App() {
           </section>
           <section className="panel">
             <h2>Game System Creator</h2>
-            <p>Headless quest emit, meditation emit, scene graph emit, and deterministic save export.</p>
+            <p>Author and move game content between Cobra, scene library, renderer state, and save export.</p>
             <div className="row">
-              <button className="action" onClick={emitHeadlessQuest}>Emit Headless Quest</button>
-              <button className="action" onClick={emitMeditation}>Emit Meditation</button>
-              <button className="action" onClick={emitSceneGraph}>Emit Scene Graph</button>
-              <button className="action" onClick={compileSceneFromCobra}>Compile Cobra to Scene</button>
-              <button className="action" onClick={exportGameSave}>Export Save</button>
-              <button className="action" onClick={() => saveExport && downloadJson(`game-save-${workspaceId}.json`, saveExport)}>Download Save JSON</button>
+              <select value={actionPostTarget} onChange={(e) => setActionPostTarget(e.target.value)}>
+                <option value="api">POST Target: API (:9000)</option>
+                <option value="engine_inbox">POST Target: Engine Script Inbox</option>
+                <option value="repo">POST Target: In-App Repo File</option>
+              </select>
+              {actionPostTarget === "engine_inbox" ? (
+                <select value={actionPostEngineFileId} onChange={(e) => setActionPostEngineFileId(e.target.value)}>
+                  <option value="">engine script (optional)</option>
+                  {studioFiles.map((file) => (
+                    <option key={`post-engine-${file.id}`} value={file.id}>{`${file.folder}/${file.name}`}</option>
+                  ))}
+                </select>
+              ) : null}
+              {actionPostTarget === "repo" ? (
+                <input
+                  value={actionPostRepoFolder}
+                  onChange={(e) => setActionPostRepoFolder(e.target.value)}
+                  placeholder="repo folder (e.g. runtime-posts)"
+                />
+              ) : null}
+              <span className="badge">{`Active target: ${actionPostTarget}`}</span>
+            </div>
+            <div className="row">
+              <button className="action" onClick={compileSceneFromCobra}>Compile Cobra -> Scene + Renderer State (API)</button>
+              <button className="action" onClick={loadSceneFromLibraryToRenderer}>Load Library Scene -> Renderer State (API)</button>
+              <button className="action" onClick={emitSceneGraph}>POST Scene Graph Payload</button>
+              <button className="action" onClick={emitHeadlessQuest}>POST Headless Quest Payload</button>
+              <button className="action" onClick={emitMeditation}>POST Meditation Payload</button>
+            </div>
+            <div className="row">
+              <button className="action" onClick={exportGameSave}>Fetch Save Snapshot from API</button>
+              <button className="action" onClick={() => saveExport && downloadJson(`game-save-${workspaceId}.json`, saveExport)}>Download Save Snapshot JSON</button>
             </div>
             <div className="row">
               <input value={sceneCompileSceneId} onChange={(e) => setSceneCompileSceneId(e.target.value)} placeholder="scene id (realm/scene)" />
+              <input value={rendererLibrarySceneId} onChange={(e) => setRendererLibrarySceneId(e.target.value)} placeholder="load scene id (realm/scene)" />
               <input value={sceneCompileName} onChange={(e) => setSceneCompileName(e.target.value)} placeholder="scene name" />
               <input value={sceneCompileDescription} onChange={(e) => setSceneCompileDescription(e.target.value)} placeholder="scene description" />
               <span className="badge">{`Realm: ${rendererRealmId}`}</span>
@@ -5854,19 +6104,24 @@ export function App() {
           </section>
           <section className="panel">
             <h2>RPG Rule Engine</h2>
-            <p>Deterministic rules for levels, skills, perks, alchemy, blacksmithing, and combat.</p>
+            <p>Each action posts one deterministic rule payload to the active target and writes the response/envelope to Rule Output.</p>
             <div className="row">
-              <button className="action" onClick={() => runGameRule("/v1/game/rules/levels/apply", levelRuleText, "game_rule_level_apply")}>Apply Level</button>
-              <button className="action" onClick={() => runGameRule("/v1/game/rules/skills/train", skillRuleText, "game_rule_skill_train")}>Train Skill</button>
-              <button className="action" onClick={() => runGameRule("/v1/game/rules/perks/unlock", perkRuleText, "game_rule_perk_unlock")}>Unlock Perk</button>
-              <button className="action" onClick={() => runGameRule("/v1/game/rules/alchemy/craft", alchemyRuleText, "game_rule_alchemy_craft")}>Craft Alchemy</button>
-              <button className="action" onClick={() => runGameRule("/v1/game/rules/blacksmith/forge", blacksmithRuleText, "game_rule_blacksmith_forge")}>Forge Blacksmith</button>
-              <button className="action" onClick={() => runGameRule("/v1/game/rules/combat/resolve", combatRuleText, "game_rule_combat_resolve")}>Resolve Combat</button>
-              <button className="action" onClick={() => runGameRule("/v1/game/rules/market/quote", marketQuoteText, "game_rule_market_quote")}>Market Quote</button>
-              <button className="action" onClick={() => runGameRule("/v1/game/rules/market/trade", marketTradeText, "game_rule_market_trade")}>Market Trade</button>
-              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/apply-ruler-influence", vitriolApplyText, "game_vitriol_apply")}>Apply VITRIOL Influence</button>
-              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/compute", vitriolComputeText, "game_vitriol_compute")}>Compute VITRIOL</button>
-              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/clear-expired", vitriolClearText, "game_vitriol_clear_expired")}>Clear Expired VITRIOL</button>
+              <span className="badge">{`POST target: ${actionPostTarget}`}</span>
+            </div>
+            <div className="row">
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/levels/apply", levelRuleText, "game_rule_level_apply")}>POST Level Apply</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/skills/train", skillRuleText, "game_rule_skill_train")}>POST Skill Train</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/perks/unlock", perkRuleText, "game_rule_perk_unlock")}>POST Perk Unlock</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/alchemy/craft", alchemyRuleText, "game_rule_alchemy_craft")}>POST Alchemy Craft</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/blacksmith/forge", blacksmithRuleText, "game_rule_blacksmith_forge")}>POST Blacksmith Forge</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/combat/resolve", combatRuleText, "game_rule_combat_resolve")}>POST Combat Resolve</button>
+            </div>
+            <div className="row">
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/market/quote", marketQuoteText, "game_rule_market_quote")}>POST Market Quote</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/market/trade", marketTradeText, "game_rule_market_trade")}>POST Market Trade</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/apply-ruler-influence", vitriolApplyText, "game_vitriol_apply")}>POST VITRIOL Apply Influence</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/compute", vitriolComputeText, "game_vitriol_compute")}>POST VITRIOL Compute</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/clear-expired", vitriolClearText, "game_vitriol_clear_expired")}>POST VITRIOL Clear Expired</button>
             </div>
             <h3>Level Payload</h3>
             <textarea className="editor editor-mono renderer-editor" value={levelRuleText} onChange={(e) => setLevelRuleText(e.target.value)} />
