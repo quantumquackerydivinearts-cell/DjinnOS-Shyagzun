@@ -1981,6 +1981,24 @@ def get_game_quest_graph(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@app.get("/v1/game/quests/graphs/latest")
+def get_latest_game_quest_graph(
+    workspace_id: str,
+    quest_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> QuestGraphOut:
+    _enforce(ctx, "quest.read")
+    _enforce_role(role, "quest.read")
+    _ = workshop
+    try:
+        return svc.get_latest_quest_graph(workspace_id=workspace_id, quest_id=quest_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.get("/v1/game/quests/graphs/all")
 def list_game_quest_graphs(
     workspace_id: str,

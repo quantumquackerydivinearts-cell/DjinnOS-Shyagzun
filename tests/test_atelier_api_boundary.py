@@ -1162,6 +1162,90 @@ def test_game_quest_graph_list_supports_filters_and_paging() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_quest_graph_latest_alias_returns_newest_version() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _ManifestRow:
+        def __init__(
+            self,
+            *,
+            id: str,
+            workspace_id: str,
+            realm_id: str,
+            manifest_id: str,
+            name: str,
+            kind: str,
+            payload_json: str,
+            payload_hash: str,
+            created_at: datetime,
+        ) -> None:
+            self.id = id
+            self.workspace_id = workspace_id
+            self.realm_id = realm_id
+            self.manifest_id = manifest_id
+            self.name = name
+            self.kind = kind
+            self.payload_json = payload_json
+            self.payload_hash = payload_hash
+            self.created_at = created_at
+
+    class _QuestGraphLatestRepo:
+        def __init__(self) -> None:
+            self.manifests: list[_ManifestRow] = []
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[_ManifestRow]:
+            return [row for row in self.manifests if row.workspace_id == workspace_id]
+
+        def create_asset_manifest(self, row: object) -> object:
+            idx = len(self.manifests) + 1
+            manifest = _ManifestRow(
+                id=f"m_{idx}",
+                workspace_id=str(getattr(row, "workspace_id")),
+                realm_id=str(getattr(row, "realm_id")),
+                manifest_id=str(getattr(row, "manifest_id")),
+                name=str(getattr(row, "name")),
+                kind=str(getattr(row, "kind")),
+                payload_json=str(getattr(row, "payload_json")),
+                payload_hash=str(getattr(row, "payload_hash")),
+                created_at=datetime.now(timezone.utc),
+            )
+            self.manifests.append(manifest)
+            return manifest
+
+    repo = _QuestGraphLatestRepo()
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    write_headers = _headers("quest.write", role="steward")
+    read_headers = _headers("quest.read", role="artisan")
+
+    for version in ["v1", "v2", "v3"]:
+        created = client.post(
+            "/v1/game/quests/graphs",
+            json={
+                "workspace_id": "main",
+                "quest_id": "q_latest",
+                "version": version,
+                "start_step_id": "s0",
+                "headless": True,
+                "steps": [{"step_id": "s0", "edges": []}],
+            },
+            headers=write_headers,
+        )
+        assert created.status_code == 200
+
+    latest = client.get(
+        "/v1/game/quests/graphs/latest?workspace_id=main&quest_id=q_latest",
+        headers=read_headers,
+    )
+    assert latest.status_code == 200
+    payload = latest.json()
+    assert payload["quest_id"] == "q_latest"
+    assert payload["version"] == "v3"
+    assert payload["headless"] is True
+    app.dependency_overrides.clear()
+
+
 def test_vitriol_apply_ruler_influence_clamps_to_one_to_ten() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

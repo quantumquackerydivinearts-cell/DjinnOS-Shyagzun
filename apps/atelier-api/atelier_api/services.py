@@ -2497,6 +2497,18 @@ class AtelierService:
         candidates.sort(key=lambda item: (item.created_at, item.version, item.manifest_id), reverse=True)
         return candidates[0]
 
+    def get_latest_quest_graph(
+        self,
+        *,
+        workspace_id: str,
+        quest_id: str,
+    ) -> QuestGraphOut:
+        return self.get_quest_graph(
+            workspace_id=workspace_id,
+            quest_id=quest_id,
+            version=None,
+        )
+
     def list_quest_graphs(
         self,
         *,
