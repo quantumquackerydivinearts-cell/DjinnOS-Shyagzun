@@ -197,12 +197,12 @@ class AtelierService:
         "leviathan": "ingenuity_distortion",
         "mammon": "ostentation_blight",
         "lucifer": "levity_collapse",
-        "ruzoa": "rot_miasma",
-        "zukoru": "void_fever",
-        "kielum": "mind_fissure",
-        "othieru": "bone_chill",
-        "po_elfan": "echo_blindness",
-        "kaganue": "time_sickness",
+        "ruzoa": "depression",
+        "zukoru": "nihilism",
+        "kielum": "abuse",
+        "othieru": "abandon",
+        "po_elfan": "anxiety",
+        "kaganue": "confusion",
     }
     _WORLD_STREAM_MAX_LOADED_REGIONS = 128
 

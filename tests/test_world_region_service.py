@@ -135,4 +135,4 @@ def test_world_region_service_status_reports_occupancy_and_policy_counts() -> No
     assert status.pressure_components["demon_total"] == 0.0
     assert status.demon_pressures["lucifer"] == 0.0
     assert status.demon_pressures["po_elfan"] == 0.0
-    assert status.demon_maladies["zukoru"] == "void_fever"
+    assert status.demon_maladies["zukoru"] == "nihilism"
