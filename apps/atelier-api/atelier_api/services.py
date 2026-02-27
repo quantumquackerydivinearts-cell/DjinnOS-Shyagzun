@@ -182,6 +182,27 @@ class AtelierService:
         "leviathan": 0.0,
         "mammon": 0.0,
         "lucifer": 0.0,
+        "ruzoa": 0.0,
+        "zukoru": 0.0,
+        "kielum": 0.0,
+        "othieru": 0.0,
+        "po_elfan": 0.0,
+        "kaganue": 0.0,
+    }
+    _DEMON_MALADY_DOMAINS: dict[str, str] = {
+        "asmodeus": "vitality_corruption",
+        "satan": "introspective_decay",
+        "beelzebub": "tactile_corrosion",
+        "belphegor": "reflective_stagnation",
+        "leviathan": "ingenuity_distortion",
+        "mammon": "ostentation_blight",
+        "lucifer": "levity_collapse",
+        "ruzoa": "rot_miasma",
+        "zukoru": "void_fever",
+        "kielum": "mind_fissure",
+        "othieru": "bone_chill",
+        "po_elfan": "echo_blindness",
+        "kaganue": "time_sickness",
     }
     _WORLD_STREAM_MAX_LOADED_REGIONS = 128
 
@@ -2440,6 +2461,7 @@ class AtelierService:
             policy_counts=policy_counts,
             pressure_components=pressure_components,
             demon_pressures=dict(self._DEMON_PRESSURE_DEFAULTS),
+            demon_maladies=dict(self._DEMON_MALADY_DOMAINS),
         )
 
     def load_world_region(self, payload: WorldRegionLoadInput) -> WorldRegionOut:

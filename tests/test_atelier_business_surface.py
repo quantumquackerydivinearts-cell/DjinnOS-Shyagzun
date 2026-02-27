@@ -602,6 +602,27 @@ class FakeAtelierService:
                 "leviathan": 0.0,
                 "mammon": 0.0,
                 "lucifer": 0.0,
+                "ruzoa": 0.0,
+                "zukoru": 0.0,
+                "kielum": 0.0,
+                "othieru": 0.0,
+                "po_elfan": 0.0,
+                "kaganue": 0.0,
+            },
+            "demon_maladies": {
+                "asmodeus": "vitality_corruption",
+                "satan": "introspective_decay",
+                "beelzebub": "tactile_corrosion",
+                "belphegor": "reflective_stagnation",
+                "leviathan": "ingenuity_distortion",
+                "mammon": "ostentation_blight",
+                "lucifer": "levity_collapse",
+                "ruzoa": "rot_miasma",
+                "zukoru": "void_fever",
+                "kielum": "mind_fissure",
+                "othieru": "bone_chill",
+                "po_elfan": "echo_blindness",
+                "kaganue": "time_sickness",
             },
         }
 
@@ -1080,4 +1101,6 @@ def test_world_region_streaming_routes() -> None:
     assert status_payload["policy_counts"]["cache"] == 1
     assert status_payload["pressure_components"]["demon_total"] == 0.0
     assert status_payload["demon_pressures"]["asmodeus"] == 0.0
+    assert status_payload["demon_pressures"]["kaganue"] == 0.0
+    assert status_payload["demon_maladies"]["ruzoa"] == "rot_miasma"
     app.dependency_overrides.clear()
