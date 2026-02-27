@@ -1,0 +1,93 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "full_feature_plan",
+  "actions": [
+    {
+      "action_id": "level_01",
+      "kind": "levels.apply",
+      "payload": {
+        "current_level": 1,
+        "current_xp": 40,
+        "gained_xp": 120,
+        "xp_curve_base": 100,
+        "xp_curve_scale": 25
+      }
+    },
+    {
+      "action_id": "skill_01",
+      "kind": "skills.train",
+      "payload": {
+        "skill_id": "alchemy",
+        "current_rank": 1,
+        "points_available": 2,
+        "max_rank": 5
+      }
+    },
+    {
+      "action_id": "perk_01",
+      "kind": "perks.unlock",
+      "payload": {
+        "perk_id": "steel_focus",
+        "unlocked_perks": [],
+        "required_level": 2,
+        "actor_level": 2,
+        "required_skills": {
+          "alchemy": 2
+        },
+        "actor_skills": {
+          "alchemy": 2
+        }
+      }
+    },
+    {
+      "action_id": "alchemy_01",
+      "kind": "alchemy.craft",
+      "payload": {
+        "recipe_id": "minor_heal",
+        "ingredients": {
+          "herb": 2,
+          "water": 1
+        },
+        "outputs": {
+          "potion_minor_heal": 1
+        },
+        "inventory": {
+          "herb": 5,
+          "water": 3
+        }
+      }
+    },
+    {
+      "action_id": "forge_01",
+      "kind": "blacksmith.forge",
+      "payload": {
+        "blueprint_id": "iron_sword",
+        "materials": {
+          "iron_ingot": 3,
+          "wood": 1
+        },
+        "outputs": {
+          "iron_sword": 1
+        },
+        "inventory": {
+          "iron_ingot": 5,
+          "wood": 2
+        },
+        "durability_bonus": 2
+      }
+    },
+    {
+      "action_id": "market_01",
+      "kind": "market.quote",
+      "payload": {
+        "item_id": "iron_ingot",
+        "side": "buy",
+        "quantity": 2,
+        "base_price_cents": 1200,
+        "scarcity_bp": 250,
+        "spread_bp": 100
+      }
+    }
+  ]
+}

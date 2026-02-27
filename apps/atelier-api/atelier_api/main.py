@@ -86,6 +86,8 @@ from .business_schemas import (
     WorldStreamStatusOut,
     GateEvaluateInput,
     GateEvaluateOut,
+    RuntimeConsumeInput,
+    RuntimeConsumeOut,
     DialogueEmitInput,
     DialogueEmitOut,
     VitriolApplyRulerInfluenceInput,
@@ -1896,6 +1898,32 @@ def apply_djinn(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/runtime/consume")
+def consume_runtime_plan(
+    payload: RuntimeConsumeInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> RuntimeConsumeOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        token=token,
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+    return svc.consume_runtime_plan(
+        payload=payload,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
 
 
 @app.get("/v1/suppliers")

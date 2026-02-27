@@ -733,6 +733,51 @@ class DjinnApplyOut(BaseModel):
 GateOperator = Literal["and", "or", "xor", "nor"]
 GateSource = Literal["skills", "inventory", "vitriol", "dialogue_flags", "previous_dialogue", "flags"]
 GateComparator = Literal["gte", "eq", "present"]
+RuntimeActionKind = Literal[
+    "levels.apply",
+    "skills.train",
+    "perks.unlock",
+    "alchemy.craft",
+    "blacksmith.forge",
+    "combat.resolve",
+    "market.quote",
+    "market.trade",
+    "vitriol.apply",
+    "vitriol.compute",
+    "vitriol.clear",
+    "djinn.apply",
+]
+
+
+class RuntimeActionInput(BaseModel):
+    action_id: str
+    kind: RuntimeActionKind
+    payload: dict[str, object] = Field(default_factory=dict)
+
+
+class RuntimeConsumeInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    plan_id: str = "runtime.plan"
+    actions: list[RuntimeActionInput] = Field(default_factory=list)
+
+
+class RuntimeActionOut(BaseModel):
+    action_id: str
+    kind: RuntimeActionKind
+    ok: bool
+    result: dict[str, object] = Field(default_factory=dict)
+    error: str = ""
+
+
+class RuntimeConsumeOut(BaseModel):
+    workspace_id: str
+    actor_id: str
+    plan_id: str
+    applied_count: int
+    failed_count: int
+    results: list[RuntimeActionOut]
+    hash: str
 
 
 class GateStateInput(BaseModel):

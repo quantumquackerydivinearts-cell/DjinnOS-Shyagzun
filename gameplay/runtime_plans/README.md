@@ -1,0 +1,20 @@
+# Runtime Plans (Backend-Only)
+
+These plans are hand-authored JSON files consumed by the backend runtime consumer.
+They are not tied to any UI flow.
+
+## Consume a plan
+
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/full_feature_plan.json
+```
+
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/djinn_demon_plan.json
+```
+
+## Endpoint
+
+- `POST /v1/game/runtime/consume`
+
+The plan executes actions in listed order and returns per-action success/failure plus a deterministic hash.

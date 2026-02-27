@@ -1,0 +1,92 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "djinn_demon_plan",
+  "actions": [
+    {
+      "action_id": "vitriol_influence_01",
+      "kind": "vitriol.apply",
+      "payload": {
+        "base": {
+          "vitality": 7,
+          "introspection": 7,
+          "tactility": 7,
+          "reflectivity": 7,
+          "ingenuity": 7,
+          "ostentation": 7,
+          "levity": 7
+        },
+        "modifiers": [],
+        "ruler_id": "asmodeus",
+        "delta": {
+          "vitality": 1
+        },
+        "reason": "trial_pressure",
+        "event_id": "evt_vitriol_01",
+        "applied_tick": 10,
+        "duration_turns": 3
+      }
+    },
+    {
+      "action_id": "keshi_scar_01",
+      "kind": "djinn.apply",
+      "payload": {
+        "djinn_id": "keshi",
+        "realm_id": "lapidus",
+        "scene_id": "lapidus/intro",
+        "ring_id": "overworld",
+        "target_frontiers": [
+          "F3",
+          "F5"
+        ],
+        "tick": 11,
+        "reason": "gift_horse_scar"
+      }
+    },
+    {
+      "action_id": "giann_boon_01",
+      "kind": "djinn.apply",
+      "payload": {
+        "djinn_id": "giann",
+        "realm_id": "lapidus",
+        "scene_id": "lapidus/intro",
+        "ring_id": "overworld",
+        "target_frontiers": [
+          "F8"
+        ],
+        "tick": 12,
+        "reason": "heart_of_kael_boon"
+      }
+    },
+    {
+      "action_id": "drovitth_record_01",
+      "kind": "djinn.apply",
+      "payload": {
+        "djinn_id": "drovitth",
+        "realm_id": "sulphera",
+        "scene_id": "sulphera/royal_orrery",
+        "ring_id": "royalty",
+        "observed_marks": [
+          {
+            "mark_id": "keshi:F3:11",
+            "source_djinn_id": "keshi",
+            "frontier_id": "F3",
+            "effect": "collapse",
+            "tick": 11,
+            "note": "gift_horse_scar"
+          },
+          {
+            "mark_id": "giann:F8:12",
+            "source_djinn_id": "giann",
+            "frontier_id": "F8",
+            "effect": "open",
+            "tick": 12,
+            "note": "heart_of_kael_boon"
+          }
+        ],
+        "tick": 13,
+        "reason": "royal_orrery_record"
+      }
+    }
+  ]
+}

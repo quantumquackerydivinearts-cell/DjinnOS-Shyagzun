@@ -810,6 +810,105 @@ def test_game_djinn_drovitth_records_marks_only_in_sulphera_royalty() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_consume_executes_feature_plan_deterministically() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "plan_alpha",
+        "actions": [
+            {
+                "action_id": "a1",
+                "kind": "levels.apply",
+                "payload": {
+                    "current_level": 1,
+                    "current_xp": 0,
+                    "gained_xp": 130,
+                    "xp_curve_base": 100,
+                    "xp_curve_scale": 25,
+                },
+            },
+            {
+                "action_id": "a2",
+                "kind": "skills.train",
+                "payload": {
+                    "skill_id": "alchemy",
+                    "current_rank": 1,
+                    "points_available": 2,
+                    "max_rank": 5,
+                },
+            },
+            {
+                "action_id": "a3",
+                "kind": "market.quote",
+                "payload": {
+                    "item_id": "iron_ingot",
+                    "side": "buy",
+                    "quantity": 1,
+                    "base_price_cents": 1000,
+                    "scarcity_bp": 200,
+                    "spread_bp": 50,
+                },
+            },
+            {
+                "action_id": "a4",
+                "kind": "djinn.apply",
+                "payload": {
+                    "djinn_id": "giann",
+                    "realm_id": "lapidus",
+                    "scene_id": "lapidus/intro",
+                    "ring_id": "overworld",
+                    "target_frontiers": ["F9"],
+                    "tick": 7,
+                    "reason": "runtime_plan",
+                },
+            },
+        ],
+    }
+    first = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    second = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["hash"] == second_payload["hash"]
+    assert first_payload["applied_count"] == 4
+    assert first_payload["failed_count"] == 0
+    assert [item["action_id"] for item in first_payload["results"]] == ["a1", "a2", "a3", "a4"]
+    assert all(item["ok"] is True for item in first_payload["results"])
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_reports_per_action_failure() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "plan_fail",
+        "actions": [
+            {"action_id": "ok1", "kind": "vitriol.compute", "payload": {"base": {"vitality": 7}, "modifiers": [], "current_tick": 1}},
+            {"action_id": "bad1", "kind": "djinn.apply", "payload": {"djinn_id": "drovitth", "realm_id": "lapidus", "scene_id": "lapidus/intro"}},
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["applied_count"] == 1
+    assert out["failed_count"] == 1
+    failed = [item for item in out["results"] if not item["ok"]]
+    assert len(failed) == 1
+    assert "drovitth_requires_sulphera_royalty_ring" in failed[0]["error"]
+    app.dependency_overrides.clear()
+
+
 def test_game_gate_evaluate_supports_xor_and_nor_with_multi_source_state() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

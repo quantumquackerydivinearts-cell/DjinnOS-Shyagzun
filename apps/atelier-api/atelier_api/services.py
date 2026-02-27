@@ -73,6 +73,9 @@ from .business_schemas import (
     GateRequirement,
     GateRequirementResult,
     GateOperator,
+    RuntimeConsumeInput,
+    RuntimeConsumeOut,
+    RuntimeActionOut,
     CharacterDictionaryCreate,
     CharacterDictionaryOut,
     NamedQuestCreate,
@@ -2022,6 +2025,134 @@ class AtelierService:
     @staticmethod
     def _safe_token(value: str) -> str:
         return "".join(ch if (ch.isalnum() or ch in {"_", "-"}) else "_" for ch in value)
+
+    @staticmethod
+    def _dict_result(value: object) -> dict[str, object]:
+        if hasattr(value, "model_dump"):
+            dumped = cast(Any, value).model_dump()
+            if isinstance(dumped, dict):
+                return cast(dict[str, object], dumped)
+        if isinstance(value, dict):
+            return cast(dict[str, object], value)
+        return {"value": cast(object, value)}
+
+    def consume_runtime_plan(
+        self,
+        *,
+        payload: RuntimeConsumeInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> RuntimeConsumeOut:
+        results: list[RuntimeActionOut] = []
+        for action in payload.actions:
+            action_payload = dict(action.payload)
+            action_payload.setdefault("workspace_id", payload.workspace_id)
+            action_payload.setdefault("actor_id", payload.actor_id)
+            try:
+                if action.kind == "levels.apply":
+                    result = self.apply_level_progress(
+                        payload=LevelApplyInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                elif action.kind == "skills.train":
+                    result = self.train_skill(
+                        payload=SkillTrainInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                elif action.kind == "perks.unlock":
+                    result = self.unlock_perk(
+                        payload=PerkUnlockInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                elif action.kind == "alchemy.craft":
+                    result = self.craft_alchemy(
+                        payload=AlchemyCraftInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                elif action.kind == "blacksmith.forge":
+                    result = self.forge_blacksmith(
+                        payload=BlacksmithForgeInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                elif action.kind == "combat.resolve":
+                    result = self.resolve_combat(
+                        payload=CombatResolveInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                elif action.kind == "market.quote":
+                    result = self.market_quote(
+                        payload=MarketQuoteInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                elif action.kind == "market.trade":
+                    result = self.market_trade(
+                        payload=MarketTradeInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                elif action.kind == "vitriol.apply":
+                    result = self.vitriol_apply_ruler_influence(
+                        payload=VitriolApplyRulerInfluenceInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                elif action.kind == "vitriol.compute":
+                    result = self.vitriol_compute(payload=VitriolComputeInput(**action_payload))
+                elif action.kind == "vitriol.clear":
+                    result = self.vitriol_clear_expired(
+                        payload=VitriolClearExpiredInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                elif action.kind == "djinn.apply":
+                    result = self.apply_djinn_influence(
+                        payload=DjinnApplyInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                else:
+                    raise ValueError(f"unsupported_runtime_action:{action.kind}")
+                results.append(
+                    RuntimeActionOut(
+                        action_id=action.action_id,
+                        kind=action.kind,
+                        ok=True,
+                        result=self._dict_result(result),
+                    )
+                )
+            except Exception as exc:  # pragma: no cover - defensive capture for file-driven plans
+                results.append(
+                    RuntimeActionOut(
+                        action_id=action.action_id,
+                        kind=action.kind,
+                        ok=False,
+                        error=str(exc),
+                    )
+                )
+        applied_count = sum(1 for item in results if item.ok)
+        failed_count = len(results) - applied_count
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "actor_id": payload.actor_id,
+            "plan_id": payload.plan_id,
+            "results": [item.model_dump() for item in results],
+        }
+        return RuntimeConsumeOut(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            plan_id=payload.plan_id,
+            applied_count=applied_count,
+            failed_count=failed_count,
+            results=results,
+            hash=self._canonical_hash(hash_payload),
+        )
 
     def apply_djinn_influence(
         self,
