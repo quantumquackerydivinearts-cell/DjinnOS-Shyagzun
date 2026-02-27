@@ -68,6 +68,7 @@ from .business_schemas import (
     InfernalMeditationUnlockOut,
     GateEvaluateInput,
     GateEvaluateOut,
+    GateStateInput,
     GateRequirement,
     GateRequirementResult,
     GateOperator,
@@ -79,10 +80,15 @@ from .business_schemas import (
     RuntimePlanRunOut,
     RuntimeActionCatalogOut,
     RuntimeActionCatalogItemOut,
+    DialogueChoiceResolveOut,
+    DialogueResolveInput,
+    DialogueResolveOut,
     CharacterDictionaryCreate,
     CharacterDictionaryOut,
     NamedQuestCreate,
     NamedQuestOut,
+    QuestTransitionInput,
+    QuestTransitionOut,
     JournalEntryCreate,
     JournalEntryOut,
     LayerNodeCreate,
@@ -1976,6 +1982,234 @@ class AtelierService:
             workshop_id=workshop_id,
         )
         return result
+
+    @classmethod
+    def _gate_state_from_tables(cls, tables: PlayerStateTables) -> GateStateInput:
+        skills_obj = cls._dict_from_table(tables.skills.get("ranks"))
+        if not skills_obj:
+            skills_obj = cls._dict_from_table(tables.skills)
+        skills: dict[str, int] = {
+            key: cls._int_from_table(value, 0)
+            for key, value in skills_obj.items()
+        }
+
+        inventory_obj = cls._dict_from_table(tables.inventory.get("items"))
+        if not inventory_obj:
+            inventory_obj = cls._dict_from_table(tables.inventory)
+        inventory: dict[str, int] = {
+            key: cls._int_from_table(value, 0)
+            for key, value in inventory_obj.items()
+        }
+
+        vitriol_obj = cls._dict_from_table(tables.vitriol.get("effective"))
+        if not vitriol_obj:
+            vitriol_obj = cls._dict_from_table(tables.vitriol.get("base"))
+        vitriol: dict[str, int] = {
+            key: cls._int_from_table(value, 0)
+            for key, value in vitriol_obj.items()
+        }
+
+        flags_obj = cls._dict_from_table(tables.flags)
+        dialogue_flags = cls._list_from_table(flags_obj.get("dialogue_flags"))
+        previous_dialogue = cls._list_from_table(flags_obj.get("previous_dialogue"))
+        bool_flags: dict[str, bool] = {
+            key: bool(value)
+            for key, value in flags_obj.items()
+            if isinstance(key, str) and isinstance(value, bool)
+        }
+
+        return GateStateInput(
+            skills=skills,
+            inventory=inventory,
+            vitriol=vitriol,
+            dialogue_flags=dialogue_flags,
+            previous_dialogue=previous_dialogue,
+            flags=bool_flags,
+        )
+
+    def resolve_dialogue_branch(
+        self,
+        *,
+        payload: DialogueResolveInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> DialogueResolveOut:
+        state_source: str
+        if payload.state is not None:
+            state = payload.state
+            state_source = "payload"
+        else:
+            tables = self.get_player_state(
+                workspace_id=payload.workspace_id,
+                actor_id=payload.actor_id,
+            ).tables
+            state = self._gate_state_from_tables(tables)
+            state_source = "player_state"
+
+        evaluations: list[DialogueChoiceResolveOut] = []
+        for choice in sorted(payload.choices, key=lambda item: (item.priority, item.choice_id)):
+            gate_payload = GateEvaluateInput(
+                workspace_id=payload.workspace_id,
+                actor_id=payload.actor_id,
+                gate_id=f"{payload.dialogue_id}:{payload.node_id}:{choice.choice_id}",
+                operator="and",
+                state=state,
+                requirements=choice.requirements,
+            )
+            results = [self._evaluate_gate_requirement(gate_payload, requirement) for requirement in choice.requirements]
+            matched_count = sum(1 for item in results if item.matched)
+            eligible = all(item.matched for item in results)
+            evaluations.append(
+                DialogueChoiceResolveOut(
+                    choice_id=choice.choice_id,
+                    text=choice.text,
+                    next_node_id=choice.next_node_id,
+                    priority=choice.priority,
+                    eligible=eligible,
+                    matched_count=matched_count,
+                    total_count=len(results),
+                    results=results,
+                )
+            )
+
+        eligible_choices = [item for item in evaluations if item.eligible]
+        selected = eligible_choices[0] if eligible_choices else None
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "actor_id": payload.actor_id,
+            "dialogue_id": payload.dialogue_id,
+            "node_id": payload.node_id,
+            "state_source": state_source,
+            "state": state.model_dump(),
+            "evaluations": [item.model_dump() for item in evaluations],
+            "selected_choice_id": selected.choice_id if selected else None,
+            "selected_next_node_id": selected.next_node_id if selected else None,
+        }
+        out = DialogueResolveOut(
+            dialogue_id=payload.dialogue_id,
+            node_id=payload.node_id,
+            state_source="payload" if state_source == "payload" else "player_state",
+            eligible_choice_ids=[item.choice_id for item in eligible_choices],
+            selected_choice_id=selected.choice_id if selected else None,
+            selected_next_node_id=selected.next_node_id if selected else None,
+            evaluations=evaluations,
+            hash=self._canonical_hash(hash_payload),
+        )
+        self._kernel.place(
+            raw=f"game.dialogue.resolve {payload.actor_id} {payload.dialogue_id} {payload.node_id}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "dialogue_branch_resolve",
+                "result": out.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return out
+
+    def transition_quest_state(
+        self,
+        *,
+        payload: QuestTransitionInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> QuestTransitionOut:
+        repo = self._require_repo()
+        row = self._ensure_player_state(payload.workspace_id, payload.actor_id)
+        tables = self._player_state_to_tables(row)
+        flags = dict(tables.flags)
+
+        quest_states_obj = self._dict_from_table(flags.get("quest_states"))
+        quest_states: dict[str, object] = dict(quest_states_obj)
+        existing_entry = self._dict_from_table(quest_states.get(payload.quest_id))
+        previous_state = str(existing_entry.get("state") or "inactive")
+
+        allowed_from = {item.strip() for item in payload.from_states if item.strip() != ""}
+        next_state = payload.to_state.strip() or previous_state
+        if payload.event_id.strip() == "":
+            transitioned = False
+            reason = "event_id_required"
+            next_state = previous_state
+        elif allowed_from and previous_state not in allowed_from:
+            transitioned = False
+            reason = "invalid_from_state"
+            next_state = previous_state
+        elif previous_state == next_state:
+            transitioned = False
+            reason = "no_state_change"
+        else:
+            transitioned = True
+            reason = "ok"
+
+        if transitioned:
+            tick = self._int_from_table(self._dict_from_table(tables.clock).get("tick"), 0)
+            quest_states[payload.quest_id] = {
+                "state": next_state,
+                "last_event_id": payload.event_id,
+                "updated_tick": tick,
+                "metadata": dict(payload.metadata),
+            }
+            history = self._list_of_dicts(flags.get("quest_history"))
+            history.append(
+                {
+                    "quest_id": payload.quest_id,
+                    "event_id": payload.event_id,
+                    "from_state": previous_state,
+                    "to_state": next_state,
+                    "tick": tick,
+                }
+            )
+            flags["quest_history"] = history
+            for key, value in payload.set_flags.items():
+                flags[key] = bool(value)
+            flags["quest_states"] = quest_states
+            tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
+            row.state_version = max(1, int(row.state_version) + 1)
+            row.levels_json = self._canonical_json(tables.levels)
+            row.skills_json = self._canonical_json(tables.skills)
+            row.perks_json = self._canonical_json(tables.perks)
+            row.vitriol_json = self._canonical_json(tables.vitriol)
+            row.inventory_json = self._canonical_json(tables.inventory)
+            row.market_json = self._canonical_json(tables.market)
+            row.flags_json = self._canonical_json(tables.flags)
+            row.clock_json = self._canonical_json(tables.clock)
+            row.updated_at = datetime.now(timezone.utc)
+            repo.save_player_state(row)
+
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "actor_id": payload.actor_id,
+            "quest_id": payload.quest_id,
+            "event_id": payload.event_id,
+            "previous_state": previous_state,
+            "next_state": next_state,
+            "transitioned": transitioned,
+            "reason": reason,
+            "state_version": int(row.state_version),
+        }
+        out = QuestTransitionOut(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            quest_id=payload.quest_id,
+            event_id=payload.event_id,
+            previous_state=previous_state,
+            next_state=next_state,
+            transitioned=transitioned,
+            reason=reason,
+            state_version=int(row.state_version),
+            hash=self._canonical_hash(hash_payload),
+        )
+        self._kernel.place(
+            raw=f"game.quest.transition {payload.actor_id} {payload.quest_id} {payload.event_id}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "quest_transition",
+                "result": out.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return out
 
     def emit_dialogue(
         self,

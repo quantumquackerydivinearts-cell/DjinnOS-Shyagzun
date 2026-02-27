@@ -94,6 +94,10 @@ from .business_schemas import (
     RuntimeActionCatalogOut,
     DialogueEmitInput,
     DialogueEmitOut,
+    DialogueResolveInput,
+    DialogueResolveOut,
+    QuestTransitionInput,
+    QuestTransitionOut,
     VitriolApplyRulerInfluenceInput,
     VitriolApplyOut,
     VitriolClearExpiredInput,
@@ -1866,6 +1870,50 @@ def emit_game_dialogue(
         token=token,
     )
     return svc.emit_dialogue(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/dialogue/resolve")
+def resolve_game_dialogue(
+    payload: DialogueResolveInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> DialogueResolveOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.resolve_dialogue_branch(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/quests/transition")
+def transition_game_quest(
+    payload: QuestTransitionInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> QuestTransitionOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.transition_quest_state(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
 
 
 @app.post("/v1/game/vitriol/apply-ruler-influence")

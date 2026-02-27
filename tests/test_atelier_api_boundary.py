@@ -673,6 +673,150 @@ def test_game_dialogue_emit_sorted_by_line_id() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_dialogue_resolve_uses_player_state_and_is_deterministic() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _DialogueRepo:
+        def __init__(self) -> None:
+            now = datetime.now(timezone.utc)
+            self.rows: dict[tuple[str, str], PlayerState] = {
+                ("main", "player_dialogue"): PlayerState(
+                    workspace_id="main",
+                    actor_id="player_dialogue",
+                    state_version=3,
+                    levels_json="{}",
+                    skills_json='{"alchemy":3,"speech":1}',
+                    perks_json="{}",
+                    vitriol_json='{"effective":{"ingenuity":6}}',
+                    inventory_json='{"items":{"seal":1}}',
+                    market_json="{}",
+                    flags_json='{"dialogue_flags":["met_guard"],"previous_dialogue":["dlg_intro"],"boss_seen":false}',
+                    clock_json='{"tick":42}',
+                    created_at=now,
+                    updated_at=now,
+                )
+            }
+
+        def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+            return self.rows.get((workspace_id, actor_id))
+
+        def save_player_state(self, row: PlayerState) -> PlayerState:
+            self.rows[(row.workspace_id, row.actor_id)] = row
+            return row
+
+    repo = _DialogueRepo()
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    headers = _headers("kernel.place", role="steward", token=_admin_gate_token("tester", "workshop-1"))
+    body = {
+        "workspace_id": "main",
+        "actor_id": "player_dialogue",
+        "dialogue_id": "dlg_gate",
+        "node_id": "n0",
+        "choices": [
+            {
+                "choice_id": "c_fail",
+                "text": "Locked",
+                "next_node_id": "n_fail",
+                "priority": 5,
+                "requirements": [{"source": "skills", "key": "alchemy", "comparator": "gte", "int_value": 9}],
+            },
+            {
+                "choice_id": "c_pass",
+                "text": "Proceed",
+                "next_node_id": "n1",
+                "priority": 10,
+                "requirements": [
+                    {"source": "skills", "key": "alchemy", "comparator": "gte", "int_value": 3},
+                    {"source": "dialogue_flags", "key": "met_guard", "comparator": "present", "bool_value": True},
+                ],
+            },
+        ],
+    }
+
+    first = client.post("/v1/game/dialogue/resolve", json=body, headers=headers)
+    second = client.post("/v1/game/dialogue/resolve", json=body, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["hash"] == second_payload["hash"]
+    assert first_payload["state_source"] == "player_state"
+    assert first_payload["eligible_choice_ids"] == ["c_pass"]
+    assert first_payload["selected_choice_id"] == "c_pass"
+    assert first_payload["selected_next_node_id"] == "n1"
+    app.dependency_overrides.clear()
+
+
+def test_game_quest_transition_persists_state_machine_in_player_state() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _QuestRepo:
+        def __init__(self) -> None:
+            self.rows: dict[tuple[str, str], PlayerState] = {}
+
+        def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+            return self.rows.get((workspace_id, actor_id))
+
+        def save_player_state(self, row: PlayerState) -> PlayerState:
+            self.rows[(row.workspace_id, row.actor_id)] = row
+            return row
+
+    repo = _QuestRepo()
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    place_headers = _headers("kernel.place", role="steward", token=_admin_gate_token("tester", "workshop-1"))
+    observe_headers = _headers("kernel.observe", role="artisan")
+
+    advance = client.post(
+        "/v1/game/quests/transition",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player_quest",
+            "quest_id": "q_intro",
+            "event_id": "evt_start",
+            "from_states": ["inactive"],
+            "to_state": "active",
+            "set_flags": {"quest_intro_started": True},
+        },
+        headers=place_headers,
+    )
+    assert advance.status_code == 200
+    advance_payload = advance.json()
+    assert advance_payload["transitioned"] is True
+    assert advance_payload["previous_state"] == "inactive"
+    assert advance_payload["next_state"] == "active"
+
+    blocked = client.post(
+        "/v1/game/quests/transition",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player_quest",
+            "quest_id": "q_intro",
+            "event_id": "evt_start_again",
+            "from_states": ["inactive"],
+            "to_state": "active",
+        },
+        headers=place_headers,
+    )
+    assert blocked.status_code == 200
+    blocked_payload = blocked.json()
+    assert blocked_payload["transitioned"] is False
+    assert blocked_payload["reason"] == "invalid_from_state"
+
+    state = client.get("/v1/game/state?workspace_id=main&actor_id=player_quest", headers=observe_headers)
+    assert state.status_code == 200
+    state_payload = state.json()
+    quest_states = state_payload["tables"]["flags"]["quest_states"]
+    assert quest_states["q_intro"]["state"] == "active"
+    assert state_payload["tables"]["flags"]["quest_intro_started"] is True
+    app.dependency_overrides.clear()
+
+
 def test_vitriol_apply_ruler_influence_clamps_to_one_to_ten() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

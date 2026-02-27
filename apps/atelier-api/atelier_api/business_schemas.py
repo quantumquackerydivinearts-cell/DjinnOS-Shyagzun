@@ -621,6 +621,46 @@ class DialogueEmitOut(BaseModel):
     emitted_line_ids: list[str]
 
 
+class DialogueChoiceInput(BaseModel):
+    choice_id: str
+    text: str = ""
+    next_node_id: str = ""
+    priority: int = 100
+    requirements: list["GateRequirement"] = Field(default_factory=list)
+    effects: dict[str, object] = Field(default_factory=dict)
+
+
+class DialogueResolveInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    dialogue_id: str
+    node_id: str
+    state: "GateStateInput | None" = None
+    choices: list[DialogueChoiceInput] = Field(default_factory=list)
+
+
+class DialogueChoiceResolveOut(BaseModel):
+    choice_id: str
+    text: str
+    next_node_id: str
+    priority: int
+    eligible: bool
+    matched_count: int
+    total_count: int
+    results: list["GateRequirementResult"] = Field(default_factory=list)
+
+
+class DialogueResolveOut(BaseModel):
+    dialogue_id: str
+    node_id: str
+    state_source: Literal["payload", "player_state"]
+    eligible_choice_ids: list[str]
+    selected_choice_id: str | None = None
+    selected_next_node_id: str | None = None
+    evaluations: list[DialogueChoiceResolveOut] = Field(default_factory=list)
+    hash: str
+
+
 class VitriolModifier(BaseModel):
     source_ruler: str
     delta: dict[str, int] = Field(default_factory=dict)
@@ -903,6 +943,30 @@ class GateEvaluateOut(BaseModel):
     matched_count: int
     total_count: int
     results: list[GateRequirementResult]
+    hash: str
+
+
+class QuestTransitionInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    quest_id: str
+    event_id: str
+    to_state: str
+    from_states: list[str] = Field(default_factory=list)
+    set_flags: dict[str, bool] = Field(default_factory=dict)
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class QuestTransitionOut(BaseModel):
+    workspace_id: str
+    actor_id: str
+    quest_id: str
+    event_id: str
+    previous_state: str
+    next_state: str
+    transitioned: bool
+    reason: str
+    state_version: int
     hash: str
 
 
