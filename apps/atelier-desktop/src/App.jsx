@@ -2076,10 +2076,17 @@ export function App() {
       jsFileId: "",
       jsonFileId: "",
       engineFileId: "",
+      worldRegionRealmId: rendererRealmId,
+      worldRegionKey: "",
+      worldRegionCachePolicy: "cache",
+      worldRegionPayloadFileId: "",
+      worldRegionAutoLoad: false,
       autoPlay: false
     };
   });
   const [rendererPipelineJson, setRendererPipelineJson] = useState("");
+  const [worldRegions, setWorldRegions] = useState([]);
+  const [worldRegionLast, setWorldRegionLast] = useState(null);
   const [fullscreenState, setFullscreenState] = useState(() => readRendererLocalState());
   const fullscreenCanvasRef = useRef(null);
 
@@ -4805,11 +4812,124 @@ export function App() {
     }
   };
   const getStudioFileById = (fileId) => studioFiles.find((file) => file.id === fileId);
+  const worldRegionPipelineRealmId = String(rendererPipeline.worldRegionRealmId || rendererRealmId || "lapidus").trim() || "lapidus";
+  const worldRegionPipelineKey = String(rendererPipeline.worldRegionKey || "").trim();
+
+  const resolveWorldRegionPayload = () => {
+    const payloadFileId = String(rendererPipeline.worldRegionPayloadFileId || "").trim();
+    if (!payloadFileId) {
+      return {};
+    }
+    const payloadFile = getStudioFileById(payloadFileId);
+    if (!payloadFile || typeof payloadFile.content !== "string") {
+      return {};
+    }
+    const parsed = parseObjectJson(payloadFile.content, {});
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+    return {};
+  };
+
+  const mergeLoadedWorldRegionIntoEngineText = (engineText, region) => {
+    const stateObj = parseObjectJson(engineText || "{}", {});
+    const worldStream = stateObj.world_stream && typeof stateObj.world_stream === "object" ? { ...stateObj.world_stream } : {};
+    const loaded = worldStream.loaded_regions && typeof worldStream.loaded_regions === "object" ? { ...worldStream.loaded_regions } : {};
+    const regionRealm = String(region && region.realm_id ? region.realm_id : worldRegionPipelineRealmId);
+    const regionKey = String(region && region.region_key ? region.region_key : worldRegionPipelineKey);
+    const loadedKey = `${regionRealm}:${regionKey}`;
+    loaded[loadedKey] = {
+      id: region && region.id ? region.id : null,
+      realm_id: regionRealm,
+      region_key: regionKey,
+      payload: region && region.payload && typeof region.payload === "object" ? region.payload : {},
+      payload_hash: region && region.payload_hash ? region.payload_hash : "",
+      cache_policy: region && region.cache_policy ? region.cache_policy : rendererPipeline.worldRegionCachePolicy || "cache",
+      loaded: true,
+      updated_at: region && region.updated_at ? region.updated_at : new Date().toISOString()
+    };
+    worldStream.loaded_regions = loaded;
+    worldStream.loaded_count = Object.keys(loaded).length;
+    worldStream.last_loaded = loadedKey;
+    const merged = { ...stateObj, world_stream: worldStream };
+    return JSON.stringify(merged, null, 2);
+  };
+
+  const mergeUnloadedWorldRegionIntoEngineText = (engineText, realmId, regionKey) => {
+    const stateObj = parseObjectJson(engineText || "{}", {});
+    const worldStream = stateObj.world_stream && typeof stateObj.world_stream === "object" ? { ...stateObj.world_stream } : {};
+    const loaded = worldStream.loaded_regions && typeof worldStream.loaded_regions === "object" ? { ...worldStream.loaded_regions } : {};
+    const loadedKey = `${realmId}:${regionKey}`;
+    if (loaded[loadedKey]) {
+      delete loaded[loadedKey];
+    }
+    worldStream.loaded_regions = loaded;
+    worldStream.loaded_count = Object.keys(loaded).length;
+    worldStream.last_unloaded = loadedKey;
+    const merged = { ...stateObj, world_stream: worldStream };
+    return JSON.stringify(merged, null, 2);
+  };
+
+  const requestWorldRegionLoad = async () => {
+    if (!worldRegionPipelineKey) {
+      throw new Error("world_region_key_required");
+    }
+    const payload = resolveWorldRegionPayload();
+    return apiCall("/v1/game/world/regions/load", "POST", {
+      workspace_id: workspaceId,
+      realm_id: worldRegionPipelineRealmId,
+      region_key: worldRegionPipelineKey,
+      payload,
+      cache_policy: String(rendererPipeline.worldRegionCachePolicy || "cache"),
+    });
+  };
+
+  const requestWorldRegionUnload = async () => {
+    if (!worldRegionPipelineKey) {
+      throw new Error("world_region_key_required");
+    }
+    return apiCall("/v1/game/world/regions/unload", "POST", {
+      workspace_id: workspaceId,
+      realm_id: worldRegionPipelineRealmId,
+      region_key: worldRegionPipelineKey,
+    });
+  };
+
+  const loadWorldRegionIntoEngine = async () => {
+    await runAction("world_region_load", async () => {
+      const data = await requestWorldRegionLoad();
+      setWorldRegionLast(data);
+      setRendererEngineStateText((prev) => mergeLoadedWorldRegionIntoEngineText(prev, data));
+      setRendererGameStatus(`world_loaded:${String(data.region_key || worldRegionPipelineKey)}`);
+      return data;
+    });
+  };
+
+  const unloadWorldRegionFromEngine = async () => {
+    await runAction("world_region_unload", async () => {
+      const data = await requestWorldRegionUnload();
+      setWorldRegionLast(data);
+      setRendererEngineStateText((prev) => mergeUnloadedWorldRegionIntoEngineText(prev, worldRegionPipelineRealmId, worldRegionPipelineKey));
+      setRendererGameStatus(`world_unloaded:${worldRegionPipelineKey}`);
+      return data;
+    });
+  };
+
+  const listWorldRegionsFromApi = async () => {
+    await runAction("world_region_list", async () => {
+      const path = `/v1/game/world/regions?workspace_id=${encodeURIComponent(workspaceId)}&realm_id=${encodeURIComponent(worldRegionPipelineRealmId)}`;
+      const data = await apiCall(path, "GET", null);
+      setWorldRegions(Array.isArray(data) ? data : []);
+      return data;
+    });
+  };
+
   const applyRendererPipeline = async () => {
     const ok = await validatePipelineIfNeeded();
     if (!ok) {
       return;
     }
+    let workingEngineText = rendererEngineStateText;
     if (rendererPipeline.pythonFileId) {
       const file = getStudioFileById(rendererPipeline.pythonFileId);
       if (file) {
@@ -4837,8 +4957,16 @@ export function App() {
     if (rendererPipeline.engineFileId) {
       const file = getStudioFileById(rendererPipeline.engineFileId);
       if (file) {
-        setRendererEngineStateText(file.content || "{}");
+        workingEngineText = file.content || "{}";
+        setRendererEngineStateText(workingEngineText);
       }
+    }
+    if (rendererPipeline.worldRegionAutoLoad && worldRegionPipelineKey) {
+      const data = await requestWorldRegionLoad();
+      setWorldRegionLast(data);
+      workingEngineText = mergeLoadedWorldRegionIntoEngineText(workingEngineText, data);
+      setRendererEngineStateText(workingEngineText);
+      setRendererGameStatus(`world_loaded:${String(data.region_key || worldRegionPipelineKey)}`);
     }
     if (rendererPipeline.autoPlay) {
       setRendererSimPlaying(true);
@@ -4878,6 +5006,11 @@ export function App() {
         jsFileId: parsed.jsFileId || "",
         jsonFileId: parsed.jsonFileId || "",
         engineFileId: parsed.engineFileId || "",
+        worldRegionRealmId: parsed.worldRegionRealmId || rendererRealmId,
+        worldRegionKey: parsed.worldRegionKey || "",
+        worldRegionCachePolicy: parsed.worldRegionCachePolicy || "cache",
+        worldRegionPayloadFileId: parsed.worldRegionPayloadFileId || "",
+        worldRegionAutoLoad: Boolean(parsed.worldRegionAutoLoad),
         autoPlay: Boolean(parsed.autoPlay)
       }));
     } catch {
@@ -5881,6 +6014,39 @@ export function App() {
                     <option key={`pipeline-engine-${file.id}`} value={file.id}>{`${file.folder}/${file.name}`}</option>
                   ))}
                 </select>
+                <input
+                  value={rendererPipeline.worldRegionRealmId || ""}
+                  onChange={(e) => setRendererPipeline((prev) => ({ ...prev, worldRegionRealmId: e.target.value }))}
+                  placeholder="world realm id"
+                />
+                <input
+                  value={rendererPipeline.worldRegionKey || ""}
+                  onChange={(e) => setRendererPipeline((prev) => ({ ...prev, worldRegionKey: e.target.value }))}
+                  placeholder="world region key"
+                />
+                <select
+                  value={rendererPipeline.worldRegionCachePolicy || "cache"}
+                  onChange={(e) => setRendererPipeline((prev) => ({ ...prev, worldRegionCachePolicy: e.target.value }))}
+                >
+                  <option value="cache">cache</option>
+                  <option value="stream">stream</option>
+                  <option value="pin">pin</option>
+                </select>
+              </div>
+              <div className="row">
+                <select
+                  value={rendererPipeline.worldRegionPayloadFileId || ""}
+                  onChange={(e) => setRendererPipeline((prev) => ({ ...prev, worldRegionPayloadFileId: e.target.value }))}
+                >
+                  <option value="">world payload file (optional)</option>
+                  {studioFiles.map((file) => (
+                    <option key={`pipeline-world-${file.id}`} value={file.id}>{`${file.folder}/${file.name}`}</option>
+                  ))}
+                </select>
+                <button className="action" onClick={listWorldRegionsFromApi}>List Regions</button>
+                <button className="action" onClick={loadWorldRegionIntoEngine}>WorldStream.load</button>
+                <button className="action" onClick={unloadWorldRegionFromEngine}>WorldStream.unload</button>
+                <span className="badge">{`Regions: ${worldRegions.length}`}</span>
                 <label className="inline-toggle">
                   <input
                     type="checkbox"
@@ -5889,10 +6055,19 @@ export function App() {
                   />
                   Auto playtest
                 </label>
+                <label className="inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(rendererPipeline.worldRegionAutoLoad)}
+                    onChange={(e) => setRendererPipeline((prev) => ({ ...prev, worldRegionAutoLoad: e.target.checked }))}
+                  />
+                  Auto WorldStream.load
+                </label>
                 <button className="action" onClick={applyRendererPipeline}>Run Pipeline</button>
                 <button className="action" onClick={validatePipelineIfNeeded}>Validate Now</button>
                 <button className="action" onClick={exportRendererPipeline}>Export Pipeline</button>
               </div>
+              <pre>{JSON.stringify({ last: worldRegionLast, regions: worldRegions }, null, 2)}</pre>
               <textarea
                 className="editor editor-mono renderer-editor"
                 value={rendererPipelineJson}
