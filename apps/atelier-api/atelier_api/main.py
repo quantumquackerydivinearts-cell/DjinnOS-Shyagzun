@@ -65,10 +65,6 @@ from .business_schemas import (
     RadioEvaluateOut,
     InfernalMeditationUnlockInput,
     InfernalMeditationUnlockOut,
-    RendererTablesInput,
-    RendererTablesOut,
-    IsometricRenderContractInput,
-    IsometricRenderContractOut,
     AssetManifestCreate,
     AssetManifestOut,
     ContentValidateInput,
@@ -125,6 +121,12 @@ from .business_schemas import (
     SaveExportOut,
     SupplierCreate,
     SupplierOut,
+)
+from .rendering_schemas import (
+    RendererTablesInput,
+    RendererTablesOut,
+    IsometricRenderContractInput,
+    IsometricRenderContractOut,
 )
 from .capabilities import CapabilityContext, parse_capabilities, require_capability
 from .config import Settings, load_settings
