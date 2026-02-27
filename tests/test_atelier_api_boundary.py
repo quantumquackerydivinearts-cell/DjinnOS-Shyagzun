@@ -1077,6 +1077,93 @@ def test_game_runtime_replay_reexecutes_stored_plan_and_verifies_hash() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_runs_endpoint_lists_persisted_runs_with_filters() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _RuntimePlanRepo:
+        def __init__(self) -> None:
+            self._runs: list[object] = []
+
+        def create_runtime_plan_run(self, row: object) -> object:
+            if getattr(row, "id", None) is None:
+                setattr(row, "id", f"rpr_{len(self._runs) + 1}")
+            self._runs.append(row)
+            return row
+
+        def get_latest_runtime_plan_run(self, workspace_id: str, actor_id: str, plan_id: str) -> object | None:
+            matches = [
+                row
+                for row in self._runs
+                if getattr(row, "workspace_id", "") == workspace_id
+                and getattr(row, "actor_id", "") == actor_id
+                and getattr(row, "plan_id", "") == plan_id
+            ]
+            return matches[-1] if matches else None
+
+        def list_runtime_plan_runs_for_actor(self, workspace_id: str, actor_id: str, plan_id: str | None = None):
+            rows = [
+                row
+                for row in self._runs
+                if getattr(row, "workspace_id", "") == workspace_id
+                and getattr(row, "actor_id", "") == actor_id
+            ]
+            if plan_id is not None and plan_id.strip() != "":
+                rows = [row for row in rows if getattr(row, "plan_id", "") == plan_id]
+            rows.sort(
+                key=lambda row: (getattr(row, "created_at", datetime.now(timezone.utc)), getattr(row, "id", "")),
+                reverse=True,
+            )
+            return rows
+
+    repo = _RuntimePlanRepo()
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    place_headers = _headers("kernel.place", role="steward", token=token)
+    observe_headers = _headers("kernel.observe", role="artisan")
+
+    for plan_id in ["plan_a", "plan_b", "plan_a"]:
+        consumed = client.post(
+            "/v1/game/runtime/consume",
+            json={
+                "workspace_id": "main",
+                "actor_id": "player",
+                "plan_id": plan_id,
+                "actions": [
+                    {
+                        "action_id": f"compute_{plan_id}",
+                        "kind": "vitriol.compute",
+                        "payload": {"base": {"vitality": 7}, "modifiers": [], "current_tick": 1},
+                    }
+                ],
+            },
+            headers=place_headers,
+        )
+        assert consumed.status_code == 200
+
+    all_runs = client.get(
+        "/v1/game/runtime/runs?workspace_id=main&actor_id=player&limit=2",
+        headers=observe_headers,
+    )
+    assert all_runs.status_code == 200
+    all_payload = all_runs.json()
+    assert len(all_payload) == 2
+    assert all_payload[0]["plan_id"] in {"plan_a", "plan_b"}
+    assert "applied_count" in all_payload[0]["result_summary"]
+
+    filtered = client.get(
+        "/v1/game/runtime/runs?workspace_id=main&actor_id=player&plan_id=plan_b",
+        headers=observe_headers,
+    )
+    assert filtered.status_code == 200
+    filtered_payload = filtered.json()
+    assert len(filtered_payload) == 1
+    assert filtered_payload[0]["plan_id"] == "plan_b"
+    app.dependency_overrides.clear()
+
+
 def test_game_runtime_consume_supports_world_stream_and_realm_economy_actions() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

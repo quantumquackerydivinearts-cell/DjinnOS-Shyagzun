@@ -76,6 +76,7 @@ from .business_schemas import (
     RuntimeActionOut,
     RuntimeReplayInput,
     RuntimeReplayOut,
+    RuntimePlanRunOut,
     RuntimeActionCatalogOut,
     RuntimeActionCatalogItemOut,
     CharacterDictionaryCreate,
@@ -2871,6 +2872,7 @@ class AtelierService:
                     plan_hash=plan_hash,
                     result_json=self._canonical_json(out.model_dump(mode="json")),
                     result_hash=out.hash,
+                    created_at=datetime.now(timezone.utc),
                 )
             )
         return out
@@ -2914,6 +2916,43 @@ class AtelierService:
             baseline_run_id=baseline.id,
             replay=replay_out,
         )
+
+    def list_runtime_plan_runs(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+        plan_id: str | None = None,
+        limit: int = 50,
+    ) -> Sequence[RuntimePlanRunOut]:
+        repo = self._require_repo()
+        actor = actor_id.strip()
+        if actor == "":
+            raise ValueError("actor_id_required")
+        plan_filter = (plan_id or "").strip()
+        max_rows = max(1, min(500, int(limit)))
+        rows = list(repo.list_runtime_plan_runs_for_actor(workspace_id, actor, plan_filter if plan_filter != "" else None))
+
+        out_rows: list[RuntimePlanRunOut] = []
+        for row in rows[:max_rows]:
+            result_obj = self._json_to_object_map(row.result_json)
+            out_rows.append(
+                RuntimePlanRunOut(
+                    run_id=row.id,
+                    workspace_id=row.workspace_id,
+                    actor_id=row.actor_id,
+                    plan_id=row.plan_id,
+                    plan_hash=row.plan_hash,
+                    result_hash=row.result_hash,
+                    result_summary={
+                        "applied_count": int(result_obj.get("applied_count", 0) or 0),
+                        "failed_count": int(result_obj.get("failed_count", 0) or 0),
+                        "hash": str(result_obj.get("hash", "")),
+                    },
+                    created_at=row.created_at,
+                )
+            )
+        return out_rows
 
     def apply_djinn_influence(
         self,

@@ -385,6 +385,21 @@ class AtelierRepository:
             ).order_by(RuntimePlanRun.created_at.desc(), RuntimePlanRun.id.desc())
         ).all()
 
+    def list_runtime_plan_runs_for_actor(
+        self,
+        workspace_id: str,
+        actor_id: str,
+        plan_id: str | None = None,
+    ) -> Sequence[RuntimePlanRun]:
+        stmt = select(RuntimePlanRun).where(
+            RuntimePlanRun.workspace_id == workspace_id,
+            RuntimePlanRun.actor_id == actor_id,
+        )
+        if plan_id is not None and plan_id.strip() != "":
+            stmt = stmt.where(RuntimePlanRun.plan_id == plan_id.strip())
+        stmt = stmt.order_by(RuntimePlanRun.created_at.desc(), RuntimePlanRun.id.desc())
+        return self._db.scalars(stmt).all()
+
     def get_latest_runtime_plan_run(self, workspace_id: str, actor_id: str, plan_id: str) -> RuntimePlanRun | None:
         return self._db.scalar(
             select(RuntimePlanRun).where(

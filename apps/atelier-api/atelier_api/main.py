@@ -90,6 +90,7 @@ from .business_schemas import (
     RuntimeConsumeOut,
     RuntimeReplayInput,
     RuntimeReplayOut,
+    RuntimePlanRunOut,
     RuntimeActionCatalogOut,
     DialogueEmitInput,
     DialogueEmitOut,
@@ -2015,6 +2016,31 @@ def replay_runtime_plan(
             payload=payload,
             actor_id=ctx.actor_id,
             workshop_id=workshop.identity.workshop_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/game/runtime/runs")
+def list_runtime_plan_runs(
+    workspace_id: str,
+    actor_id: str,
+    plan_id: Optional[str] = None,
+    limit: int = 50,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[RuntimePlanRunOut]:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    _ = workshop
+    try:
+        return svc.list_runtime_plan_runs(
+            workspace_id=workspace_id,
+            actor_id=actor_id,
+            plan_id=plan_id,
+            limit=limit,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

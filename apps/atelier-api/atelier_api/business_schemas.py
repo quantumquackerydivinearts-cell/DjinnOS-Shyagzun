@@ -834,6 +834,17 @@ class RuntimeReplayOut(BaseModel):
     replay: RuntimeConsumeOut
 
 
+class RuntimePlanRunOut(BaseModel):
+    run_id: str
+    workspace_id: str
+    actor_id: str
+    plan_id: str
+    plan_hash: str
+    result_hash: str
+    result_summary: dict[str, object] = Field(default_factory=dict)
+    created_at: datetime
+
+
 class RuntimeActionCatalogItemOut(BaseModel):
     kind: RuntimeActionKind
     summary: str
