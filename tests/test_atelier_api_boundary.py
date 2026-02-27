@@ -55,6 +55,22 @@ class FakeKernelClient:
     def frontiers(self) -> Sequence[FrontierObj]:
         return [{"id": "F0", "event_ids": [], "status": "active", "inconsistency_proof": None}]
 
+    def akinenwun_lookup(
+        self,
+        *,
+        akinenwun: str,
+        mode: str,
+        ingest: bool,
+    ) -> Mapping[str, Any]:
+        return {
+            "akinenwun": akinenwun,
+            "mode": mode,
+            "frontier_hash": "h_demo",
+            "frontier": {"paths": []},
+            "stored": ingest,
+            "dictionary_size": 1 if ingest else 0,
+        }
+
 
 def _admin_gate_token(actor_id: str, workshop_id: str) -> str:
     payload = f"STEWARD_DEV_GATE:{actor_id}:{workshop_id}".encode("utf-8")
@@ -214,3 +230,135 @@ def test_admin_gate_verify_requires_steward_and_valid_code() -> None:
     assert payload["verified_admin"] is True
     assert payload["required_role"] == "steward"
     assert isinstance(payload["admin_gate_token"], str)
+
+
+def test_ambroflow_place_succeeds_for_steward_with_gate_token() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    res = client.post(
+        "/v1/ambroflow/place",
+        json={
+            "raw": "x",
+            "scene_id": "s1",
+            "tags": {"tone": "flat"},
+            "metadata": {"m": 1},
+            "context": {"workspace_id": "workshop-1"},
+        },
+        headers=_headers("kernel.place", role="steward", token=token),
+    )
+    assert res.status_code == 200
+    payload = res.json()
+    context = payload["context"]
+    assert context["speaker_id"] == "player"
+    assert context["scene_id"] == "s1"
+    assert context["tags"] == {"tone": "flat"}
+    assert fake.place_calls == 1
+    app.dependency_overrides.clear()
+
+
+def test_ambroflow_semantic_value_uses_observe_shape() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    res = client.get("/v1/ambroflow/semantic-value", headers=_headers("kernel.observe"))
+    assert res.status_code == 200
+    payload = res.json()
+    assert "clock" in payload
+    assert "candidates_by_frontier" in payload
+    assert "eligible_by_frontier" in payload
+    assert "refusals" in payload
+    app.dependency_overrides.clear()
+
+
+def test_ambroflow_akinenwun_lookup_uses_observe_capability() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+
+    denied = client.post(
+        "/v1/ambroflow/akinenwun/lookup",
+        json={"akinenwun": "TyKoWuVu", "mode": "prose", "ingest": True},
+        headers=_headers("kernel.timeline"),
+    )
+    assert denied.status_code == 403
+
+    ok = client.post(
+        "/v1/ambroflow/akinenwun/lookup",
+        json={"akinenwun": "TyKoWuVu", "mode": "prose", "ingest": True},
+        headers=_headers("kernel.observe"),
+    )
+    assert ok.status_code == 200
+    payload = ok.json()
+    assert payload["frontier_hash"] == "h_demo"
+    assert payload["stored"] is True
+    app.dependency_overrides.clear()
+
+
+def test_game_rule_levels_apply_is_deterministic() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "current_level": 1,
+        "current_xp": 50,
+        "gained_xp": 120,
+        "xp_curve_base": 100,
+        "xp_curve_scale": 25,
+    }
+    first = client.post("/v1/game/rules/levels/apply", json=payload, headers=headers)
+    second = client.post("/v1/game/rules/levels/apply", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == second.json()
+    assert first.json()["leveled_up"] is True
+    assert fake.place_calls == 2
+    app.dependency_overrides.clear()
+
+
+def test_game_rule_market_trade_rejects_when_wallet_insufficient() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "item_id": "iron_ingot",
+        "side": "buy",
+        "quantity": 10,
+        "unit_price_cents": 1500,
+        "fee_bp": 50,
+        "wallet_cents": 1000,
+        "inventory_qty": 0,
+        "available_liquidity": 100,
+    }
+    res = client.post("/v1/game/rules/market/trade", json=payload, headers=headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["filled_qty"] == 0
+    assert data["status"] == "rejected_insufficient_funds"
+    assert fake.place_calls == 1
+    app.dependency_overrides.clear()
+
+
+def test_game_save_export_hash_stable_for_same_kernel_state() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    headers = _headers("kernel.observe", role="artisan")
+    first = client.get("/v1/game/saves/export?workspace_id=main", headers=headers)
+    second = client.get("/v1/game/saves/export?workspace_id=main", headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["hash"] == second_payload["hash"]
+    assert first_payload["payload"] == second_payload["payload"]
+    app.dependency_overrides.clear()
