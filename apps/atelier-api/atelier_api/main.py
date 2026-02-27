@@ -23,6 +23,22 @@ from .business_schemas import (
     InventoryItemCreate,
     InventoryItemOut,
     InventoryAdjustInput,
+    LevelApplyInput,
+    LevelApplyOut,
+    SkillTrainInput,
+    SkillTrainOut,
+    PerkUnlockInput,
+    PerkUnlockOut,
+    AlchemyCraftInput,
+    AlchemyCraftOut,
+    BlacksmithForgeInput,
+    BlacksmithForgeOut,
+    CombatResolveInput,
+    CombatResolveOut,
+    MarketQuoteInput,
+    MarketQuoteOut,
+    MarketTradeInput,
+    MarketTradeOut,
     LeadCreate,
     LeadOut,
     LessonCreate,
@@ -889,6 +905,182 @@ def export_game_save(
         actor_id=ctx.actor_id,
         workshop_id=workshop.identity.workshop_id,
     )
+
+
+@app.post("/v1/game/rules/levels/apply")
+def apply_level_rule(
+    payload: LevelApplyInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> LevelApplyOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.apply_level_progress(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/rules/skills/train")
+def train_skill_rule(
+    payload: SkillTrainInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> SkillTrainOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.train_skill(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/rules/perks/unlock")
+def unlock_perk_rule(
+    payload: PerkUnlockInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> PerkUnlockOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.unlock_perk(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/rules/alchemy/craft")
+def craft_alchemy_rule(
+    payload: AlchemyCraftInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> AlchemyCraftOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.craft_alchemy(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/rules/blacksmith/forge")
+def forge_blacksmith_rule(
+    payload: BlacksmithForgeInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> BlacksmithForgeOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.forge_blacksmith(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/rules/combat/resolve")
+def resolve_combat_rule(
+    payload: CombatResolveInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> CombatResolveOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.resolve_combat(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/rules/market/quote")
+def market_quote_rule(
+    payload: MarketQuoteInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> MarketQuoteOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.market_quote(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/rules/market/trade")
+def market_trade_rule(
+    payload: MarketTradeInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> MarketTradeOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.market_trade(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
 
 
 @app.get("/v1/suppliers")

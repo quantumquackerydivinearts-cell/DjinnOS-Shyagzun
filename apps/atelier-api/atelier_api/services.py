@@ -39,6 +39,22 @@ from .business_schemas import (
     SceneGraphEmitOut,
     SaveExportOut,
     InventoryAdjustInput,
+    LevelApplyInput,
+    LevelApplyOut,
+    SkillTrainInput,
+    SkillTrainOut,
+    PerkUnlockInput,
+    PerkUnlockOut,
+    AlchemyCraftInput,
+    AlchemyCraftOut,
+    BlacksmithForgeInput,
+    BlacksmithForgeOut,
+    CombatResolveInput,
+    CombatResolveOut,
+    MarketQuoteInput,
+    MarketQuoteOut,
+    MarketTradeInput,
+    MarketTradeOut,
     SupplierCreate,
     SupplierOut,
 )
@@ -407,6 +423,367 @@ class AtelierService:
             hash=self._canonical_hash(payload),
             payload=payload,
         )
+
+    def apply_level_progress(
+        self,
+        *,
+        payload: LevelApplyInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> LevelApplyOut:
+        level_before = max(1, payload.current_level)
+        xp = max(0, payload.current_xp) + max(0, payload.gained_xp)
+        level = level_before
+
+        def xp_needed(target_level: int) -> int:
+            return max(1, payload.xp_curve_base + ((target_level - 1) * payload.xp_curve_scale))
+
+        gained_levels = 0
+        while xp >= xp_needed(level):
+            xp -= xp_needed(level)
+            level += 1
+            gained_levels += 1
+
+        result = LevelApplyOut(
+            actor_id=payload.actor_id,
+            level_before=level_before,
+            level_after=level,
+            xp_after=xp,
+            leveled_up=gained_levels > 0,
+            levels_gained=gained_levels,
+        )
+        self._kernel.place(
+            raw=f"game.level.apply {payload.actor_id} +xp={payload.gained_xp}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "level_progress",
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
+
+    def train_skill(
+        self,
+        *,
+        payload: SkillTrainInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> SkillTrainOut:
+        rank_before = max(0, payload.current_rank)
+        points = max(0, payload.points_available)
+        max_rank = max(1, payload.max_rank)
+        trained = points > 0 and rank_before < max_rank
+        rank_after = rank_before + 1 if trained else rank_before
+        points_after = points - 1 if trained else points
+        result = SkillTrainOut(
+            actor_id=payload.actor_id,
+            skill_id=payload.skill_id,
+            rank_before=rank_before,
+            rank_after=rank_after,
+            points_remaining=points_after,
+            trained=trained,
+        )
+        self._kernel.place(
+            raw=f"game.skill.train {payload.actor_id} {payload.skill_id}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "skill_train",
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
+
+    def unlock_perk(
+        self,
+        *,
+        payload: PerkUnlockInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> PerkUnlockOut:
+        unlocked_set = set(payload.unlocked_perks)
+        if payload.perk_id in unlocked_set:
+            result = PerkUnlockOut(
+                actor_id=payload.actor_id,
+                perk_id=payload.perk_id,
+                unlocked=False,
+                reason="already_unlocked",
+                unlocked_perks=sorted(unlocked_set),
+            )
+        elif payload.actor_level < payload.required_level:
+            result = PerkUnlockOut(
+                actor_id=payload.actor_id,
+                perk_id=payload.perk_id,
+                unlocked=False,
+                reason="level_requirement_not_met",
+                unlocked_perks=sorted(unlocked_set),
+            )
+        else:
+            missing = [
+                skill_id
+                for skill_id, required_rank in payload.required_skills.items()
+                if payload.actor_skills.get(skill_id, 0) < required_rank
+            ]
+            if missing:
+                result = PerkUnlockOut(
+                    actor_id=payload.actor_id,
+                    perk_id=payload.perk_id,
+                    unlocked=False,
+                    reason="skill_requirement_not_met",
+                    unlocked_perks=sorted(unlocked_set),
+                )
+            else:
+                unlocked_set.add(payload.perk_id)
+                result = PerkUnlockOut(
+                    actor_id=payload.actor_id,
+                    perk_id=payload.perk_id,
+                    unlocked=True,
+                    reason="ok",
+                    unlocked_perks=sorted(unlocked_set),
+                )
+        self._kernel.place(
+            raw=f"game.perk.unlock {payload.actor_id} {payload.perk_id}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "perk_unlock",
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
+
+    @staticmethod
+    def _apply_recipe(
+        *,
+        inventory: Mapping[str, int],
+        consume: Mapping[str, int],
+        produce: Mapping[str, int],
+    ) -> tuple[bool, str, dict[str, int]]:
+        next_inventory: dict[str, int] = {key: max(0, int(value)) for key, value in inventory.items()}
+        for key, needed in consume.items():
+            required = max(0, int(needed))
+            if next_inventory.get(key, 0) < required:
+                return False, f"missing:{key}", next_inventory
+        for key, needed in consume.items():
+            required = max(0, int(needed))
+            next_inventory[key] = max(0, next_inventory.get(key, 0) - required)
+        for key, amount in produce.items():
+            gain = max(0, int(amount))
+            next_inventory[key] = next_inventory.get(key, 0) + gain
+        return True, "ok", next_inventory
+
+    def craft_alchemy(
+        self,
+        *,
+        payload: AlchemyCraftInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> AlchemyCraftOut:
+        crafted, reason, inventory_after = self._apply_recipe(
+            inventory=payload.inventory,
+            consume=payload.ingredients,
+            produce=payload.outputs,
+        )
+        result = AlchemyCraftOut(
+            actor_id=payload.actor_id,
+            recipe_id=payload.recipe_id,
+            crafted=crafted,
+            reason=reason,
+            inventory_after=inventory_after,
+        )
+        self._kernel.place(
+            raw=f"game.alchemy.craft {payload.actor_id} {payload.recipe_id}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "alchemy_craft",
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
+
+    def forge_blacksmith(
+        self,
+        *,
+        payload: BlacksmithForgeInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> BlacksmithForgeOut:
+        forged, reason, inventory_after = self._apply_recipe(
+            inventory=payload.inventory,
+            consume=payload.materials,
+            produce=payload.outputs,
+        )
+        durability = 0
+        if forged:
+            durability = max(1, sum(max(0, int(v)) for v in payload.materials.values()) + payload.durability_bonus)
+        result = BlacksmithForgeOut(
+            actor_id=payload.actor_id,
+            blueprint_id=payload.blueprint_id,
+            forged=forged,
+            reason=reason,
+            durability_score=durability,
+            inventory_after=inventory_after,
+        )
+        self._kernel.place(
+            raw=f"game.blacksmith.forge {payload.actor_id} {payload.blueprint_id}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "blacksmith_forge",
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
+
+    def resolve_combat(
+        self,
+        *,
+        payload: CombatResolveInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> CombatResolveOut:
+        base_attack = max(0, payload.attacker.attack)
+        base_defense = max(0, payload.defender.defense)
+        damage = max(0, base_attack - base_defense)
+        defender_hp_after = max(0, payload.defender.hp - damage)
+        result = CombatResolveOut(
+            actor_id=payload.actor_id,
+            round_id=payload.round_id,
+            damage=damage,
+            defender_hp_after=defender_hp_after,
+            defender_defeated=defender_hp_after == 0,
+        )
+        self._kernel.place(
+            raw=f"game.combat.resolve {payload.actor_id} {payload.round_id}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "combat_resolve",
+                "attacker_id": payload.attacker.id,
+                "defender_id": payload.defender.id,
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
+
+    def market_quote(
+        self,
+        *,
+        payload: MarketQuoteInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> MarketQuoteOut:
+        quantity = max(0, payload.quantity)
+        base = max(1, payload.base_price_cents)
+        scarcity_multiplier_bp = 10000 + payload.scarcity_bp
+        spread_bp = max(0, payload.spread_bp)
+        side_adjust_bp = spread_bp if payload.side.lower() == "buy" else -spread_bp
+        effective_bp = max(1, scarcity_multiplier_bp + side_adjust_bp)
+        unit_price = max(1, (base * effective_bp) // 10000)
+        subtotal = unit_price * quantity
+        result = MarketQuoteOut(
+            actor_id=payload.actor_id,
+            item_id=payload.item_id,
+            side=payload.side.lower(),
+            quantity=quantity,
+            unit_price_cents=unit_price,
+            subtotal_cents=subtotal,
+        )
+        self._kernel.place(
+            raw=f"game.market.quote {payload.actor_id} {payload.item_id} {payload.side}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "market_quote",
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
+
+    def market_trade(
+        self,
+        *,
+        payload: MarketTradeInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> MarketTradeOut:
+        side = payload.side.lower()
+        requested_qty = max(0, payload.quantity)
+        liquidity = max(0, payload.available_liquidity)
+        filled_qty = min(requested_qty, liquidity)
+        unit_price = max(1, payload.unit_price_cents)
+        subtotal = filled_qty * unit_price
+        fee_bp = max(0, payload.fee_bp)
+        fee_cents = (subtotal * fee_bp) // 10000
+        total_cents = subtotal + fee_cents
+
+        wallet = payload.wallet_cents
+        inventory = payload.inventory_qty
+        status = "filled" if filled_qty == requested_qty else "partial"
+
+        if side == "buy":
+            affordable_qty = filled_qty
+            if total_cents > wallet and unit_price > 0:
+                per_unit_total = unit_price + ((unit_price * fee_bp) // 10000)
+                if per_unit_total > 0:
+                    affordable_qty = wallet // per_unit_total
+            filled_qty = max(0, min(filled_qty, affordable_qty))
+            subtotal = filled_qty * unit_price
+            fee_cents = (subtotal * fee_bp) // 10000
+            total_cents = subtotal + fee_cents
+            wallet_after = wallet - total_cents
+            inventory_after = inventory + filled_qty
+            if filled_qty == 0:
+                status = "rejected_insufficient_funds"
+            elif filled_qty < requested_qty:
+                status = "partial"
+        else:
+            sellable = max(0, inventory)
+            filled_qty = max(0, min(filled_qty, sellable))
+            subtotal = filled_qty * unit_price
+            fee_cents = (subtotal * fee_bp) // 10000
+            total_cents = subtotal - fee_cents
+            wallet_after = wallet + total_cents
+            inventory_after = inventory - filled_qty
+            if filled_qty == 0:
+                status = "rejected_insufficient_inventory"
+            elif filled_qty < requested_qty:
+                status = "partial"
+
+        result = MarketTradeOut(
+            actor_id=payload.actor_id,
+            item_id=payload.item_id,
+            side=side,
+            requested_qty=requested_qty,
+            filled_qty=filled_qty,
+            unit_price_cents=unit_price,
+            subtotal_cents=subtotal,
+            fee_cents=fee_cents,
+            total_cents=total_cents,
+            wallet_after_cents=wallet_after,
+            inventory_after_qty=inventory_after,
+            status=status,
+        )
+        self._kernel.place(
+            raw=f"game.market.trade {payload.actor_id} {payload.item_id} {side}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "market_trade",
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
 
     def list_suppliers(self, workspace_id: str) -> Sequence[SupplierOut]:
         rows = self._require_repo().list_suppliers(workspace_id=workspace_id)

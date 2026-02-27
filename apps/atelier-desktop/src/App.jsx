@@ -1163,6 +1163,31 @@ export function App() {
     "{\"workspace_id\":\"main\",\"scene_id\":\"scene_prototype\",\"nodes\":[{\"node_id\":\"n1\",\"kind\":\"spawn\",\"x\":0,\"y\":0,\"metadata\":{}},{\"node_id\":\"n2\",\"kind\":\"goal\",\"x\":8,\"y\":4,\"metadata\":{}}],\"edges\":[{\"from_node_id\":\"n1\",\"to_node_id\":\"n2\",\"relation\":\"path\",\"metadata\":{}}]}"
   );
   const [saveExport, setSaveExport] = useState(null);
+  const [levelRuleText, setLevelRuleText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"current_level\":1,\"current_xp\":50,\"gained_xp\":120,\"xp_curve_base\":100,\"xp_curve_scale\":25}"
+  );
+  const [skillRuleText, setSkillRuleText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"skill_id\":\"swordsmanship\",\"current_rank\":1,\"points_available\":2,\"max_rank\":5}"
+  );
+  const [perkRuleText, setPerkRuleText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"perk_id\":\"steel_focus\",\"unlocked_perks\":[],\"required_level\":2,\"actor_level\":2,\"required_skills\":{\"swordsmanship\":2},\"actor_skills\":{\"swordsmanship\":2}}"
+  );
+  const [alchemyRuleText, setAlchemyRuleText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"recipe_id\":\"minor_heal\",\"ingredients\":{\"herb\":2,\"water\":1},\"outputs\":{\"potion_minor_heal\":1},\"inventory\":{\"herb\":5,\"water\":3}}"
+  );
+  const [blacksmithRuleText, setBlacksmithRuleText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"blueprint_id\":\"iron_sword\",\"materials\":{\"iron_ingot\":3,\"wood\":1},\"outputs\":{\"iron_sword\":1},\"inventory\":{\"iron_ingot\":5,\"wood\":2},\"durability_bonus\":2}"
+  );
+  const [combatRuleText, setCombatRuleText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"round_id\":\"r1\",\"attacker\":{\"id\":\"player\",\"hp\":100,\"attack\":18,\"defense\":6},\"defender\":{\"id\":\"wolf\",\"hp\":28,\"attack\":9,\"defense\":4}}"
+  );
+  const [marketQuoteText, setMarketQuoteText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"item_id\":\"iron_ingot\",\"side\":\"buy\",\"quantity\":3,\"base_price_cents\":1200,\"scarcity_bp\":300,\"spread_bp\":100}"
+  );
+  const [marketTradeText, setMarketTradeText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"item_id\":\"iron_ingot\",\"side\":\"buy\",\"quantity\":3,\"unit_price_cents\":1250,\"fee_bp\":50,\"wallet_cents\":10000,\"inventory_qty\":2,\"available_liquidity\":10}"
+  );
+  const [gameRulesOutput, setGameRulesOutput] = useState(null);
   const [rendererSimPlaying, setRendererSimPlaying] = useState(false);
   const [rendererSimMs, setRendererSimMs] = useState("300");
   const [rendererNewEntityId, setRendererNewEntityId] = useState("enemy-1");
@@ -1622,6 +1647,15 @@ export function App() {
     await runAction("game_save_export", async () => {
       const data = await apiCall(`/v1/game/saves/export?workspace_id=${encodeURIComponent(workspaceId)}`, "GET", null);
       setSaveExport(data);
+      return data;
+    });
+  }
+
+  async function runGameRule(path, payloadText, actionName) {
+    await runAction(actionName, async () => {
+      const payload = parseObjectJson(payloadText, {});
+      const data = await apiCall(path, "POST", payload);
+      setGameRulesOutput(data);
       return data;
     });
   }
@@ -3601,6 +3635,38 @@ export function App() {
             />
             <h3>Save Export</h3>
             <pre>{JSON.stringify(saveExport || {}, null, 2)}</pre>
+          </section>
+          <section className="panel">
+            <h2>RPG Rule Engine</h2>
+            <p>Deterministic rules for levels, skills, perks, alchemy, blacksmithing, and combat.</p>
+            <div className="row">
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/levels/apply", levelRuleText, "game_rule_level_apply")}>Apply Level</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/skills/train", skillRuleText, "game_rule_skill_train")}>Train Skill</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/perks/unlock", perkRuleText, "game_rule_perk_unlock")}>Unlock Perk</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/alchemy/craft", alchemyRuleText, "game_rule_alchemy_craft")}>Craft Alchemy</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/blacksmith/forge", blacksmithRuleText, "game_rule_blacksmith_forge")}>Forge Blacksmith</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/combat/resolve", combatRuleText, "game_rule_combat_resolve")}>Resolve Combat</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/market/quote", marketQuoteText, "game_rule_market_quote")}>Market Quote</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/market/trade", marketTradeText, "game_rule_market_trade")}>Market Trade</button>
+            </div>
+            <h3>Level Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={levelRuleText} onChange={(e) => setLevelRuleText(e.target.value)} />
+            <h3>Skill Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={skillRuleText} onChange={(e) => setSkillRuleText(e.target.value)} />
+            <h3>Perk Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={perkRuleText} onChange={(e) => setPerkRuleText(e.target.value)} />
+            <h3>Alchemy Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={alchemyRuleText} onChange={(e) => setAlchemyRuleText(e.target.value)} />
+            <h3>Blacksmith Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={blacksmithRuleText} onChange={(e) => setBlacksmithRuleText(e.target.value)} />
+            <h3>Combat Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={combatRuleText} onChange={(e) => setCombatRuleText(e.target.value)} />
+            <h3>Market Quote Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={marketQuoteText} onChange={(e) => setMarketQuoteText(e.target.value)} />
+            <h3>Market Trade Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={marketTradeText} onChange={(e) => setMarketTradeText(e.target.value)} />
+            <h3>Rule Output</h3>
+            <pre>{JSON.stringify(gameRulesOutput || {}, null, 2)}</pre>
           </section>
           <section className="panel">
             <h2>Tile Placement Network</h2>

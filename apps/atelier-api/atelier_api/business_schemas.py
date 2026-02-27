@@ -332,3 +332,166 @@ class SaveExportOut(BaseModel):
     frontier_count: int
     hash: str
     payload: dict[str, object]
+
+
+class LevelApplyInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    current_level: int
+    current_xp: int
+    gained_xp: int
+    xp_curve_base: int = 100
+    xp_curve_scale: int = 25
+
+
+class LevelApplyOut(BaseModel):
+    actor_id: str
+    level_before: int
+    level_after: int
+    xp_after: int
+    leveled_up: bool
+    levels_gained: int
+
+
+class SkillTrainInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    skill_id: str
+    current_rank: int
+    points_available: int
+    max_rank: int = 5
+
+
+class SkillTrainOut(BaseModel):
+    actor_id: str
+    skill_id: str
+    rank_before: int
+    rank_after: int
+    points_remaining: int
+    trained: bool
+
+
+class PerkUnlockInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    perk_id: str
+    unlocked_perks: list[str] = Field(default_factory=list)
+    required_level: int = 1
+    actor_level: int = 1
+    required_skills: dict[str, int] = Field(default_factory=dict)
+    actor_skills: dict[str, int] = Field(default_factory=dict)
+
+
+class PerkUnlockOut(BaseModel):
+    actor_id: str
+    perk_id: str
+    unlocked: bool
+    reason: str
+    unlocked_perks: list[str]
+
+
+class AlchemyCraftInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    recipe_id: str
+    ingredients: dict[str, int] = Field(default_factory=dict)
+    outputs: dict[str, int] = Field(default_factory=dict)
+    inventory: dict[str, int] = Field(default_factory=dict)
+
+
+class AlchemyCraftOut(BaseModel):
+    actor_id: str
+    recipe_id: str
+    crafted: bool
+    reason: str
+    inventory_after: dict[str, int]
+
+
+class BlacksmithForgeInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    blueprint_id: str
+    materials: dict[str, int] = Field(default_factory=dict)
+    outputs: dict[str, int] = Field(default_factory=dict)
+    inventory: dict[str, int] = Field(default_factory=dict)
+    durability_bonus: int = 0
+
+
+class BlacksmithForgeOut(BaseModel):
+    actor_id: str
+    blueprint_id: str
+    forged: bool
+    reason: str
+    durability_score: int
+    inventory_after: dict[str, int]
+
+
+class CombatantInput(BaseModel):
+    id: str
+    hp: int
+    attack: int
+    defense: int
+
+
+class CombatResolveInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    round_id: str
+    attacker: CombatantInput
+    defender: CombatantInput
+
+
+class CombatResolveOut(BaseModel):
+    actor_id: str
+    round_id: str
+    damage: int
+    defender_hp_after: int
+    defender_defeated: bool
+
+
+class MarketQuoteInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    item_id: str
+    side: str
+    quantity: int
+    base_price_cents: int
+    scarcity_bp: int = 0
+    spread_bp: int = 100
+
+
+class MarketQuoteOut(BaseModel):
+    actor_id: str
+    item_id: str
+    side: str
+    quantity: int
+    unit_price_cents: int
+    subtotal_cents: int
+
+
+class MarketTradeInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    item_id: str
+    side: str
+    quantity: int
+    unit_price_cents: int
+    fee_bp: int = 50
+    wallet_cents: int
+    inventory_qty: int
+    available_liquidity: int
+
+
+class MarketTradeOut(BaseModel):
+    actor_id: str
+    item_id: str
+    side: str
+    requested_qty: int
+    filled_qty: int
+    unit_price_cents: int
+    subtotal_cents: int
+    fee_cents: int
+    total_cents: int
+    wallet_after_cents: int
+    inventory_after_qty: int
+    status: str
