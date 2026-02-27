@@ -1506,7 +1506,12 @@ def test_isometric_render_contract_compiles_scene_regions_and_assets() -> None:
         workspace_id = "main"
         realm_id = "lapidus"
         region_key = "lapidus/sector-001"
-        payload_json = '{"entities":[{"id":"npc_1","kind":"npc","x":5,"y":3,"z":0,"sprite":"npc_idle"}]}'
+        payload_json = (
+            '{"entities":['
+            '{"id":"npc_1","kind":"npc","x":5,"y":3,"z":0,"sprite":"npc_idle"},'
+            '{"id":"mystery_1","kind":"unknown","x":6,"y":3,"z":0}'
+            ']}'
+        )
         payload_hash = "h_region"
         cache_policy = "cache"
         loaded = True
@@ -1520,8 +1525,19 @@ def test_isometric_render_contract_compiles_scene_regions_and_assets() -> None:
         manifest_id = "sprite_pack_1"
         name = "Sprites"
         kind = "sprite"
-        payload_json = '{"desk":"atlas/desk.png","npc":"atlas/npc.png"}'
+        payload_json = '{"atlas_version":"atlas_v2","desk":"atlas/desk.png","npc":"atlas/npc.png"}'
         payload_hash = "h_manifest"
+        created_at = now
+
+    class _MaterialManifestRow:
+        id = "manifest-row-2"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        manifest_id = "material_pack_1"
+        name = "Materials"
+        kind = "material"
+        payload_json = '{"material_pack_version":"mat_v3","desk":"wood","npc":"cloth"}'
+        payload_hash = "h_manifest_material"
         created_at = now
 
     class _RenderRepo:
@@ -1540,7 +1556,7 @@ def test_isometric_render_contract_compiles_scene_regions_and_assets() -> None:
         def list_asset_manifests(self, workspace_id: str) -> Sequence[_ManifestRow]:
             if workspace_id != "main":
                 return []
-            return [_ManifestRow()]
+            return [_ManifestRow(), _MaterialManifestRow()]
 
     app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=_RenderRepo(), kernel=kernel)
     client = TestClient(app)
@@ -1559,10 +1575,17 @@ def test_isometric_render_contract_compiles_scene_regions_and_assets() -> None:
     assert res.status_code == 200
     out = res.json()
     assert out["projection"]["type"] == "isometric_2_5d"
-    assert out["drawable_count"] == 2
+    assert out["drawable_count"] == 3
+    assert out["asset_pack"]["atlas_version"] == "atlas_v2"
+    assert out["asset_pack"]["material_pack_version"] == "mat_v3"
     ids = [item["drawable_id"] for item in out["drawables"]]
     assert "desk_1" in ids
     assert "lapidus/sector-001:npc_1" in ids
+    assert "lapidus/sector-001:mystery_1" in ids
+    unknown = next(item for item in out["drawables"] if item["drawable_id"] == "lapidus/sector-001:mystery_1")
+    assert unknown["sprite"] == "placeholder://sprite/missing"
+    assert unknown["metadata"]["asset_fallback"]["sprite_source"] == "fallback:missing"
+    assert out["stats"]["fallback_count"] == 1
     first = out["drawables"][0]
     assert "screen_x" in first
     assert "screen_y" in first

@@ -2750,17 +2750,48 @@ class AtelierService:
         manifest_rows = self.list_asset_manifests(payload.workspace_id)
         sprite_lookup: dict[str, str] = {}
         material_lookup: dict[str, str] = {}
+        atlas_version = "v1"
+        material_pack_version = "v1"
         for row in manifest_rows:
             if row.realm_id != realm_id:
                 continue
+            payload_obj = row.payload if isinstance(row.payload, dict) else {}
+            atlas_version_raw = payload_obj.get("atlas_version")
+            if isinstance(atlas_version_raw, str) and atlas_version_raw.strip() != "":
+                atlas_version = atlas_version_raw.strip()
+            material_version_raw = payload_obj.get("material_pack_version")
+            if isinstance(material_version_raw, str) and material_version_raw.strip() != "":
+                material_pack_version = material_version_raw.strip()
             if row.kind.strip().lower() == "sprite":
-                for key, value in row.payload.items():
+                for key, value in payload_obj.items():
+                    if key in {"atlas_version", "material_pack_version"}:
+                        continue
                     if isinstance(value, str):
                         sprite_lookup[str(key)] = value
             if row.kind.strip().lower() == "material":
-                for key, value in row.payload.items():
+                for key, value in payload_obj.items():
+                    if key in {"atlas_version", "material_pack_version"}:
+                        continue
                     if isinstance(value, str):
                         material_lookup[str(key)] = value
+        missing_sprite = "placeholder://sprite/missing"
+        fallback_count = 0
+
+        def _resolve_sprite(*, explicit: str, lookup_key: str, kind: str) -> tuple[str, str]:
+            if explicit != "":
+                return explicit, "explicit"
+            if lookup_key in sprite_lookup:
+                return sprite_lookup[lookup_key], "lookup:key"
+            if kind in sprite_lookup:
+                return sprite_lookup[kind], "lookup:kind"
+            return missing_sprite, "fallback:missing"
+
+        def _resolve_material(*, explicit: str, kind: str) -> tuple[str, str]:
+            if explicit != "":
+                return explicit, "explicit"
+            if kind in material_lookup:
+                return material_lookup[kind], "lookup:kind"
+            return "default", "fallback:default"
 
         for index, node in enumerate(scene_nodes):
             if not isinstance(node, dict):
@@ -2772,12 +2803,25 @@ class AtelierService:
             z = self._int_from_table(metadata.get("z"), 0)
             node_id = str(node.get("node_id") or f"scene_node_{index}")
             kind = str(node.get("kind") or "entity")
-            sprite = str(metadata.get("sprite") or sprite_lookup.get(kind) or kind)
-            material = str(metadata.get("material") or material_lookup.get(kind) or "default")
+            sprite, sprite_source = _resolve_sprite(
+                explicit=str(metadata.get("sprite") or ""),
+                lookup_key=node_id,
+                kind=kind,
+            )
+            material, material_source = _resolve_material(
+                explicit=str(metadata.get("material") or ""),
+                kind=kind,
+            )
             screen_x = (x - y) * (tile_width / 2.0)
             screen_y = (x + y) * (tile_height / 2.0) - (z * elevation_step)
             depth_key = (x + y) + (z * 0.01)
             out_meta = dict(metadata)
+            if sprite_source.startswith("fallback") or material_source.startswith("fallback"):
+                fallback_count += 1
+                out_meta["asset_fallback"] = {
+                    "sprite_source": sprite_source,
+                    "material_source": material_source,
+                }
             if payload.include_material_constraints:
                 akinenwun = str(metadata.get("akinenwun") or "").strip()
                 if akinenwun != "":
@@ -2819,8 +2863,15 @@ class AtelierService:
                     ez = 0
                     kind = "region_entity"
                     meta: dict[str, object] = {}
-                    sprite = sprite_lookup.get(entity_id, entity_id)
-                    material = "default"
+                    sprite, sprite_source = _resolve_sprite(
+                        explicit="",
+                        lookup_key=entity_id,
+                        kind=kind,
+                    )
+                    material, material_source = _resolve_material(
+                        explicit="",
+                        kind=kind,
+                    )
                 elif isinstance(entity, dict):
                     entity_id = str(entity.get("id") or entity.get("entity_id") or f"{row.region_key}:{index}")
                     ex = float(entity.get("x") or index)
@@ -2828,13 +2879,26 @@ class AtelierService:
                     ez = self._int_from_table(entity.get("z"), 0)
                     kind = str(entity.get("kind") or entity.get("tag") or "region_entity")
                     meta = dict(entity.get("metadata") or {}) if isinstance(entity.get("metadata"), dict) else {}
-                    sprite = str(entity.get("sprite") or sprite_lookup.get(kind) or kind)
-                    material = str(entity.get("material") or material_lookup.get(kind) or "default")
+                    sprite, sprite_source = _resolve_sprite(
+                        explicit=str(entity.get("sprite") or ""),
+                        lookup_key=entity_id,
+                        kind=kind,
+                    )
+                    material, material_source = _resolve_material(
+                        explicit=str(entity.get("material") or ""),
+                        kind=kind,
+                    )
                 else:
                     continue
                 screen_x = (ex - ey) * (tile_width / 2.0)
                 screen_y = (ex + ey) * (tile_height / 2.0) - (ez * elevation_step)
                 depth_key = (ex + ey) + (ez * 0.01)
+                if sprite_source.startswith("fallback") or material_source.startswith("fallback"):
+                    fallback_count += 1
+                    meta["asset_fallback"] = {
+                        "sprite_source": sprite_source,
+                        "material_source": material_source,
+                    }
                 drawables.append(
                     IsometricDrawableOut(
                         drawable_id=f"{row.region_key}:{entity_id}",
@@ -2870,6 +2934,11 @@ class AtelierService:
                 "tile_height": tile_height,
                 "elevation_step": elevation_step,
             },
+            "asset_pack": {
+                "atlas_version": atlas_version,
+                "material_pack_version": material_pack_version,
+                "fallback_sprite": missing_sprite,
+            },
             "drawables": [item.model_dump() for item in drawables],
         }
         return IsometricRenderContractOut(
@@ -2882,12 +2951,18 @@ class AtelierService:
                 "tile_height": tile_height,
                 "elevation_step": elevation_step,
             },
+            asset_pack={
+                "atlas_version": atlas_version,
+                "material_pack_version": material_pack_version,
+                "fallback_sprite": missing_sprite,
+            },
             drawable_count=len(drawables),
             drawables=drawables,
             stats={
                 "scene_nodes": len(scene_nodes),
                 "region_count": len(world_regions),
                 "asset_manifest_count": len(manifest_rows),
+                "fallback_count": fallback_count,
             },
             hash=self._canonical_hash(hash_payload),
         )

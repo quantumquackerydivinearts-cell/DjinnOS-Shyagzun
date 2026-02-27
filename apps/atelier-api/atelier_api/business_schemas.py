@@ -653,6 +653,7 @@ class IsometricRenderContractOut(BaseModel):
     realm_id: str
     scene_id: str
     projection: dict[str, object] = Field(default_factory=dict)
+    asset_pack: dict[str, object] = Field(default_factory=dict)
     drawable_count: int
     drawables: list[IsometricDrawableOut] = Field(default_factory=list)
     stats: dict[str, object] = Field(default_factory=dict)
