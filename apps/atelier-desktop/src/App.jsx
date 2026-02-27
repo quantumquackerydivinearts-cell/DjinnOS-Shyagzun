@@ -1162,6 +1162,13 @@ export function App() {
   const [sceneGraphText, setSceneGraphText] = useState(
     "{\"workspace_id\":\"main\",\"scene_id\":\"scene_prototype\",\"nodes\":[{\"node_id\":\"n1\",\"kind\":\"spawn\",\"x\":0,\"y\":0,\"metadata\":{}},{\"node_id\":\"n2\",\"kind\":\"goal\",\"x\":8,\"y\":4,\"metadata\":{}}],\"edges\":[{\"from_node_id\":\"n1\",\"to_node_id\":\"n2\",\"relation\":\"path\",\"metadata\":{}}]}"
   );
+  const [dialogueSceneId, setDialogueSceneId] = useState("scene_prototype");
+  const [dialogueId, setDialogueId] = useState("dlg_intro");
+  const [dialogueLineId, setDialogueLineId] = useState("l1");
+  const [dialogueSpeakerId, setDialogueSpeakerId] = useState("player");
+  const [dialogueRaw, setDialogueRaw] = useState("Hello from the bordered dialogue box.");
+  const [dialogueTurns, setDialogueTurns] = useState([]);
+  const [dialogueEmitResult, setDialogueEmitResult] = useState(null);
   const [saveExport, setSaveExport] = useState(null);
   const [levelRuleText, setLevelRuleText] = useState(
     "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"current_level\":1,\"current_xp\":50,\"gained_xp\":120,\"xp_curve_base\":100,\"xp_curve_scale\":25}"
@@ -1186,6 +1193,15 @@ export function App() {
   );
   const [marketTradeText, setMarketTradeText] = useState(
     "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"item_id\":\"iron_ingot\",\"side\":\"buy\",\"quantity\":3,\"unit_price_cents\":1250,\"fee_bp\":50,\"wallet_cents\":10000,\"inventory_qty\":2,\"available_liquidity\":10}"
+  );
+  const [vitriolApplyText, setVitriolApplyText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"base\":{\"vitality\":7,\"introspection\":7,\"tactility\":7,\"reflectivity\":7,\"ingenuity\":7,\"ostentation\":7,\"levity\":7},\"modifiers\":[],\"ruler_id\":\"asmodeus\",\"delta\":{\"vitality\":1},\"reason\":\"ruler_trial\",\"event_id\":\"evt_vitriol_apply_1\",\"applied_tick\":1,\"duration_turns\":0}"
+  );
+  const [vitriolComputeText, setVitriolComputeText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"base\":{\"vitality\":7,\"introspection\":7,\"tactility\":7,\"reflectivity\":7,\"ingenuity\":7,\"ostentation\":7,\"levity\":7},\"modifiers\":[],\"current_tick\":1}"
+  );
+  const [vitriolClearText, setVitriolClearText] = useState(
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"base\":{\"vitality\":7,\"introspection\":7,\"tactility\":7,\"reflectivity\":7,\"ingenuity\":7,\"ostentation\":7,\"levity\":7},\"modifiers\":[],\"current_tick\":1}"
   );
   const [gameRulesOutput, setGameRulesOutput] = useState(null);
   const [rendererSimPlaying, setRendererSimPlaying] = useState(false);
@@ -1640,6 +1656,51 @@ export function App() {
     await runAction("game_scene_graph_emit", async () => {
       const payload = parseObjectJson(sceneGraphText, {});
       return apiCall("/v1/game/scene-graph/emit", "POST", payload);
+    });
+  }
+
+  function addDialogueTurn() {
+    const trimmedLineId = String(dialogueLineId || "").trim();
+    const trimmedSpeaker = String(dialogueSpeakerId || "").trim();
+    const trimmedRaw = String(dialogueRaw || "").trim();
+    if (!trimmedLineId || !trimmedSpeaker || !trimmedRaw) {
+      setNotice("dialogue_add_turn: line_id, speaker_id, and raw are required");
+      return;
+    }
+    const nextTurn = {
+      line_id: trimmedLineId,
+      speaker_id: trimmedSpeaker,
+      raw: trimmedRaw,
+      tags: {},
+      metadata: {}
+    };
+    setDialogueTurns((prev) => [...prev, nextTurn]);
+    const nextNumeric = Number.parseInt(trimmedLineId.replace(/\D+/g, ""), 10);
+    if (!Number.isNaN(nextNumeric)) {
+      setDialogueLineId(`l${nextNumeric + 1}`);
+    }
+    setDialogueRaw("");
+  }
+
+  function clearDialogueTurns() {
+    setDialogueTurns([]);
+    setDialogueEmitResult(null);
+  }
+
+  async function emitDialogueTurns() {
+    await runAction("game_dialogue_emit", async () => {
+      if (dialogueTurns.length === 0) {
+        throw new Error("dialogue_emit: no turns added");
+      }
+      const payload = {
+        workspace_id: workspaceId,
+        scene_id: dialogueSceneId,
+        dialogue_id: dialogueId,
+        turns: dialogueTurns
+      };
+      const data = await apiCall("/v1/game/dialogue/emit", "POST", payload);
+      setDialogueEmitResult(data);
+      return data;
     });
   }
 
@@ -3637,6 +3698,41 @@ export function App() {
             <pre>{JSON.stringify(saveExport || {}, null, 2)}</pre>
           </section>
           <section className="panel">
+            <h2>Dialogue Composer</h2>
+            <p>Structured dialogue turns with bordered in-game text box preview and explicit emit.</p>
+            <div className="row">
+              <input value={dialogueSceneId} onChange={(e) => setDialogueSceneId(e.target.value)} placeholder="scene id" />
+              <input value={dialogueId} onChange={(e) => setDialogueId(e.target.value)} placeholder="dialogue id" />
+              <input value={dialogueLineId} onChange={(e) => setDialogueLineId(e.target.value)} placeholder="line id" />
+              <input value={dialogueSpeakerId} onChange={(e) => setDialogueSpeakerId(e.target.value)} placeholder="speaker id" />
+            </div>
+            <textarea
+              className="editor"
+              value={dialogueRaw}
+              onChange={(e) => setDialogueRaw(e.target.value)}
+              placeholder="dialogue text"
+            />
+            <div className="row">
+              <button className="action" onClick={addDialogueTurn}>Add Turn</button>
+              <button className="action" onClick={emitDialogueTurns}>Emit Dialogue</button>
+              <button className="action" onClick={clearDialogueTurns}>Clear</button>
+              <span className="badge">{`Turns: ${dialogueTurns.length}`}</span>
+            </div>
+            <div className="dialogue-box">
+              {dialogueTurns.length === 0 ? (
+                <p className="dialogue-empty">No turns yet.</p>
+              ) : (
+                dialogueTurns.map((turn) => (
+                  <div className="dialogue-line" key={`${turn.line_id}-${turn.speaker_id}-${turn.raw}`}>
+                    <strong>{turn.speaker_id}</strong>
+                    <span>{turn.raw}</span>
+                  </div>
+                ))
+              )}
+            </div>
+            <pre>{JSON.stringify(dialogueEmitResult || {}, null, 2)}</pre>
+          </section>
+          <section className="panel">
             <h2>RPG Rule Engine</h2>
             <p>Deterministic rules for levels, skills, perks, alchemy, blacksmithing, and combat.</p>
             <div className="row">
@@ -3648,6 +3744,9 @@ export function App() {
               <button className="action" onClick={() => runGameRule("/v1/game/rules/combat/resolve", combatRuleText, "game_rule_combat_resolve")}>Resolve Combat</button>
               <button className="action" onClick={() => runGameRule("/v1/game/rules/market/quote", marketQuoteText, "game_rule_market_quote")}>Market Quote</button>
               <button className="action" onClick={() => runGameRule("/v1/game/rules/market/trade", marketTradeText, "game_rule_market_trade")}>Market Trade</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/apply-ruler-influence", vitriolApplyText, "game_vitriol_apply")}>Apply VITRIOL Influence</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/compute", vitriolComputeText, "game_vitriol_compute")}>Compute VITRIOL</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/clear-expired", vitriolClearText, "game_vitriol_clear_expired")}>Clear Expired VITRIOL</button>
             </div>
             <h3>Level Payload</h3>
             <textarea className="editor editor-mono renderer-editor" value={levelRuleText} onChange={(e) => setLevelRuleText(e.target.value)} />
@@ -3665,119 +3764,137 @@ export function App() {
             <textarea className="editor editor-mono renderer-editor" value={marketQuoteText} onChange={(e) => setMarketQuoteText(e.target.value)} />
             <h3>Market Trade Payload</h3>
             <textarea className="editor editor-mono renderer-editor" value={marketTradeText} onChange={(e) => setMarketTradeText(e.target.value)} />
+            <h3>VITRIOL Apply Payload (1..10 per axis)</h3>
+            <textarea className="editor editor-mono renderer-editor" value={vitriolApplyText} onChange={(e) => setVitriolApplyText(e.target.value)} />
+            <h3>VITRIOL Compute Payload (1..10 per axis)</h3>
+            <textarea className="editor editor-mono renderer-editor" value={vitriolComputeText} onChange={(e) => setVitriolComputeText(e.target.value)} />
+            <h3>VITRIOL Clear-Expired Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={vitriolClearText} onChange={(e) => setVitriolClearText(e.target.value)} />
             <h3>Rule Output</h3>
             <pre>{JSON.stringify(gameRulesOutput || {}, null, 2)}</pre>
           </section>
-          <section className="panel">
+          <section className="panel panel-wide tile-workbench">
             <h2>Tile Placement Network</h2>
             <p>
               Tile semantics: <code>Ta</code> present, <code>Zo</code> absent, color vectors <code>Ru..AE</code>, tone
               tokens <code>Ha/Ga/Na/Ung/Wu</code>, connection relation by distance with <code>Ti</code> (near) and
               <code>Ze</code> (far).
             </p>
-            <div className="row">
-              <input value={tileCols} onChange={(e) => setTileCols(e.target.value)} placeholder="cols" />
-              <input value={tileRows} onChange={(e) => setTileRows(e.target.value)} placeholder="rows" />
-              <input value={tileCellPx} onChange={(e) => setTileCellPx(e.target.value)} placeholder="cell px" />
-              <input value={tileSvgExportScale} onChange={(e) => setTileSvgExportScale(e.target.value)} placeholder="export scale" />
-              <button className="action" onClick={() => applyResolutionPreset("SD")}>Preset SD</button>
-              <button className="action" onClick={() => applyResolutionPreset("HD")}>Preset HD</button>
-              <button className="action" onClick={() => applyResolutionPreset("2K")}>Preset 2K</button>
-              <button className="action" onClick={applyAssetGenProfileV1}>Load asset-gen-v1</button>
-              <select value={tileActiveLayer} onChange={(e) => setTileActiveLayer(e.target.value)}>
-                {tileLayerList.map((layer) => (
-                  <option key={layer} value={layer}>{layer}</option>
-                ))}
-              </select>
-              <select value={tilePresenceToken} onChange={(e) => setTilePresenceToken(e.target.value)}>
-                <option value="Ta">Ta present</option>
-                <option value="Zo">Zo absent</option>
-              </select>
-              <select value={tileColorToken} onChange={(e) => setTileColorToken(e.target.value)}>
-                {["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
-                  <option key={tok} value={tok}>{tok}</option>
-                ))}
-              </select>
-              <select value={tileOpacityToken} onChange={(e) => setTileOpacityToken(e.target.value)}>
-                {["Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
-                  <option key={tok} value={tok}>{tok}</option>
-                ))}
-              </select>
-              <input value={tileNearThreshold} onChange={(e) => setTileNearThreshold(e.target.value)} placeholder="near threshold" />
-              <button className="action" onClick={() => setTileConnectMode((prev) => !prev)}>
-                {tileConnectMode ? "Paint Mode" : "Connect Mode"}
-              </button>
-              <label><input type="checkbox" checked={tileSvgShowGrid} onChange={(e) => setTileSvgShowGrid(e.target.checked)} /> SVG grid</label>
-              <label><input type="checkbox" checked={tileSvgShowLinks} onChange={(e) => setTileSvgShowLinks(e.target.checked)} /> SVG links</label>
-              <button className="action" onClick={downloadTileSvg}>Export SVG</button>
-              <button className="action" onClick={exportAssetManifest}>Export Manifest</button>
-              <button className="action" onClick={() => setTileConnections([])}>Clear Links</button>
-              <button className="action" onClick={() => setTilePlacements({})}>Clear Tiles</button>
-            </div>
-            <div className="row">
-              <span className="badge">{`Tiles: ${Object.keys(tilePlacements).length}`}</span>
-              <span className="badge">{`Links: ${tileConnections.length}`}</span>
-              <span className="badge">{`Mode: ${tileConnectMode ? "connect" : "paint"}`}</span>
-              <span className="badge">{`Layer: ${tileActiveLayer}`}</span>
-              <span className="badge">{`Resolution: ${tileSvgModel.width}x${tileSvgModel.height}`}</span>
-              <span className="badge">{`Connect from: ${tileConnectFrom || "none"}`}</span>
-              <span className="badge">{`Procedural: ${tileProcStatus}`}</span>
-            </div>
-            <div className="row">
-              <input value={tileProcSeed} onChange={(e) => setTileProcSeed(e.target.value)} placeholder="proc seed" />
-              <select value={tileProcTemplate} onChange={(e) => loadProceduralTemplate(e.target.value)}>
-                <option value="ring_bloom">Ring Bloom</option>
-                <option value="maze_carve">Maze Carve</option>
-                <option value="island_chain">Island Chain</option>
-                <option value="corridor_grid">Corridor Grid</option>
-                <option value="noise_caves">Noise Caves</option>
-              </select>
-              <button className="action" onClick={() => loadProceduralTemplate(tileProcTemplate)}>Load Template</button>
-              <button className="action" onClick={() => setTileProcCode(TILE_PROC_FORM_LIBRARY.ring_bloom)}>Reset Code</button>
-              <button className="action" onClick={applyProceduralTiles}>Generate Procedural Form</button>
-            </div>
-            <div className="row">
-              <input value={tilePresetName} onChange={(e) => setTilePresetName(e.target.value)} placeholder="preset name" />
-              <button className="action" onClick={saveGenerationPreset}>Save Preset</button>
-              <select onChange={(e) => loadGenerationPreset(e.target.value)} defaultValue="">
-                <option value="" disabled>load saved preset</option>
-                {tileSavedPresets.map((preset) => (
-                  <option key={preset.name} value={preset.name}>{preset.name}</option>
-                ))}
-              </select>
-            </div>
-            <textarea
-              className="editor editor-mono tile-proc-editor"
-              value={tileProcCode}
-              onChange={(e) => setTileProcCode(e.target.value)}
-              placeholder="// return { tiles, links, entities? }"
-            />
-            <div
-              className="tile-grid"
-              style={{ gridTemplateColumns: `repeat(${clampInt(tileCols, 1, 128, 48)}, minmax(0, 1fr))` }}
-            >
-              {tileGridCells.map((cell) => {
-                const token = cell.placement ? cell.placement.color_token : "";
-                return (
-                  <button
-                    key={cell.key}
-                    className={`tile-cell ${tileConnectFrom === cell.key ? "tile-cell-connect-from" : ""}`}
-                    style={{
-                      background: cell.placement ? tokenColor(token) : "#faf5eb",
-                      color: token === "Ha" || token === "El" || token === "Wu" ? "#111" : "#fff",
-                      width: `${tilePreviewCellPx}px`,
-                      minHeight: `${tilePreviewCellPx}px`,
-                    }}
-                    onClick={() => handleTileClick(cell.x, cell.y)}
-                    title={`${cell.key}${cell.placement ? ` ${cell.placement.presence_token}/${cell.placement.color_token}/${cell.placement.opacity_token}` : ""}`}
-                  >
-                    {cell.placement ? cell.placement.color_token : "·"}
+            <div className="tile-workbench-layout">
+              <div className="tile-controls">
+                <div className="row">
+                  <input value={tileCols} onChange={(e) => setTileCols(e.target.value)} placeholder="cols" />
+                  <input value={tileRows} onChange={(e) => setTileRows(e.target.value)} placeholder="rows" />
+                  <input value={tileCellPx} onChange={(e) => setTileCellPx(e.target.value)} placeholder="cell px" />
+                  <input value={tileSvgExportScale} onChange={(e) => setTileSvgExportScale(e.target.value)} placeholder="export scale" />
+                </div>
+                <div className="row">
+                  <button className="action" onClick={() => applyResolutionPreset("SD")}>Preset SD</button>
+                  <button className="action" onClick={() => applyResolutionPreset("HD")}>Preset HD</button>
+                  <button className="action" onClick={() => applyResolutionPreset("2K")}>Preset 2K</button>
+                  <button className="action" onClick={applyAssetGenProfileV1}>Load asset-gen-v1</button>
+                </div>
+                <div className="row">
+                  <select value={tileActiveLayer} onChange={(e) => setTileActiveLayer(e.target.value)}>
+                    {tileLayerList.map((layer) => (
+                      <option key={layer} value={layer}>{layer}</option>
+                    ))}
+                  </select>
+                  <select value={tilePresenceToken} onChange={(e) => setTilePresenceToken(e.target.value)}>
+                    <option value="Ta">Ta present</option>
+                    <option value="Zo">Zo absent</option>
+                  </select>
+                  <select value={tileColorToken} onChange={(e) => setTileColorToken(e.target.value)}>
+                    {["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
+                      <option key={tok} value={tok}>{tok}</option>
+                    ))}
+                  </select>
+                  <select value={tileOpacityToken} onChange={(e) => setTileOpacityToken(e.target.value)}>
+                    {["Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
+                      <option key={tok} value={tok}>{tok}</option>
+                    ))}
+                  </select>
+                  <input value={tileNearThreshold} onChange={(e) => setTileNearThreshold(e.target.value)} placeholder="near threshold" />
+                </div>
+                <div className="row">
+                  <button className="action" onClick={() => setTileConnectMode((prev) => !prev)}>
+                    {tileConnectMode ? "Paint Mode" : "Connect Mode"}
                   </button>
-                );
-              })}
+                  <label><input type="checkbox" checked={tileSvgShowGrid} onChange={(e) => setTileSvgShowGrid(e.target.checked)} /> SVG grid</label>
+                  <label><input type="checkbox" checked={tileSvgShowLinks} onChange={(e) => setTileSvgShowLinks(e.target.checked)} /> SVG links</label>
+                  <button className="action" onClick={downloadTileSvg}>Export SVG</button>
+                  <button className="action" onClick={exportAssetManifest}>Export Manifest</button>
+                  <button className="action" onClick={() => setTileConnections([])}>Clear Links</button>
+                  <button className="action" onClick={() => setTilePlacements({})}>Clear Tiles</button>
+                </div>
+                <div className="row">
+                  <span className="badge">{`Tiles: ${Object.keys(tilePlacements).length}`}</span>
+                  <span className="badge">{`Links: ${tileConnections.length}`}</span>
+                  <span className="badge">{`Mode: ${tileConnectMode ? "connect" : "paint"}`}</span>
+                  <span className="badge">{`Layer: ${tileActiveLayer}`}</span>
+                  <span className="badge">{`Resolution: ${tileSvgModel.width}x${tileSvgModel.height}`}</span>
+                  <span className="badge">{`Connect from: ${tileConnectFrom || "none"}`}</span>
+                  <span className="badge">{`Procedural: ${tileProcStatus}`}</span>
+                </div>
+                <div className="row">
+                  <input value={tileProcSeed} onChange={(e) => setTileProcSeed(e.target.value)} placeholder="proc seed" />
+                  <select value={tileProcTemplate} onChange={(e) => loadProceduralTemplate(e.target.value)}>
+                    <option value="ring_bloom">Ring Bloom</option>
+                    <option value="maze_carve">Maze Carve</option>
+                    <option value="island_chain">Island Chain</option>
+                    <option value="corridor_grid">Corridor Grid</option>
+                    <option value="noise_caves">Noise Caves</option>
+                  </select>
+                  <button className="action" onClick={() => loadProceduralTemplate(tileProcTemplate)}>Load Template</button>
+                  <button className="action" onClick={() => setTileProcCode(TILE_PROC_FORM_LIBRARY.ring_bloom)}>Reset Code</button>
+                  <button className="action" onClick={applyProceduralTiles}>Generate Procedural Form</button>
+                </div>
+                <div className="row">
+                  <input value={tilePresetName} onChange={(e) => setTilePresetName(e.target.value)} placeholder="preset name" />
+                  <button className="action" onClick={saveGenerationPreset}>Save Preset</button>
+                  <select onChange={(e) => loadGenerationPreset(e.target.value)} defaultValue="">
+                    <option value="" disabled>load saved preset</option>
+                    {tileSavedPresets.map((preset) => (
+                      <option key={preset.name} value={preset.name}>{preset.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <textarea
+                  className="editor editor-mono tile-proc-editor"
+                  value={tileProcCode}
+                  onChange={(e) => setTileProcCode(e.target.value)}
+                  placeholder="// return { tiles, links, entities? }"
+                />
+              </div>
+              <div className="tile-workbench-canvas">
+                <div
+                  className="tile-grid"
+                  style={{ gridTemplateColumns: `repeat(${clampInt(tileCols, 1, 128, 48)}, minmax(0, 1fr))` }}
+                >
+                  {tileGridCells.map((cell) => {
+                    const token = cell.placement ? cell.placement.color_token : "";
+                    return (
+                      <button
+                        key={cell.key}
+                        className={`tile-cell ${tileConnectFrom === cell.key ? "tile-cell-connect-from" : ""}`}
+                        style={{
+                          background: cell.placement ? tokenColor(token) : "#faf5eb",
+                          color: token === "Ha" || token === "El" || token === "Wu" ? "#111" : "#fff",
+                          width: `${tilePreviewCellPx}px`,
+                          minHeight: `${tilePreviewCellPx}px`,
+                        }}
+                        onClick={() => handleTileClick(cell.x, cell.y)}
+                        title={`${cell.key}${cell.placement ? ` ${cell.placement.presence_token}/${cell.placement.color_token}/${cell.placement.opacity_token}` : ""}`}
+                      >
+                        {cell.placement ? cell.placement.color_token : "·"}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="tile-svg-wrap" dangerouslySetInnerHTML={{ __html: tileSvgMarkup }} />
+                <pre>{JSON.stringify({ tiles: tilePlacements, links: tileConnections }, null, 2)}</pre>
+              </div>
             </div>
-            <div className="tile-svg-wrap" dangerouslySetInnerHTML={{ __html: tileSvgMarkup }} />
-            <pre>{JSON.stringify({ tiles: tilePlacements, links: tileConnections }, null, 2)}</pre>
           </section>
           <GraphBars
             title="Game Design Metrics"
