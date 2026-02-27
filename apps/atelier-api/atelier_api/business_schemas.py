@@ -517,3 +517,65 @@ class DialogueEmitOut(BaseModel):
     scene_id: str
     emitted: int
     emitted_line_ids: list[str]
+
+
+class VitriolModifier(BaseModel):
+    source_ruler: str
+    delta: dict[str, int] = Field(default_factory=dict)
+    reason: str
+    event_id: str
+    applied_tick: int = 0
+    duration_turns: int = 0
+
+
+class VitriolApplyRulerInfluenceInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    base: dict[str, int] = Field(default_factory=dict)
+    modifiers: list[VitriolModifier] = Field(default_factory=list)
+    ruler_id: str
+    delta: dict[str, int] = Field(default_factory=dict)
+    reason: str
+    event_id: str
+    applied_tick: int = 0
+    duration_turns: int = 0
+
+
+class VitriolComputeInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    base: dict[str, int] = Field(default_factory=dict)
+    modifiers: list[VitriolModifier] = Field(default_factory=list)
+    current_tick: int = 0
+
+
+class VitriolClearExpiredInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    base: dict[str, int] = Field(default_factory=dict)
+    modifiers: list[VitriolModifier] = Field(default_factory=list)
+    current_tick: int = 0
+
+
+class VitriolComputeOut(BaseModel):
+    actor_id: str
+    effective: dict[str, int]
+    active_modifiers: list[VitriolModifier]
+    hash: str
+
+
+class VitriolApplyOut(BaseModel):
+    actor_id: str
+    applied: bool
+    modifier: VitriolModifier
+    effective: dict[str, int]
+    active_modifiers: list[VitriolModifier]
+    hash: str
+
+
+class VitriolClearExpiredOut(BaseModel):
+    actor_id: str
+    removed_count: int
+    active_modifiers: list[VitriolModifier]
+    effective: dict[str, int]
+    hash: str

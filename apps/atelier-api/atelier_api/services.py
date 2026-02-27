@@ -57,6 +57,13 @@ from .business_schemas import (
     MarketTradeOut,
     DialogueEmitInput,
     DialogueEmitOut,
+    VitriolApplyRulerInfluenceInput,
+    VitriolApplyOut,
+    VitriolClearExpiredInput,
+    VitriolClearExpiredOut,
+    VitriolComputeInput,
+    VitriolComputeOut,
+    VitriolModifier,
     SupplierCreate,
     SupplierOut,
 )
@@ -67,6 +74,25 @@ from .types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse
 
 
 class AtelierService:
+    _VITRIOL_AXES: tuple[str, ...] = (
+        "vitality",
+        "introspection",
+        "tactility",
+        "reflectivity",
+        "ingenuity",
+        "ostentation",
+        "levity",
+    )
+    _VITRIOL_RULER_AXIS: dict[str, str] = {
+        "asmodeus": "vitality",
+        "satan": "introspection",
+        "beelzebub": "tactility",
+        "belphegor": "reflectivity",
+        "leviathan": "ingenuity",
+        "mammon": "ostentation",
+        "lucifer": "levity",
+    }
+
     def __init__(self, repo: AtelierRepository | None, kernel: KernelIntegrationService) -> None:
         self._repo = repo
         self._kernel = kernel
@@ -821,6 +847,160 @@ class AtelierService:
             emitted=len(emitted_line_ids),
             emitted_line_ids=emitted_line_ids,
         )
+
+    @classmethod
+    def _normalize_vitriol_base(cls, raw: Mapping[str, int]) -> dict[str, int]:
+        normalized: dict[str, int] = {}
+        for axis in cls._VITRIOL_AXES:
+            base_value = int(raw.get(axis, 1))
+            normalized[axis] = max(1, min(10, base_value))
+        return normalized
+
+    @classmethod
+    def _is_modifier_active(cls, modifier: VitriolModifier, current_tick: int) -> bool:
+        if modifier.duration_turns <= 0:
+            return True
+        end_tick = modifier.applied_tick + modifier.duration_turns
+        return current_tick < end_tick
+
+    @classmethod
+    def _compute_vitriol(
+        cls,
+        *,
+        base: Mapping[str, int],
+        modifiers: Sequence[VitriolModifier],
+        current_tick: int,
+    ) -> tuple[dict[str, int], list[VitriolModifier]]:
+        effective = cls._normalize_vitriol_base(base)
+        active: list[VitriolModifier] = []
+        for modifier in modifiers:
+            if not cls._is_modifier_active(modifier, current_tick):
+                continue
+            active.append(modifier)
+            for axis, delta in modifier.delta.items():
+                if axis not in effective:
+                    continue
+                next_value = effective[axis] + int(delta)
+                effective[axis] = max(1, min(10, next_value))
+        return effective, active
+
+    @classmethod
+    def _validate_ruler_delta(cls, ruler_id: str, delta: Mapping[str, int]) -> None:
+        normalized_ruler = ruler_id.strip().lower()
+        if normalized_ruler not in cls._VITRIOL_RULER_AXIS:
+            raise ValueError("invalid_ruler")
+        governed_axis = cls._VITRIOL_RULER_AXIS[normalized_ruler]
+        invalid_axes = [axis for axis in delta.keys() if axis != governed_axis]
+        if invalid_axes:
+            raise ValueError("ruler_axis_violation")
+
+    def vitriol_compute(self, *, payload: VitriolComputeInput) -> VitriolComputeOut:
+        effective, active_modifiers = self._compute_vitriol(
+            base=payload.base,
+            modifiers=payload.modifiers,
+            current_tick=payload.current_tick,
+        )
+        hash_payload: dict[str, object] = {
+            "actor_id": payload.actor_id,
+            "effective": effective,
+            "active_modifiers": [item.model_dump() for item in active_modifiers],
+            "current_tick": payload.current_tick,
+        }
+        return VitriolComputeOut(
+            actor_id=payload.actor_id,
+            effective=effective,
+            active_modifiers=active_modifiers,
+            hash=self._canonical_hash(hash_payload),
+        )
+
+    def vitriol_apply_ruler_influence(
+        self,
+        *,
+        payload: VitriolApplyRulerInfluenceInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> VitriolApplyOut:
+        self._validate_ruler_delta(payload.ruler_id, payload.delta)
+        modifier = VitriolModifier(
+            source_ruler=payload.ruler_id.strip().lower(),
+            delta={axis: int(value) for axis, value in payload.delta.items()},
+            reason=payload.reason,
+            event_id=payload.event_id,
+            applied_tick=payload.applied_tick,
+            duration_turns=payload.duration_turns,
+        )
+        next_modifiers = [*payload.modifiers, modifier]
+        effective, active_modifiers = self._compute_vitriol(
+            base=payload.base,
+            modifiers=next_modifiers,
+            current_tick=payload.applied_tick,
+        )
+        hash_payload: dict[str, object] = {
+            "actor_id": payload.actor_id,
+            "effective": effective,
+            "active_modifiers": [item.model_dump() for item in active_modifiers],
+            "tick": payload.applied_tick,
+        }
+        result = VitriolApplyOut(
+            actor_id=payload.actor_id,
+            applied=True,
+            modifier=modifier,
+            effective=effective,
+            active_modifiers=active_modifiers,
+            hash=self._canonical_hash(hash_payload),
+        )
+        self._kernel.place(
+            raw=f"game.vitriol.apply {payload.actor_id} {modifier.source_ruler}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "vitriol_apply_ruler_influence",
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
+
+    def vitriol_clear_expired(
+        self,
+        *,
+        payload: VitriolClearExpiredInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> VitriolClearExpiredOut:
+        kept: list[VitriolModifier] = [
+            modifier for modifier in payload.modifiers if self._is_modifier_active(modifier, payload.current_tick)
+        ]
+        removed_count = len(payload.modifiers) - len(kept)
+        effective, active_modifiers = self._compute_vitriol(
+            base=payload.base,
+            modifiers=kept,
+            current_tick=payload.current_tick,
+        )
+        hash_payload: dict[str, object] = {
+            "actor_id": payload.actor_id,
+            "effective": effective,
+            "active_modifiers": [item.model_dump() for item in active_modifiers],
+            "current_tick": payload.current_tick,
+        }
+        result = VitriolClearExpiredOut(
+            actor_id=payload.actor_id,
+            removed_count=removed_count,
+            active_modifiers=active_modifiers,
+            effective=effective,
+            hash=self._canonical_hash(hash_payload),
+        )
+        self._kernel.place(
+            raw=f"game.vitriol.clear_expired {payload.actor_id} removed={removed_count}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "vitriol_clear_expired",
+                "result": result.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return result
 
     def list_suppliers(self, workspace_id: str) -> Sequence[SupplierOut]:
         rows = self._require_repo().list_suppliers(workspace_id=workspace_id)

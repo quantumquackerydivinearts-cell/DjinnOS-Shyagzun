@@ -477,3 +477,123 @@ def test_game_dialogue_emit_sorted_by_line_id() -> None:
     assert payload["emitted_line_ids"] == ["l1", "l2"]
     assert fake.place_calls == 2
     app.dependency_overrides.clear()
+
+
+def test_vitriol_apply_ruler_influence_clamps_to_one_to_ten() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "base": {
+            "vitality": 10,
+            "introspection": 1,
+            "tactility": 5,
+            "reflectivity": 5,
+            "ingenuity": 5,
+            "ostentation": 5,
+            "levity": 5,
+        },
+        "modifiers": [],
+        "ruler_id": "asmodeus",
+        "delta": {"vitality": 3},
+        "reason": "trial",
+        "event_id": "evt_vitriol_1",
+        "applied_tick": 10,
+        "duration_turns": 0,
+    }
+    res = client.post("/v1/game/vitriol/apply-ruler-influence", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["effective"]["vitality"] == 10
+    assert out["applied"] is True
+    assert fake.place_calls == 1
+    app.dependency_overrides.clear()
+
+
+def test_vitriol_apply_ruler_rejects_axis_violation() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "base": {
+            "vitality": 7,
+            "introspection": 7,
+            "tactility": 7,
+            "reflectivity": 7,
+            "ingenuity": 7,
+            "ostentation": 7,
+            "levity": 7,
+        },
+        "modifiers": [],
+        "ruler_id": "asmodeus",
+        "delta": {"introspection": 1},
+        "reason": "bad_axis",
+        "event_id": "evt_vitriol_2",
+        "applied_tick": 10,
+        "duration_turns": 0,
+    }
+    res = client.post("/v1/game/vitriol/apply-ruler-influence", json=payload, headers=headers)
+    assert res.status_code == 400
+    assert res.json()["detail"] == "ruler_axis_violation"
+    assert fake.place_calls == 0
+    app.dependency_overrides.clear()
+
+
+def test_vitriol_compute_and_clear_expired_are_deterministic() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    observe_headers = _headers("kernel.observe", role="artisan")
+    place_headers = _headers("kernel.place", role="steward", token=_admin_gate_token("tester", "workshop-1"))
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "base": {
+            "vitality": 5,
+            "introspection": 5,
+            "tactility": 5,
+            "reflectivity": 5,
+            "ingenuity": 5,
+            "ostentation": 5,
+            "levity": 5,
+        },
+        "modifiers": [
+            {
+                "source_ruler": "asmodeus",
+                "delta": {"vitality": 2},
+                "reason": "buff",
+                "event_id": "evt_m1",
+                "applied_tick": 2,
+                "duration_turns": 2,
+            },
+            {
+                "source_ruler": "mammon",
+                "delta": {"ostentation": 1},
+                "reason": "boon",
+                "event_id": "evt_m2",
+                "applied_tick": 1,
+                "duration_turns": 0,
+            },
+        ],
+        "current_tick": 5,
+    }
+    compute_1 = client.post("/v1/game/vitriol/compute", json=payload, headers=observe_headers)
+    compute_2 = client.post("/v1/game/vitriol/compute", json=payload, headers=observe_headers)
+    assert compute_1.status_code == 200
+    assert compute_2.status_code == 200
+    assert compute_1.json() == compute_2.json()
+    clear_res = client.post("/v1/game/vitriol/clear-expired", json=payload, headers=place_headers)
+    assert clear_res.status_code == 200
+    clear_out = clear_res.json()
+    assert clear_out["removed_count"] == 1
+    assert clear_out["effective"]["ostentation"] == 6
+    assert fake.place_calls == 1
+    app.dependency_overrides.clear()

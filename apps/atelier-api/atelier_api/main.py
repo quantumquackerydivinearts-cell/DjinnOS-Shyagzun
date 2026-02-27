@@ -41,6 +41,12 @@ from .business_schemas import (
     MarketTradeOut,
     DialogueEmitInput,
     DialogueEmitOut,
+    VitriolApplyRulerInfluenceInput,
+    VitriolApplyOut,
+    VitriolClearExpiredInput,
+    VitriolClearExpiredOut,
+    VitriolComputeInput,
+    VitriolComputeOut,
     LeadCreate,
     LeadOut,
     LessonCreate,
@@ -1105,6 +1111,75 @@ def emit_game_dialogue(
         token=token,
     )
     return svc.emit_dialogue(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/vitriol/apply-ruler-influence")
+def apply_vitriol_ruler_influence(
+    payload: VitriolApplyRulerInfluenceInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> VitriolApplyOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    try:
+        return svc.vitriol_apply_ruler_influence(
+            payload=payload,
+            actor_id=ctx.actor_id,
+            workshop_id=workshop.identity.workshop_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/vitriol/clear-expired")
+def clear_vitriol_expired(
+    payload: VitriolClearExpiredInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> VitriolClearExpiredOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.vitriol_clear_expired(
+        payload=payload,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
+@app.post("/v1/game/vitriol/compute")
+def compute_vitriol(
+    payload: VitriolComputeInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> VitriolComputeOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    _ = workshop  # enforce workshop boundary surface without changing behavior
+    return svc.vitriol_compute(payload=payload)
 
 
 @app.get("/v1/suppliers")
