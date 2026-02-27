@@ -817,6 +817,86 @@ def test_game_quest_transition_persists_state_machine_in_player_state() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_quest_advance_resolves_edges_deterministically_and_persists_step() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _QuestAdvanceRepo:
+        def __init__(self) -> None:
+            self.rows: dict[tuple[str, str], PlayerState] = {}
+
+        def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+            return self.rows.get((workspace_id, actor_id))
+
+        def save_player_state(self, row: PlayerState) -> PlayerState:
+            self.rows[(row.workspace_id, row.actor_id)] = row
+            return row
+
+    repo = _QuestAdvanceRepo()
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    headers = _headers("kernel.place", role="steward", token=_admin_gate_token("tester", "workshop-1"))
+    observe_headers = _headers("kernel.observe", role="artisan")
+    body = {
+        "workspace_id": "main",
+        "actor_id": "player_quest_advance",
+        "quest_id": "q_main",
+        "event_id": "evt_step_1",
+        "current_step_id": "s_start",
+        "state": {
+            "skills": {"alchemy": 4},
+            "inventory": {"lapidus_key": 1},
+            "vitriol": {},
+            "dialogue_flags": ["met_guard"],
+            "previous_dialogue": ["dlg_intro"],
+            "flags": {"intro_done": True},
+        },
+        "edges": [
+            {
+                "edge_id": "e_blocked",
+                "to_step_id": "s_blocked",
+                "priority": 5,
+                "requirements": [{"source": "skills", "key": "alchemy", "comparator": "gte", "int_value": 8}],
+            },
+            {
+                "edge_id": "e_open",
+                "to_step_id": "s_market",
+                "priority": 10,
+                "requirements": [
+                    {"source": "skills", "key": "alchemy", "comparator": "gte", "int_value": 3},
+                    {"source": "dialogue_flags", "key": "met_guard", "comparator": "present", "bool_value": True},
+                ],
+                "set_flags": {"quest_main_market_open": True},
+            },
+        ],
+    }
+    first = client.post("/v1/game/quests/advance", json=body, headers=headers)
+    second = client.post("/v1/game/quests/advance", json={**body, "actor_id": "player_quest_advance_b"}, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["advanced"] is True
+    assert first_payload["selected_edge_id"] == "e_open"
+    assert first_payload["next_step_id"] == "s_market"
+    assert first_payload["eligible_edge_ids"] == ["e_open"]
+    assert second_payload["advanced"] is True
+    assert second_payload["selected_edge_id"] == "e_open"
+    assert second_payload["next_step_id"] == "s_market"
+
+    state = client.get(
+        "/v1/game/state?workspace_id=main&actor_id=player_quest_advance",
+        headers=observe_headers,
+    )
+    assert state.status_code == 200
+    state_payload = state.json()
+    quest_state = state_payload["tables"]["flags"]["quest_states"]["q_main"]
+    assert quest_state["step_id"] == "s_market"
+    assert state_payload["tables"]["flags"]["quest_main_market_open"] is True
+    app.dependency_overrides.clear()
+
+
 def test_vitriol_apply_ruler_influence_clamps_to_one_to_ten() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

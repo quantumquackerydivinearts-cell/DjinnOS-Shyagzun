@@ -970,6 +970,52 @@ class QuestTransitionOut(BaseModel):
     hash: str
 
 
+class QuestStepEdgeInput(BaseModel):
+    edge_id: str
+    to_step_id: str
+    priority: int = 100
+    requirements: list[GateRequirement] = Field(default_factory=list)
+    set_flags: dict[str, bool] = Field(default_factory=dict)
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class QuestStepEdgeResolveOut(BaseModel):
+    edge_id: str
+    to_step_id: str
+    priority: int
+    eligible: bool
+    matched_count: int
+    total_count: int
+    results: list[GateRequirementResult] = Field(default_factory=list)
+
+
+class QuestAdvanceInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    quest_id: str
+    event_id: str
+    current_step_id: str
+    state: GateStateInput | None = None
+    edges: list[QuestStepEdgeInput] = Field(default_factory=list)
+
+
+class QuestAdvanceOut(BaseModel):
+    workspace_id: str
+    actor_id: str
+    quest_id: str
+    event_id: str
+    previous_step_id: str
+    next_step_id: str
+    advanced: bool
+    reason: str
+    state_source: Literal["payload", "player_state"]
+    state_version: int
+    eligible_edge_ids: list[str] = Field(default_factory=list)
+    selected_edge_id: str | None = None
+    evaluations: list[QuestStepEdgeResolveOut] = Field(default_factory=list)
+    hash: str
+
+
 class CharacterDictionaryCreate(BaseModel):
     workspace_id: str
     character_id: str

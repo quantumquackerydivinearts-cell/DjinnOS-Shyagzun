@@ -96,6 +96,8 @@ from .business_schemas import (
     DialogueEmitOut,
     DialogueResolveInput,
     DialogueResolveOut,
+    QuestAdvanceInput,
+    QuestAdvanceOut,
     QuestTransitionInput,
     QuestTransitionOut,
     VitriolApplyRulerInfluenceInput,
@@ -1914,6 +1916,28 @@ def transition_game_quest(
         token=token,
     )
     return svc.transition_quest_state(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.post("/v1/game/quests/advance")
+def advance_game_quest(
+    payload: QuestAdvanceInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> QuestAdvanceOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.advance_quest_step(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
 
 
 @app.post("/v1/game/vitriol/apply-ruler-influence")

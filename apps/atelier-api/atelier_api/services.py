@@ -89,6 +89,9 @@ from .business_schemas import (
     NamedQuestOut,
     QuestTransitionInput,
     QuestTransitionOut,
+    QuestAdvanceInput,
+    QuestAdvanceOut,
+    QuestStepEdgeResolveOut,
     JournalEntryCreate,
     JournalEntryOut,
     LayerNodeCreate,
@@ -2204,6 +2207,159 @@ class AtelierService:
             context={
                 "workspace_id": payload.workspace_id,
                 "rule": "quest_transition",
+                "result": out.model_dump(),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return out
+
+    def advance_quest_step(
+        self,
+        *,
+        payload: QuestAdvanceInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> QuestAdvanceOut:
+        repo = self._require_repo()
+        row = self._ensure_player_state(payload.workspace_id, payload.actor_id)
+        tables = self._player_state_to_tables(row)
+        flags = dict(tables.flags)
+
+        quest_states_obj = self._dict_from_table(flags.get("quest_states"))
+        quest_states: dict[str, object] = dict(quest_states_obj)
+        existing_entry = self._dict_from_table(quest_states.get(payload.quest_id))
+        previous_step_id = str(existing_entry.get("step_id") or payload.current_step_id).strip()
+        if previous_step_id == "":
+            previous_step_id = payload.current_step_id.strip()
+
+        if payload.state is not None:
+            state = payload.state
+            state_source: str = "payload"
+        else:
+            state = self._gate_state_from_tables(tables)
+            state_source = "player_state"
+
+        evaluations: list[QuestStepEdgeResolveOut] = []
+        for edge in sorted(payload.edges, key=lambda item: (item.priority, item.edge_id, item.to_step_id)):
+            gate_payload = GateEvaluateInput(
+                workspace_id=payload.workspace_id,
+                actor_id=payload.actor_id,
+                gate_id=f"{payload.quest_id}:{previous_step_id}:{edge.edge_id}",
+                operator="and",
+                state=state,
+                requirements=edge.requirements,
+            )
+            results = [self._evaluate_gate_requirement(gate_payload, requirement) for requirement in edge.requirements]
+            matched_count = sum(1 for item in results if item.matched)
+            eligible = all(item.matched for item in results)
+            evaluations.append(
+                QuestStepEdgeResolveOut(
+                    edge_id=edge.edge_id,
+                    to_step_id=edge.to_step_id,
+                    priority=edge.priority,
+                    eligible=eligible,
+                    matched_count=matched_count,
+                    total_count=len(results),
+                    results=results,
+                )
+            )
+
+        eligible_edges = [item for item in evaluations if item.eligible]
+        selected = eligible_edges[0] if eligible_edges else None
+        next_step_id = selected.to_step_id if selected is not None else previous_step_id
+
+        if payload.event_id.strip() == "":
+            advanced = False
+            reason = "event_id_required"
+            selected = None
+            next_step_id = previous_step_id
+        elif selected is None:
+            advanced = False
+            reason = "no_eligible_edge"
+        elif next_step_id == previous_step_id:
+            advanced = False
+            reason = "no_step_change"
+        else:
+            advanced = True
+            reason = "ok"
+
+        if advanced:
+            tick = self._int_from_table(self._dict_from_table(tables.clock).get("tick"), 0)
+            quest_states[payload.quest_id] = {
+                "state": str(existing_entry.get("state") or "active"),
+                "step_id": next_step_id,
+                "last_event_id": payload.event_id,
+                "last_edge_id": selected.edge_id if selected is not None else "",
+                "updated_tick": tick,
+            }
+            history = self._list_of_dicts(flags.get("quest_history"))
+            history.append(
+                {
+                    "quest_id": payload.quest_id,
+                    "event_id": payload.event_id,
+                    "from_step_id": previous_step_id,
+                    "to_step_id": next_step_id,
+                    "edge_id": selected.edge_id if selected is not None else "",
+                    "tick": tick,
+                }
+            )
+            flags["quest_history"] = history
+            for edge in payload.edges:
+                if selected is not None and edge.edge_id == selected.edge_id:
+                    for key, value in edge.set_flags.items():
+                        flags[key] = bool(value)
+                    break
+            flags["quest_states"] = quest_states
+            tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
+            row.state_version = max(1, int(row.state_version) + 1)
+            row.levels_json = self._canonical_json(tables.levels)
+            row.skills_json = self._canonical_json(tables.skills)
+            row.perks_json = self._canonical_json(tables.perks)
+            row.vitriol_json = self._canonical_json(tables.vitriol)
+            row.inventory_json = self._canonical_json(tables.inventory)
+            row.market_json = self._canonical_json(tables.market)
+            row.flags_json = self._canonical_json(tables.flags)
+            row.clock_json = self._canonical_json(tables.clock)
+            row.updated_at = datetime.now(timezone.utc)
+            repo.save_player_state(row)
+
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "actor_id": payload.actor_id,
+            "quest_id": payload.quest_id,
+            "event_id": payload.event_id,
+            "previous_step_id": previous_step_id,
+            "next_step_id": next_step_id,
+            "advanced": advanced,
+            "reason": reason,
+            "state_source": state_source,
+            "state_version": int(row.state_version),
+            "state": state.model_dump(),
+            "evaluations": [item.model_dump() for item in evaluations],
+            "selected_edge_id": selected.edge_id if selected is not None else None,
+        }
+        out = QuestAdvanceOut(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            quest_id=payload.quest_id,
+            event_id=payload.event_id,
+            previous_step_id=previous_step_id,
+            next_step_id=next_step_id,
+            advanced=advanced,
+            reason=reason,
+            state_source="payload" if state_source == "payload" else "player_state",
+            state_version=int(row.state_version),
+            eligible_edge_ids=[item.edge_id for item in eligible_edges],
+            selected_edge_id=selected.edge_id if selected is not None else None,
+            evaluations=evaluations,
+            hash=self._canonical_hash(hash_payload),
+        )
+        self._kernel.place(
+            raw=f"game.quest.advance {payload.actor_id} {payload.quest_id} {payload.event_id}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "quest_advance",
                 "result": out.model_dump(),
             },
             actor_id=actor_id,
