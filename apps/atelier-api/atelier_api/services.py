@@ -4,6 +4,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional, Sequence, cast
+from qqva.world_stream import WorldStreamController
 
 from .business_schemas import (
     ArtisanBootstrapInput,
@@ -172,10 +173,19 @@ class AtelierService:
         "mammon": "ostentation",
         "lucifer": "levity",
     }
+    _WORLD_STREAM_MAX_LOADED_REGIONS = 128
 
-    def __init__(self, repo: AtelierRepository | None, kernel: KernelIntegrationService) -> None:
+    def __init__(
+        self,
+        repo: AtelierRepository | None,
+        kernel: KernelIntegrationService,
+        world_stream: WorldStreamController | None = None,
+    ) -> None:
         self._repo = repo
         self._kernel = kernel
+        self._world_stream = world_stream or WorldStreamController(
+            max_loaded_regions=self._WORLD_STREAM_MAX_LOADED_REGIONS
+        )
 
     def _require_repo(self) -> AtelierRepository:
         if self._repo is None:
@@ -2344,6 +2354,54 @@ class AtelierService:
             for row in rows
         ]
 
+    @staticmethod
+    def _region_id(realm_id: str, region_key: str) -> str:
+        return f"{realm_id.strip().lower()}::{region_key.strip()}"
+
+    def _reconcile_world_stream_loaded_flags(
+        self,
+        *,
+        workspace_id: str,
+        recently_loaded_row: WorldRegion,
+    ) -> None:
+        repo = self._require_repo()
+        rows = list(repo.list_world_regions(workspace_id=workspace_id, realm_id=None))
+        loaded_regions: dict[str, object] = {}
+        for row in rows:
+            if not row.loaded:
+                continue
+            loaded_regions[self._region_id(row.realm_id, row.region_key)] = {
+                "realm_id": row.realm_id,
+                "region_key": row.region_key,
+                "payload": self._json_to_object_map(row.payload_json),
+                "payload_hash": row.payload_hash,
+                "cache_policy": row.cache_policy,
+                "loaded_at": row.updated_at.isoformat() if row.updated_at else row.created_at.isoformat(),
+            }
+
+        projected_state = self._world_stream.load(
+            {"world_stream": {"loaded_regions": loaded_regions}},
+            realm_id=recently_loaded_row.realm_id,
+            region_key=recently_loaded_row.region_key,
+            payload=self._json_to_object_map(recently_loaded_row.payload_json),
+            payload_hash=recently_loaded_row.payload_hash,
+            cache_policy=recently_loaded_row.cache_policy,
+        )
+        world_stream_obj = projected_state.get("world_stream")
+        projected_loaded_obj = (
+            world_stream_obj.get("loaded_regions") if isinstance(world_stream_obj, dict) else {}
+        )
+        projected_loaded = projected_loaded_obj if isinstance(projected_loaded_obj, dict) else {}
+        projected_ids = {str(key) for key in projected_loaded.keys()}
+        now = datetime.utcnow()
+        for row in rows:
+            region_id = self._region_id(row.realm_id, row.region_key)
+            should_be_loaded = region_id in projected_ids
+            if row.loaded != should_be_loaded:
+                row.loaded = should_be_loaded
+                row.updated_at = now
+                repo.save_world_region(row)
+
     def load_world_region(self, payload: WorldRegionLoadInput) -> WorldRegionOut:
         realm_validation = self.validate_realm(RealmValidateInput(realm_id=payload.realm_id))
         if not realm_validation.ok:
@@ -2382,6 +2440,17 @@ class AtelierService:
             existing.loaded = True
             existing.updated_at = now
             saved = repo.save_world_region(existing)
+        self._reconcile_world_stream_loaded_flags(
+            workspace_id=saved.workspace_id,
+            recently_loaded_row=saved,
+        )
+        refreshed = repo.get_world_region(
+            workspace_id=saved.workspace_id,
+            realm_id=saved.realm_id,
+            region_key=saved.region_key,
+        )
+        if refreshed is not None:
+            saved = refreshed
         return WorldRegionOut(
             id=saved.id,
             workspace_id=saved.workspace_id,
