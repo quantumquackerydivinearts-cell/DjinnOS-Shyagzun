@@ -762,6 +762,11 @@ RuntimeActionKind = Literal[
     "vitriol.compute",
     "vitriol.clear",
     "djinn.apply",
+    "world.region.load",
+    "world.region.unload",
+    "world.stream.status",
+    "world.coins.list",
+    "world.markets.list",
 ]
 
 

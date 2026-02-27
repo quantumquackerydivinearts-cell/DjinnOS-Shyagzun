@@ -1,0 +1,58 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "world_stream_plan",
+  "actions": [
+    {
+      "action_id": "load_lapidus_sector_001",
+      "kind": "world.region.load",
+      "payload": {
+        "realm_id": "lapidus",
+        "region_key": "lapidus/sector-001",
+        "payload": {
+          "tiles": [1, 1, 2, 3],
+          "entities": ["player_home", "service_counter"]
+        },
+        "cache_policy": "cache"
+      }
+    },
+    {
+      "action_id": "load_mercurie_tide_002",
+      "kind": "world.region.load",
+      "payload": {
+        "realm_id": "mercurie",
+        "region_key": "mercurie/tide-002",
+        "payload": {
+          "tiles": [4, 5, 6],
+          "entities": ["fae_bridge"]
+        },
+        "cache_policy": "stream"
+      }
+    },
+    {
+      "action_id": "stream_status_lapidus",
+      "kind": "world.stream.status",
+      "payload": {
+        "realm_id": "lapidus"
+      }
+    },
+    {
+      "action_id": "realm_coins",
+      "kind": "world.coins.list",
+      "payload": {}
+    },
+    {
+      "action_id": "realm_markets",
+      "kind": "world.markets.list",
+      "payload": {}
+    },
+    {
+      "action_id": "unload_mercurie_tide_002",
+      "kind": "world.region.unload",
+      "payload": {
+        "realm_id": "mercurie",
+        "region_key": "mercurie/tide-002"
+      }
+    }
+  ]
+}

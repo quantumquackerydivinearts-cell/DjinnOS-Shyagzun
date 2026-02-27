@@ -981,6 +981,57 @@ def test_game_runtime_consume_reports_per_action_failure() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_consume_supports_world_stream_and_realm_economy_actions() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "world_runtime_plan",
+        "actions": [
+            {
+                "action_id": "rload",
+                "kind": "world.region.load",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "region_key": "lapidus/sector-100",
+                    "payload": {"tiles": [1, 2, 3]},
+                    "cache_policy": "cache",
+                },
+            },
+            {"action_id": "coins", "kind": "world.coins.list", "payload": {}},
+            {"action_id": "markets", "kind": "world.markets.list", "payload": {}},
+            {"action_id": "status", "kind": "world.stream.status", "payload": {"realm_id": "lapidus"}},
+            {
+                "action_id": "runload",
+                "kind": "world.region.unload",
+                "payload": {"realm_id": "lapidus", "region_key": "lapidus/sector-100"},
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+    assert results["rload"]["ok"] is True
+    assert results["rload"]["result"]["loaded"] is True
+    assert results["coins"]["ok"] is True
+    assert isinstance(results["coins"]["result"]["items"], list)
+    assert any(item["realm_id"] == "sulphera" for item in results["coins"]["result"]["items"])
+    assert results["markets"]["ok"] is True
+    assert isinstance(results["markets"]["result"]["items"], list)
+    assert any(item["realm_id"] == "mercurie" for item in results["markets"]["result"]["items"])
+    assert results["status"]["ok"] is True
+    assert results["status"]["result"]["realm_id"] == "lapidus"
+    assert results["runload"]["ok"] is True
+    assert results["runload"]["result"]["unloaded"] is True
+    app.dependency_overrides.clear()
+
+
 def test_game_gate_evaluate_supports_xor_and_nor_with_multi_source_state() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

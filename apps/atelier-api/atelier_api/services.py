@@ -2082,6 +2082,8 @@ class AtelierService:
                 return cast(dict[str, object], dumped)
         if isinstance(value, dict):
             return cast(dict[str, object], value)
+        if isinstance(value, list):
+            return {"items": cast(list[object], value)}
         return {"value": cast(object, value)}
 
     def consume_runtime_plan(
@@ -2092,6 +2094,7 @@ class AtelierService:
         workshop_id: str,
     ) -> RuntimeConsumeOut:
         results: list[RuntimeActionOut] = []
+        runtime_regions: dict[str, dict[str, object]] = {}
         for action in payload.actions:
             action_payload = dict(action.payload)
             action_payload.setdefault("workspace_id", payload.workspace_id)
@@ -2165,6 +2168,93 @@ class AtelierService:
                         actor_id=actor_id,
                         workshop_id=workshop_id,
                     )
+                elif action.kind == "world.region.load":
+                    if self._repo is None:
+                        realm_id = str(action_payload.get("realm_id", "")).strip().lower()
+                        region_key = str(action_payload.get("region_key", "")).strip()
+                        if realm_id == "" or region_key == "":
+                            raise ValueError("realm_or_region_required")
+                        cache_policy = str(action_payload.get("cache_policy", "cache")).strip().lower() or "cache"
+                        region_id = f"{realm_id}::{region_key}"
+                        now_iso = datetime.utcnow().isoformat()
+                        runtime_regions[region_id] = {
+                            "id": region_id,
+                            "workspace_id": payload.workspace_id,
+                            "realm_id": realm_id,
+                            "region_key": region_key,
+                            "payload": cast(dict[str, object], action_payload.get("payload", {})),
+                            "payload_hash": self._canonical_hash(action_payload.get("payload", {})),
+                            "cache_policy": cache_policy,
+                            "loaded": True,
+                            "created_at": now_iso,
+                            "updated_at": now_iso,
+                        }
+                        result = dict(runtime_regions[region_id])
+                    else:
+                        result = self.load_world_region(payload=WorldRegionLoadInput(**action_payload))
+                elif action.kind == "world.region.unload":
+                    if self._repo is None:
+                        realm_id = str(action_payload.get("realm_id", "")).strip().lower()
+                        region_key = str(action_payload.get("region_key", "")).strip()
+                        region_id = f"{realm_id}::{region_key}"
+                        unloaded = False
+                        row = runtime_regions.get(region_id)
+                        if row is not None:
+                            row["loaded"] = False
+                            row["updated_at"] = datetime.utcnow().isoformat()
+                            unloaded = True
+                        result = {
+                            "workspace_id": payload.workspace_id,
+                            "realm_id": realm_id,
+                            "region_key": region_key,
+                            "unloaded": unloaded,
+                        }
+                    else:
+                        result = self.unload_world_region(payload=WorldRegionUnloadInput(**action_payload))
+                elif action.kind == "world.stream.status":
+                    if self._repo is None:
+                        realm_filter = cast(Optional[str], action_payload.get("realm_id"))
+                        realm_norm = (
+                            str(realm_filter).strip().lower()
+                            if isinstance(realm_filter, str) and str(realm_filter).strip() != ""
+                            else None
+                        )
+                        loaded_rows = [
+                            row
+                            for row in runtime_regions.values()
+                            if bool(row.get("loaded")) and (realm_norm is None or row.get("realm_id") == realm_norm)
+                        ]
+                        policy_counts: dict[str, int] = {"cache": 0, "stream": 0, "pin": 0}
+                        for row in loaded_rows:
+                            policy = str(row.get("cache_policy", "cache")).strip().lower()
+                            policy_counts[policy] = policy_counts.get(policy, 0) + 1
+                        capacity = self._world_stream.max_loaded_regions
+                        loaded_count = len(loaded_rows)
+                        pressure = 0.0 if capacity <= 0 else float(loaded_count) / float(capacity)
+                        result = {
+                            "workspace_id": payload.workspace_id,
+                            "realm_id": realm_norm,
+                            "loaded_count": loaded_count,
+                            "capacity": capacity,
+                            "pressure": pressure,
+                            "policy_counts": policy_counts,
+                            "pressure_components": {
+                                "stream_occupancy": pressure,
+                                "demon_total": 0.0,
+                                "composite": pressure,
+                            },
+                            "demon_pressures": dict(self._DEMON_PRESSURE_DEFAULTS),
+                            "demon_maladies": dict(self._DEMON_MALADY_DOMAINS),
+                        }
+                    else:
+                        result = self.world_stream_status(
+                            workspace_id=str(action_payload.get("workspace_id", payload.workspace_id)),
+                            realm_id=cast(Optional[str], action_payload.get("realm_id")),
+                        )
+                elif action.kind == "world.coins.list":
+                    result = [item.model_dump() for item in self.list_realm_coins(cast(Optional[str], action_payload.get("realm_id")))]
+                elif action.kind == "world.markets.list":
+                    result = [item.model_dump() for item in self.list_realm_markets(cast(Optional[str], action_payload.get("realm_id")))]
                 else:
                     raise ValueError(f"unsupported_runtime_action:{action.kind}")
                 results.append(
