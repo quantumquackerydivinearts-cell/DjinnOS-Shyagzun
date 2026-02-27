@@ -22,6 +22,7 @@ from .business_schemas import (
     ContactOut,
     InventoryItemCreate,
     InventoryItemOut,
+    InventoryAdjustInput,
     LeadCreate,
     LeadOut,
     LessonCreate,
@@ -34,6 +35,13 @@ from .business_schemas import (
     PublicCommissionQuoteOut,
     QuoteCreate,
     QuoteOut,
+    HeadlessQuestEmitInput,
+    HeadlessQuestEmitOut,
+    MeditationEmitInput,
+    MeditationEmitOut,
+    SceneGraphEmitInput,
+    SceneGraphEmitOut,
+    SaveExportOut,
     SupplierCreate,
     SupplierOut,
 )
@@ -61,6 +69,15 @@ class PlaceInput(BaseModel):
     context: Dict[str, Any] = Field(default_factory=dict)
 
 
+class AmbroflowPlaceInput(BaseModel):
+    raw: str
+    speaker_id: Optional[str] = None
+    scene_id: Optional[str] = None
+    tags: Dict[str, str] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    context: Dict[str, Any] = Field(default_factory=dict)
+
+
 class AttestInput(BaseModel):
     witness_id: str
     attestation_kind: str
@@ -69,8 +86,26 @@ class AttestInput(BaseModel):
     target: Dict[str, Any] = Field(default_factory=dict)
 
 
+class AkinenwunLookupInput(BaseModel):
+    akinenwun: str
+    mode: str = "prose"
+    ingest: bool = True
+
+
 class AdminGateVerifyInput(BaseModel):
     gate_code: str
+
+
+def _ambroflow_context_from_payload(payload: AmbroflowPlaceInput) -> Dict[str, Any]:
+    context: Dict[str, Any] = dict(payload.context)
+    context["speaker_id"] = payload.speaker_id or "player"
+    if payload.scene_id is not None:
+        context["scene_id"] = payload.scene_id
+    if payload.tags:
+        context["tags"] = dict(payload.tags)
+    if payload.metadata:
+        context["metadata"] = dict(payload.metadata)
+    return context
 
 
 def _capability_context(
@@ -357,6 +392,38 @@ def place(
     )
 
 
+@app.post("/v1/ambroflow/place")
+def ambroflow_place(
+    payload: AmbroflowPlaceInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    context = _ambroflow_context_from_payload(payload)
+    try:
+        enforce_place_scope(workshop, context)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return svc.emit_placement(
+        raw=payload.raw,
+        context=context,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
 @app.post("/v1/atelier/observe")
 def observe(
     ctx: CapabilityContext = Depends(_capability_context),
@@ -367,6 +434,43 @@ def observe(
     _enforce(ctx, "kernel.observe")
     _enforce_role(role, "kernel.observe")
     return svc.observe(actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+
+
+@app.get("/v1/ambroflow/semantic-value")
+def ambroflow_semantic_value(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Dict[str, Any]:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    observed = svc.observe(actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
+    return {
+        "clock": observed["clock"],
+        "candidates_by_frontier": observed["candidates_by_frontier"],
+        "eligible_by_frontier": observed["eligible_by_frontier"],
+        "refusals": observed["refusals"],
+    }
+
+
+@app.post("/v1/ambroflow/akinenwun/lookup")
+def ambroflow_akinenwun_lookup(
+    payload: AkinenwunLookupInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    return svc.akinenwun_lookup(
+        akinenwun=payload.akinenwun,
+        mode=payload.mode,
+        ingest=payload.ingest,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
 
 
 @app.get("/v1/atelier/timeline")
@@ -664,6 +768,127 @@ def create_inventory_item(
     _enforce(ctx, "inventory.write")
     _enforce_role(role, "inventory.write")
     return svc.create_inventory_item(payload)
+
+
+@app.post("/v1/game/inventory/adjust")
+def adjust_inventory_item(
+    payload: InventoryAdjustInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> InventoryItemOut:
+    _enforce(ctx, "inventory.write")
+    _enforce_role(role, "inventory.write")
+    updated = svc.adjust_inventory_item(payload)
+    svc.emit_placement(
+        raw=f"inventory.adjust {payload.inventory_item_id} delta={payload.delta} reason={payload.reason}",
+        context={
+            "workspace_id": payload.workspace_id,
+            "inventory_item_id": payload.inventory_item_id,
+            "delta": payload.delta,
+            "reason": payload.reason,
+            "source": "game_inventory_adjust",
+        },
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+    return updated
+
+
+@app.post("/v1/game/quests/headless/emit")
+def emit_headless_quest(
+    payload: HeadlessQuestEmitInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> HeadlessQuestEmitOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.emit_headless_quest(
+        payload=payload,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
+@app.post("/v1/game/meditation/emit")
+def emit_meditation(
+    payload: MeditationEmitInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> MeditationEmitOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.emit_meditation(
+        payload=payload,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
+@app.post("/v1/game/scene-graph/emit")
+def emit_scene_graph(
+    payload: SceneGraphEmitInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> SceneGraphEmitOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.emit_scene_graph(
+        payload=payload,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
+@app.get("/v1/game/saves/export")
+def export_game_save(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> SaveExportOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    return svc.export_save_snapshot(
+        workspace_id=workspace_id,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
 
 
 @app.get("/v1/suppliers")

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+from datetime import datetime, timezone
 from typing import Any, Mapping, Optional, Sequence
 
 from .business_schemas import (
@@ -29,6 +31,14 @@ from .business_schemas import (
     PublicCommissionQuoteOut,
     QuoteCreate,
     QuoteOut,
+    HeadlessQuestEmitInput,
+    HeadlessQuestEmitOut,
+    MeditationEmitInput,
+    MeditationEmitOut,
+    SceneGraphEmitInput,
+    SceneGraphEmitOut,
+    SaveExportOut,
+    InventoryAdjustInput,
     SupplierCreate,
     SupplierOut,
 )
@@ -47,6 +57,14 @@ class AtelierService:
         if self._repo is None:
             raise RuntimeError("repository_unavailable")
         return self._repo
+
+    @staticmethod
+    def _canonical_json(payload: object) -> str:
+        return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+
+    @staticmethod
+    def _canonical_hash(payload: object) -> str:
+        return hashlib.sha256(AtelierService._canonical_json(payload).encode("utf-8")).hexdigest()
 
     def health(self) -> None:
         self._require_repo().ping()
@@ -95,6 +113,23 @@ class AtelierService:
             attestation_tag=attestation_tag,
             payload=payload,
             target=target,
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+
+    def akinenwun_lookup(
+        self,
+        *,
+        akinenwun: str,
+        mode: str,
+        ingest: bool,
+        actor_id: str,
+        workshop_id: str,
+    ) -> Mapping[str, Any]:
+        return self._kernel.akinenwun_lookup(
+            akinenwun=akinenwun,
+            mode=mode,
+            ingest=ingest,
             actor_id=actor_id,
             workshop_id=workshop_id,
         )
@@ -244,6 +279,134 @@ class AtelierService:
         )
         out = self._require_repo().create_inventory_item(row)
         return InventoryItemOut.model_validate(out, from_attributes=True)
+
+    def adjust_inventory_item(self, payload: InventoryAdjustInput) -> InventoryItemOut:
+        repo = self._require_repo()
+        row = repo.get_inventory_item(payload.workspace_id, payload.inventory_item_id)
+        if row is None:
+            raise ValueError("inventory_item_not_found")
+        row.quantity_on_hand = row.quantity_on_hand + payload.delta
+        saved = repo.update_inventory_item(row)
+        return InventoryItemOut.model_validate(saved, from_attributes=True)
+
+    def emit_headless_quest(
+        self,
+        *,
+        payload: HeadlessQuestEmitInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> HeadlessQuestEmitOut:
+        emitted_step_ids: list[str] = []
+        for step in payload.steps:
+            context: dict[str, object] = {
+                "workspace_id": payload.workspace_id,
+                "quest_id": payload.quest_id,
+                "step_id": step.step_id,
+                "headless": True,
+            }
+            if payload.scene_id is not None:
+                context["scene_id"] = payload.scene_id
+            if step.context:
+                context["step_context"] = dict(step.context)
+            self._kernel.place(
+                raw=step.raw,
+                context=context,
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
+            emitted_step_ids.append(step.step_id)
+        return HeadlessQuestEmitOut(
+            quest_id=payload.quest_id,
+            emitted=len(emitted_step_ids),
+            emitted_step_ids=emitted_step_ids,
+        )
+
+    def emit_meditation(
+        self,
+        *,
+        payload: MeditationEmitInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> MeditationEmitOut:
+        raw = f"meditation.session {payload.session_id} phase={payload.phase} duration={payload.duration_seconds}"
+        context: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "session_id": payload.session_id,
+            "phase": payload.phase,
+            "duration_seconds": payload.duration_seconds,
+            "tags": dict(payload.tags),
+            "headless": True,
+        }
+        self._kernel.place(
+            raw=raw,
+            context=context,
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return MeditationEmitOut(session_id=payload.session_id, emitted=1, phase=payload.phase)
+
+    def emit_scene_graph(
+        self,
+        *,
+        payload: SceneGraphEmitInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> SceneGraphEmitOut:
+        sorted_nodes = sorted(payload.nodes, key=lambda node: node.node_id)
+        sorted_edges = sorted(payload.edges, key=lambda edge: (edge.from_node_id, edge.to_node_id, edge.relation))
+        for node in sorted_nodes:
+            raw = f"scene.node {payload.scene_id} {node.node_id} {node.kind} {node.x} {node.y}"
+            context: dict[str, object] = {
+                "workspace_id": payload.workspace_id,
+                "scene_id": payload.scene_id,
+                "node_id": node.node_id,
+                "metadata": dict(node.metadata),
+            }
+            self._kernel.place(raw=raw, context=context, actor_id=actor_id, workshop_id=workshop_id)
+        for edge in sorted_edges:
+            raw = f"scene.edge {payload.scene_id} {edge.from_node_id} {edge.to_node_id} {edge.relation}"
+            context = {
+                "workspace_id": payload.workspace_id,
+                "scene_id": payload.scene_id,
+                "from_node_id": edge.from_node_id,
+                "to_node_id": edge.to_node_id,
+                "relation": edge.relation,
+                "metadata": dict(edge.metadata),
+            }
+            self._kernel.place(raw=raw, context=context, actor_id=actor_id, workshop_id=workshop_id)
+        return SceneGraphEmitOut(
+            scene_id=payload.scene_id,
+            nodes_emitted=len(sorted_nodes),
+            edges_emitted=len(sorted_edges),
+        )
+
+    def export_save_snapshot(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+        workshop_id: str,
+    ) -> SaveExportOut:
+        timeline = list(self._kernel.timeline(actor_id=actor_id, workshop_id=workshop_id))
+        frontiers = list(self._kernel.frontiers(actor_id=actor_id, workshop_id=workshop_id))
+        observe = self._kernel.observe(actor_id=actor_id, workshop_id=workshop_id)
+        payload: dict[str, object] = {
+            "workspace_id": workspace_id,
+            "clock": observe.get("clock", {}),
+            "frontiers": frontiers,
+            "timeline": timeline,
+            "candidates_by_frontier": observe.get("candidates_by_frontier", {}),
+            "eligible_by_frontier": observe.get("eligible_by_frontier", {}),
+            "refusals": observe.get("refusals", []),
+        }
+        return SaveExportOut(
+            workspace_id=workspace_id,
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            timeline_count=len(timeline),
+            frontier_count=len(frontiers),
+            hash=self._canonical_hash(payload),
+            payload=payload,
+        )
 
     def list_suppliers(self, workspace_id: str) -> Sequence[SupplierOut]:
         rows = self._require_repo().list_suppliers(workspace_id=workspace_id)

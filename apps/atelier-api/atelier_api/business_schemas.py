@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ContactCreate(BaseModel):
@@ -255,3 +255,80 @@ class ArtisanBootstrapInput(BaseModel):
     artisan_id: str
     profile_name: str
     profile_email: str
+
+
+class HeadlessQuestStep(BaseModel):
+    step_id: str
+    raw: str
+    context: dict[str, object] = Field(default_factory=dict)
+
+
+class HeadlessQuestEmitInput(BaseModel):
+    workspace_id: str
+    quest_id: str
+    scene_id: str | None = None
+    steps: list[HeadlessQuestStep]
+
+
+class HeadlessQuestEmitOut(BaseModel):
+    quest_id: str
+    emitted: int
+    emitted_step_ids: list[str]
+
+
+class MeditationEmitInput(BaseModel):
+    workspace_id: str
+    session_id: str
+    phase: str
+    duration_seconds: int = 0
+    tags: dict[str, str] = Field(default_factory=dict)
+
+
+class MeditationEmitOut(BaseModel):
+    session_id: str
+    emitted: int
+    phase: str
+
+
+class SceneGraphNode(BaseModel):
+    node_id: str
+    kind: str
+    x: float
+    y: float
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class SceneGraphEdge(BaseModel):
+    from_node_id: str
+    to_node_id: str
+    relation: str
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class SceneGraphEmitInput(BaseModel):
+    workspace_id: str
+    scene_id: str
+    nodes: list[SceneGraphNode]
+    edges: list[SceneGraphEdge]
+
+
+class SceneGraphEmitOut(BaseModel):
+    scene_id: str
+    nodes_emitted: int
+    edges_emitted: int
+
+
+class InventoryAdjustInput(BaseModel):
+    workspace_id: str
+    inventory_item_id: str
+    delta: int
+    reason: str = "gameplay"
+
+
+class SaveExportOut(BaseModel):
+    workspace_id: str
+    generated_at: str
+    timeline_count: int
+    frontier_count: int
+    hash: str
+    payload: dict[str, object]

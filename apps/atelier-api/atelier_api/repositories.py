@@ -104,6 +104,20 @@ class AtelierRepository:
         self._db.refresh(row)
         return row
 
+    def get_inventory_item(self, workspace_id: str, item_id: str) -> InventoryItem | None:
+        return self._db.scalar(
+            select(InventoryItem).where(
+                InventoryItem.workspace_id == workspace_id,
+                InventoryItem.id == item_id,
+            )
+        )
+
+    def update_inventory_item(self, row: InventoryItem) -> InventoryItem:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
     def list_suppliers(self, workspace_id: str) -> Sequence[Supplier]:
         return self._db.scalars(select(Supplier).where(Supplier.workspace_id == workspace_id)).all()
 

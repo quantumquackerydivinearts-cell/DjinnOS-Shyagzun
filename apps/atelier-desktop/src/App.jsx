@@ -769,6 +769,113 @@ const LESSON_MARKDOWN_CHEATSHEET = [
   "**bold** *italic* `code`"
 ];
 
+const SCENE_SCHEMA_V1 = {
+  schema: "qqva.scene.v1",
+  scene: {
+    id: "scene_prototype",
+    name: "Prototype Scene",
+    systems: {
+      gravity: 0,
+      camera: { x: 0, y: 0 }
+    },
+    entities: [
+      {
+        id: "entity_001",
+        kind: "token",
+        x: 0,
+        y: 0,
+        sprite_id: "sprite_001"
+      }
+    ]
+  }
+};
+
+const SPRITE_SCHEMA_V1 = {
+  schema: "qqva.sprite.v1",
+  sprite: {
+    id: "sprite_001",
+    name: "Prototype Sprite",
+    source: "assets/sprites/sprite_001.png",
+    frame_w: 32,
+    frame_h: 32,
+    frames: [{ id: "idle_0", x: 0, y: 0, w: 32, h: 32, ms: 120 }],
+    tags: ["token"],
+    anchor: { x: 16, y: 16 },
+    collision: { x: 2, y: 2, w: 28, h: 28 }
+  }
+};
+
+function normalizeSceneFilename(name) {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) {
+    return "scene.scene.json";
+  }
+  if (trimmed.toLowerCase().endsWith(".scene.json")) {
+    return trimmed;
+  }
+  return `${trimmed}.scene.json`;
+}
+
+function normalizeSpriteFilename(name) {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) {
+    return "sprite.sprite.json";
+  }
+  if (trimmed.toLowerCase().endsWith(".sprite.json")) {
+    return trimmed;
+  }
+  return `${trimmed}.sprite.json`;
+}
+
+function buildSceneSchemaV1FromSpec(specObj) {
+  const spec = specObj && typeof specObj === "object" ? specObj : {};
+  const scene = spec.scene && typeof spec.scene === "object" ? spec.scene : {};
+  const systems = spec.systems && typeof spec.systems === "object" ? spec.systems : {};
+  const entities = Array.isArray(spec.entities) ? spec.entities : [];
+  return {
+    schema: "qqva.scene.v1",
+    scene: {
+      id: String(scene.id || "scene_prototype"),
+      name: String(scene.name || "Prototype Scene"),
+      systems,
+      entities: entities.map((entity, index) => {
+        const e = entity && typeof entity === "object" ? entity : {};
+        return {
+          id: String(e.id || `entity_${String(index + 1).padStart(3, "0")}`),
+          kind: String(e.kind || "token"),
+          x: Number(e.x || 0),
+          y: Number(e.y || 0),
+          sprite_id: typeof e.sprite_id === "string" ? e.sprite_id : undefined
+        };
+      })
+    }
+  };
+}
+
+function buildSpecFromSceneSchemaV1(sceneDoc) {
+  const sceneContainer = sceneDoc && typeof sceneDoc === "object" ? sceneDoc : {};
+  const scene = sceneContainer.scene && typeof sceneContainer.scene === "object" ? sceneContainer.scene : {};
+  const systems = scene.systems && typeof scene.systems === "object" ? scene.systems : {};
+  const entities = Array.isArray(scene.entities) ? scene.entities : [];
+  return {
+    scene: {
+      id: String(scene.id || "scene_prototype"),
+      name: String(scene.name || "Prototype Scene")
+    },
+    systems,
+    entities: entities.map((entity, index) => {
+      const e = entity && typeof entity === "object" ? entity : {};
+      return {
+        id: String(e.id || `entity_${String(index + 1).padStart(3, "0")}`),
+        kind: String(e.kind || "token"),
+        x: Number(e.x || 0),
+        y: Number(e.y || 0),
+        sprite_id: typeof e.sprite_id === "string" ? e.sprite_id : undefined
+      };
+    })
+  };
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -1046,6 +1153,16 @@ export function App() {
     "{\"scene\":{\"name\":\"prototype\"},\"systems\":{\"gravity\":0.0,\"camera\":{\"x\":0,\"y\":0}},\"entities\":[{\"id\":\"hero\",\"kind\":\"player\",\"x\":0,\"y\":0,\"hp\":100},{\"id\":\"orb-1\",\"kind\":\"pickup\",\"x\":4,\"y\":2,\"value\":10}]}"
   );
   const [rendererGameStatus, setRendererGameStatus] = useState("idle");
+  const [headlessQuestText, setHeadlessQuestText] = useState(
+    "{\"workspace_id\":\"main\",\"quest_id\":\"quest_intro\",\"scene_id\":\"scene_prototype\",\"steps\":[{\"step_id\":\"s1\",\"raw\":\"quest.step quest_intro s1\",\"context\":{\"intent\":\"begin\"}}]}"
+  );
+  const [meditationText, setMeditationText] = useState(
+    "{\"workspace_id\":\"main\",\"session_id\":\"med_001\",\"phase\":\"focus\",\"duration_seconds\":180,\"tags\":{\"mode\":\"guided\"}}"
+  );
+  const [sceneGraphText, setSceneGraphText] = useState(
+    "{\"workspace_id\":\"main\",\"scene_id\":\"scene_prototype\",\"nodes\":[{\"node_id\":\"n1\",\"kind\":\"spawn\",\"x\":0,\"y\":0,\"metadata\":{}},{\"node_id\":\"n2\",\"kind\":\"goal\",\"x\":8,\"y\":4,\"metadata\":{}}],\"edges\":[{\"from_node_id\":\"n1\",\"to_node_id\":\"n2\",\"relation\":\"path\",\"metadata\":{}}]}"
+  );
+  const [saveExport, setSaveExport] = useState(null);
   const [rendererSimPlaying, setRendererSimPlaying] = useState(false);
   const [rendererSimMs, setRendererSimMs] = useState("300");
   const [rendererNewEntityId, setRendererNewEntityId] = useState("enemy-1");
@@ -1179,6 +1296,10 @@ export function App() {
   const [studioFsRoot, setStudioFsRoot] = useState(() => localStorage.getItem("atelier.studio_fs_root") || "");
   const [studioFsScripts, setStudioFsScripts] = useState([]);
   const [studioFsSelectedScript, setStudioFsSelectedScript] = useState("");
+  const [studioFsSceneFiles, setStudioFsSceneFiles] = useState([]);
+  const [studioFsSpriteFiles, setStudioFsSpriteFiles] = useState([]);
+  const [studioFsSelectedScene, setStudioFsSelectedScene] = useState("");
+  const [studioFsSelectedSprite, setStudioFsSelectedSprite] = useState("");
 
   const caps = useMemo(() => capabilitiesForRole(role).join(","), [role]);
   const datasetSummary = useMemo(
@@ -1438,6 +1559,70 @@ export function App() {
         });
       }
       return { placed: parsed.entities.length };
+    });
+  }
+
+  async function emitScenePlacements() {
+    await runAction("scene_emit_placements", async () => {
+      const spec = parseObjectJson(rendererGameSpecText, {});
+      const entities = Array.isArray(spec.entities) ? spec.entities : [];
+      if (entities.length === 0) {
+        throw new Error("scene_emit: no entities in renderer game spec");
+      }
+      const sceneObj = spec.scene && typeof spec.scene === "object" ? spec.scene : {};
+      const sceneId = String(sceneObj.id || sceneObj.name || "renderer_scene");
+      const sorted = [...entities].sort((a, b) => {
+        const aId = String(a && typeof a === "object" ? a.id || "" : "");
+        const bId = String(b && typeof b === "object" ? b.id || "" : "");
+        return aId.localeCompare(bId);
+      });
+      for (const entity of sorted) {
+        const e = entity && typeof entity === "object" ? entity : {};
+        const entityId = String(e.id || "entity");
+        const x = Number(e.x || 0);
+        const y = Number(e.y || 0);
+        const kind = String(e.kind || "token");
+        const rawLine = `scene.entity ${sceneId} ${entityId} ${kind} ${x} ${y}`;
+        await apiCall("/v1/ambroflow/place", "POST", {
+          raw: rawLine,
+          scene_id: sceneId,
+          context: {
+            workspace_id: workspaceId,
+            source: "renderer_scene_emit",
+            entity: e
+          }
+        });
+      }
+      return { placed: sorted.length, scene_id: sceneId };
+    });
+  }
+
+  async function emitHeadlessQuest() {
+    await runAction("game_headless_quest_emit", async () => {
+      const payload = parseObjectJson(headlessQuestText, {});
+      return apiCall("/v1/game/quests/headless/emit", "POST", payload);
+    });
+  }
+
+  async function emitMeditation() {
+    await runAction("game_meditation_emit", async () => {
+      const payload = parseObjectJson(meditationText, {});
+      return apiCall("/v1/game/meditation/emit", "POST", payload);
+    });
+  }
+
+  async function emitSceneGraph() {
+    await runAction("game_scene_graph_emit", async () => {
+      const payload = parseObjectJson(sceneGraphText, {});
+      return apiCall("/v1/game/scene-graph/emit", "POST", payload);
+    });
+  }
+
+  async function exportGameSave() {
+    await runAction("game_save_export", async () => {
+      const data = await apiCall(`/v1/game/saves/export?workspace_id=${encodeURIComponent(workspaceId)}`, "GET", null);
+      setSaveExport(data);
+      return data;
     });
   }
 
@@ -2120,7 +2305,23 @@ export function App() {
       if (!result || !result.ok || typeof result.directory !== "string") {
         throw new Error("studio_fs_choose cancelled");
       }
-      setStudioFsRoot(result.directory);
+      const nextRoot = result.directory;
+      setStudioFsRoot(nextRoot);
+      const scripts = await window.atelierDesktop.fs.listCobraScripts(nextRoot);
+      if (scripts && scripts.ok && Array.isArray(scripts.files)) {
+        setStudioFsScripts(scripts.files);
+        setStudioFsSelectedScript(scripts.files.length > 0 ? String(scripts.files[0]) : "");
+      }
+      const scenes = await window.atelierDesktop.fs.listAssetsBySuffix(nextRoot, ".scene.json");
+      if (scenes && scenes.ok && Array.isArray(scenes.files)) {
+        setStudioFsSceneFiles(scenes.files);
+        setStudioFsSelectedScene(scenes.files.length > 0 ? String(scenes.files[0]) : "");
+      }
+      const sprites = await window.atelierDesktop.fs.listAssetsBySuffix(nextRoot, ".sprite.json");
+      if (sprites && sprites.ok && Array.isArray(sprites.files)) {
+        setStudioFsSpriteFiles(sprites.files);
+        setStudioFsSelectedSprite(sprites.files.length > 0 ? String(sprites.files[0]) : "");
+      }
       return result;
     });
   }
@@ -2142,6 +2343,134 @@ export function App() {
         setStudioFsSelectedScript(String(result.files[0]));
       }
       return result;
+    });
+  }
+
+  async function refreshStudioFsAssets() {
+    await runAction("studio_fs_list_assets", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      const scenes = await window.atelierDesktop.fs.listAssetsBySuffix(studioFsRoot, ".scene.json");
+      const sprites = await window.atelierDesktop.fs.listAssetsBySuffix(studioFsRoot, ".sprite.json");
+      const sceneFiles = scenes && scenes.ok && Array.isArray(scenes.files) ? scenes.files : [];
+      const spriteFiles = sprites && sprites.ok && Array.isArray(sprites.files) ? sprites.files : [];
+      setStudioFsSceneFiles(sceneFiles);
+      setStudioFsSpriteFiles(spriteFiles);
+      if (sceneFiles.length > 0) {
+        setStudioFsSelectedScene(String(sceneFiles[0]));
+      }
+      if (spriteFiles.length > 0) {
+        setStudioFsSelectedSprite(String(spriteFiles[0]));
+      }
+      return { scene_count: sceneFiles.length, sprite_count: spriteFiles.length };
+    });
+  }
+
+  async function exportRendererSceneToFs() {
+    await runAction("studio_fs_export_scene", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      const spec = parseObjectJson(rendererGameSpecText, {});
+      const doc = buildSceneSchemaV1FromSpec(spec);
+      const sceneObj = doc.scene && typeof doc.scene === "object" ? doc.scene : {};
+      const filename = normalizeSceneFilename(String(sceneObj.id || sceneObj.name || "scene"));
+      await window.atelierDesktop.fs.writeTextFile(studioFsRoot, filename, JSON.stringify(doc, null, 2));
+      await refreshStudioFsAssets();
+      return { filename };
+    });
+  }
+
+  async function importSelectedFsSceneToRenderer() {
+    await runAction("studio_fs_import_scene", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      if (!studioFsSelectedScene) {
+        throw new Error("studio_fs no scene selected");
+      }
+      const result = await window.atelierDesktop.fs.readTextFile(studioFsRoot, studioFsSelectedScene);
+      if (!result || !result.ok || typeof result.content !== "string") {
+        throw new Error("studio_fs_read_scene failed");
+      }
+      const parsed = parseObjectJson(result.content, {});
+      if (String(parsed.schema || "") !== "qqva.scene.v1") {
+        throw new Error("studio_fs scene schema mismatch");
+      }
+      const spec = buildSpecFromSceneSchemaV1(parsed);
+      setRendererGameSpecText(JSON.stringify(spec, null, 2));
+      setSection("Renderer Lab");
+      return { imported: studioFsSelectedScene };
+    });
+  }
+
+  async function exportRendererSpriteToFs() {
+    await runAction("studio_fs_export_sprite", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      const spriteDoc = {
+        schema: "qqva.sprite.v1",
+        sprite: {
+          id: String(spriteId || "sprite_001"),
+          name: String(spriteId || "sprite_001"),
+          source: "assets/sprites/placeholder.png",
+          frame_w: 32,
+          frame_h: 32,
+          frames: [{ id: "idle_0", x: 0, y: 0, w: 32, h: 32, ms: 120 }],
+          tags: [String(spriteKind || "token")],
+          anchor: { x: 16, y: 16 },
+          collision: { x: 2, y: 2, w: 28, h: 28 }
+        }
+      };
+      const filename = normalizeSpriteFilename(String(spriteDoc.sprite.id || "sprite"));
+      await window.atelierDesktop.fs.writeTextFile(studioFsRoot, filename, JSON.stringify(spriteDoc, null, 2));
+      await refreshStudioFsAssets();
+      return { filename };
+    });
+  }
+
+  async function importSelectedFsSpriteToRenderer() {
+    await runAction("studio_fs_import_sprite", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      if (!studioFsSelectedSprite) {
+        throw new Error("studio_fs no sprite selected");
+      }
+      const result = await window.atelierDesktop.fs.readTextFile(studioFsRoot, studioFsSelectedSprite);
+      if (!result || !result.ok || typeof result.content !== "string") {
+        throw new Error("studio_fs_read_sprite failed");
+      }
+      const parsed = parseObjectJson(result.content, {});
+      if (String(parsed.schema || "") !== "qqva.sprite.v1") {
+        throw new Error("studio_fs sprite schema mismatch");
+      }
+      const spriteObj = parsed.sprite && typeof parsed.sprite === "object" ? parsed.sprite : {};
+      const nextId = String(spriteObj.id || spriteId || "sprite_001");
+      setSpriteId(nextId);
+      if (Array.isArray(spriteObj.tags) && spriteObj.tags.length > 0) {
+        setSpriteKind(String(spriteObj.tags[0]));
+      }
+      setRendererJson(JSON.stringify({ sprite: spriteObj }, null, 2));
+      setSection("Renderer Lab");
+      return { imported: studioFsSelectedSprite };
     });
   }
 
@@ -3219,6 +3548,13 @@ export function App() {
             <div className="row">
               <button className="action" onClick={compileGameSpecToRenderer}>Compile Game Spec</button>
               <button className="action" onClick={() => downloadJson("renderer-game-spec.json", rendererGameSpec)}>Export Spec</button>
+              <button className="action" onClick={() => downloadJson("scene.schema.v1.template.json", SCENE_SCHEMA_V1)}>Export Scene Template</button>
+              <button className="action" onClick={() => downloadJson("sprite.schema.v1.template.json", SPRITE_SCHEMA_V1)}>Export Sprite Template</button>
+              <button className="action" onClick={emitScenePlacements}>Emit Scene Placements</button>
+              <button className="action" onClick={exportRendererSceneToFs}>Save Scene to FS</button>
+              <button className="action" onClick={importSelectedFsSceneToRenderer}>Load Scene from FS</button>
+              <button className="action" onClick={exportRendererSpriteToFs}>Save Sprite to FS</button>
+              <button className="action" onClick={importSelectedFsSpriteToRenderer}>Load Sprite from FS</button>
               <span className="badge">{`Entities: ${rendererGameEntities.length}`}</span>
             </div>
             <div className="row">
@@ -3234,6 +3570,37 @@ export function App() {
               onChange={(e) => setRendererGameSpecText(e.target.value)}
               placeholder='{"scene":{"name":"prototype"},"systems":{"gravity":0.0},"entities":[...]}'
             />
+          </section>
+          <section className="panel">
+            <h2>Game System Creator</h2>
+            <p>Headless quest emit, meditation emit, scene graph emit, and deterministic save export.</p>
+            <div className="row">
+              <button className="action" onClick={emitHeadlessQuest}>Emit Headless Quest</button>
+              <button className="action" onClick={emitMeditation}>Emit Meditation</button>
+              <button className="action" onClick={emitSceneGraph}>Emit Scene Graph</button>
+              <button className="action" onClick={exportGameSave}>Export Save</button>
+              <button className="action" onClick={() => saveExport && downloadJson(`game-save-${workspaceId}.json`, saveExport)}>Download Save JSON</button>
+            </div>
+            <h3>Headless Quest Payload</h3>
+            <textarea
+              className="editor editor-mono renderer-editor"
+              value={headlessQuestText}
+              onChange={(e) => setHeadlessQuestText(e.target.value)}
+            />
+            <h3>Meditation Payload</h3>
+            <textarea
+              className="editor editor-mono renderer-editor"
+              value={meditationText}
+              onChange={(e) => setMeditationText(e.target.value)}
+            />
+            <h3>Scene Graph Payload</h3>
+            <textarea
+              className="editor editor-mono renderer-editor"
+              value={sceneGraphText}
+              onChange={(e) => setSceneGraphText(e.target.value)}
+            />
+            <h3>Save Export</h3>
+            <pre>{JSON.stringify(saveExport || {}, null, 2)}</pre>
           </section>
           <section className="panel">
             <h2>Tile Placement Network</h2>
@@ -3511,6 +3878,7 @@ export function App() {
               <input value={studioFsRoot} onChange={(e) => setStudioFsRoot(e.target.value)} placeholder="cobra scripts folder path" />
               <button className="action" onClick={chooseStudioFsFolder}>Choose Folder</button>
               <button className="action" onClick={refreshStudioFsScripts}>List .cobra</button>
+              <button className="action" onClick={refreshStudioFsAssets}>List scene/sprite</button>
               <button className="action" onClick={importSelectedFsScriptToStudio}>Import Selected</button>
               <button className="action" onClick={saveSelectedStudioFileToFs}>Save Selected</button>
               <button className="action" onClick={exportAllCobraScriptsToFs}>Export All .cobra</button>
@@ -3524,6 +3892,28 @@ export function App() {
               </select>
               <span className="badge">{`Desktop FS: ${hasDesktopFs() ? "available" : "web-only"}`}</span>
               <span className="badge">{`.cobra files: ${studioFsScripts.length}`}</span>
+              <span className="badge">{`scene files: ${studioFsSceneFiles.length}`}</span>
+              <span className="badge">{`sprite files: ${studioFsSpriteFiles.length}`}</span>
+            </div>
+            <div className="row">
+              <select value={studioFsSelectedScene} onChange={(e) => setStudioFsSelectedScene(e.target.value)}>
+                <option value="">select .scene.json from folder</option>
+                {studioFsSceneFiles.map((name) => (
+                  <option key={`studio-fs-scene-${name}`} value={name}>{name}</option>
+                ))}
+              </select>
+              <button className="action" onClick={importSelectedFsSceneToRenderer}>Import Scene to Renderer</button>
+              <button className="action" onClick={exportRendererSceneToFs}>Export Current Scene</button>
+            </div>
+            <div className="row">
+              <select value={studioFsSelectedSprite} onChange={(e) => setStudioFsSelectedSprite(e.target.value)}>
+                <option value="">select .sprite.json from folder</option>
+                {studioFsSpriteFiles.map((name) => (
+                  <option key={`studio-fs-sprite-${name}`} value={name}>{name}</option>
+                ))}
+              </select>
+              <button className="action" onClick={importSelectedFsSpriteToRenderer}>Import Sprite to Renderer</button>
+              <button className="action" onClick={exportRendererSpriteToFs}>Export Current Sprite</button>
             </div>
             <div className="row">
               <input value={studioNewFolder} onChange={(e) => setStudioNewFolder(e.target.value)} placeholder="new folder name" />
