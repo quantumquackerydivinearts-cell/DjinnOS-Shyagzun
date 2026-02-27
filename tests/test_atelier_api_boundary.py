@@ -697,6 +697,119 @@ def test_vitriol_compute_and_clear_expired_are_deterministic() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_djinn_keshi_and_giann_are_deterministic() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    keshi_payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "djinn_id": "keshi",
+        "realm_id": "lapidus",
+        "scene_id": "lapidus/intro",
+        "ring_id": "overworld",
+        "target_frontiers": ["F2", "F1"],
+        "tick": 33,
+        "reason": "scar_test",
+    }
+    first = client.post("/v1/game/djinn/apply", json=keshi_payload, headers=headers)
+    second = client.post("/v1/game/djinn/apply", json=keshi_payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["hash"] == second_payload["hash"]
+    assert first_payload["effect"] == "collapse"
+    assert first_payload["scarred_frontiers"] == ["F1", "F2"]
+    assert first_payload["frontier_effects"]["F1"] == "collapsed"
+
+    giann_payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "djinn_id": "giann",
+        "realm_id": "lapidus",
+        "scene_id": "lapidus/intro",
+        "ring_id": "overworld",
+        "target_frontiers": ["F3"],
+        "tick": 34,
+        "reason": "boon_test",
+    }
+    giann = client.post("/v1/game/djinn/apply", json=giann_payload, headers=headers)
+    assert giann.status_code == 200
+    giann_payload_out = giann.json()
+    assert giann_payload_out["effect"] == "open"
+    assert giann_payload_out["opened_frontiers"] == ["F3"]
+    app.dependency_overrides.clear()
+
+
+def test_game_djinn_drovitth_records_marks_only_in_sulphera_royalty() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    invalid = client.post(
+        "/v1/game/djinn/apply",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "djinn_id": "drovitth",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/intro",
+            "ring_id": "overworld",
+            "observed_marks": [],
+            "tick": 55,
+            "reason": "record_test",
+        },
+        headers=headers,
+    )
+    assert invalid.status_code == 400
+    assert invalid.json()["detail"] == "drovitth_requires_sulphera_royalty_ring"
+
+    valid = client.post(
+        "/v1/game/djinn/apply",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player",
+            "djinn_id": "drovitth",
+            "realm_id": "sulphera",
+            "scene_id": "sulphera/royal_orrery",
+            "ring_id": "royalty",
+            "observed_marks": [
+                {
+                    "mark_id": "m2",
+                    "source_djinn_id": "giann",
+                    "frontier_id": "F2",
+                    "effect": "open",
+                    "tick": 11,
+                    "note": "boon",
+                },
+                {
+                    "mark_id": "m1",
+                    "source_djinn_id": "keshi",
+                    "frontier_id": "F1",
+                    "effect": "collapse",
+                    "tick": 10,
+                    "note": "scar",
+                },
+            ],
+            "tick": 56,
+            "reason": "record_test",
+        },
+        headers=headers,
+    )
+    assert valid.status_code == 200
+    payload = valid.json()
+    assert payload["effect"] == "record"
+    assert payload["placements"][0] == "entity royal_orrery 0 0 instrument"
+    assert [mark["mark_id"] for mark in payload["orrery_marks"]] == ["m1", "m2"]
+    app.dependency_overrides.clear()
+
+
 def test_game_gate_evaluate_supports_xor_and_nor_with_multi_source_state() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

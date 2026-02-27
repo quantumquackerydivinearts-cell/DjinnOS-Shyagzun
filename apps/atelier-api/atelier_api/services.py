@@ -120,6 +120,9 @@ from .business_schemas import (
     VitriolComputeInput,
     VitriolComputeOut,
     VitriolModifier,
+    DjinnApplyInput,
+    DjinnApplyOut,
+    DjinnOrreryMark,
     SupplierCreate,
     SupplierOut,
 )
@@ -203,6 +206,11 @@ class AtelierService:
         "othieru": "abandon",
         "po_elfan": "anxiety",
         "kaganue": "confusion",
+    }
+    _DJINN_ALIGNMENT: dict[str, str] = {
+        "keshi": "chaotic_evil",
+        "giann": "chaotic_good",
+        "drovitth": "lawful_neutral",
     }
     _WORLD_STREAM_MAX_LOADED_REGIONS = 128
 
@@ -2005,6 +2013,132 @@ class AtelierService:
                 workshop_id=workshop_id,
             )
         return result
+
+    @staticmethod
+    def _normalize_frontier_ids(values: Sequence[str]) -> list[str]:
+        normalized = sorted({value.strip() for value in values if value.strip() != ""})
+        return normalized
+
+    @staticmethod
+    def _safe_token(value: str) -> str:
+        return "".join(ch if (ch.isalnum() or ch in {"_", "-"}) else "_" for ch in value)
+
+    def apply_djinn_influence(
+        self,
+        *,
+        payload: DjinnApplyInput,
+        actor_id: str,
+        workshop_id: str,
+        emit_kernel: bool = True,
+    ) -> DjinnApplyOut:
+        djinn_id = payload.djinn_id.strip().lower()
+        if djinn_id not in self._DJINN_ALIGNMENT:
+            raise ValueError("invalid_djinn")
+        normalized_realm = payload.realm_id.strip().lower()
+        normalized_ring = payload.ring_id.strip().lower()
+        if djinn_id == "drovitth":
+            if normalized_realm != "sulphera" or normalized_ring not in {"royal", "royalty"}:
+                raise ValueError("drovitth_requires_sulphera_royalty_ring")
+
+        target_frontiers = self._normalize_frontier_ids(payload.target_frontiers)
+        frontier_effects: dict[str, str] = {}
+        scarred_frontiers: list[str] = []
+        opened_frontiers: list[str] = []
+        placements: list[str] = []
+        orrery_marks: list[DjinnOrreryMark] = []
+        effect: str = "record"
+
+        if djinn_id == "keshi":
+            effect = "collapse"
+            for frontier_id in target_frontiers:
+                frontier_effects[frontier_id] = "collapsed"
+                scarred_frontiers.append(frontier_id)
+                token = self._safe_token(frontier_id)
+                placements.append(f"entity scar_{token} 0 0 scar")
+                orrery_marks.append(
+                    DjinnOrreryMark(
+                        mark_id=f"keshi:{token}:{payload.tick}",
+                        source_djinn_id="keshi",
+                        frontier_id=frontier_id,
+                        effect="collapse",
+                        tick=payload.tick,
+                        note=payload.reason or "kernel_scar",
+                    )
+                )
+        elif djinn_id == "giann":
+            effect = "open"
+            for frontier_id in target_frontiers:
+                frontier_effects[frontier_id] = "opened"
+                opened_frontiers.append(frontier_id)
+                token = self._safe_token(frontier_id)
+                placements.append(f"entity boon_{token} 0 0 boon")
+                orrery_marks.append(
+                    DjinnOrreryMark(
+                        mark_id=f"giann:{token}:{payload.tick}",
+                        source_djinn_id="giann",
+                        frontier_id=frontier_id,
+                        effect="open",
+                        tick=payload.tick,
+                        note=payload.reason or "player_boon",
+                    )
+                )
+        else:
+            effect = "record"
+            placements.append("entity royal_orrery 0 0 instrument")
+            observed = [
+                mark
+                for mark in payload.observed_marks
+                if mark.source_djinn_id.strip().lower() in {"keshi", "giann"}
+            ]
+            orrery_marks = sorted(
+                observed,
+                key=lambda mark: (
+                    int(mark.tick),
+                    mark.source_djinn_id.strip().lower(),
+                    mark.frontier_id,
+                    mark.mark_id,
+                ),
+            )
+
+        hash_payload: dict[str, object] = {
+            "actor_id": payload.actor_id,
+            "djinn_id": djinn_id,
+            "effect": effect,
+            "frontier_effects": frontier_effects,
+            "scarred_frontiers": scarred_frontiers,
+            "opened_frontiers": opened_frontiers,
+            "placements": placements,
+            "orrery_marks": [mark.model_dump() for mark in orrery_marks],
+            "tick": payload.tick,
+        }
+        out = DjinnApplyOut(
+            actor_id=payload.actor_id,
+            djinn_id=cast(Any, djinn_id),
+            alignment=self._DJINN_ALIGNMENT[djinn_id],
+            effect=cast(Any, effect),
+            applied=True,
+            frontier_effects=frontier_effects,
+            scarred_frontiers=scarred_frontiers,
+            opened_frontiers=opened_frontiers,
+            placements=placements,
+            orrery_marks=orrery_marks,
+            hash=self._canonical_hash(hash_payload),
+        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.djinn.apply {payload.actor_id} {djinn_id} {effect}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "scene_id": payload.scene_id,
+                    "realm_id": normalized_realm,
+                    "ring_id": normalized_ring,
+                    "rule": "djinn_apply_influence",
+                    "result": out.model_dump(),
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
+        return out
 
     def renderer_tables(
         self,

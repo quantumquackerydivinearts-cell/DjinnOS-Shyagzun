@@ -690,6 +690,46 @@ class VitriolClearExpiredOut(BaseModel):
     hash: str
 
 
+DjinnId = Literal["keshi", "giann", "drovitth"]
+DjinnEffect = Literal["collapse", "open", "record"]
+
+
+class DjinnOrreryMark(BaseModel):
+    mark_id: str
+    source_djinn_id: str
+    frontier_id: str
+    effect: str
+    tick: int = 0
+    note: str = ""
+
+
+class DjinnApplyInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    djinn_id: DjinnId
+    realm_id: str
+    scene_id: str
+    ring_id: str = ""
+    target_frontiers: list[str] = Field(default_factory=list)
+    observed_marks: list[DjinnOrreryMark] = Field(default_factory=list)
+    tick: int = 0
+    reason: str = ""
+
+
+class DjinnApplyOut(BaseModel):
+    actor_id: str
+    djinn_id: DjinnId
+    alignment: str
+    effect: DjinnEffect
+    applied: bool
+    frontier_effects: dict[str, str]
+    scarred_frontiers: list[str]
+    opened_frontiers: list[str]
+    placements: list[str]
+    orrery_marks: list[DjinnOrreryMark]
+    hash: str
+
+
 GateOperator = Literal["and", "or", "xor", "nor"]
 GateSource = Literal["skills", "inventory", "vitriol", "dialogue_flags", "previous_dialogue", "flags"]
 GateComparator = Literal["gte", "eq", "present"]

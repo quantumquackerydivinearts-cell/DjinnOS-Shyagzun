@@ -94,6 +94,8 @@ from .business_schemas import (
     VitriolClearExpiredOut,
     VitriolComputeInput,
     VitriolComputeOut,
+    DjinnApplyInput,
+    DjinnApplyOut,
     LeadCreate,
     LeadOut,
     LessonCreate,
@@ -1865,6 +1867,35 @@ def compute_vitriol(
     _enforce_role(role, "kernel.observe")
     _ = workshop  # enforce workshop boundary surface without changing behavior
     return svc.vitriol_compute(payload=payload)
+
+
+@app.post("/v1/game/djinn/apply")
+def apply_djinn(
+    payload: DjinnApplyInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> DjinnApplyOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        token=token,
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+    try:
+        return svc.apply_djinn_influence(
+            payload=payload,
+            actor_id=ctx.actor_id,
+            workshop_id=workshop.identity.workshop_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/v1/suppliers")
