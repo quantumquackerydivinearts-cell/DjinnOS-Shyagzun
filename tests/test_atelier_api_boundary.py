@@ -1689,3 +1689,164 @@ def test_render_graph_contract_compiles_nodes_with_world_transforms() -> None:
     assert "position" in node["transform"]
     assert "screen_hint" in node["transform"]
     app.dependency_overrides.clear()
+
+
+def test_isometric_render_contract_supports_asset_pack_id_pinning() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    now = datetime.now(timezone.utc)
+
+    class _SceneRow:
+        id = "scene-row-1"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        scene_id = "lapidus/intro"
+        name = "Intro"
+        description = ""
+        content_json = '{"nodes":[{"node_id":"desk_1","kind":"desk","x":1,"y":1,"metadata":{"z":0}}],"edges":[]}'
+        content_hash = "h_scene"
+        created_at = now
+        updated_at = now
+
+    class _ManifestA:
+        id = "manifest-a"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        manifest_id = "sprite_pack_alpha"
+        name = "Sprites A"
+        kind = "sprite"
+        payload_json = '{"asset_pack_id":"pack_alpha","atlas_version":"atlas_vA","desk":"atlas_a/desk.png"}'
+        payload_hash = "h_a"
+        created_at = now
+
+    class _ManifestB:
+        id = "manifest-b"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        manifest_id = "sprite_pack_beta"
+        name = "Sprites B"
+        kind = "sprite"
+        payload_json = '{"asset_pack_id":"pack_beta","atlas_version":"atlas_vB","desk":"atlas_b/desk.png"}'
+        payload_hash = "h_b"
+        created_at = now
+
+    class _MaterialB:
+        id = "manifest-bm"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        manifest_id = "material_pack_beta"
+        name = "Materials B"
+        kind = "material"
+        payload_json = '{"asset_pack_id":"pack_beta","material_pack_version":"mat_vB","desk":"oak"}'
+        payload_hash = "h_bm"
+        created_at = now
+
+    class _RenderRepo:
+        def get_scene(self, workspace_id: str, realm_id: str, scene_id: str) -> _SceneRow | None:
+            if workspace_id == "main" and realm_id == "lapidus" and scene_id == "lapidus/intro":
+                return _SceneRow()
+            return None
+
+        def list_world_regions(self, workspace_id: str, realm_id: str | None = None) -> Sequence[object]:
+            return []
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[object]:
+            if workspace_id != "main":
+                return []
+            return [_ManifestA(), _ManifestB(), _MaterialB()]
+
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=_RenderRepo(), kernel=kernel)
+    client = TestClient(app)
+    res = client.post(
+        "/v1/game/renderer/isometric-contract",
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/intro",
+            "asset_pack_id": "pack_beta",
+            "renderer_atlas_versions": ["atlas_vB"],
+            "renderer_material_versions": ["mat_vB"],
+        },
+        headers=_headers("kernel.observe"),
+    )
+    assert res.status_code == 200
+    out = res.json()
+    assert out["asset_pack"]["asset_pack_id"] == "pack_beta"
+    assert out["asset_pack"]["atlas_version"] == "atlas_vB"
+    assert out["asset_pack"]["material_pack_version"] == "mat_vB"
+    assert out["drawables"][0]["sprite"] == "atlas_b/desk.png"
+    app.dependency_overrides.clear()
+
+
+def test_isometric_render_contract_strict_assets_and_version_guards_fail_fast() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    now = datetime.now(timezone.utc)
+
+    class _SceneRow:
+        id = "scene-row-1"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        scene_id = "lapidus/intro"
+        name = "Intro"
+        description = ""
+        content_json = '{"nodes":[{"node_id":"mystery_1","kind":"unknown","x":1,"y":1,"metadata":{"z":0}}],"edges":[]}'
+        content_hash = "h_scene"
+        created_at = now
+        updated_at = now
+
+    class _Manifest:
+        id = "manifest-1"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        manifest_id = "sprite_pack_1"
+        name = "Sprites"
+        kind = "sprite"
+        payload_json = '{"atlas_version":"atlas_v2","desk":"atlas/desk.png"}'
+        payload_hash = "h_manifest"
+        created_at = now
+
+    class _RenderRepo:
+        def get_scene(self, workspace_id: str, realm_id: str, scene_id: str) -> _SceneRow | None:
+            if workspace_id == "main" and realm_id == "lapidus" and scene_id == "lapidus/intro":
+                return _SceneRow()
+            return None
+
+        def list_world_regions(self, workspace_id: str, realm_id: str | None = None) -> Sequence[object]:
+            return []
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[object]:
+            if workspace_id != "main":
+                return []
+            return [_Manifest()]
+
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=_RenderRepo(), kernel=kernel)
+    client = TestClient(app)
+
+    incompatible = client.post(
+        "/v1/game/renderer/isometric-contract",
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/intro",
+            "renderer_atlas_versions": ["atlas_v1_only"],
+        },
+        headers=_headers("kernel.observe"),
+    )
+    assert incompatible.status_code == 400
+    assert "incompatible_atlas_version:atlas_v2" in incompatible.json()["detail"]
+
+    strict = client.post(
+        "/v1/game/renderer/isometric-contract",
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/intro",
+            "strict_assets": True,
+            "renderer_atlas_versions": ["atlas_v2"],
+        },
+        headers=_headers("kernel.observe"),
+    )
+    assert strict.status_code == 400
+    assert "missing_sprite_asset" in strict.json()["detail"]
+    app.dependency_overrides.clear()

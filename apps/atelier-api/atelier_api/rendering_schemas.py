@@ -43,6 +43,10 @@ class IsometricRenderContractInput(BaseModel):
     workspace_id: str
     realm_id: str
     scene_id: str
+    asset_pack_id: str | None = None
+    strict_assets: bool = False
+    renderer_atlas_versions: list[str] = Field(default_factory=lambda: ["v1", "atlas_v2"])
+    renderer_material_versions: list[str] = Field(default_factory=lambda: ["v1", "mat_v3"])
     tile_width: int = 64
     tile_height: int = 32
     elevation_step: int = 16
@@ -81,6 +85,10 @@ class RenderGraphContractInput(BaseModel):
     workspace_id: str
     realm_id: str
     scene_id: str
+    asset_pack_id: str | None = None
+    strict_assets: bool = False
+    renderer_atlas_versions: list[str] = Field(default_factory=lambda: ["v1", "atlas_v2"])
+    renderer_material_versions: list[str] = Field(default_factory=lambda: ["v1", "mat_v3"])
     include_unloaded_regions: bool = False
     include_material_constraints: bool = True
     coordinate_space: str = "world_right_handed_y_up"

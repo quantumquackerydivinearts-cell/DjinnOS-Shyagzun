@@ -2757,10 +2757,15 @@ class AtelierService:
         material_lookup: dict[str, str] = {}
         atlas_version = "v1"
         material_pack_version = "v1"
+        requested_pack_id = (payload.asset_pack_id or "").strip()
         for row in manifest_rows:
             if row.realm_id != realm_id:
                 continue
             payload_obj = row.payload if isinstance(row.payload, dict) else {}
+            if requested_pack_id != "":
+                payload_pack_id = str(payload_obj.get("asset_pack_id") or "").strip()
+                if row.manifest_id != requested_pack_id and payload_pack_id != requested_pack_id:
+                    continue
             atlas_version_raw = payload_obj.get("atlas_version")
             if isinstance(atlas_version_raw, str) and atlas_version_raw.strip() != "":
                 atlas_version = atlas_version_raw.strip()
@@ -2769,16 +2774,24 @@ class AtelierService:
                 material_pack_version = material_version_raw.strip()
             if row.kind.strip().lower() == "sprite":
                 for key, value in payload_obj.items():
-                    if key in {"atlas_version", "material_pack_version"}:
+                    if key in {"atlas_version", "material_pack_version", "asset_pack_id"}:
                         continue
                     if isinstance(value, str):
                         sprite_lookup[str(key)] = value
             if row.kind.strip().lower() == "material":
                 for key, value in payload_obj.items():
-                    if key in {"atlas_version", "material_pack_version"}:
+                    if key in {"atlas_version", "material_pack_version", "asset_pack_id"}:
                         continue
                     if isinstance(value, str):
                         material_lookup[str(key)] = value
+
+        allowed_atlas_versions = {str(item).strip() for item in payload.renderer_atlas_versions if str(item).strip() != ""}
+        if allowed_atlas_versions and atlas_version not in allowed_atlas_versions:
+            raise ValueError(f"incompatible_atlas_version:{atlas_version}")
+        allowed_material_versions = {str(item).strip() for item in payload.renderer_material_versions if str(item).strip() != ""}
+        if allowed_material_versions and material_pack_version not in allowed_material_versions:
+            raise ValueError(f"incompatible_material_pack_version:{material_pack_version}")
+
         missing_sprite = "placeholder://sprite/missing"
         fallback_count = 0
 
@@ -2789,6 +2802,8 @@ class AtelierService:
                 return sprite_lookup[lookup_key], "lookup:key"
             if kind in sprite_lookup:
                 return sprite_lookup[kind], "lookup:kind"
+            if payload.strict_assets:
+                raise ValueError(f"missing_sprite_asset:{lookup_key or kind}")
             return missing_sprite, "fallback:missing"
 
         def _resolve_material(*, explicit: str, kind: str) -> tuple[str, str]:
@@ -2796,6 +2811,8 @@ class AtelierService:
                 return explicit, "explicit"
             if kind in material_lookup:
                 return material_lookup[kind], "lookup:kind"
+            if payload.strict_assets:
+                raise ValueError(f"missing_material_asset:{kind}")
             return "default", "fallback:default"
 
         for index, node in enumerate(scene_nodes):
@@ -2940,6 +2957,7 @@ class AtelierService:
                 "elevation_step": elevation_step,
             },
             "asset_pack": {
+                "asset_pack_id": requested_pack_id if requested_pack_id != "" else None,
                 "atlas_version": atlas_version,
                 "material_pack_version": material_pack_version,
                 "fallback_sprite": missing_sprite,
@@ -2957,6 +2975,7 @@ class AtelierService:
                 "elevation_step": elevation_step,
             },
             asset_pack={
+                "asset_pack_id": requested_pack_id if requested_pack_id != "" else None,
                 "atlas_version": atlas_version,
                 "material_pack_version": material_pack_version,
                 "fallback_sprite": missing_sprite,
@@ -2982,6 +3001,10 @@ class AtelierService:
                 workspace_id=payload.workspace_id,
                 realm_id=payload.realm_id,
                 scene_id=payload.scene_id,
+                asset_pack_id=payload.asset_pack_id,
+                strict_assets=payload.strict_assets,
+                renderer_atlas_versions=payload.renderer_atlas_versions,
+                renderer_material_versions=payload.renderer_material_versions,
                 include_unloaded_regions=payload.include_unloaded_regions,
                 include_material_constraints=payload.include_material_constraints,
             )
