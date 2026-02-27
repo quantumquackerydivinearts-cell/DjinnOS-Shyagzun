@@ -952,6 +952,7 @@ class QuestTransitionInput(BaseModel):
     quest_id: str
     event_id: str
     to_state: str
+    headless: bool = True
     from_states: list[str] = Field(default_factory=list)
     set_flags: dict[str, bool] = Field(default_factory=dict)
     metadata: dict[str, object] = Field(default_factory=dict)
@@ -995,6 +996,7 @@ class QuestAdvanceInput(BaseModel):
     quest_id: str
     event_id: str
     current_step_id: str
+    headless: bool = True
     state: GateStateInput | None = None
     edges: list[QuestStepEdgeInput] = Field(default_factory=list)
 
@@ -1014,6 +1016,51 @@ class QuestAdvanceOut(BaseModel):
     selected_edge_id: str | None = None
     evaluations: list[QuestStepEdgeResolveOut] = Field(default_factory=list)
     hash: str
+
+
+class QuestGraphStepInput(BaseModel):
+    step_id: str
+    edges: list[QuestStepEdgeInput] = Field(default_factory=list)
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class QuestGraphUpsertInput(BaseModel):
+    workspace_id: str
+    quest_id: str
+    version: str
+    start_step_id: str
+    headless: bool = True
+    steps: list[QuestGraphStepInput] = Field(default_factory=list)
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class QuestGraphOut(BaseModel):
+    workspace_id: str
+    quest_id: str
+    version: str
+    start_step_id: str
+    headless: bool
+    steps: list[QuestGraphStepInput] = Field(default_factory=list)
+    metadata: dict[str, object] = Field(default_factory=dict)
+    manifest_id: str
+    payload_hash: str
+    created_at: datetime
+
+
+class QuestAdvanceByGraphInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    quest_id: str
+    event_id: str
+    current_step_id: str
+    version: str | None = None
+    headless: bool = True
+    state: GateStateInput | None = None
+
+
+class QuestAdvanceByGraphOut(BaseModel):
+    graph: QuestGraphOut
+    advance: QuestAdvanceOut
 
 
 class CharacterDictionaryCreate(BaseModel):

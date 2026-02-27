@@ -90,7 +90,12 @@ from .business_schemas import (
     QuestTransitionInput,
     QuestTransitionOut,
     QuestAdvanceInput,
+    QuestAdvanceByGraphInput,
+    QuestAdvanceByGraphOut,
     QuestAdvanceOut,
+    QuestGraphOut,
+    QuestGraphStepInput,
+    QuestGraphUpsertInput,
     QuestStepEdgeResolveOut,
     JournalEntryCreate,
     JournalEntryOut,
@@ -2117,6 +2122,8 @@ class AtelierService:
         actor_id: str,
         workshop_id: str,
     ) -> QuestTransitionOut:
+        if not payload.headless:
+            raise ValueError("quests_must_be_headless")
         repo = self._require_repo()
         row = self._ensure_player_state(payload.workspace_id, payload.actor_id)
         tables = self._player_state_to_tables(row)
@@ -2221,6 +2228,8 @@ class AtelierService:
         actor_id: str,
         workshop_id: str,
     ) -> QuestAdvanceOut:
+        if not payload.headless:
+            raise ValueError("quests_must_be_headless")
         repo = self._require_repo()
         row = self._ensure_player_state(payload.workspace_id, payload.actor_id)
         tables = self._player_state_to_tables(row)
@@ -2366,6 +2375,162 @@ class AtelierService:
             workshop_id=workshop_id,
         )
         return out
+
+    @staticmethod
+    def _quest_graph_manifest_id(quest_id: str, version: str) -> str:
+        return f"quest_graph:{quest_id.strip()}:{version.strip()}"
+
+    @staticmethod
+    def _canonical_quest_graph_steps(steps: Sequence[QuestGraphStepInput]) -> list[QuestGraphStepInput]:
+        normalized_steps: list[QuestGraphStepInput] = []
+        for step in sorted(steps, key=lambda item: item.step_id):
+            normalized_edges = sorted(
+                step.edges,
+                key=lambda item: (item.priority, item.edge_id, item.to_step_id),
+            )
+            normalized_steps.append(
+                QuestGraphStepInput(
+                    step_id=step.step_id,
+                    edges=normalized_edges,
+                    metadata=dict(step.metadata),
+                )
+            )
+        return normalized_steps
+
+    @classmethod
+    def _quest_graph_from_manifest(cls, row: AssetManifestOut) -> QuestGraphOut:
+        payload_obj = row.payload if isinstance(row.payload, dict) else {}
+        steps_raw = payload_obj.get("steps")
+        step_items = steps_raw if isinstance(steps_raw, list) else []
+        steps: list[QuestGraphStepInput] = []
+        for item in step_items:
+            if isinstance(item, dict):
+                steps.append(QuestGraphStepInput.model_validate(item))
+        return QuestGraphOut(
+            workspace_id=row.workspace_id,
+            quest_id=str(payload_obj.get("quest_id") or ""),
+            version=str(payload_obj.get("version") or ""),
+            start_step_id=str(payload_obj.get("start_step_id") or ""),
+            headless=bool(payload_obj.get("headless", True)),
+            steps=cls._canonical_quest_graph_steps(steps),
+            metadata=cls._dict_from_table(payload_obj.get("metadata")),
+            manifest_id=row.manifest_id,
+            payload_hash=row.payload_hash,
+            created_at=row.created_at,
+        )
+
+    def upsert_quest_graph(self, payload: QuestGraphUpsertInput) -> QuestGraphOut:
+        if not payload.headless:
+            raise ValueError("quests_must_be_headless")
+        quest_id = payload.quest_id.strip()
+        version = payload.version.strip()
+        if quest_id == "":
+            raise ValueError("quest_id_required")
+        if version == "":
+            raise ValueError("version_required")
+        manifest_id = self._quest_graph_manifest_id(quest_id, version)
+
+        manifests = self.list_asset_manifests(payload.workspace_id)
+        existing = next(
+            (
+                row
+                for row in manifests
+                if row.kind.strip().lower() == "quest.graph.v1" and row.manifest_id == manifest_id
+            ),
+            None,
+        )
+        if existing is not None:
+            out = self._quest_graph_from_manifest(existing)
+            if not out.headless:
+                raise ValueError("quests_must_be_headless")
+            return out
+
+        steps = self._canonical_quest_graph_steps(payload.steps)
+        payload_obj: dict[str, object] = {
+            "quest_id": quest_id,
+            "version": version,
+            "start_step_id": payload.start_step_id.strip(),
+            "headless": True,
+            "steps": [item.model_dump() for item in steps],
+            "metadata": dict(payload.metadata),
+        }
+        saved = self.create_asset_manifest(
+            AssetManifestCreate(
+                workspace_id=payload.workspace_id,
+                realm_id="lapidus",
+                manifest_id=manifest_id,
+                name=f"Quest Graph {quest_id} v{version}",
+                kind="quest.graph.v1",
+                payload=payload_obj,
+            )
+        )
+        return self._quest_graph_from_manifest(saved)
+
+    def get_quest_graph(
+        self,
+        *,
+        workspace_id: str,
+        quest_id: str,
+        version: str | None = None,
+    ) -> QuestGraphOut:
+        quest_key = quest_id.strip()
+        if quest_key == "":
+            raise ValueError("quest_id_required")
+        version_filter = (version or "").strip()
+
+        manifests = self.list_asset_manifests(workspace_id)
+        candidates: list[QuestGraphOut] = []
+        for row in manifests:
+            if row.kind.strip().lower() != "quest.graph.v1":
+                continue
+            parsed = self._quest_graph_from_manifest(row)
+            if parsed.quest_id != quest_key:
+                continue
+            if version_filter != "" and parsed.version != version_filter:
+                continue
+            if not parsed.headless:
+                continue
+            candidates.append(parsed)
+        if not candidates:
+            raise ValueError("quest_graph_not_found")
+        candidates.sort(key=lambda item: (item.created_at, item.version, item.manifest_id), reverse=True)
+        return candidates[0]
+
+    def advance_quest_step_by_graph(
+        self,
+        *,
+        payload: QuestAdvanceByGraphInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> QuestAdvanceByGraphOut:
+        if not payload.headless:
+            raise ValueError("quests_must_be_headless")
+        graph = self.get_quest_graph(
+            workspace_id=payload.workspace_id,
+            quest_id=payload.quest_id,
+            version=payload.version,
+        )
+        step_id = payload.current_step_id.strip()
+        if step_id == "":
+            step_id = graph.start_step_id
+        step = next((item for item in graph.steps if item.step_id == step_id), None)
+        if step is None:
+            raise ValueError("quest_step_not_found")
+        advance = self.advance_quest_step(
+            payload=QuestAdvanceInput(
+                workspace_id=payload.workspace_id,
+                actor_id=payload.actor_id,
+                quest_id=payload.quest_id,
+                event_id=payload.event_id,
+                current_step_id=step_id,
+                headless=True,
+                state=payload.state,
+                edges=step.edges,
+            ),
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return QuestAdvanceByGraphOut(graph=graph, advance=advance)
 
     def emit_dialogue(
         self,

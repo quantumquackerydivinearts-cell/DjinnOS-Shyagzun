@@ -897,6 +897,168 @@ def test_game_quest_advance_resolves_edges_deterministically_and_persists_step()
     app.dependency_overrides.clear()
 
 
+def test_game_quest_graph_catalog_and_advance_by_graph_are_headless_and_persisted() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _ManifestRow:
+        def __init__(
+            self,
+            *,
+            id: str,
+            workspace_id: str,
+            realm_id: str,
+            manifest_id: str,
+            name: str,
+            kind: str,
+            payload_json: str,
+            payload_hash: str,
+            created_at: datetime,
+        ) -> None:
+            self.id = id
+            self.workspace_id = workspace_id
+            self.realm_id = realm_id
+            self.manifest_id = manifest_id
+            self.name = name
+            self.kind = kind
+            self.payload_json = payload_json
+            self.payload_hash = payload_hash
+            self.created_at = created_at
+
+    class _QuestGraphRepo:
+        def __init__(self) -> None:
+            self.rows: dict[tuple[str, str], PlayerState] = {}
+            self.manifests: list[_ManifestRow] = []
+
+        def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+            return self.rows.get((workspace_id, actor_id))
+
+        def save_player_state(self, row: PlayerState) -> PlayerState:
+            self.rows[(row.workspace_id, row.actor_id)] = row
+            return row
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[_ManifestRow]:
+            return [row for row in self.manifests if row.workspace_id == workspace_id]
+
+        def create_asset_manifest(self, row: object) -> object:
+            payload_json = str(getattr(row, "payload_json", "{}"))
+            manifest = _ManifestRow(
+                id=f"m_{len(self.manifests) + 1}",
+                workspace_id=str(getattr(row, "workspace_id")),
+                realm_id=str(getattr(row, "realm_id")),
+                manifest_id=str(getattr(row, "manifest_id")),
+                name=str(getattr(row, "name")),
+                kind=str(getattr(row, "kind")),
+                payload_json=payload_json,
+                payload_hash=str(getattr(row, "payload_hash")),
+                created_at=datetime.now(timezone.utc),
+            )
+            self.manifests.append(manifest)
+            return manifest
+
+    repo = _QuestGraphRepo()
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    write_headers = _headers("quest.write", role="steward")
+    read_headers = _headers("quest.read", role="artisan")
+    place_headers = _headers("kernel.place", role="steward", token=_admin_gate_token("tester", "workshop-1"))
+    observe_headers = _headers("kernel.observe", role="artisan")
+
+    upsert = client.post(
+        "/v1/game/quests/graphs",
+        json={
+            "workspace_id": "main",
+            "quest_id": "q_market",
+            "version": "v1",
+            "start_step_id": "s0",
+            "headless": True,
+            "steps": [
+                {
+                    "step_id": "s0",
+                    "edges": [
+                        {
+                            "edge_id": "e1",
+                            "to_step_id": "s1",
+                            "priority": 10,
+                            "requirements": [
+                                {"source": "skills", "key": "alchemy", "comparator": "gte", "int_value": 2}
+                            ],
+                            "set_flags": {"market_unlocked": True},
+                        }
+                    ],
+                }
+            ],
+        },
+        headers=write_headers,
+    )
+    assert upsert.status_code == 200
+    graph_payload = upsert.json()
+    assert graph_payload["headless"] is True
+    assert graph_payload["version"] == "v1"
+    assert graph_payload["steps"][0]["step_id"] == "s0"
+
+    loaded = client.get(
+        "/v1/game/quests/graphs?workspace_id=main&quest_id=q_market&version=v1",
+        headers=read_headers,
+    )
+    assert loaded.status_code == 200
+    assert loaded.json()["manifest_id"] == graph_payload["manifest_id"]
+
+    advance = client.post(
+        "/v1/game/quests/advance/by-graph",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player_graph",
+            "quest_id": "q_market",
+            "event_id": "evt_graph_1",
+            "current_step_id": "s0",
+            "version": "v1",
+            "headless": True,
+            "state": {
+                "skills": {"alchemy": 3},
+                "inventory": {},
+                "vitriol": {},
+                "dialogue_flags": [],
+                "previous_dialogue": [],
+                "flags": {},
+            },
+        },
+        headers=place_headers,
+    )
+    assert advance.status_code == 200
+    adv_payload = advance.json()
+    assert adv_payload["advance"]["advanced"] is True
+    assert adv_payload["advance"]["next_step_id"] == "s1"
+
+    state = client.get(
+        "/v1/game/state?workspace_id=main&actor_id=player_graph",
+        headers=observe_headers,
+    )
+    assert state.status_code == 200
+    flags = state.json()["tables"]["flags"]
+    assert flags["quest_states"]["q_market"]["step_id"] == "s1"
+    assert flags["market_unlocked"] is True
+
+    rejected = client.post(
+        "/v1/game/quests/advance/by-graph",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player_graph",
+            "quest_id": "q_market",
+            "event_id": "evt_graph_2",
+            "current_step_id": "s1",
+            "version": "v1",
+            "headless": False,
+            "state": {"skills": {}, "inventory": {}, "vitriol": {}, "dialogue_flags": [], "previous_dialogue": [], "flags": {}},
+        },
+        headers=place_headers,
+    )
+    assert rejected.status_code == 400
+    assert rejected.json()["detail"] == "quests_must_be_headless"
+    app.dependency_overrides.clear()
+
+
 def test_vitriol_apply_ruler_influence_clamps_to_one_to_ten() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake
