@@ -3972,6 +3972,33 @@ class AtelierService:
                 },
                 example_payload={"fae_kind": "undines", "social_class": "townsfolk", "realm_bindings": ["mercurie"]},
             ),
+            RuntimeActionCatalogItemOut(
+                kind="render.scene.load",
+                summary="Load a scenegraph into deterministic renderer runtime state.",
+                requires_realm=True,
+                payload_fields={"realm_id": "str", "scene_id": "str", "scene_content": "dict|optional"},
+                example_payload={"realm_id": "lapidus", "scene_id": "lapidus/player_home"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="render.scene.tick",
+                summary="Advance renderer runtime tick and apply deterministic entity updates.",
+                payload_fields={"dt": "int|optional", "updates": "list[dict]|optional"},
+                example_payload={"dt": 1, "updates": [{"scene_id": "lapidus/player_home", "entity_id": "npc_1", "x": 5, "y": 2}]},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="render.scene.unload",
+                summary="Unload a scenegraph from renderer runtime state.",
+                requires_realm=True,
+                payload_fields={"realm_id": "str", "scene_id": "str"},
+                example_payload={"realm_id": "lapidus", "scene_id": "lapidus/player_home"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="render.scene.reconcile",
+                summary="Reconcile scene identities and placements against expected scenegraph.",
+                requires_realm=True,
+                payload_fields={"realm_id": "str", "scene_id": "str", "scene_content": "dict|optional", "apply": "bool|optional"},
+                example_payload={"realm_id": "lapidus", "scene_id": "lapidus/player_home", "apply": True},
+            ),
         ]
         return RuntimeActionCatalogOut(action_count=len(actions), actions=actions)
 
@@ -3989,12 +4016,349 @@ class AtelierService:
         runtime_breath_context: dict[str, dict[str, object]] = {}
         runtime_sanity_state: dict[str, dict[str, int]] = {}
         runtime_flags_state: dict[str, dict[str, object]] = {}
+        runtime_render_state: dict[str, object] = {
+            "tick": 0,
+            "loaded_scenes": {},
+            "entities": {},
+            "placement_index": {},
+        }
 
         def _normalize_realm_for_runtime(value: object) -> str:
             realm = str(value or "").strip().lower()
             if realm == "":
                 raise ValueError("realm_id_required")
             return realm
+
+        def _render_scene_key(realm_id: str, scene_id: str) -> str:
+            return f"{realm_id}::{scene_id}"
+
+        def _render_identity(scene_key: str, entity_id: str) -> str:
+            return f"{scene_key}::{entity_id}"
+
+        def _render_state_maps() -> tuple[dict[str, dict[str, object]], dict[str, dict[str, object]], dict[str, str], int]:
+            loaded_obj = runtime_render_state.get("loaded_scenes")
+            entities_obj = runtime_render_state.get("entities")
+            placement_obj = runtime_render_state.get("placement_index")
+            tick_val = self._int_from_table(runtime_render_state.get("tick"), 0)
+            loaded = cast(dict[str, dict[str, object]], loaded_obj) if isinstance(loaded_obj, dict) else {}
+            entities = cast(dict[str, dict[str, object]], entities_obj) if isinstance(entities_obj, dict) else {}
+            placement = cast(dict[str, str], placement_obj) if isinstance(placement_obj, dict) else {}
+            runtime_render_state["loaded_scenes"] = loaded
+            runtime_render_state["entities"] = entities
+            runtime_render_state["placement_index"] = placement
+            runtime_render_state["tick"] = tick_val
+            return loaded, entities, placement, tick_val
+
+        def _render_summary() -> dict[str, object]:
+            loaded, entities, placement, tick_val = _render_state_maps()
+            return {
+                "tick": tick_val,
+                "loaded_scene_count": len(loaded),
+                "entity_count": len(entities),
+                "placement_count": len(placement),
+            }
+
+        def _load_scene_content_for_runtime(action_payload: Mapping[str, object]) -> tuple[str, str, dict[str, object]]:
+            realm_id = str(action_payload.get("realm_id", "")).strip().lower()
+            scene_id = str(action_payload.get("scene_id", "")).strip()
+            content_obj = action_payload.get("scene_content")
+            scene_content = cast(dict[str, object], content_obj) if isinstance(content_obj, dict) else None
+            if scene_content is None:
+                if realm_id == "" or scene_id == "":
+                    raise ValueError("scene_content_or_realm_scene_required")
+                scene_row = self.get_scene(
+                    workspace_id=payload.workspace_id,
+                    realm_id=realm_id,
+                    scene_id=scene_id,
+                )
+                if scene_row is None:
+                    raise ValueError("scene_not_found")
+                scene_content = scene_row.content
+            if scene_content is None:
+                raise ValueError("scene_content_required")
+            if realm_id == "":
+                realm_id = str(scene_content.get("realm_id", "")).strip().lower()
+            if scene_id == "":
+                scene_id = str(scene_content.get("scene_id", "")).strip()
+            if realm_id == "" or scene_id == "":
+                raise ValueError("realm_or_scene_required")
+            return realm_id, scene_id, scene_content
+
+        def _extract_scene_entities(scene_content: Mapping[str, object], scene_id: str) -> list[dict[str, object]]:
+            nodes_obj = scene_content.get("nodes")
+            nodes = nodes_obj if isinstance(nodes_obj, list) else []
+            out: list[dict[str, object]] = []
+            for node_index, node in enumerate(nodes):
+                if not isinstance(node, dict):
+                    continue
+                node_id = str(node.get("node_id") or f"node_{node_index}")
+                kind = str(node.get("kind") or "entity")
+                x = float(node.get("x") or 0.0)
+                y = float(node.get("y") or 0.0)
+                metadata_obj = node.get("metadata")
+                metadata = cast(dict[str, object], metadata_obj) if isinstance(metadata_obj, dict) else {}
+                z = self._int_from_table(metadata.get("z"), 0)
+                placement_id = str(metadata.get("placement_id") or f"{scene_id}:{node_id}")
+                out.append(
+                    {
+                        "entity_id": node_id,
+                        "kind": kind,
+                        "x": x,
+                        "y": y,
+                        "z": z,
+                        "metadata": dict(metadata),
+                        "placement_id": placement_id,
+                    }
+                )
+            out.sort(key=lambda item: (str(item.get("entity_id", "")), str(item.get("placement_id", ""))))
+            return out
+
+        def _render_scene_load(action_payload: Mapping[str, object]) -> dict[str, object]:
+            loaded_scenes, entities, placement_index, tick_val = _render_state_maps()
+            realm_id, scene_id, scene_content = _load_scene_content_for_runtime(action_payload)
+            scene_key = _render_scene_key(realm_id, scene_id)
+            scene_entities = _extract_scene_entities(scene_content, scene_id)
+            previous_scene = loaded_scenes.get(scene_key, {})
+            previous_ids_obj = previous_scene.get("entity_ids")
+            previous_ids = [str(item) for item in previous_ids_obj] if isinstance(previous_ids_obj, list) else []
+            for identity in previous_ids:
+                row = entities.pop(identity, None)
+                if isinstance(row, dict):
+                    placement_id = str(row.get("placement_id", "")).strip()
+                    if placement_id != "":
+                        placement_index.pop(placement_id, None)
+            upserted = 0
+            replaced = len(previous_ids)
+            identity_ids: list[str] = []
+            for item in scene_entities:
+                identity = _render_identity(scene_key, str(item.get("entity_id", "")))
+                entities[identity] = {
+                    "identity": identity,
+                    "scene_key": scene_key,
+                    "realm_id": realm_id,
+                    "scene_id": scene_id,
+                    **item,
+                }
+                placement_id = str(item.get("placement_id", "")).strip()
+                if placement_id != "":
+                    placement_index[placement_id] = identity
+                identity_ids.append(identity)
+                upserted += 1
+            loaded_scenes[scene_key] = {
+                "realm_id": realm_id,
+                "scene_id": scene_id,
+                "entity_ids": sorted(identity_ids),
+                "loaded_tick": tick_val,
+                "last_tick": tick_val,
+            }
+            return {
+                "workspace_id": payload.workspace_id,
+                "realm_id": realm_id,
+                "scene_id": scene_id,
+                "scene_key": scene_key,
+                "loaded_entities": upserted,
+                "replaced_entities": replaced,
+                "renderer_state": _render_summary(),
+            }
+
+        def _resolve_runtime_identity(update_obj: Mapping[str, object]) -> str | None:
+            identity = str(update_obj.get("identity", "")).strip()
+            if identity != "":
+                return identity
+            loaded_scenes, _, placement_index, _ = _render_state_maps()
+            placement_id = str(update_obj.get("placement_id", "")).strip()
+            if placement_id != "" and placement_id in placement_index:
+                return placement_index[placement_id]
+            realm_id = str(update_obj.get("realm_id", "")).strip().lower()
+            scene_id = str(update_obj.get("scene_id", "")).strip()
+            entity_id = str(update_obj.get("entity_id", "")).strip()
+            if scene_id != "" and entity_id != "":
+                if realm_id == "":
+                    for key, scene_row in loaded_scenes.items():
+                        if not isinstance(scene_row, dict):
+                            continue
+                        if str(scene_row.get("scene_id", "")) == scene_id:
+                            realm_id = str(scene_row.get("realm_id", "")).strip().lower()
+                            if realm_id != "":
+                                break
+                if realm_id != "":
+                    return _render_identity(_render_scene_key(realm_id, scene_id), entity_id)
+            return None
+
+        def _render_scene_tick(action_payload: Mapping[str, object]) -> dict[str, object]:
+            loaded_scenes, entities, placement_index, tick_val = _render_state_maps()
+            dt = max(0, self._int_from_table(action_payload.get("dt"), 1))
+            next_tick = tick_val + dt
+            runtime_render_state["tick"] = next_tick
+            updates_obj = action_payload.get("updates")
+            updates = updates_obj if isinstance(updates_obj, list) else []
+            normalized_updates = [item for item in updates if isinstance(item, dict)]
+            normalized_updates.sort(
+                key=lambda item: (
+                    str(cast(dict[str, object], item).get("identity", "")),
+                    str(cast(dict[str, object], item).get("placement_id", "")),
+                    str(cast(dict[str, object], item).get("scene_id", "")),
+                    str(cast(dict[str, object], item).get("entity_id", "")),
+                )
+            )
+            applied = 0
+            removed = 0
+            for raw_item in normalized_updates:
+                update = cast(dict[str, object], raw_item)
+                identity = _resolve_runtime_identity(update)
+                if identity is None:
+                    continue
+                entity = entities.get(identity)
+                if not isinstance(entity, dict):
+                    continue
+                if bool(update.get("remove", False)):
+                    placement_id = str(entity.get("placement_id", "")).strip()
+                    if placement_id != "":
+                        placement_index.pop(placement_id, None)
+                    entities.pop(identity, None)
+                    scene_key = str(entity.get("scene_key", ""))
+                    scene_row = loaded_scenes.get(scene_key)
+                    if isinstance(scene_row, dict):
+                        ids_obj = scene_row.get("entity_ids")
+                        ids = [str(item) for item in ids_obj] if isinstance(ids_obj, list) else []
+                        scene_row["entity_ids"] = sorted([item for item in ids if item != identity])
+                        scene_row["last_tick"] = next_tick
+                    removed += 1
+                    continue
+                for axis in ("x", "y"):
+                    if axis in update:
+                        entity[axis] = float(update.get(axis) or 0.0)
+                if "z" in update:
+                    entity["z"] = int(update.get("z") or 0)
+                if "kind" in update:
+                    entity["kind"] = str(update.get("kind") or entity.get("kind") or "entity")
+                if "metadata" in update and isinstance(update.get("metadata"), dict):
+                    merged_meta = dict(cast(dict[str, object], entity.get("metadata", {})))
+                    merged_meta.update(cast(dict[str, object], update.get("metadata")))
+                    entity["metadata"] = merged_meta
+                scene_key = str(entity.get("scene_key", ""))
+                scene_row = loaded_scenes.get(scene_key)
+                if isinstance(scene_row, dict):
+                    scene_row["last_tick"] = next_tick
+                applied += 1
+            return {
+                "workspace_id": payload.workspace_id,
+                "tick_before": tick_val,
+                "tick_after": next_tick,
+                "applied_updates": applied,
+                "removed_entities": removed,
+                "renderer_state": _render_summary(),
+            }
+
+        def _render_scene_unload(action_payload: Mapping[str, object]) -> dict[str, object]:
+            loaded_scenes, entities, placement_index, tick_val = _render_state_maps()
+            realm_id = str(action_payload.get("realm_id", "")).strip().lower()
+            scene_id = str(action_payload.get("scene_id", "")).strip()
+            if realm_id == "" or scene_id == "":
+                raise ValueError("realm_or_scene_required")
+            scene_key = _render_scene_key(realm_id, scene_id)
+            scene_row = loaded_scenes.pop(scene_key, None)
+            ids_obj = scene_row.get("entity_ids") if isinstance(scene_row, dict) else []
+            ids = [str(item) for item in ids_obj] if isinstance(ids_obj, list) else []
+            removed = 0
+            for identity in ids:
+                row = entities.pop(identity, None)
+                if isinstance(row, dict):
+                    placement_id = str(row.get("placement_id", "")).strip()
+                    if placement_id != "":
+                        placement_index.pop(placement_id, None)
+                    removed += 1
+            return {
+                "workspace_id": payload.workspace_id,
+                "realm_id": realm_id,
+                "scene_id": scene_id,
+                "scene_key": scene_key,
+                "unloaded": scene_row is not None,
+                "removed_entities": removed,
+                "tick": tick_val,
+                "renderer_state": _render_summary(),
+            }
+
+        def _render_scene_reconcile(action_payload: Mapping[str, object]) -> dict[str, object]:
+            loaded_scenes, entities, placement_index, tick_val = _render_state_maps()
+            realm_id, scene_id, scene_content = _load_scene_content_for_runtime(action_payload)
+            scene_key = _render_scene_key(realm_id, scene_id)
+            expected_entities = _extract_scene_entities(scene_content, scene_id)
+            expected_map: dict[str, dict[str, object]] = {}
+            for item in expected_entities:
+                identity = _render_identity(scene_key, str(item.get("entity_id", "")))
+                expected_map[identity] = {
+                    "identity": identity,
+                    "scene_key": scene_key,
+                    "realm_id": realm_id,
+                    "scene_id": scene_id,
+                    **item,
+                }
+            existing_obj = loaded_scenes.get(scene_key, {})
+            existing_ids_obj = existing_obj.get("entity_ids") if isinstance(existing_obj, dict) else []
+            existing_ids = {str(item) for item in existing_ids_obj} if isinstance(existing_ids_obj, list) else set()
+            expected_ids = set(expected_map.keys())
+            missing_ids = sorted(expected_ids - existing_ids)
+            stale_ids = sorted(existing_ids - expected_ids)
+            changed_ids: list[str] = []
+            for identity in sorted(expected_ids & existing_ids):
+                existing_entity = entities.get(identity)
+                expected_entity = expected_map[identity]
+                if not isinstance(existing_entity, dict):
+                    changed_ids.append(identity)
+                    continue
+                current_projection = (
+                    float(existing_entity.get("x", 0.0)),
+                    float(existing_entity.get("y", 0.0)),
+                    int(existing_entity.get("z", 0)),
+                    str(existing_entity.get("kind", "")),
+                    self._canonical_hash(existing_entity.get("metadata", {})),
+                )
+                expected_projection = (
+                    float(expected_entity.get("x", 0.0)),
+                    float(expected_entity.get("y", 0.0)),
+                    int(expected_entity.get("z", 0)),
+                    str(expected_entity.get("kind", "")),
+                    self._canonical_hash(expected_entity.get("metadata", {})),
+                )
+                if current_projection != expected_projection:
+                    changed_ids.append(identity)
+            apply_changes = bool(action_payload.get("apply", True))
+            if apply_changes:
+                for identity in stale_ids:
+                    stale_row = entities.pop(identity, None)
+                    if isinstance(stale_row, dict):
+                        placement_id = str(stale_row.get("placement_id", "")).strip()
+                        if placement_id != "":
+                            placement_index.pop(placement_id, None)
+                merged_ids = sorted(expected_ids)
+                for identity in merged_ids:
+                    row = expected_map[identity]
+                    entities[identity] = row
+                    placement_id = str(row.get("placement_id", "")).strip()
+                    if placement_id != "":
+                        placement_index[placement_id] = identity
+                loaded_scenes[scene_key] = {
+                    "realm_id": realm_id,
+                    "scene_id": scene_id,
+                    "entity_ids": merged_ids,
+                    "loaded_tick": self._int_from_table(
+                        (existing_obj if isinstance(existing_obj, dict) else {}).get("loaded_tick"),
+                        tick_val,
+                    ),
+                    "last_tick": tick_val,
+                }
+            return {
+                "workspace_id": payload.workspace_id,
+                "realm_id": realm_id,
+                "scene_id": scene_id,
+                "scene_key": scene_key,
+                "missing_identities": missing_ids,
+                "stale_identities": stale_ids,
+                "changed_identities": sorted(changed_ids),
+                "apply": apply_changes,
+                "renderer_state": _render_summary(),
+            }
 
         def _stock_overrides_for_realm(realm_id: str) -> dict[str, int]:
             overrides = runtime_market_stock.get(realm_id)
@@ -4669,6 +5033,14 @@ class AtelierService:
                         "actor_id": actor_key,
                         **normalized,
                     }
+                elif action.kind == "render.scene.load":
+                    result = _render_scene_load(action_payload)
+                elif action.kind == "render.scene.tick":
+                    result = _render_scene_tick(action_payload)
+                elif action.kind == "render.scene.unload":
+                    result = _render_scene_unload(action_payload)
+                elif action.kind == "render.scene.reconcile":
+                    result = _render_scene_reconcile(action_payload)
                 else:
                     raise ValueError(f"unsupported_runtime_action:{action.kind}")
                 results.append(

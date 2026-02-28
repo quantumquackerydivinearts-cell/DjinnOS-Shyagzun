@@ -398,6 +398,8 @@ def test_game_runtime_action_catalog_lists_supported_runtime_actions() -> None:
     assert "scene_content" in preload["payload_fields"]
     assert "world.stream.status" in by_kind
     assert "market.trade" in by_kind
+    assert "render.scene.load" in by_kind
+    assert "render.scene.reconcile" in by_kind
     app.dependency_overrides.clear()
 
 
@@ -2696,6 +2698,84 @@ def test_game_runtime_consume_supports_scenegraph_region_preload_action() -> Non
     assert status_result["total_regions"] == 3
     assert status_result["loaded_count"] == 3
     assert status_result["policy_counts"]["stream"] == 3
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_supports_renderer_scene_lifecycle_actions() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=8),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "renderer_scene_lifecycle_plan",
+        "actions": [
+            {
+                "action_id": "load_scene",
+                "kind": "render.scene.load",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "scene_id": "lapidus/player_home",
+                    "scene_content": {
+                        "nodes": [
+                            {"node_id": "desk", "kind": "furniture", "x": 2, "y": 3, "metadata": {"z": 0}},
+                            {"node_id": "bed", "kind": "furniture", "x": 12, "y": 3, "metadata": {"z": 0}},
+                        ],
+                        "edges": [],
+                    },
+                },
+            },
+            {
+                "action_id": "tick_scene",
+                "kind": "render.scene.tick",
+                "payload": {
+                    "dt": 3,
+                    "updates": [
+                        {"scene_id": "lapidus/player_home", "entity_id": "desk", "x": 5, "y": 3},
+                    ],
+                },
+            },
+            {
+                "action_id": "reconcile_scene",
+                "kind": "render.scene.reconcile",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "scene_id": "lapidus/player_home",
+                    "apply": True,
+                    "scene_content": {
+                        "nodes": [
+                            {"node_id": "desk", "kind": "furniture", "x": 5, "y": 3, "metadata": {"z": 0}},
+                        ],
+                        "edges": [],
+                    },
+                },
+            },
+            {
+                "action_id": "unload_scene",
+                "kind": "render.scene.unload",
+                "payload": {"realm_id": "lapidus", "scene_id": "lapidus/player_home"},
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+    assert results["load_scene"]["result"]["loaded_entities"] == 2
+    assert results["tick_scene"]["result"]["tick_after"] == 3
+    assert results["tick_scene"]["result"]["applied_updates"] == 1
+    assert "lapidus::lapidus/player_home::bed" in results["reconcile_scene"]["result"]["stale_identities"]
+    assert results["reconcile_scene"]["result"]["renderer_state"]["entity_count"] == 1
+    assert results["unload_scene"]["result"]["unloaded"] is True
+    assert results["unload_scene"]["result"]["renderer_state"]["entity_count"] == 0
     app.dependency_overrides.clear()
 
 

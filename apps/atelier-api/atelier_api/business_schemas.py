@@ -810,6 +810,10 @@ RuntimeActionKind = Literal[
     "faction.loyalty.adjust",
     "underworld.access.evaluate",
     "affiliation.assign",
+    "render.scene.load",
+    "render.scene.tick",
+    "render.scene.unload",
+    "render.scene.reconcile",
 ]
 
 
