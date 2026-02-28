@@ -99,10 +99,13 @@ from .business_schemas import (
     QuestAdvanceInput,
     QuestAdvanceOut,
     QuestAdvanceByGraphInput,
+    QuestAdvanceByGraphDryRunOut,
     QuestAdvanceByGraphOut,
+    QuestGraphHashOut,
     QuestGraphListOut,
     QuestGraphOut,
     QuestGraphUpsertInput,
+    QuestGraphValidateOut,
     QuestTransitionInput,
     QuestTransitionOut,
     VitriolApplyRulerInfluenceInput,
@@ -1962,6 +1965,20 @@ def upsert_game_quest_graph(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@app.post("/v1/game/quests/graphs/validate")
+def validate_game_quest_graph(
+    payload: QuestGraphUpsertInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> QuestGraphValidateOut:
+    _enforce(ctx, "quest.write")
+    _enforce_role(role, "quest.write")
+    _ = workshop
+    return svc.validate_quest_graph(payload)
+
+
 @app.get("/v1/game/quests/graphs")
 def get_game_quest_graph(
     workspace_id: str,
@@ -1977,6 +1994,25 @@ def get_game_quest_graph(
     _ = workshop
     try:
         return svc.get_quest_graph(workspace_id=workspace_id, quest_id=quest_id, version=version)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/game/quests/graphs/hash")
+def hash_game_quest_graph(
+    workspace_id: str,
+    quest_id: str,
+    version: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> QuestGraphHashOut:
+    _enforce(ctx, "quest.read")
+    _enforce_role(role, "quest.read")
+    _ = workshop
+    try:
+        return svc.hash_quest_graph(workspace_id=workspace_id, quest_id=quest_id, version=version)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -2044,6 +2080,27 @@ def advance_game_quest_by_graph(
     )
     try:
         return svc.advance_quest_step_by_graph(
+            payload=payload,
+            actor_id=ctx.actor_id,
+            workshop_id=workshop.identity.workshop_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/quests/advance/by-graph/dry-run")
+def advance_game_quest_by_graph_dry_run(
+    payload: QuestAdvanceByGraphInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> QuestAdvanceByGraphDryRunOut:
+    _enforce(ctx, "quest.read")
+    _enforce_role(role, "quest.read")
+    _ = workshop
+    try:
+        return svc.advance_quest_step_by_graph_dry_run(
             payload=payload,
             actor_id=ctx.actor_id,
             workshop_id=workshop.identity.workshop_id,

@@ -1054,6 +1054,22 @@ class QuestGraphListOut(BaseModel):
     items: list[QuestGraphOut] = Field(default_factory=list)
 
 
+class QuestGraphValidateOut(BaseModel):
+    ok: bool
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    stats: dict[str, object] = Field(default_factory=dict)
+    graph_hash: str = ""
+
+
+class QuestGraphHashOut(BaseModel):
+    workspace_id: str
+    quest_id: str
+    version: str
+    manifest_id: str
+    graph_hash: str
+
+
 class QuestAdvanceByGraphInput(BaseModel):
     workspace_id: str
     actor_id: str
@@ -1068,6 +1084,12 @@ class QuestAdvanceByGraphInput(BaseModel):
 class QuestAdvanceByGraphOut(BaseModel):
     graph: QuestGraphOut
     advance: QuestAdvanceOut
+
+
+class QuestAdvanceByGraphDryRunOut(BaseModel):
+    graph: QuestGraphOut
+    advance: QuestAdvanceOut
+    persisted: bool = False
 
 
 class CharacterDictionaryCreate(BaseModel):

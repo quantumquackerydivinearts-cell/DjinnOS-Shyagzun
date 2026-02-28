@@ -987,7 +987,8 @@ def test_game_quest_graph_catalog_and_advance_by_graph_are_headless_and_persiste
                             "set_flags": {"market_unlocked": True},
                         }
                     ],
-                }
+                },
+                {"step_id": "s1", "edges": []},
             ],
         },
         headers=write_headers,
@@ -1243,6 +1244,189 @@ def test_game_quest_graph_latest_alias_returns_newest_version() -> None:
     assert payload["quest_id"] == "q_latest"
     assert payload["version"] == "v3"
     assert payload["headless"] is True
+    app.dependency_overrides.clear()
+
+
+def test_game_quest_graph_validate_and_invalid_upsert_rejection() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _ManifestRepo:
+        def __init__(self) -> None:
+            self.manifests: list[object] = []
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[object]:
+            return [row for row in self.manifests if getattr(row, "workspace_id", "") == workspace_id]
+
+        def create_asset_manifest(self, row: object) -> object:
+            self.manifests.append(row)
+            return row
+
+    repo = _ManifestRepo()
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    write_headers = _headers("quest.write", role="steward")
+
+    invalid_body = {
+        "workspace_id": "main",
+        "quest_id": "q_invalid",
+        "version": "v1",
+        "start_step_id": "s_missing",
+        "headless": True,
+        "steps": [
+            {
+                "step_id": "s0",
+                "edges": [
+                    {"edge_id": "e1", "to_step_id": "s_nowhere", "priority": 1, "requirements": []},
+                    {"edge_id": "e1", "to_step_id": "s_nowhere2", "priority": 2, "requirements": []},
+                ],
+            }
+        ],
+    }
+    validate = client.post("/v1/game/quests/graphs/validate", json=invalid_body, headers=write_headers)
+    assert validate.status_code == 200
+    validate_payload = validate.json()
+    assert validate_payload["ok"] is False
+    assert any("start_step_missing" in item for item in validate_payload["errors"])
+    assert any("duplicate_edge_id" in item for item in validate_payload["errors"])
+    assert any("invalid_edge_target" in item for item in validate_payload["errors"])
+
+    rejected = client.post("/v1/game/quests/graphs", json=invalid_body, headers=write_headers)
+    assert rejected.status_code == 400
+    assert "quest_graph_invalid:" in rejected.json()["detail"]
+    app.dependency_overrides.clear()
+
+
+def test_game_quest_graph_hash_and_dry_run_are_deterministic_and_non_persistent() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _ManifestRow:
+        def __init__(
+            self,
+            *,
+            id: str,
+            workspace_id: str,
+            realm_id: str,
+            manifest_id: str,
+            name: str,
+            kind: str,
+            payload_json: str,
+            payload_hash: str,
+            created_at: datetime,
+        ) -> None:
+            self.id = id
+            self.workspace_id = workspace_id
+            self.realm_id = realm_id
+            self.manifest_id = manifest_id
+            self.name = name
+            self.kind = kind
+            self.payload_json = payload_json
+            self.payload_hash = payload_hash
+            self.created_at = created_at
+
+    class _GraphDryRunRepo:
+        def __init__(self) -> None:
+            self.rows: dict[tuple[str, str], PlayerState] = {}
+            self.manifests: list[_ManifestRow] = []
+
+        def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+            return self.rows.get((workspace_id, actor_id))
+
+        def save_player_state(self, row: PlayerState) -> PlayerState:
+            self.rows[(row.workspace_id, row.actor_id)] = row
+            return row
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[_ManifestRow]:
+            return [row for row in self.manifests if row.workspace_id == workspace_id]
+
+        def create_asset_manifest(self, row: object) -> object:
+            idx = len(self.manifests) + 1
+            manifest = _ManifestRow(
+                id=f"m_{idx}",
+                workspace_id=str(getattr(row, "workspace_id")),
+                realm_id=str(getattr(row, "realm_id")),
+                manifest_id=str(getattr(row, "manifest_id")),
+                name=str(getattr(row, "name")),
+                kind=str(getattr(row, "kind")),
+                payload_json=str(getattr(row, "payload_json")),
+                payload_hash=str(getattr(row, "payload_hash")),
+                created_at=datetime.now(timezone.utc),
+            )
+            self.manifests.append(manifest)
+            return manifest
+
+    repo = _GraphDryRunRepo()
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    write_headers = _headers("quest.write", role="steward")
+    read_headers = _headers("quest.read", role="artisan")
+    observe_headers = _headers("kernel.observe", role="artisan")
+
+    created = client.post(
+        "/v1/game/quests/graphs",
+        json={
+            "workspace_id": "main",
+            "quest_id": "q_hash",
+            "version": "v1",
+            "start_step_id": "s0",
+            "headless": True,
+            "steps": [
+                {
+                    "step_id": "s0",
+                    "edges": [
+                        {
+                            "edge_id": "e_open",
+                            "to_step_id": "s1",
+                            "priority": 1,
+                            "requirements": [{"source": "skills", "key": "alchemy", "comparator": "gte", "int_value": 1}],
+                        }
+                    ],
+                },
+                {"step_id": "s1", "edges": []},
+            ],
+        },
+        headers=write_headers,
+    )
+    assert created.status_code == 200
+
+    first_hash = client.get(
+        "/v1/game/quests/graphs/hash?workspace_id=main&quest_id=q_hash&version=v1",
+        headers=read_headers,
+    )
+    second_hash = client.get(
+        "/v1/game/quests/graphs/hash?workspace_id=main&quest_id=q_hash&version=v1",
+        headers=read_headers,
+    )
+    assert first_hash.status_code == 200
+    assert second_hash.status_code == 200
+    assert first_hash.json()["graph_hash"] == second_hash.json()["graph_hash"]
+
+    dry_payload = {
+        "workspace_id": "main",
+        "actor_id": "player_dry",
+        "quest_id": "q_hash",
+        "event_id": "evt_dry",
+        "current_step_id": "s0",
+        "version": "v1",
+        "headless": True,
+        "state": {"skills": {"alchemy": 2}, "inventory": {}, "vitriol": {}, "dialogue_flags": [], "previous_dialogue": [], "flags": {}},
+    }
+    first_dry = client.post("/v1/game/quests/advance/by-graph/dry-run", json=dry_payload, headers=read_headers)
+    second_dry = client.post("/v1/game/quests/advance/by-graph/dry-run", json=dry_payload, headers=read_headers)
+    assert first_dry.status_code == 200
+    assert second_dry.status_code == 200
+    first_payload = first_dry.json()
+    second_payload = second_dry.json()
+    assert first_payload["persisted"] is False
+    assert first_payload["advance"]["advanced"] is True
+    assert first_payload["advance"]["hash"] == second_payload["advance"]["hash"]
+
+    state = client.get("/v1/game/state?workspace_id=main&actor_id=player_dry", headers=observe_headers)
+    assert state.status_code == 200
+    flags = state.json()["tables"]["flags"]
+    assert "quest_states" not in flags or "q_hash" not in flags.get("quest_states", {})
     app.dependency_overrides.clear()
 
 

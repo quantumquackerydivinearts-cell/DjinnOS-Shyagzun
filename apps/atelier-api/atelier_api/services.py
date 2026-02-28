@@ -91,8 +91,11 @@ from .business_schemas import (
     QuestTransitionOut,
     QuestAdvanceInput,
     QuestAdvanceByGraphInput,
+    QuestAdvanceByGraphDryRunOut,
     QuestAdvanceByGraphOut,
     QuestAdvanceOut,
+    QuestGraphHashOut,
+    QuestGraphValidateOut,
     QuestGraphOut,
     QuestGraphListOut,
     QuestGraphStepInput,
@@ -2228,6 +2231,8 @@ class AtelierService:
         payload: QuestAdvanceInput,
         actor_id: str,
         workshop_id: str,
+        persist: bool = True,
+        emit_kernel: bool = True,
     ) -> QuestAdvanceOut:
         if not payload.headless:
             raise ValueError("quests_must_be_headless")
@@ -2294,7 +2299,7 @@ class AtelierService:
             advanced = True
             reason = "ok"
 
-        if advanced:
+        if advanced and persist:
             tick = self._int_from_table(self._dict_from_table(tables.clock).get("tick"), 0)
             quest_states[payload.quest_id] = {
                 "state": str(existing_entry.get("state") or "active"),
@@ -2345,6 +2350,7 @@ class AtelierService:
             "reason": reason,
             "state_source": state_source,
             "state_version": int(row.state_version),
+            "persist": persist,
             "state": state.model_dump(),
             "evaluations": [item.model_dump() for item in evaluations],
             "selected_edge_id": selected.edge_id if selected is not None else None,
@@ -2365,16 +2371,18 @@ class AtelierService:
             evaluations=evaluations,
             hash=self._canonical_hash(hash_payload),
         )
-        self._kernel.place(
-            raw=f"game.quest.advance {payload.actor_id} {payload.quest_id} {payload.event_id}",
-            context={
-                "workspace_id": payload.workspace_id,
-                "rule": "quest_advance",
-                "result": out.model_dump(),
-            },
-            actor_id=actor_id,
-            workshop_id=workshop_id,
-        )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.quest.advance {payload.actor_id} {payload.quest_id} {payload.event_id}",
+                context={
+                    "workspace_id": payload.workspace_id,
+                    "rule": "quest_advance",
+                    "result": out.model_dump(),
+                    "persisted": persist,
+                },
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
         return out
 
     @staticmethod
@@ -2420,9 +2428,81 @@ class AtelierService:
             created_at=row.created_at,
         )
 
-    def upsert_quest_graph(self, payload: QuestGraphUpsertInput) -> QuestGraphOut:
+    def validate_quest_graph(self, payload: QuestGraphUpsertInput) -> QuestGraphValidateOut:
+        errors: list[str] = []
+        warnings: list[str] = []
         if not payload.headless:
-            raise ValueError("quests_must_be_headless")
+            errors.append("quests_must_be_headless")
+        quest_id = payload.quest_id.strip()
+        version = payload.version.strip()
+        start_step_id = payload.start_step_id.strip()
+        if quest_id == "":
+            errors.append("quest_id_required")
+        if version == "":
+            errors.append("version_required")
+        if start_step_id == "":
+            errors.append("start_step_id_required")
+
+        steps = self._canonical_quest_graph_steps(payload.steps)
+        if not steps:
+            errors.append("steps_required")
+
+        step_ids: list[str] = []
+        seen_steps: set[str] = set()
+        total_edges = 0
+        for step in steps:
+            sid = step.step_id.strip()
+            if sid == "":
+                errors.append("empty_step_id")
+                continue
+            step_ids.append(sid)
+            if sid in seen_steps:
+                errors.append(f"duplicate_step_id:{sid}")
+            seen_steps.add(sid)
+
+        step_set = set(step_ids)
+        if start_step_id != "" and start_step_id not in step_set:
+            errors.append(f"start_step_missing:{start_step_id}")
+
+        for step in steps:
+            seen_edges: set[str] = set()
+            for edge in step.edges:
+                total_edges += 1
+                edge_id = edge.edge_id.strip()
+                to_step_id = edge.to_step_id.strip()
+                if edge_id == "":
+                    errors.append(f"empty_edge_id:{step.step_id}")
+                elif edge_id in seen_edges:
+                    errors.append(f"duplicate_edge_id:{step.step_id}:{edge_id}")
+                else:
+                    seen_edges.add(edge_id)
+                if to_step_id == "":
+                    errors.append(f"empty_edge_target:{step.step_id}:{edge_id or 'unknown'}")
+                elif to_step_id not in step_set:
+                    errors.append(f"invalid_edge_target:{step.step_id}:{edge_id or 'unknown'}->{to_step_id}")
+                if edge.priority < 0:
+                    warnings.append(f"negative_priority:{step.step_id}:{edge_id or 'unknown'}")
+
+        graph_payload: dict[str, object] = {
+            "quest_id": quest_id,
+            "version": version,
+            "start_step_id": start_step_id,
+            "headless": True,
+            "steps": [item.model_dump() for item in steps],
+            "metadata": dict(payload.metadata),
+        }
+        return QuestGraphValidateOut(
+            ok=len(errors) == 0,
+            errors=errors,
+            warnings=warnings,
+            stats={"step_count": len(step_ids), "edge_count": total_edges},
+            graph_hash=self._canonical_hash(graph_payload),
+        )
+
+    def upsert_quest_graph(self, payload: QuestGraphUpsertInput) -> QuestGraphOut:
+        validation = self.validate_quest_graph(payload)
+        if not validation.ok:
+            raise ValueError(f"quest_graph_invalid:{';'.join(validation.errors)}")
         quest_id = payload.quest_id.strip()
         version = payload.version.strip()
         if quest_id == "":
@@ -2509,6 +2589,30 @@ class AtelierService:
             version=None,
         )
 
+    def hash_quest_graph(
+        self,
+        *,
+        workspace_id: str,
+        quest_id: str,
+        version: str | None = None,
+    ) -> QuestGraphHashOut:
+        graph = self.get_quest_graph(workspace_id=workspace_id, quest_id=quest_id, version=version)
+        graph_payload: dict[str, object] = {
+            "quest_id": graph.quest_id,
+            "version": graph.version,
+            "start_step_id": graph.start_step_id,
+            "headless": graph.headless,
+            "steps": [item.model_dump() for item in graph.steps],
+            "metadata": graph.metadata,
+        }
+        return QuestGraphHashOut(
+            workspace_id=graph.workspace_id,
+            quest_id=graph.quest_id,
+            version=graph.version,
+            manifest_id=graph.manifest_id,
+            graph_hash=self._canonical_hash(graph_payload),
+        )
+
     def list_quest_graphs(
         self,
         *,
@@ -2581,6 +2685,44 @@ class AtelierService:
             workshop_id=workshop_id,
         )
         return QuestAdvanceByGraphOut(graph=graph, advance=advance)
+
+    def advance_quest_step_by_graph_dry_run(
+        self,
+        *,
+        payload: QuestAdvanceByGraphInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> QuestAdvanceByGraphDryRunOut:
+        if not payload.headless:
+            raise ValueError("quests_must_be_headless")
+        graph = self.get_quest_graph(
+            workspace_id=payload.workspace_id,
+            quest_id=payload.quest_id,
+            version=payload.version,
+        )
+        step_id = payload.current_step_id.strip()
+        if step_id == "":
+            step_id = graph.start_step_id
+        step = next((item for item in graph.steps if item.step_id == step_id), None)
+        if step is None:
+            raise ValueError("quest_step_not_found")
+        advance = self.advance_quest_step(
+            payload=QuestAdvanceInput(
+                workspace_id=payload.workspace_id,
+                actor_id=payload.actor_id,
+                quest_id=payload.quest_id,
+                event_id=payload.event_id,
+                current_step_id=step_id,
+                headless=True,
+                state=payload.state,
+                edges=step.edges,
+            ),
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+            persist=False,
+            emit_kernel=False,
+        )
+        return QuestAdvanceByGraphDryRunOut(graph=graph, advance=advance, persisted=False)
 
     def emit_dialogue(
         self,
