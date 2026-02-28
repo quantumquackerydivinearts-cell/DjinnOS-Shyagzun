@@ -1515,10 +1515,124 @@ function applyVoxelMaterials(voxels, materialsMap, layersMap, atlasMap) {
   });
 }
 
+function drawVoxelScene3D(canvas, voxels, settings = {}) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const tile = Number.isFinite(Number(settings.tile)) ? Number(settings.tile) : 18;
+  const zScale = Number.isFinite(Number(settings.zScale)) ? Number(settings.zScale) : 8;
+  const background = typeof settings.background === "string" ? settings.background : "#0b1426";
+  const outline = Boolean(settings.outline);
+  const outlineColor = typeof settings.outlineColor === "string" ? settings.outlineColor : "#0f203c";
+  const labelMode = typeof settings.labelMode === "string" ? settings.labelMode : "none";
+  const labelColor = typeof settings.labelColor === "string" ? settings.labelColor : "#d9e6ff";
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(1, canvas.clientWidth);
+  const height = Math.max(1, canvas.clientHeight);
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = background;
+  ctx.fillRect(0, 0, width, height);
+  if (!voxels || voxels.length === 0) {
+    return;
+  }
+
+  const focal = Math.max(140, tile * 14);
+  const depthScale = Math.max(10, tile * 1.7);
+  const sorted = voxels
+    .slice()
+    .sort((a, b) => ((a.y + a.x * 0.25 + a.z * 0.1) - (b.y + b.x * 0.25 + b.z * 0.1)));
+  const centerX = width * 0.5;
+  const centerY = height * 0.72;
+
+  sorted.forEach((item) => {
+    const worldX = Number(item.x || 0);
+    const worldY = Number(item.y || 0);
+    const worldZ = Number(item.z || 0);
+    const depth = (worldY * depthScale) + Math.max(0, worldX * depthScale * 0.18);
+    const scale = focal / (focal + depth);
+    const w = Math.max(2, tile * scale);
+    const h = Math.max(2, (tile + zScale) * scale);
+    const skew = Math.max(1, tile * 0.45 * scale);
+    const rise = Math.max(1, zScale * scale);
+    const sx = centerX + ((worldX - worldY * 0.45) * tile * 1.05 * scale);
+    const sy = centerY + (worldY * tile * 0.22 * scale) - (worldZ * zScale * 1.2 * scale);
+    const x0 = sx - (w * 0.5);
+    const y0 = sy - h;
+    const baseColor = item.color || "#7aa2ff";
+    const front = baseColor;
+    const side = shadeVoxel(baseColor, -28);
+    const top = shadeVoxel(baseColor, 26);
+
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x0 + w, y0);
+    ctx.lineTo(x0 + w, y0 + h);
+    ctx.lineTo(x0, y0 + h);
+    ctx.closePath();
+    ctx.fillStyle = front;
+    ctx.fill();
+    if (outline) {
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(x0 + w, y0);
+    ctx.lineTo(x0 + w + skew, y0 - rise);
+    ctx.lineTo(x0 + w + skew, y0 + h - rise);
+    ctx.lineTo(x0 + w, y0 + h);
+    ctx.closePath();
+    ctx.fillStyle = side;
+    ctx.fill();
+    if (outline) {
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x0 + w, y0);
+    ctx.lineTo(x0 + w + skew, y0 - rise);
+    ctx.lineTo(x0 + skew, y0 - rise);
+    ctx.closePath();
+    ctx.fillStyle = top;
+    ctx.fill();
+    if (outline) {
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    if (labelMode !== "none") {
+      let label = "";
+      if (labelMode === "type") label = String(item.type || "");
+      else if (labelMode === "z") label = String(item.z);
+      else if (labelMode === "layer") label = String(item.layer || item.meta?.layer || "");
+      if (label) {
+        ctx.fillStyle = labelColor;
+        ctx.font = "11px monospace";
+        ctx.fillText(label, x0 + 3, y0 - 4);
+      }
+    }
+  });
+}
+
 function drawVoxelScene(canvas, voxels, settings = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+  const renderModeRaw = typeof settings.renderMode === "string" ? settings.renderMode : "2.5d";
+  const renderMode = renderModeRaw.toLowerCase() === "3d" ? "3d" : "2.5d";
+  if (renderMode === "3d") {
+    drawVoxelScene3D(canvas, voxels, settings);
+    return;
+  }
   const tile = Number.isFinite(Number(settings.tile)) ? Number(settings.tile) : 18;
   const zScale = Number.isFinite(Number(settings.zScale)) ? Number(settings.zScale) : 8;
   const background = typeof settings.background === "string" ? settings.background : "#0b1426";
@@ -1784,6 +1898,7 @@ function readRendererLocalState() {
       cobra: "",
       engine: {},
       settings: {
+        renderMode: "2.5d",
         tile: 18,
         zScale: 8,
         background: "#0b1426",
@@ -1822,6 +1937,7 @@ function readRendererLocalState() {
     ? { ...engine, tables: mergedTables, realm_id: engine.realm_id || storedRealm }
     : { tables: mergedTables, realm_id: storedRealm };
   let settings = {
+    renderMode: "2.5d",
     tile: 18,
     zScale: 8,
     background: "#0b1426",
@@ -1835,6 +1951,7 @@ function readRendererLocalState() {
   try {
     const parsed = JSON.parse(localStorage.getItem("atelier.renderer.voxel_settings") || "{}");
     settings = {
+      renderMode: String(parsed.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
       tile: parsed.tile ?? 18,
       zScale: parsed.zScale ?? 8,
       background: parsed.background ?? "#0b1426",
@@ -1955,6 +2072,7 @@ export function App() {
       try {
         const parsed = JSON.parse(saved);
         return {
+          renderMode: String(parsed.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
           tile: parsed.tile ?? 18,
           zScale: parsed.zScale ?? 8,
           background: parsed.background ?? "#0b1426",
@@ -1967,6 +2085,7 @@ export function App() {
         };
       } catch {
         return {
+          renderMode: "2.5d",
           tile: 18,
           zScale: 8,
           background: "#0b1426",
@@ -1980,6 +2099,7 @@ export function App() {
       }
     }
     return {
+      renderMode: "2.5d",
       tile: 18,
       zScale: 8,
       background: "#0b1426",
@@ -5671,6 +5791,7 @@ export function App() {
                   <option value="sulphera">Sulphera</option>
                 </select>
                 <span className="badge">{`Realm: ${rendererRealmId}`}</span>
+                <span className="badge">{`Render: ${effectiveVoxelSettings.renderMode === "3d" ? "3D" : "2.5D"}`}</span>
                 <span
                   className={`badge ${validationSummary.ok ? "ok" : "err"}`}
                   title={
@@ -5686,6 +5807,18 @@ export function App() {
               </div>
               <canvas ref={unifiedRendererCanvasRef} className="unified-canvas" />
               <div className="row">
+                <select
+                  value={voxelSettings.renderMode || "2.5d"}
+                  onChange={(e) =>
+                    setVoxelSettings((prev) => ({
+                      ...prev,
+                      renderMode: e.target.value === "3d" ? "3d" : "2.5d",
+                    }))
+                  }
+                >
+                  <option value="2.5d">Render 2.5D</option>
+                  <option value="3d">Render 3D</option>
+                </select>
                 <input
                   value={voxelSettings.tile}
                   onChange={(e) => setVoxelSettings((prev) => ({ ...prev, tile: Number(e.target.value || 0) }))}
@@ -6879,6 +7012,7 @@ export function App() {
         <header className="renderer-fullscreen-bar">
           <strong>Unified Renderer</strong>
           <span className="badge">{`Source: ${fullscreenState.source}`}</span>
+          <span className="badge">{`Render: ${(fullscreenEffectiveSettings.renderMode || "2.5d") === "3d" ? "3D" : "2.5D"}`}</span>
           <span className="badge">{`Voxels: ${fullscreenVoxels.length}`}</span>
           <button className="action" onClick={() => window.close()}>Dismiss</button>
         </header>
