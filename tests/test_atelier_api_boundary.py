@@ -3922,6 +3922,98 @@ def test_isometric_render_contract_strict_assets_and_version_guards_fail_fast() 
     app.dependency_overrides.clear()
 
 
+def test_renderer_asset_diagnostics_reports_missing_and_invalid_refs() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    now = datetime.now(timezone.utc)
+
+    class _SceneRow:
+        id = "scene-row-1"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        scene_id = "lapidus/intro"
+        name = "Intro"
+        description = ""
+        content_json = '{"nodes":[{"node_id":"desk_1","kind":"desk","x":1,"y":1,"metadata":{"z":0}},{"node_id":"unknown_1","kind":"unknown","x":2,"y":1,"metadata":{"z":0}}],"edges":[]}'
+        content_hash = "h_scene"
+        created_at = now
+        updated_at = now
+
+    class _RegionRow:
+        id = "region-row-1"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        region_key = "lapidus/sector-001"
+        payload_json = '{"entities":[{"id":"npc_1","kind":"npc","x":5,"y":3,"z":0}]}'
+        payload_hash = "h_region"
+        cache_policy = "cache"
+        loaded = True
+        created_at = now
+        updated_at = now
+
+    class _ManifestRow:
+        id = "manifest-row-1"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        manifest_id = "sprite_pack_1"
+        name = "Sprites"
+        kind = "sprite"
+        payload_json = '{"atlas_version":"atlas_v2","desk":"atlas/desk.png","npc":"INVALID_SPRITE_REF"}'
+        payload_hash = "h_manifest"
+        created_at = now
+
+    class _MaterialManifestRow:
+        id = "manifest-row-2"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        manifest_id = "material_pack_1"
+        name = "Materials"
+        kind = "material"
+        payload_json = '{"material_pack_version":"mat_v3","desk":"wood"}'
+        payload_hash = "h_manifest_material"
+        created_at = now
+
+    class _RenderRepo:
+        def get_scene(self, workspace_id: str, realm_id: str, scene_id: str) -> _SceneRow | None:
+            if workspace_id == "main" and realm_id == "lapidus" and scene_id == "lapidus/intro":
+                return _SceneRow()
+            return None
+
+        def list_world_regions(self, workspace_id: str, realm_id: str | None = None) -> Sequence[_RegionRow]:
+            if workspace_id != "main":
+                return []
+            if realm_id is not None and realm_id != "lapidus":
+                return []
+            return [_RegionRow()]
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[object]:
+            if workspace_id != "main":
+                return []
+            return [_ManifestRow(), _MaterialManifestRow()]
+
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=_RenderRepo(), kernel=kernel)
+    client = TestClient(app)
+    res = client.post(
+        "/v1/game/renderer/assets/diagnostics",
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/intro",
+            "include_unloaded_regions": True,
+        },
+        headers=_headers("kernel.observe"),
+    )
+    assert res.status_code == 200
+    out = res.json()
+    assert out["ok"] is False
+    assert out["atlas_version"] == "atlas_v2"
+    assert out["material_pack_version"] == "mat_v3"
+    assert "unknown_1" in out["missing_sprites"]
+    assert "unknown_1" in out["missing_materials"]
+    assert any("npc:INVALID_SPRITE_REF" in item for item in out["invalid_sprite_refs"])
+    app.dependency_overrides.clear()
+
+
 def test_renderer_contracts_support_3d_mode_projection() -> None:
     fake = FakeKernelClient()
     kernel = KernelIntegrationService(fake)

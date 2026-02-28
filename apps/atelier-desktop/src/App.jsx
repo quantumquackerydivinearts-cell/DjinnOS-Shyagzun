@@ -2380,6 +2380,7 @@ export function App() {
   );
   const [rendererGameStatus, setRendererGameStatus] = useState("idle");
   const [rendererGraphPreview, setRendererGraphPreview] = useState(null);
+  const [rendererAssetDiagnostics, setRendererAssetDiagnostics] = useState(null);
   const [headlessQuestText, setHeadlessQuestText] = useState(
     "{\"workspace_id\":\"main\",\"quest_id\":\"quest_intro\",\"scene_id\":\"scene_prototype\",\"steps\":[{\"step_id\":\"s1\",\"raw\":\"quest.step quest_intro s1\",\"context\":{\"intent\":\"begin\"}}]}"
   );
@@ -5317,6 +5318,22 @@ export function App() {
     }
     setNotice("scene_graph_preview: no data");
   };
+  const runRendererAssetDiagnostics = async () => {
+    const payload = {
+      workspace_id: workspaceId,
+      realm_id: rendererRealmId,
+      scene_id: `${rendererRealmId}/renderer-lab`,
+      include_unloaded_regions: true,
+      strict_assets: false,
+    };
+    const data = await runAction("renderer_asset_diagnostics", async () => {
+      return await apiCall("/v1/game/renderer/assets/diagnostics", "POST", payload);
+    });
+    if (data && typeof data === "object") {
+      setRendererAssetDiagnostics(data);
+      setNotice(`asset_diagnostics: ${data.ok ? "ok" : "issues"}`);
+    }
+  };
   const exportRendererPipeline = () => {
     const payload = { ...rendererPipeline };
     setRendererPipelineJson(JSON.stringify(payload, null, 2));
@@ -5977,6 +5994,9 @@ export function App() {
                 </select>
                 <span className="badge">{`Realm: ${rendererRealmId}`}</span>
                 <span className="badge">{`Render: ${effectiveVoxelSettings.renderMode === "3d" ? "3D" : "2.5D"}`}</span>
+                <span className={`badge ${rendererAssetDiagnostics && rendererAssetDiagnostics.ok ? "ok" : ""}`}>
+                  {`Assets: ${rendererAssetDiagnostics ? (rendererAssetDiagnostics.ok ? "ok" : "issues") : "unchecked"}`}
+                </span>
                 <span
                   className={`badge ${validationSummary.ok ? "ok" : "err"}`}
                   title={
@@ -5988,6 +6008,7 @@ export function App() {
                   {`Validate: ${validationSummary.errors} err / ${validationSummary.warnings} warn`}
                 </span>
                 <span className="badge">{`Voxels: ${unifiedRendererVoxels.length}`}</span>
+                <button className="action" onClick={runRendererAssetDiagnostics}>Asset Diagnostics</button>
                 <button className="action" onClick={openFullscreenRenderer}>Open Fullscreen</button>
               </div>
               <canvas
@@ -6126,6 +6147,9 @@ export function App() {
                   </button>
                   <span className="badge">Drag orbit, Shift/Right drag pan, wheel zoom</span>
                 </div>
+              ) : null}
+              {rendererAssetDiagnostics ? (
+                <pre>{JSON.stringify(rendererAssetDiagnostics, null, 2)}</pre>
               ) : null}
               <div className="row">
                 <label className="inline-toggle">

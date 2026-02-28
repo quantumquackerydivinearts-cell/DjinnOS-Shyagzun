@@ -150,6 +150,8 @@ from .rendering_schemas import (
     IsometricRenderContractOut,
     RenderGraphContractInput,
     RenderGraphContractOut,
+    RendererAssetDiagnosticsInput,
+    RendererAssetDiagnosticsOut,
 )
 from .capabilities import CapabilityContext, parse_capabilities, require_capability
 from .config import Settings, load_settings
@@ -1837,6 +1839,21 @@ def build_render_graph_contract(
     _enforce_role(role, "kernel.observe")
     try:
         return svc.build_render_graph_contract(payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/renderer/assets/diagnostics")
+def renderer_asset_diagnostics(
+    payload: RendererAssetDiagnosticsInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> RendererAssetDiagnosticsOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    try:
+        return svc.renderer_asset_diagnostics(payload=payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

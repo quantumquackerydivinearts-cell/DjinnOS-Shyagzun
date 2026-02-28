@@ -128,3 +128,32 @@ class RenderGraphContractOut(BaseModel):
     asset_pack: dict[str, object] = Field(default_factory=dict)
     stats: dict[str, object] = Field(default_factory=dict)
     hash: str
+
+
+class RendererAssetDiagnosticsInput(BaseModel):
+    workspace_id: str
+    realm_id: str
+    scene_id: str
+    asset_pack_id: str | None = None
+    strict_assets: bool = False
+    include_unloaded_regions: bool = True
+
+
+class RendererAssetDiagnosticsOut(BaseModel):
+    workspace_id: str
+    realm_id: str
+    scene_id: str
+    asset_pack_id: str | None = None
+    atlas_version: str
+    material_pack_version: str
+    manifest_count: int
+    scene_node_count: int
+    candidate_count: int
+    sprite_entry_count: int
+    material_entry_count: int
+    missing_sprites: list[str] = Field(default_factory=list)
+    missing_materials: list[str] = Field(default_factory=list)
+    invalid_sprite_refs: list[str] = Field(default_factory=list)
+    invalid_material_refs: list[str] = Field(default_factory=list)
+    ok: bool
+    hash: str

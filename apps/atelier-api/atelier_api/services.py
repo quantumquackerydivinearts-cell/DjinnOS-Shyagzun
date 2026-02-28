@@ -165,6 +165,8 @@ from .rendering_schemas import (
     RenderGraphContractInput,
     RenderGraphContractOut,
     RenderGraphNodeOut,
+    RendererAssetDiagnosticsInput,
+    RendererAssetDiagnosticsOut,
 )
 from .kernel_integration import KernelIntegrationService
 from .market_logic import get_realm_coin, get_realm_market, list_realm_coins, list_realm_markets
@@ -5317,6 +5319,155 @@ class AtelierService:
                 "asset_manifest_count": len(manifest_rows),
                 "fallback_count": fallback_count,
             },
+            hash=self._canonical_hash(hash_payload),
+        )
+
+    def renderer_asset_diagnostics(
+        self,
+        *,
+        payload: RendererAssetDiagnosticsInput,
+    ) -> RendererAssetDiagnosticsOut:
+        realm_id = payload.realm_id.strip().lower()
+        scene = self.get_scene(
+            workspace_id=payload.workspace_id,
+            realm_id=realm_id,
+            scene_id=payload.scene_id,
+        )
+        if scene is None:
+            raise ValueError("scene_not_found")
+        requested_pack_id = (payload.asset_pack_id or "").strip()
+        manifest_rows = self.list_asset_manifests(payload.workspace_id)
+        selected_manifest_count = 0
+        sprite_lookup: dict[str, str] = {}
+        material_lookup: dict[str, str] = {}
+        atlas_version = "v1"
+        material_pack_version = "v1"
+        reserved_keys = {"atlas_version", "material_pack_version", "asset_pack_id"}
+        for row in manifest_rows:
+            if row.realm_id != realm_id:
+                continue
+            payload_obj = row.payload if isinstance(row.payload, dict) else {}
+            if requested_pack_id != "":
+                payload_pack_id = str(payload_obj.get("asset_pack_id") or "").strip()
+                if row.manifest_id != requested_pack_id and payload_pack_id != requested_pack_id:
+                    continue
+            selected_manifest_count += 1
+            atlas_version_raw = payload_obj.get("atlas_version")
+            if isinstance(atlas_version_raw, str) and atlas_version_raw.strip() != "":
+                atlas_version = atlas_version_raw.strip()
+            material_version_raw = payload_obj.get("material_pack_version")
+            if isinstance(material_version_raw, str) and material_version_raw.strip() != "":
+                material_pack_version = material_version_raw.strip()
+            kind = row.kind.strip().lower()
+            if kind == "sprite":
+                for key, value in payload_obj.items():
+                    if key in reserved_keys:
+                        continue
+                    if isinstance(value, str) and value.strip() != "":
+                        sprite_lookup[str(key)] = value.strip()
+            if kind == "material":
+                for key, value in payload_obj.items():
+                    if key in reserved_keys:
+                        continue
+                    if isinstance(value, str) and value.strip() != "":
+                        material_lookup[str(key)] = value.strip()
+
+        scene_nodes_raw = scene.content.get("nodes")
+        scene_nodes = scene_nodes_raw if isinstance(scene_nodes_raw, list) else []
+        candidates: list[tuple[str, str, str, str]] = []
+        for index, node in enumerate(scene_nodes):
+            if not isinstance(node, dict):
+                continue
+            metadata_obj = node.get("metadata")
+            metadata = metadata_obj if isinstance(metadata_obj, dict) else {}
+            node_id = str(node.get("node_id") or f"scene_node_{index}")
+            kind = str(node.get("kind") or "entity")
+            explicit_sprite = str(metadata.get("sprite") or "")
+            explicit_material = str(metadata.get("material") or "")
+            candidates.append((node_id, kind, explicit_sprite.strip(), explicit_material.strip()))
+
+        world_regions = self.list_world_regions(workspace_id=payload.workspace_id, realm_id=realm_id)
+        for row in world_regions:
+            if not payload.include_unloaded_regions and not row.loaded:
+                continue
+            entities_obj = row.payload.get("entities")
+            entities = entities_obj if isinstance(entities_obj, list) else []
+            for index, entity in enumerate(entities):
+                if isinstance(entity, str):
+                    entity_id = entity
+                    kind = "region_entity"
+                    explicit_sprite = ""
+                    explicit_material = ""
+                elif isinstance(entity, dict):
+                    entity_id = str(entity.get("id") or entity.get("entity_id") or f"{row.region_key}:{index}")
+                    kind = str(entity.get("kind") or entity.get("tag") or "region_entity")
+                    explicit_sprite = str(entity.get("sprite") or "").strip()
+                    explicit_material = str(entity.get("material") or "").strip()
+                else:
+                    continue
+                candidates.append((f"{row.region_key}:{entity_id}", kind, explicit_sprite, explicit_material))
+
+        missing_sprites: list[str] = []
+        missing_materials: list[str] = []
+        for candidate_id, kind, explicit_sprite, explicit_material in candidates:
+            has_sprite = explicit_sprite != "" or candidate_id in sprite_lookup or kind in sprite_lookup
+            if not has_sprite:
+                missing_sprites.append(candidate_id)
+            has_material = explicit_material != "" or kind in material_lookup
+            if not has_material:
+                missing_materials.append(candidate_id)
+
+        invalid_sprite_refs: list[str] = []
+        for key, value in sprite_lookup.items():
+            valid = value.startswith(("placeholder://", "atlas://", "http://", "https://", "/")) or "/" in value
+            if not valid:
+                invalid_sprite_refs.append(f"{key}:{value}")
+        invalid_material_refs: list[str] = []
+        for key, value in material_lookup.items():
+            if value.strip() == "":
+                invalid_material_refs.append(f"{key}:{value}")
+
+        missing_sprites = sorted(set(missing_sprites))
+        missing_materials = sorted(set(missing_materials))
+        invalid_sprite_refs = sorted(set(invalid_sprite_refs))
+        invalid_material_refs = sorted(set(invalid_material_refs))
+        ok = len(missing_sprites) == 0 and len(missing_materials) == 0 and len(invalid_sprite_refs) == 0 and len(invalid_material_refs) == 0
+        if payload.strict_assets and (len(missing_sprites) > 0 or len(missing_materials) > 0):
+            ok = False
+        hash_payload: dict[str, object] = {
+            "workspace_id": payload.workspace_id,
+            "realm_id": realm_id,
+            "scene_id": payload.scene_id,
+            "asset_pack_id": requested_pack_id if requested_pack_id != "" else None,
+            "atlas_version": atlas_version,
+            "material_pack_version": material_pack_version,
+            "missing_sprites": missing_sprites,
+            "missing_materials": missing_materials,
+            "invalid_sprite_refs": invalid_sprite_refs,
+            "invalid_material_refs": invalid_material_refs,
+            "candidate_count": len(candidates),
+            "scene_node_count": len(scene_nodes),
+            "manifest_count": selected_manifest_count,
+            "sprite_entry_count": len(sprite_lookup),
+            "material_entry_count": len(material_lookup),
+        }
+        return RendererAssetDiagnosticsOut(
+            workspace_id=payload.workspace_id,
+            realm_id=realm_id,
+            scene_id=payload.scene_id,
+            asset_pack_id=requested_pack_id if requested_pack_id != "" else None,
+            atlas_version=atlas_version,
+            material_pack_version=material_pack_version,
+            manifest_count=selected_manifest_count,
+            scene_node_count=len(scene_nodes),
+            candidate_count=len(candidates),
+            sprite_entry_count=len(sprite_lookup),
+            material_entry_count=len(material_lookup),
+            missing_sprites=missing_sprites,
+            missing_materials=missing_materials,
+            invalid_sprite_refs=invalid_sprite_refs,
+            invalid_material_refs=invalid_material_refs,
+            ok=ok,
             hash=self._canonical_hash(hash_payload),
         )
 
