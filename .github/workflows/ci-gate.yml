@@ -1,0 +1,38 @@
+name: CI Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-and-determinism:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r apps/atelier-api/requirements.txt
+          python -m pip install pytest
+
+      - name: Validate content packs
+        run: |
+          python scripts/ci_validate_content_packs.py
+          python scripts/compile_quest_templates.py --output gameplay/quest_graph_templates/compiled_bundle.ci.json
+
+      - name: Determinism checks
+        env:
+          PYTHONPATH: apps/atelier-api:.
+        run: |
+          python -m pytest -q tests/test_kernel_conformance_invariants.py::test_replay_canonical_is_deterministic
+          python -m pytest -q tests/test_atelier_api_boundary.py::test_game_runtime_replay_reexecutes_stored_plan_and_verifies_hash
+          python -m pytest -q tests/test_atelier_api_boundary.py::test_game_runtime_consume_realm_reward_policy_is_hash_deterministic
