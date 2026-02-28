@@ -2786,6 +2786,46 @@ class AtelierService:
         return 1
 
     @classmethod
+    def _kills_deaths_from_tables(cls, tables: PlayerStateTables) -> tuple[int, int]:
+        flags = cls._dict_from_table(tables.flags)
+        levels = cls._dict_from_table(tables.levels)
+        combat = cls._dict_from_table(flags.get("combat"))
+        stats = cls._dict_from_table(flags.get("stats"))
+        candidates = [flags, combat, stats, levels]
+
+        def _first_int(keys: tuple[str, ...]) -> int | None:
+            for entry in candidates:
+                for key in keys:
+                    value = entry.get(key)
+                    if isinstance(value, int):
+                        return value
+            return None
+
+        kills = _first_int(("kills", "kill_count", "defeats", "k"))
+        deaths = _first_int(("deaths", "death_count", "d"))
+        return max(0, kills or 0), max(0, deaths or 0)
+
+    @staticmethod
+    def _chaos_from_kd(*, kills: int, deaths: int) -> tuple[int, int]:
+        safe_kills = max(0, int(kills))
+        safe_deaths = max(0, int(deaths))
+        kd_ratio_milli = (safe_kills * 1000) // max(1, safe_deaths)
+        total = max(1, safe_kills + safe_deaths)
+        delta = safe_kills - safe_deaths
+        # Polarity rule:
+        # - More kills than deaths => higher chaos.
+        # - More deaths than kills => lower chaos (order-leaning).
+        if delta > 0:
+            delta_milli = (delta * 1000) // total
+            chaos_meter = min(100, 50 + (delta_milli // 20))
+        elif delta < 0:
+            delta_milli = ((-delta) * 1000) // total
+            chaos_meter = max(0, 50 - (delta_milli // 20))
+        else:
+            chaos_meter = 50
+        return kd_ratio_milli, chaos_meter
+
+    @classmethod
     def _build_breath_ko_iteration(
         cls,
         *,
@@ -2852,6 +2892,10 @@ class AtelierService:
             canonical_game_number=int(payload.get("canonical_game_number") or 0),
             level=int(payload.get("level") or 1),
             quest_completion=int(payload.get("quest_completion") or 0),
+            kills=int(payload.get("kills") or 0),
+            deaths=int(payload.get("deaths") or 0),
+            kd_ratio_milli=int(payload.get("kd_ratio_milli") or 0),
+            chaos_meter=int(payload.get("chaos_meter") or 0),
             azoth_int=str(payload.get("azoth_int") or "0"),
             b_real=int(payload.get("b_real") or 0),
             b_imag=int(payload.get("b_imag") or 0),
@@ -2902,6 +2946,10 @@ class AtelierService:
         snapshot_hash = state.hash
         level = int(payload.level) if payload.level is not None else self._level_from_tables(state.tables)
         level = max(1, level)
+        inferred_kills, inferred_deaths = self._kills_deaths_from_tables(state.tables)
+        kills = max(0, int(payload.kills)) if payload.kills is not None else inferred_kills
+        deaths = max(0, int(payload.deaths)) if payload.deaths is not None else inferred_deaths
+        kd_ratio_milli, chaos_meter = self._chaos_from_kd(kills=kills, deaths=deaths)
 
         save_hash_int = self._hex_to_int(snapshot_hash)
         player_name_int = self._name_to_int(player_name)
@@ -2912,6 +2960,8 @@ class AtelierService:
             + (43 * (canonical_game_number ** 3))
             + (59 * (save_hash_int ** 2))
             + (71 * (player_name_int ** 2))
+            + (73 * (chaos_meter ** 2))
+            + (79 * kd_ratio_milli)
         )
 
         existing = self.list_breath_ko(workspace_id=payload.workspace_id, actor_id=payload.actor_id).items
@@ -2922,6 +2972,9 @@ class AtelierService:
                 and item.canonical_game_number == canonical_game_number
                 and item.quest_completion == quest_completion
                 and item.level == level
+                and item.kills == kills
+                and item.deaths == deaths
+                and item.chaos_meter == chaos_meter
                 and item.max_iter == max_iter
             ):
                 return item
@@ -2958,6 +3011,10 @@ class AtelierService:
             "canonical_game_number": canonical_game_number,
             "level": level,
             "quest_completion": quest_completion,
+            "kills": kills,
+            "deaths": deaths,
+            "kd_ratio_milli": kd_ratio_milli,
+            "chaos_meter": chaos_meter,
             "azoth_int": str(azoth_int),
             "b_real": b_real,
             "b_imag": b_imag,

@@ -597,6 +597,8 @@ def test_game_breath_ko_generate_is_deterministic_and_listable() -> None:
         "player_name": "Kael",
         "canonical_game_number": 42,
         "quest_completion": 73,
+        "kills": 8,
+        "deaths": 2,
         "max_iter": 4096,
     }
 
@@ -610,6 +612,8 @@ def test_game_breath_ko_generate_is_deterministic_and_listable() -> None:
     assert first_payload["orbit_signature_hash"] == second_payload["orbit_signature_hash"]
     assert first_payload["max_iter"] == 4096
     assert first_payload["special_case_rank"] >= 0
+    assert first_payload["chaos_meter"] > 50
+    assert first_payload["kd_ratio_milli"] == 4000
 
     listed = client.get("/v1/game/breath/ko?workspace_id=main&actor_id=player_breath", headers=observe_headers)
     assert listed.status_code == 200

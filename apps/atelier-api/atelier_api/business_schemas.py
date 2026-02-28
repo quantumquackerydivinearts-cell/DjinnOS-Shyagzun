@@ -1099,6 +1099,8 @@ class BreathKoGenerateInput(BaseModel):
     player_name: str
     canonical_game_number: int
     quest_completion: int
+    kills: int | None = None
+    deaths: int | None = None
     level: int | None = None
     max_iter: int = 4096
 
@@ -1112,6 +1114,10 @@ class BreathKoOut(BaseModel):
     canonical_game_number: int
     level: int
     quest_completion: int
+    kills: int
+    deaths: int
+    kd_ratio_milli: int
+    chaos_meter: int
     azoth_int: str
     b_real: int
     b_imag: int
