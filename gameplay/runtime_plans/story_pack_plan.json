@@ -1,0 +1,124 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "story_pack_plan",
+  "actions": [
+    {
+      "action_id": "assign_fae_profile",
+      "kind": "affiliation.assign",
+      "payload": {
+        "fae_kind": "undines",
+        "social_class": "townsfolk",
+        "realm_bindings": ["mercurie"]
+      }
+    },
+    {
+      "action_id": "assign_assassin_binding",
+      "kind": "affiliation.assign",
+      "payload": {
+        "social_class": "assassins",
+        "realm_bindings": ["lapidus", "mercurie"]
+      }
+    },
+    {
+      "action_id": "sanity_bootstrap",
+      "kind": "sanity.adjust",
+      "payload": {
+        "set": {
+          "alchemical": 65,
+          "terrestrial": 60,
+          "cosmic": 48,
+          "narrative": 58
+        }
+      }
+    },
+    {
+      "action_id": "eval_breath",
+      "kind": "breath.ko.evaluate",
+      "payload": {
+        "player_name": "Kael",
+        "canonical_game_number": 101,
+        "quest_completion": 44,
+        "kills": 3,
+        "deaths": 7
+      }
+    },
+    {
+      "action_id": "faction_royl_gain",
+      "kind": "faction.loyalty.adjust",
+      "payload": {
+        "faction_id": "royl",
+        "delta": 20
+      }
+    },
+    {
+      "action_id": "infernal_unlock",
+      "kind": "infernal_meditation.unlock",
+      "payload": {
+        "mentor": "Alfir",
+        "location": "Castle Azoth Library",
+        "section": "restricted",
+        "time_of_day": "night"
+      }
+    },
+    {
+      "action_id": "underworld_access",
+      "kind": "underworld.access.evaluate",
+      "payload": {
+        "vitriol_trials_cleared": true,
+        "asmodian_purity": 100
+      }
+    },
+    {
+      "action_id": "radio_eval",
+      "kind": "radio.evaluate",
+      "payload": {}
+    },
+    {
+      "action_id": "craft_asmodian_crystal",
+      "kind": "alchemy.crystal",
+      "payload": {
+        "crystal_type": "asmodian",
+        "purity": 100,
+        "ingredients": {
+          "ore": 1
+        },
+        "outputs": {
+          "asmodian_crystal": 1
+        },
+        "inventory": {
+          "ore": 2
+        }
+      }
+    },
+    {
+      "action_id": "craft_radio_crystal",
+      "kind": "alchemy.crystal",
+      "payload": {
+        "crystal_type": "radio",
+        "purity": 72,
+        "ingredients": {
+          "quartz": 1
+        },
+        "outputs": {
+          "radio_crystal": 1
+        },
+        "inventory": {
+          "quartz": 2
+        }
+      }
+    },
+    {
+      "action_id": "lapidus_market_adjust",
+      "kind": "world.market.stock.adjust",
+      "payload": {
+        "realm_id": "lapidus",
+        "item_id": "iron_ingot",
+        "delta": 10,
+        "use_breath_context": true,
+        "influence_bp": 10000,
+        "royl_loyalty": 80
+      }
+    }
+  ]
+}

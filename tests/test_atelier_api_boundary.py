@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
+import json
 from pathlib import Path
 import sys
 from typing import Any, Dict, Mapping, Optional, Sequence
@@ -2610,6 +2611,34 @@ def test_game_runtime_consume_supports_affiliation_assignments() -> None:
     failed_out = failed.json()
     assert failed_out["failed_count"] == 1
     assert "assassins_require_lapidus_and_mercurie_binding" in failed_out["results"][0]["error"]
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_story_pack_plan_is_hash_deterministic() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=4),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    plan_path = Path("gameplay/runtime_plans/story_pack_plan.json")
+    payload = json.loads(plan_path.read_text(encoding="utf-8"))
+    first = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    second = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["hash"] == second_payload["hash"]
+    assert first_payload["failed_count"] == 0
+    results = {item["action_id"]: item for item in first_payload["results"]}
+    assert results["underworld_access"]["result"]["asmodian_entry_ring"] == "lust"
+    assert results["radio_eval"]["result"]["available"] is True
+    assert results["lapidus_market_adjust"]["result"]["realm_reward_policy"] == "royl_loyalty"
     app.dependency_overrides.clear()
 
 

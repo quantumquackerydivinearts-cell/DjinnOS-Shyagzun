@@ -21,10 +21,20 @@ py scripts/consume_runtime_plan.py gameplay/runtime_plans/world_stream_plan.json
 py scripts/consume_runtime_plan.py gameplay/runtime_plans/breath_realm_rewards_plan.json
 ```
 
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/story_pack_plan.json
+```
+
 Generate a Breath-aware plan from CLI defaults or overrides:
 
 ```powershell
 py scripts/build_breath_runtime_plan.py --output gameplay/runtime_plans/breath_realm_rewards_plan.generated.json
+```
+
+Run the canonical story pack and print deterministic hash:
+
+```powershell
+py scripts/run_story_pack.py
 ```
 
 ## Endpoint
