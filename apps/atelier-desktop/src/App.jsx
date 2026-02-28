@@ -495,6 +495,22 @@ function clampInt(value, min, max, fallback) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+function normalizeCamera3d(camera) {
+  const source = camera && typeof camera === "object" ? camera : {};
+  const yaw = Number.isFinite(Number(source.yaw)) ? Number(source.yaw) : -35;
+  const pitch = Number.isFinite(Number(source.pitch)) ? Number(source.pitch) : 28;
+  const zoom = Number.isFinite(Number(source.zoom)) ? Number(source.zoom) : 1;
+  const panX = Number.isFinite(Number(source.panX)) ? Number(source.panX) : 0;
+  const panY = Number.isFinite(Number(source.panY)) ? Number(source.panY) : 0;
+  return {
+    yaw: Math.max(-180, Math.min(180, yaw)),
+    pitch: Math.max(5, Math.min(80, pitch)),
+    zoom: Math.max(0.25, Math.min(4, zoom)),
+    panX: Math.max(-4000, Math.min(4000, panX)),
+    panY: Math.max(-4000, Math.min(4000, panY)),
+  };
+}
+
 function buildTileSvgMarkup(model, showGrid, showLinks, renderScale = 1) {
   const scaledWidth = Math.max(1, Math.round(model.width * renderScale));
   const scaledHeight = Math.max(1, Math.round(model.height * renderScale));
@@ -1521,6 +1537,7 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
   if (!ctx) return;
   const tile = Number.isFinite(Number(settings.tile)) ? Number(settings.tile) : 18;
   const zScale = Number.isFinite(Number(settings.zScale)) ? Number(settings.zScale) : 8;
+  const camera3d = normalizeCamera3d(settings.camera3d);
   const background = typeof settings.background === "string" ? settings.background : "#0b1426";
   const outline = Boolean(settings.outline);
   const outlineColor = typeof settings.outlineColor === "string" ? settings.outlineColor : "#0f203c";
@@ -1540,26 +1557,61 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
     return;
   }
 
-  const focal = Math.max(140, tile * 14);
-  const depthScale = Math.max(10, tile * 1.7);
-  const sorted = voxels
-    .slice()
-    .sort((a, b) => ((a.y + a.x * 0.25 + a.z * 0.1) - (b.y + b.x * 0.25 + b.z * 0.1)));
+  const yaw = (camera3d.yaw * Math.PI) / 180;
+  const pitch = (camera3d.pitch * Math.PI) / 180;
+  const cosYaw = Math.cos(yaw);
+  const sinYaw = Math.sin(yaw);
+  const cosPitch = Math.cos(pitch);
+  const sinPitch = Math.sin(pitch);
+  const focal = Math.max(150, tile * 16) * camera3d.zoom;
+  const worldDepthScale = Math.max(8, tile * 0.75);
+  const minX = Math.min(...voxels.map((item) => Number(item.x || 0)));
+  const maxX = Math.max(...voxels.map((item) => Number(item.x || 0)));
+  const minY = Math.min(...voxels.map((item) => Number(item.y || 0)));
+  const maxY = Math.max(...voxels.map((item) => Number(item.y || 0)));
+  const minZ = Math.min(...voxels.map((item) => Number(item.z || 0)));
+  const maxZ = Math.max(...voxels.map((item) => Number(item.z || 0)));
+  const centerWorldX = (minX + maxX) * 0.5;
+  const centerWorldY = (minY + maxY) * 0.5;
+  const centerWorldZ = (minZ + maxZ) * 0.5;
+  const projected = voxels
+    .map((item) => {
+      const worldX = Number(item.x || 0) - centerWorldX;
+      const worldY = Number(item.y || 0) - centerWorldY;
+      const worldZ = Number(item.z || 0) - centerWorldZ;
+      const rotX = worldX * cosYaw - worldY * sinYaw;
+      const rotY = worldX * sinYaw + worldY * cosYaw;
+      const rotZ = worldZ;
+      const depthY = rotY * cosPitch - rotZ * sinPitch;
+      const elevZ = rotY * sinPitch + rotZ * cosPitch;
+      const depth = Math.max(-focal * 0.6, depthY * worldDepthScale);
+      const scale = focal / Math.max(24, focal + depth);
+      return {
+        item,
+        rotX,
+        depthY,
+        elevZ,
+        scale,
+        depthSort: depthY + elevZ * 0.2,
+      };
+    })
+    .sort((a, b) => a.depthSort - b.depthSort);
   const centerX = width * 0.5;
-  const centerY = height * 0.72;
+  const centerY = height * 0.66;
 
-  sorted.forEach((item) => {
-    const worldX = Number(item.x || 0);
-    const worldY = Number(item.y || 0);
-    const worldZ = Number(item.z || 0);
-    const depth = (worldY * depthScale) + Math.max(0, worldX * depthScale * 0.18);
-    const scale = focal / (focal + depth);
+  projected.forEach((entry) => {
+    const item = entry.item;
+    const scale = entry.scale;
     const w = Math.max(2, tile * scale);
     const h = Math.max(2, (tile + zScale) * scale);
-    const skew = Math.max(1, tile * 0.45 * scale);
-    const rise = Math.max(1, zScale * scale);
-    const sx = centerX + ((worldX - worldY * 0.45) * tile * 1.05 * scale);
-    const sy = centerY + (worldY * tile * 0.22 * scale) - (worldZ * zScale * 1.2 * scale);
+    const skew = Math.max(1, Math.abs(Math.sin(yaw)) * tile * 0.6 * scale);
+    const rise = Math.max(1, (Math.max(0.25, Math.sin(pitch)) * zScale * 1.1) * scale);
+    const sx = centerX + camera3d.panX + (entry.rotX * tile * 1.15 * scale);
+    const sy =
+      centerY +
+      camera3d.panY +
+      (entry.depthY * tile * 0.28 * scale) -
+      (entry.elevZ * zScale * 1.35 * scale);
     const x0 = sx - (w * 0.5);
     const y0 = sy - h;
     const baseColor = item.color || "#7aa2ff";
@@ -1582,10 +1634,17 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
     }
 
     ctx.beginPath();
-    ctx.moveTo(x0 + w, y0);
-    ctx.lineTo(x0 + w + skew, y0 - rise);
-    ctx.lineTo(x0 + w + skew, y0 + h - rise);
-    ctx.lineTo(x0 + w, y0 + h);
+    if (sinYaw >= 0) {
+      ctx.moveTo(x0 + w, y0);
+      ctx.lineTo(x0 + w + skew, y0 - rise);
+      ctx.lineTo(x0 + w + skew, y0 + h - rise);
+      ctx.lineTo(x0 + w, y0 + h);
+    } else {
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x0 - skew, y0 - rise);
+      ctx.lineTo(x0 - skew, y0 + h - rise);
+      ctx.lineTo(x0, y0 + h);
+    }
     ctx.closePath();
     ctx.fillStyle = side;
     ctx.fill();
@@ -1596,10 +1655,17 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
     }
 
     ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x0 + w, y0);
-    ctx.lineTo(x0 + w + skew, y0 - rise);
-    ctx.lineTo(x0 + skew, y0 - rise);
+    if (sinYaw >= 0) {
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x0 + w, y0);
+      ctx.lineTo(x0 + w + skew, y0 - rise);
+      ctx.lineTo(x0 + skew, y0 - rise);
+    } else {
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x0 + w, y0);
+      ctx.lineTo(x0 + w - skew, y0 - rise);
+      ctx.lineTo(x0 - skew, y0 - rise);
+    }
     ctx.closePath();
     ctx.fillStyle = top;
     ctx.fill();
@@ -1899,6 +1965,7 @@ function readRendererLocalState() {
       engine: {},
       settings: {
         renderMode: "2.5d",
+        camera3d: { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
         tile: 18,
         zScale: 8,
         background: "#0b1426",
@@ -1938,6 +2005,7 @@ function readRendererLocalState() {
     : { tables: mergedTables, realm_id: storedRealm };
   let settings = {
     renderMode: "2.5d",
+    camera3d: { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
     tile: 18,
     zScale: 8,
     background: "#0b1426",
@@ -1952,6 +2020,7 @@ function readRendererLocalState() {
     const parsed = JSON.parse(localStorage.getItem("atelier.renderer.voxel_settings") || "{}");
     settings = {
       renderMode: String(parsed.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
+      camera3d: normalizeCamera3d(parsed.camera3d),
       tile: parsed.tile ?? 18,
       zScale: parsed.zScale ?? 8,
       background: parsed.background ?? "#0b1426",
@@ -2073,6 +2142,7 @@ export function App() {
         const parsed = JSON.parse(saved);
         return {
           renderMode: String(parsed.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
+          camera3d: normalizeCamera3d(parsed.camera3d),
           tile: parsed.tile ?? 18,
           zScale: parsed.zScale ?? 8,
           background: parsed.background ?? "#0b1426",
@@ -2086,6 +2156,7 @@ export function App() {
       } catch {
         return {
           renderMode: "2.5d",
+          camera3d: { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
           tile: 18,
           zScale: 8,
           background: "#0b1426",
@@ -2100,6 +2171,7 @@ export function App() {
     }
     return {
       renderMode: "2.5d",
+      camera3d: { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
       tile: 18,
       zScale: 8,
       background: "#0b1426",
@@ -2210,6 +2282,8 @@ export function App() {
   const [worldStreamStatus, setWorldStreamStatus] = useState(null);
   const [fullscreenState, setFullscreenState] = useState(() => readRendererLocalState());
   const fullscreenCanvasRef = useRef(null);
+  const unifiedCameraDragRef = useRef(null);
+  const fullscreenCameraDragRef = useRef(null);
 
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -4545,6 +4619,92 @@ export function App() {
     return { ...base, rose: { ...rose, data: fullscreenRoseVector } };
   }, [fullscreenState.settings, fullscreenRoseVector]);
 
+  const updateMainCamera3d = (mutate) => {
+    setVoxelSettings((prev) => {
+      const currentCamera = normalizeCamera3d(prev.camera3d);
+      const nextCamera = normalizeCamera3d(mutate(currentCamera));
+      return { ...prev, camera3d: nextCamera };
+    });
+  };
+
+  const updateFullscreenCamera3d = (mutate) => {
+    setFullscreenState((prev) => {
+      const baseSettings = prev.settings && typeof prev.settings === "object" ? prev.settings : {};
+      const currentCamera = normalizeCamera3d(baseSettings.camera3d);
+      const nextCamera = normalizeCamera3d(mutate(currentCamera));
+      const nextSettings = { ...baseSettings, camera3d: nextCamera };
+      localStorage.setItem("atelier.renderer.voxel_settings", JSON.stringify(nextSettings));
+      return { ...prev, settings: nextSettings };
+    });
+  };
+
+  const handleRendererPointerDown = (event, target) => {
+    const mode = target === "fullscreen"
+      ? String(fullscreenEffectiveSettings.renderMode || "2.5d").toLowerCase()
+      : String(voxelSettings.renderMode || "2.5d").toLowerCase();
+    if (mode !== "3d") {
+      return;
+    }
+    const dragRef = target === "fullscreen" ? fullscreenCameraDragRef : unifiedCameraDragRef;
+    const panMode = event.button === 1 || event.button === 2 || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      mode: panMode ? "pan" : "orbit",
+    };
+    if (event.currentTarget && typeof event.currentTarget.setPointerCapture === "function") {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+  };
+
+  const handleRendererPointerMove = (event, target) => {
+    const dragRef = target === "fullscreen" ? fullscreenCameraDragRef : unifiedCameraDragRef;
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    const update = target === "fullscreen" ? updateFullscreenCamera3d : updateMainCamera3d;
+    if (drag.mode === "pan") {
+      update((camera) => ({ ...camera, panX: camera.panX + dx, panY: camera.panY + dy }));
+    } else {
+      update((camera) => ({ ...camera, yaw: camera.yaw + dx * 0.35, pitch: camera.pitch - dy * 0.25 }));
+    }
+    event.preventDefault();
+  };
+
+  const handleRendererPointerUp = (event, target) => {
+    const dragRef = target === "fullscreen" ? fullscreenCameraDragRef : unifiedCameraDragRef;
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    dragRef.current = null;
+    if (event.currentTarget && typeof event.currentTarget.releasePointerCapture === "function") {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+  };
+
+  const handleRendererWheel = (event, target) => {
+    const mode = target === "fullscreen"
+      ? String(fullscreenEffectiveSettings.renderMode || "2.5d").toLowerCase()
+      : String(voxelSettings.renderMode || "2.5d").toLowerCase();
+    if (mode !== "3d") {
+      return;
+    }
+    const update = target === "fullscreen" ? updateFullscreenCamera3d : updateMainCamera3d;
+    const direction = Math.sign(event.deltaY);
+    const factor = direction > 0 ? 0.92 : 1.08;
+    update((camera) => ({ ...camera, zoom: camera.zoom * factor }));
+    event.preventDefault();
+  };
+
   useEffect(() => {
     const canvas = unifiedRendererCanvasRef.current;
     if (!canvas) {
@@ -5805,7 +5965,21 @@ export function App() {
                 <span className="badge">{`Voxels: ${unifiedRendererVoxels.length}`}</span>
                 <button className="action" onClick={openFullscreenRenderer}>Open Fullscreen</button>
               </div>
-              <canvas ref={unifiedRendererCanvasRef} className="unified-canvas" />
+              <canvas
+                ref={unifiedRendererCanvasRef}
+                className="unified-canvas"
+                style={{ touchAction: "none" }}
+                onPointerDown={(e) => handleRendererPointerDown(e, "main")}
+                onPointerMove={(e) => handleRendererPointerMove(e, "main")}
+                onPointerUp={(e) => handleRendererPointerUp(e, "main")}
+                onPointerCancel={(e) => handleRendererPointerUp(e, "main")}
+                onWheel={(e) => handleRendererWheel(e, "main")}
+                onContextMenu={(e) => {
+                  if (String(voxelSettings.renderMode || "2.5d").toLowerCase() === "3d") {
+                    e.preventDefault();
+                  }
+                }}
+              />
               <div className="row">
                 <select
                   value={voxelSettings.renderMode || "2.5d"}
@@ -5862,6 +6036,72 @@ export function App() {
                   placeholder="label color"
                 />
               </div>
+              {String(voxelSettings.renderMode || "2.5d").toLowerCase() === "3d" ? (
+                <div className="row">
+                  <input
+                    value={voxelSettings.camera3d?.yaw ?? -35}
+                    onChange={(e) =>
+                      setVoxelSettings((prev) => ({
+                        ...prev,
+                        camera3d: normalizeCamera3d({ ...(prev.camera3d || {}), yaw: Number(e.target.value || 0) }),
+                      }))
+                    }
+                    placeholder="cam yaw"
+                  />
+                  <input
+                    value={voxelSettings.camera3d?.pitch ?? 28}
+                    onChange={(e) =>
+                      setVoxelSettings((prev) => ({
+                        ...prev,
+                        camera3d: normalizeCamera3d({ ...(prev.camera3d || {}), pitch: Number(e.target.value || 0) }),
+                      }))
+                    }
+                    placeholder="cam pitch"
+                  />
+                  <input
+                    value={voxelSettings.camera3d?.zoom ?? 1}
+                    onChange={(e) =>
+                      setVoxelSettings((prev) => ({
+                        ...prev,
+                        camera3d: normalizeCamera3d({ ...(prev.camera3d || {}), zoom: Number(e.target.value || 0) }),
+                      }))
+                    }
+                    placeholder="cam zoom"
+                  />
+                  <input
+                    value={voxelSettings.camera3d?.panX ?? 0}
+                    onChange={(e) =>
+                      setVoxelSettings((prev) => ({
+                        ...prev,
+                        camera3d: normalizeCamera3d({ ...(prev.camera3d || {}), panX: Number(e.target.value || 0) }),
+                      }))
+                    }
+                    placeholder="cam pan x"
+                  />
+                  <input
+                    value={voxelSettings.camera3d?.panY ?? 0}
+                    onChange={(e) =>
+                      setVoxelSettings((prev) => ({
+                        ...prev,
+                        camera3d: normalizeCamera3d({ ...(prev.camera3d || {}), panY: Number(e.target.value || 0) }),
+                      }))
+                    }
+                    placeholder="cam pan y"
+                  />
+                  <button
+                    className="action"
+                    onClick={() =>
+                      setVoxelSettings((prev) => ({
+                        ...prev,
+                        camera3d: { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
+                      }))
+                    }
+                  >
+                    Reset Camera
+                  </button>
+                  <span className="badge">Drag orbit, Shift/Right drag pan, wheel zoom</span>
+                </div>
+              ) : null}
               <div className="row">
                 <label className="inline-toggle">
                   <input
@@ -7016,7 +7256,21 @@ export function App() {
           <span className="badge">{`Voxels: ${fullscreenVoxels.length}`}</span>
           <button className="action" onClick={() => window.close()}>Dismiss</button>
         </header>
-        <canvas ref={fullscreenCanvasRef} className="fullscreen-canvas" />
+        <canvas
+          ref={fullscreenCanvasRef}
+          className="fullscreen-canvas"
+          style={{ touchAction: "none" }}
+          onPointerDown={(e) => handleRendererPointerDown(e, "fullscreen")}
+          onPointerMove={(e) => handleRendererPointerMove(e, "fullscreen")}
+          onPointerUp={(e) => handleRendererPointerUp(e, "fullscreen")}
+          onPointerCancel={(e) => handleRendererPointerUp(e, "fullscreen")}
+          onWheel={(e) => handleRendererWheel(e, "fullscreen")}
+          onContextMenu={(e) => {
+            if (String(fullscreenEffectiveSettings.renderMode || "2.5d").toLowerCase() === "3d") {
+              e.preventDefault();
+            }
+          }}
+        />
       </div>
     );
   }
