@@ -3821,8 +3821,22 @@ class AtelierService:
                 kind="world.region.load",
                 summary="Load one world region into stream state.",
                 requires_realm=True,
-                payload_fields={"workspace_id": "str", "realm_id": "str", "region_key": "str", "payload": "dict"},
-                example_payload={"realm_id": "lapidus", "region_key": "lapidus/chunk_0_0", "cache_policy": "stream"},
+                payload_fields={
+                    "workspace_id": "str",
+                    "realm_id": "str",
+                    "region_key": "str",
+                    "payload": "dict",
+                    "bind_render_scene": "bool|optional",
+                    "scene_id": "str|optional",
+                    "scene_content": "dict|optional",
+                },
+                example_payload={
+                    "realm_id": "lapidus",
+                    "region_key": "lapidus/chunk_0_0",
+                    "cache_policy": "stream",
+                    "bind_render_scene": True,
+                    "scene_id": "lapidus/player_home",
+                },
             ),
             RuntimeActionCatalogItemOut(
                 kind="world.region.preload.scenegraph",
@@ -3846,8 +3860,19 @@ class AtelierService:
                 kind="world.region.unload",
                 summary="Unload one region from stream state.",
                 requires_realm=True,
-                payload_fields={"workspace_id": "str", "realm_id": "str", "region_key": "str"},
-                example_payload={"realm_id": "lapidus", "region_key": "lapidus/chunk_0_0"},
+                payload_fields={
+                    "workspace_id": "str",
+                    "realm_id": "str",
+                    "region_key": "str",
+                    "bind_render_scene": "bool|optional",
+                    "scene_id": "str|optional",
+                },
+                example_payload={
+                    "realm_id": "lapidus",
+                    "region_key": "lapidus/chunk_0_0",
+                    "bind_render_scene": True,
+                    "scene_id": "lapidus/player_home",
+                },
             ),
             RuntimeActionCatalogItemOut(
                 kind="world.stream.status",
@@ -4481,6 +4506,40 @@ class AtelierService:
                 }
             return self.unload_world_region(payload=WorldRegionUnloadInput(**dict(action_payload)))
 
+        def _world_region_scene_bind_payload(
+            *,
+            action_payload: Mapping[str, object],
+            region_result: Mapping[str, object],
+        ) -> dict[str, object] | None:
+            if not bool(action_payload.get("bind_render_scene", False)):
+                return None
+            realm_id = str(action_payload.get("realm_id") or region_result.get("realm_id") or "").strip().lower()
+            if realm_id == "":
+                raise ValueError("realm_id_required_for_bind_render_scene")
+            scene_id = str(
+                action_payload.get("scene_id")
+                or action_payload.get("runtime_scene_id")
+                or ""
+            ).strip()
+            if scene_id == "":
+                region_payload_obj = region_result.get("payload")
+                if isinstance(region_payload_obj, dict):
+                    scene_id = str(region_payload_obj.get("scene_id") or "").strip()
+            if scene_id == "":
+                raise ValueError("scene_id_required_for_bind_render_scene")
+            bind_payload: dict[str, object] = {
+                "realm_id": realm_id,
+                "scene_id": scene_id,
+            }
+            scene_content_obj = action_payload.get("scene_content")
+            if not isinstance(scene_content_obj, dict):
+                region_payload_obj = region_result.get("payload")
+                if isinstance(region_payload_obj, dict) and isinstance(region_payload_obj.get("scene_content"), dict):
+                    scene_content_obj = cast(dict[str, object], region_payload_obj.get("scene_content"))
+            if isinstance(scene_content_obj, dict):
+                bind_payload["scene_content"] = cast(dict[str, object], scene_content_obj)
+            return bind_payload
+
         for action in payload.actions:
             action_payload = dict(action.payload)
             action_payload.setdefault("workspace_id", payload.workspace_id)
@@ -4572,9 +4631,23 @@ class AtelierService:
                         workshop_id=workshop_id,
                     )
                 elif action.kind == "world.region.load":
-                    result = _runtime_load_region(action_payload)
+                    loaded_result = self._dict_result(_runtime_load_region(action_payload))
+                    scene_bind_payload = _world_region_scene_bind_payload(
+                        action_payload=action_payload,
+                        region_result=loaded_result,
+                    )
+                    if scene_bind_payload is not None:
+                        loaded_result["render_scene"] = _render_scene_load(scene_bind_payload)
+                    result = loaded_result
                 elif action.kind == "world.region.unload":
-                    result = _runtime_unload_region(action_payload)
+                    unloaded_result = self._dict_result(_runtime_unload_region(action_payload))
+                    scene_bind_payload = _world_region_scene_bind_payload(
+                        action_payload=action_payload,
+                        region_result=unloaded_result,
+                    )
+                    if scene_bind_payload is not None:
+                        unloaded_result["render_scene"] = _render_scene_unload(scene_bind_payload)
+                    result = unloaded_result
                 elif action.kind == "world.region.preload.scenegraph":
                     scene_content_obj: dict[str, object] | None = None
                     realm_id = str(action_payload.get("realm_id", "")).strip().lower()

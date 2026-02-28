@@ -2779,6 +2779,68 @@ def test_game_runtime_consume_supports_renderer_scene_lifecycle_actions() -> Non
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_consume_world_region_can_bind_renderer_scene_lifecycle() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=8),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "world_region_bind_scene_plan",
+        "actions": [
+            {
+                "action_id": "load_region",
+                "kind": "world.region.load",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "region_key": "lapidus/player_home/chunk_0_0",
+                    "payload": {"tiles": [1, 2, 3]},
+                    "cache_policy": "stream",
+                    "bind_render_scene": True,
+                    "scene_id": "lapidus/player_home",
+                    "scene_content": {
+                        "nodes": [
+                            {"node_id": "desk", "kind": "furniture", "x": 2, "y": 3, "metadata": {"z": 0}},
+                        ],
+                        "edges": [],
+                    },
+                },
+            },
+            {
+                "action_id": "unload_region",
+                "kind": "world.region.unload",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "region_key": "lapidus/player_home/chunk_0_0",
+                    "bind_render_scene": True,
+                    "scene_id": "lapidus/player_home",
+                },
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+    load_region = results["load_region"]["result"]
+    assert load_region["loaded"] is True
+    assert load_region["render_scene"]["loaded_entities"] == 1
+    assert load_region["render_scene"]["renderer_state"]["entity_count"] == 1
+    unload_region = results["unload_region"]["result"]
+    assert unload_region["unloaded"] is True
+    assert unload_region["render_scene"]["unloaded"] is True
+    assert unload_region["render_scene"]["renderer_state"]["entity_count"] == 0
+    app.dependency_overrides.clear()
+
+
 def test_game_runtime_consume_supports_market_stock_adjust_and_trade_override() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake
