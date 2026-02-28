@@ -209,8 +209,10 @@ class AtelierService:
     _BREATH_KO_ESCAPE_RADIUS = 4
     _BREATH_KO_MAX_ITER_CAP = 16384
     _BREATH_KO_SUPPORTED_MAX_ITER = 4096
-    _DEATH_PATRON_ID = "moshize"
-    _DEATH_PATRON_NAME = "Moshize the Goddess of Past Life Memories"
+    _DEATH_PATRON_ID = "ohadame"
+    _DEATH_PATRON_NAME = "Ohadame the Goddess of Past Life Memories and Akashic Memory"
+    _ATTAINMENT_HARMONY_PATRON_ID = "moshize"
+    _ATTAINMENT_HARMONY_PATRON_NAME = "Moshize the Goddess of Attainment and Harmony"
     _KILL_PATRON_ID = "negaya"
     _KILL_PATRON_NAME = "Negaya the Void Wraith and Knower of Bodies"
     _VITRIOL_AXES: tuple[str, ...] = (

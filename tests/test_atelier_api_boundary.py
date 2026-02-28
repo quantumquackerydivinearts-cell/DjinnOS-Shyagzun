@@ -619,7 +619,7 @@ def test_game_breath_ko_generate_is_deterministic_and_listable() -> None:
     assert first_payload["chaos_meter"] > 50
     assert first_payload["kd_ratio_milli"] == 4000
     assert first_payload["kill_patron_id"] == "negaya"
-    assert first_payload["death_patron_id"] == "moshize"
+    assert first_payload["death_patron_id"] == "ohadame"
     assert first_payload["akashic_memory_seed"].startswith("akm_")
     assert isinstance(first_payload["void_body_mark_hash"], str)
     assert len(first_payload["void_body_mark_hash"]) == 64
@@ -3013,7 +3013,7 @@ def test_game_runtime_consume_supports_breath_ko_evaluate_and_market_influence()
     assert out["failed_count"] == 0
     results = {item["action_id"]: item for item in out["results"]}
     eval_result = results["eval_breath"]["result"]
-    assert eval_result["death_patron_id"] == "moshize"
+    assert eval_result["death_patron_id"] == "ohadame"
     assert eval_result["kill_patron_id"] == "negaya"
     assert eval_result["order_meter"] > eval_result["chaos_meter"]
     stock_result = results["adjust_with_breath"]["result"]
