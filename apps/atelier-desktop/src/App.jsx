@@ -2130,6 +2130,10 @@ export function App() {
   const [contentValidateSceneId, setContentValidateSceneId] = useState("lapidus/renderer-lab");
   const [contentValidatePayload, setContentValidatePayload] = useState("");
   const [contentValidateOutput, setContentValidateOutput] = useState(null);
+  const [shygazunTranslateSourceText, setShygazunTranslateSourceText] = useState("love whale");
+  const [shygazunTranslateDirection, setShygazunTranslateDirection] = useState("auto");
+  const [shygazunTranslateOutput, setShygazunTranslateOutput] = useState(null);
+  const [shygazunCorrectOutput, setShygazunCorrectOutput] = useState(null);
   const [validateBeforeEmit, setValidateBeforeEmit] = useState(() => {
     const saved = localStorage.getItem("atelier.renderer.validate_before_emit");
     return saved !== "0";
@@ -5301,6 +5305,81 @@ export function App() {
     return apiCall(path, "GET", null);
   };
 
+  const runShygazunTranslate = async () => {
+    await runAction("shygazun_translate", async () => {
+      const sourceText = String(shygazunTranslateSourceText || "").trim();
+      if (!sourceText) {
+        throw new Error("source_text_required");
+      }
+      const actorId = String(rendererTablesActorId || "player").trim() || "player";
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
+        workspace_id: workspaceId,
+        actor_id: actorId,
+        plan_id: `shygazun_translate_${Date.now()}`,
+        actions: [
+          {
+            action_id: "translate",
+            kind: "shygazun.translate",
+            payload: {
+              source_text: sourceText,
+              direction: String(shygazunTranslateDirection || "auto"),
+            },
+          },
+        ],
+      });
+      const actionResult = Array.isArray(consumed?.results)
+        ? consumed.results.find((item) => item && item.action_id === "translate")
+        : null;
+      if (!actionResult || !actionResult.ok) {
+        throw new Error(
+          actionResult && typeof actionResult.error === "string"
+            ? actionResult.error
+            : "shygazun_translate_failed"
+        );
+      }
+      const result = actionResult.result || {};
+      setShygazunTranslateOutput(result);
+      return result;
+    });
+  };
+
+  const runShygazunCorrect = async () => {
+    await runAction("shygazun_correct", async () => {
+      const sourceText = String(shygazunTranslateSourceText || "").trim();
+      if (!sourceText) {
+        throw new Error("source_text_required");
+      }
+      const actorId = String(rendererTablesActorId || "player").trim() || "player";
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
+        workspace_id: workspaceId,
+        actor_id: actorId,
+        plan_id: `shygazun_correct_${Date.now()}`,
+        actions: [
+          {
+            action_id: "correct",
+            kind: "shygazun.correct",
+            payload: {
+              source_text: sourceText,
+            },
+          },
+        ],
+      });
+      const actionResult = Array.isArray(consumed?.results)
+        ? consumed.results.find((item) => item && item.action_id === "correct")
+        : null;
+      if (!actionResult || !actionResult.ok) {
+        throw new Error(
+          actionResult && typeof actionResult.error === "string"
+            ? actionResult.error
+            : "shygazun_correct_failed"
+        );
+      }
+      const result = actionResult.result || {};
+      setShygazunCorrectOutput(result);
+      return result;
+    });
+  };
+
   const applyRendererPipeline = async () => {
     const ok = await validatePipelineIfNeeded();
     if (!ok) {
@@ -6495,6 +6574,29 @@ export function App() {
                 placeholder="cobra or json payload"
               />
               <pre>{JSON.stringify(contentValidateOutput || {}, null, 2)}</pre>
+            </section>
+            <section className="panel">
+              <h3>Shygazun Translator</h3>
+              <p>Phase 1 deterministic runtime translation between English and Shygazun.</p>
+              <div className="row">
+                <select value={shygazunTranslateDirection} onChange={(e) => setShygazunTranslateDirection(e.target.value)}>
+                  <option value="auto">auto</option>
+                  <option value="english_to_shygazun">english {"->"} shygazun</option>
+                  <option value="shygazun_to_english">shygazun {"->"} english</option>
+                </select>
+                <button className="action" onClick={() => setShygazunTranslateSourceText(rendererCobra)}>Use Cobra Source</button>
+                <button className="action" onClick={() => setShygazunTranslateSourceText(contentValidatePayload)}>Use Validate Payload</button>
+                <button className="action" onClick={runShygazunTranslate}>Translate</button>
+                <button className="action" onClick={runShygazunCorrect}>Canonical Correct</button>
+              </div>
+              <textarea
+                className="editor editor-mono renderer-editor"
+                value={shygazunTranslateSourceText}
+                onChange={(e) => setShygazunTranslateSourceText(e.target.value)}
+                placeholder="source text for translation"
+              />
+              <pre>{JSON.stringify(shygazunTranslateOutput || {}, null, 2)}</pre>
+              <pre>{JSON.stringify(shygazunCorrectOutput || {}, null, 2)}</pre>
             </section>
             <section className="panel">
               <h3>Script + Asset Pipeline</h3>

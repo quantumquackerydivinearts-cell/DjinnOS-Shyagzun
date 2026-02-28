@@ -663,6 +663,115 @@ class AtelierService:
             "lexicon_version": "phase1.v1",
         }
 
+    @classmethod
+    def _canonical_symbol_lookup(cls) -> dict[str, str]:
+        lookup: dict[str, str] = {}
+        for shy_token in cls._SHYGAZUN_TRANSLATION_LEXICON_EN_TO_SHY.values():
+            lowered = str(shy_token).lower()
+            if lowered != "" and lowered not in lookup:
+                lookup[lowered] = str(shy_token)
+        try:
+            from qqva.shygazun_compiler import default_symbol_inventory
+
+            inventory = default_symbol_inventory()
+            by_symbol = getattr(inventory, "by_symbol", {})
+            if isinstance(by_symbol, dict):
+                for symbol_obj in by_symbol.keys():
+                    symbol = str(symbol_obj)
+                    lowered = symbol.lower()
+                    if lowered not in lookup:
+                        lookup[lowered] = symbol
+        except Exception:
+            lookup = {}
+        return lookup
+
+    @classmethod
+    def _canonicalize_shygazun_token(
+        cls,
+        *,
+        token: str,
+        lookup: Mapping[str, str],
+    ) -> tuple[str, bool, list[str]]:
+        raw = token.strip()
+        if raw == "":
+            return raw, False, []
+        direct = lookup.get(raw.lower())
+        if direct is not None:
+            return direct, True, [direct]
+        if not raw.isalpha():
+            return raw, False, []
+
+        n = len(raw)
+        best: list[list[str] | None] = [None] * (n + 1)
+        best[0] = []
+        for index in range(n):
+            prefix = best[index]
+            if prefix is None:
+                continue
+            for end in range(index + 1, n + 1):
+                segment = raw[index:end].lower()
+                canonical = lookup.get(segment)
+                if canonical is None:
+                    continue
+                candidate = [*prefix, canonical]
+                existing = best[end]
+                if existing is None or len(candidate) < len(existing):
+                    best[end] = candidate
+        segments = best[n]
+        if segments is None or len(segments) == 0:
+            return raw, False, []
+        corrected = "".join(segments)
+        return corrected, True, segments
+
+    @classmethod
+    def _correct_shygazun_runtime(cls, payload: Mapping[str, object]) -> dict[str, object]:
+        source_raw = str(payload.get("source_text", "")).strip()
+        if source_raw == "":
+            raise ValueError("source_text_required")
+        lookup = cls._canonical_symbol_lookup()
+        word_pattern = re.compile(r"[A-Za-z]+")
+        corrected_parts: list[str] = []
+        corrections: list[dict[str, object]] = []
+        unresolved: list[str] = []
+        cursor = 0
+        resolved_count = 0
+        for match in word_pattern.finditer(source_raw):
+            start, end = match.span()
+            raw_token = source_raw[start:end]
+            corrected_parts.append(source_raw[cursor:start])
+            corrected_token, resolved, segments = cls._canonicalize_shygazun_token(
+                token=raw_token,
+                lookup=lookup,
+            )
+            corrected_parts.append(corrected_token)
+            if resolved:
+                resolved_count += 1
+            else:
+                unresolved.append(raw_token)
+            corrections.append(
+                {
+                    "source": raw_token,
+                    "corrected": corrected_token,
+                    "resolved": resolved,
+                    "segments": segments,
+                }
+            )
+            cursor = end
+        corrected_parts.append(source_raw[cursor:])
+        corrected_text = "".join(corrected_parts)
+        token_count = len(corrections)
+        confidence = 0.0 if token_count == 0 else round(resolved_count / token_count, 4)
+        return {
+            "source_text": source_raw,
+            "corrected_text": corrected_text,
+            "token_count": token_count,
+            "resolved_count": resolved_count,
+            "unresolved": unresolved,
+            "confidence": confidence,
+            "corrections": corrections,
+            "mode": "canonical_symbol_case_and_segmentation",
+        }
+
     @staticmethod
     def _csv_to_list(value: str) -> list[str]:
         if value.strip() == "":
@@ -4388,6 +4497,16 @@ class AtelierService:
                 },
             ),
             RuntimeActionCatalogItemOut(
+                kind="shygazun.correct",
+                summary="Canonicalize Shygazun token casing/segmentation with deterministic symbol lookup.",
+                payload_fields={
+                    "source_text": "str",
+                },
+                example_payload={
+                    "source_text": "tykowuvu aely ta zo",
+                },
+            ),
+            RuntimeActionCatalogItemOut(
                 kind="render.scene.load",
                 summary="Load a scenegraph into deterministic renderer runtime state.",
                 requires_realm=True,
@@ -5500,6 +5619,8 @@ class AtelierService:
                     result = self._interpret_shygazun_runtime(action_payload)
                 elif action.kind == "shygazun.translate":
                     result = self._translate_shygazun_runtime(action_payload)
+                elif action.kind == "shygazun.correct":
+                    result = self._correct_shygazun_runtime(action_payload)
                 elif action.kind == "render.scene.load":
                     result = _render_scene_load(action_payload)
                 elif action.kind == "render.scene.tick":

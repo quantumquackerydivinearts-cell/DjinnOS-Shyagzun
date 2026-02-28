@@ -400,6 +400,7 @@ def test_game_runtime_action_catalog_lists_supported_runtime_actions() -> None:
     assert "market.trade" in by_kind
     assert "shygazun.interpret" in by_kind
     assert "shygazun.translate" in by_kind
+    assert "shygazun.correct" in by_kind
     assert "render.scene.load" in by_kind
     assert "render.scene.reconcile" in by_kind
     app.dependency_overrides.clear()
@@ -2676,6 +2677,46 @@ def test_game_runtime_consume_shygazun_translation_bidirectional_and_determinist
     translated = shy_to_en_payload["results"][0]["result"]
     assert translated["target_text"] == "love whale"
     assert translated["resolved_count"] == 2
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_shygazun_canonical_corrector_is_deterministic() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=2),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "correct_shygazun_tokens",
+        "actions": [
+            {
+                "action_id": "correct",
+                "kind": "shygazun.correct",
+                "payload": {
+                    "source_text": "tykowuvu aely ta zo",
+                },
+            }
+        ],
+    }
+    first = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    second = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["failed_count"] == 0
+    assert first_payload["hash"] == second_payload["hash"]
+    corrected = first_payload["results"][0]["result"]
+    assert corrected["corrected_text"] == "TyKoWuVu Aely Ta Zo"
+    assert corrected["resolved_count"] == 4
+    assert corrected["unresolved"] == []
     app.dependency_overrides.clear()
 
 

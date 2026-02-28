@@ -812,6 +812,7 @@ RuntimeActionKind = Literal[
     "affiliation.assign",
     "shygazun.interpret",
     "shygazun.translate",
+    "shygazun.correct",
     "render.scene.load",
     "render.scene.tick",
     "render.scene.unload",
