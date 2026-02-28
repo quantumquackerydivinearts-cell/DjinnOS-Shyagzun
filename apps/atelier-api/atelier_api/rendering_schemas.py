@@ -43,6 +43,7 @@ class IsometricRenderContractInput(BaseModel):
     workspace_id: str
     realm_id: str
     scene_id: str
+    render_mode: str = "2.5d"
     asset_pack_id: str | None = None
     strict_assets: bool = False
     renderer_atlas_versions: list[str] = Field(default_factory=lambda: ["v1", "atlas_v2"])
@@ -50,6 +51,11 @@ class IsometricRenderContractInput(BaseModel):
     tile_width: int = 64
     tile_height: int = 32
     elevation_step: int = 16
+    camera_yaw_deg: float = -35.0
+    camera_pitch_deg: float = 28.0
+    camera_zoom: float = 1.0
+    camera_pan_x: float = 0.0
+    camera_pan_y: float = 0.0
     include_unloaded_regions: bool = False
     include_material_constraints: bool = True
 
@@ -73,6 +79,7 @@ class IsometricRenderContractOut(BaseModel):
     workspace_id: str
     realm_id: str
     scene_id: str
+    render_mode: str
     projection: dict[str, object] = Field(default_factory=dict)
     asset_pack: dict[str, object] = Field(default_factory=dict)
     drawable_count: int
@@ -85,10 +92,16 @@ class RenderGraphContractInput(BaseModel):
     workspace_id: str
     realm_id: str
     scene_id: str
+    render_mode: str = "2.5d"
     asset_pack_id: str | None = None
     strict_assets: bool = False
     renderer_atlas_versions: list[str] = Field(default_factory=lambda: ["v1", "atlas_v2"])
     renderer_material_versions: list[str] = Field(default_factory=lambda: ["v1", "mat_v3"])
+    camera_yaw_deg: float = -35.0
+    camera_pitch_deg: float = 28.0
+    camera_zoom: float = 1.0
+    camera_pan_x: float = 0.0
+    camera_pan_y: float = 0.0
     include_unloaded_regions: bool = False
     include_material_constraints: bool = True
     coordinate_space: str = "world_right_handed_y_up"
@@ -108,6 +121,7 @@ class RenderGraphContractOut(BaseModel):
     workspace_id: str
     realm_id: str
     scene_id: str
+    render_mode: str
     coordinate_space: str
     node_count: int
     nodes: list[RenderGraphNodeOut] = Field(default_factory=list)

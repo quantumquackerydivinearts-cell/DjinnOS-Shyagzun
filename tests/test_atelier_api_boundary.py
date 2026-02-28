@@ -3641,6 +3641,7 @@ def test_isometric_render_contract_compiles_scene_regions_and_assets() -> None:
     )
     assert res.status_code == 200
     out = res.json()
+    assert out["render_mode"] == "2.5d"
     assert out["projection"]["type"] == "isometric_2_5d"
     assert out["drawable_count"] == 3
     assert out["asset_pack"]["atlas_version"] == "atlas_v2"
@@ -3746,8 +3747,10 @@ def test_render_graph_contract_compiles_nodes_with_world_transforms() -> None:
     )
     assert res.status_code == 200
     out = res.json()
+    assert out["render_mode"] == "2.5d"
     assert out["node_count"] == 2
     assert out["coordinate_space"] == "world_right_handed_y_up"
+    assert out["stats"]["source_contract"] == "isometric_2_5d"
     assert out["asset_pack"]["atlas_version"] == "atlas_v2"
     ids = [item["node_id"] for item in out["nodes"]]
     assert "desk_1" in ids
@@ -3916,4 +3919,76 @@ def test_isometric_render_contract_strict_assets_and_version_guards_fail_fast() 
     )
     assert strict.status_code == 400
     assert "missing_sprite_asset" in strict.json()["detail"]
+    app.dependency_overrides.clear()
+
+
+def test_renderer_contracts_support_3d_mode_projection() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    now = datetime.now(timezone.utc)
+
+    class _SceneRow:
+        id = "scene-row-1"
+        workspace_id = "main"
+        realm_id = "lapidus"
+        scene_id = "lapidus/intro"
+        name = "Intro"
+        description = ""
+        content_json = '{"nodes":[{"node_id":"desk_1","kind":"desk","x":2,"y":1,"metadata":{"z":1}}],"edges":[]}'
+        content_hash = "h_scene"
+        created_at = now
+        updated_at = now
+
+    class _RenderRepo:
+        def get_scene(self, workspace_id: str, realm_id: str, scene_id: str) -> _SceneRow | None:
+            if workspace_id == "main" and realm_id == "lapidus" and scene_id == "lapidus/intro":
+                return _SceneRow()
+            return None
+
+        def list_world_regions(self, workspace_id: str, realm_id: str | None = None) -> Sequence[object]:
+            return []
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[object]:
+            return []
+
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=_RenderRepo(), kernel=kernel)
+    client = TestClient(app)
+    iso = client.post(
+        "/v1/game/renderer/isometric-contract",
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/intro",
+            "render_mode": "3d",
+            "camera_yaw_deg": -30,
+            "camera_pitch_deg": 26,
+            "camera_zoom": 1.15,
+        },
+        headers=_headers("kernel.observe"),
+    )
+    assert iso.status_code == 200
+    iso_out = iso.json()
+    assert iso_out["render_mode"] == "3d"
+    assert iso_out["projection"]["type"] == "projection_3d"
+    assert "camera" in iso_out["projection"]
+    assert iso_out["drawable_count"] == 1
+
+    graph = client.post(
+        "/v1/game/renderer/render-graph",
+        json={
+            "workspace_id": "main",
+            "realm_id": "lapidus",
+            "scene_id": "lapidus/intro",
+            "render_mode": "3d",
+            "camera_yaw_deg": -30,
+            "camera_pitch_deg": 26,
+            "camera_zoom": 1.15,
+        },
+        headers=_headers("kernel.observe"),
+    )
+    assert graph.status_code == 200
+    graph_out = graph.json()
+    assert graph_out["render_mode"] == "3d"
+    assert graph_out["stats"]["source_contract"] == "projection_3d"
+    assert graph_out["node_count"] == 1
     app.dependency_overrides.clear()

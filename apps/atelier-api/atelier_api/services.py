@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional, Sequence, cast
 from qqva.world_stream import WorldStreamController
@@ -5028,6 +5029,22 @@ class AtelierService:
         tile_width = max(8, int(payload.tile_width))
         tile_height = max(4, int(payload.tile_height))
         elevation_step = max(1, int(payload.elevation_step))
+        render_mode = str(payload.render_mode or "2.5d").strip().lower()
+        if render_mode not in {"2.5d", "3d"}:
+            raise ValueError(f"unsupported_render_mode:{render_mode}")
+        camera_yaw_deg = max(-180.0, min(180.0, float(payload.camera_yaw_deg)))
+        camera_pitch_deg = max(5.0, min(80.0, float(payload.camera_pitch_deg)))
+        camera_zoom = max(0.25, min(4.0, float(payload.camera_zoom)))
+        camera_pan_x = float(payload.camera_pan_x)
+        camera_pan_y = float(payload.camera_pan_y)
+        camera_yaw = math.radians(camera_yaw_deg)
+        camera_pitch = math.radians(camera_pitch_deg)
+        camera_cos_yaw = math.cos(camera_yaw)
+        camera_sin_yaw = math.sin(camera_yaw)
+        camera_cos_pitch = math.cos(camera_pitch)
+        camera_sin_pitch = math.sin(camera_pitch)
+        camera_focal = max(120.0, float(tile_width) * 3.6) * camera_zoom
+        camera_depth_scale = max(8.0, float(tile_width) * 0.75)
         realm_id = payload.realm_id.strip().lower()
         scene = self.get_scene(
             workspace_id=payload.workspace_id,
@@ -5104,6 +5121,26 @@ class AtelierService:
                 raise ValueError(f"missing_material_asset:{kind}")
             return "default", "fallback:default"
 
+        def _project_position(*, x: float, y: float, z: int) -> tuple[float, float, float]:
+            if render_mode == "2.5d":
+                screen_x = (x - y) * (tile_width / 2.0)
+                screen_y = (x + y) * (tile_height / 2.0) - (z * elevation_step)
+                depth_key = (x + y) + (z * 0.01)
+                return screen_x, screen_y, depth_key
+            wx = x
+            wy = y
+            wz = float(z)
+            rot_x = (wx * camera_cos_yaw) - (wy * camera_sin_yaw)
+            rot_y = (wx * camera_sin_yaw) + (wy * camera_cos_yaw)
+            depth_y = (rot_y * camera_cos_pitch) - (wz * camera_sin_pitch)
+            elev_z = (rot_y * camera_sin_pitch) + (wz * camera_cos_pitch)
+            depth = max(-camera_focal * 0.6, depth_y * camera_depth_scale)
+            scale = camera_focal / max(24.0, camera_focal + depth)
+            screen_x = (rot_x * tile_width * 1.15 * scale) + camera_pan_x
+            screen_y = (depth_y * tile_height * 0.28 * scale) - (elev_z * elevation_step * 1.35 * scale) + camera_pan_y
+            depth_key = depth_y + (elev_z * 0.2)
+            return screen_x, screen_y, depth_key
+
         for index, node in enumerate(scene_nodes):
             if not isinstance(node, dict):
                 continue
@@ -5123,9 +5160,7 @@ class AtelierService:
                 explicit=str(metadata.get("material") or ""),
                 kind=kind,
             )
-            screen_x = (x - y) * (tile_width / 2.0)
-            screen_y = (x + y) * (tile_height / 2.0) - (z * elevation_step)
-            depth_key = (x + y) + (z * 0.01)
+            screen_x, screen_y, depth_key = _project_position(x=x, y=y, z=z)
             out_meta = dict(metadata)
             if sprite_source.startswith("fallback") or material_source.startswith("fallback"):
                 fallback_count += 1
@@ -5201,9 +5236,7 @@ class AtelierService:
                     )
                 else:
                     continue
-                screen_x = (ex - ey) * (tile_width / 2.0)
-                screen_y = (ex + ey) * (tile_height / 2.0) - (ez * elevation_step)
-                depth_key = (ex + ey) + (ez * 0.01)
+                screen_x, screen_y, depth_key = _project_position(x=ex, y=ey, z=ez)
                 if sprite_source.startswith("fallback") or material_source.startswith("fallback"):
                     fallback_count += 1
                     meta["asset_fallback"] = {
@@ -5235,16 +5268,27 @@ class AtelierService:
                 item.drawable_id,
             )
         )
+        projection_type = "isometric_2_5d" if render_mode == "2.5d" else "projection_3d"
+        projection: dict[str, object] = {
+            "type": projection_type,
+            "tile_width": tile_width,
+            "tile_height": tile_height,
+            "elevation_step": elevation_step,
+        }
+        if render_mode == "3d":
+            projection["camera"] = {
+                "yaw_deg": camera_yaw_deg,
+                "pitch_deg": camera_pitch_deg,
+                "zoom": camera_zoom,
+                "pan_x": camera_pan_x,
+                "pan_y": camera_pan_y,
+            }
         hash_payload: dict[str, object] = {
             "workspace_id": payload.workspace_id,
             "realm_id": realm_id,
             "scene_id": payload.scene_id,
-            "projection": {
-                "type": "isometric_2_5d",
-                "tile_width": tile_width,
-                "tile_height": tile_height,
-                "elevation_step": elevation_step,
-            },
+            "render_mode": render_mode,
+            "projection": projection,
             "asset_pack": {
                 "asset_pack_id": requested_pack_id if requested_pack_id != "" else None,
                 "atlas_version": atlas_version,
@@ -5257,12 +5301,8 @@ class AtelierService:
             workspace_id=payload.workspace_id,
             realm_id=realm_id,
             scene_id=payload.scene_id,
-            projection={
-                "type": "isometric_2_5d",
-                "tile_width": tile_width,
-                "tile_height": tile_height,
-                "elevation_step": elevation_step,
-            },
+            render_mode=render_mode,
+            projection=projection,
             asset_pack={
                 "asset_pack_id": requested_pack_id if requested_pack_id != "" else None,
                 "atlas_version": atlas_version,
@@ -5290,10 +5330,16 @@ class AtelierService:
                 workspace_id=payload.workspace_id,
                 realm_id=payload.realm_id,
                 scene_id=payload.scene_id,
+                render_mode=payload.render_mode,
                 asset_pack_id=payload.asset_pack_id,
                 strict_assets=payload.strict_assets,
                 renderer_atlas_versions=payload.renderer_atlas_versions,
                 renderer_material_versions=payload.renderer_material_versions,
+                camera_yaw_deg=payload.camera_yaw_deg,
+                camera_pitch_deg=payload.camera_pitch_deg,
+                camera_zoom=payload.camera_zoom,
+                camera_pan_x=payload.camera_pan_x,
+                camera_pan_y=payload.camera_pan_y,
                 include_unloaded_regions=payload.include_unloaded_regions,
                 include_material_constraints=payload.include_material_constraints,
             )
@@ -5320,6 +5366,7 @@ class AtelierService:
             "workspace_id": payload.workspace_id,
             "realm_id": payload.realm_id.strip().lower(),
             "scene_id": payload.scene_id,
+            "render_mode": iso.render_mode,
             "coordinate_space": payload.coordinate_space,
             "nodes": [item.model_dump() for item in nodes],
             "asset_pack": iso.asset_pack,
@@ -5328,13 +5375,14 @@ class AtelierService:
             workspace_id=payload.workspace_id,
             realm_id=payload.realm_id.strip().lower(),
             scene_id=payload.scene_id,
+            render_mode=iso.render_mode,
             coordinate_space=payload.coordinate_space,
             node_count=len(nodes),
             nodes=nodes,
             asset_pack=iso.asset_pack,
             stats={
                 **iso.stats,
-                "source_contract": "isometric_2_5d",
+                "source_contract": str(iso.projection.get("type") or "isometric_2_5d"),
             },
             hash=self._canonical_hash(hash_payload),
         )

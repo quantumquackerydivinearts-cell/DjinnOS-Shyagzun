@@ -5273,21 +5273,46 @@ export function App() {
     }
   };
   const compileSceneGraphPreview = async () => {
+    const renderMode = String(voxelSettings.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d";
+    const camera = normalizeCamera3d(voxelSettings.camera3d);
     const payload = {
       workspace_id: workspaceId,
       realm_id: rendererRealmId,
       scene_id: `${rendererRealmId}/renderer-lab`,
-      source: rendererCobra,
+      render_mode: renderMode,
+      camera_yaw_deg: camera.yaw,
+      camera_pitch_deg: camera.pitch,
+      camera_zoom: camera.zoom,
+      camera_pan_x: camera.panX,
+      camera_pan_y: camera.panY,
+      include_unloaded_regions: true,
+      include_material_constraints: true,
     };
     const data = await runAction("renderer_scene_graph_preview", async () => {
-      return await apiCall("/v1/game/scenes/compile", "POST", payload);
+      return await apiCall("/v1/game/renderer/render-graph", "POST", payload);
     });
     if (data && typeof data === "object") {
-      const graph = data.graph && typeof data.graph === "object" ? data.graph : data;
+      const graph =
+        data && Array.isArray(data.nodes)
+          ? { nodes: data.nodes, edges: [] }
+          : data.graph && typeof data.graph === "object"
+            ? data.graph
+            : data;
       setRendererGraphPreview(graph);
       setRendererVisualSource("engine");
-      setRendererEngineStateText(JSON.stringify({ graph }, null, 2));
-      setNotice("scene_graph_preview: ready");
+      setRendererEngineStateText(
+        JSON.stringify(
+          {
+            graph,
+            render_contract: data,
+            realm_id: rendererRealmId,
+            scene_id: `${rendererRealmId}/renderer-lab`,
+          },
+          null,
+          2
+        )
+      );
+      setNotice(`scene_graph_preview: ready (${renderMode.toUpperCase()})`);
       return;
     }
     setNotice("scene_graph_preview: no data");
