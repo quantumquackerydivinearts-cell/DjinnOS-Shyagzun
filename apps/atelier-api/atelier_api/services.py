@@ -280,6 +280,8 @@ class AtelierService:
     _FAE_KINDS: tuple[str, ...] = ("undines", "salamanders", "dryads", "faeries", "gnomes")
     _SOCIAL_CLASSES: tuple[str, ...] = ("assassins", "nobles", "royals", "townsfolk", "merchants", "gods")
     _REALM_IDS: tuple[str, ...] = ("lapidus", "mercurie", "sulphera")
+    _LANGUAGE_DEITY_DEFAULT = "jabiru"
+    _LANGUAGE_DEMON_CONFUSER = "kaganue"
 
     def __init__(
         self,
@@ -305,6 +307,124 @@ class AtelierService:
     @staticmethod
     def _canonical_hash(payload: object) -> str:
         return hashlib.sha256(AtelierService._canonical_json(payload).encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _clamp_unit(value: object) -> float:
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return 0.0
+        if numeric < 0.0:
+            return 0.0
+        if numeric > 1.0:
+            return 1.0
+        return numeric
+
+    @classmethod
+    def _distort_token_for_kaganue(
+        cls,
+        *,
+        token: str,
+        seed: int,
+        index: int,
+    ) -> str:
+        if token.strip() == "":
+            return token
+        out_chars: list[str] = []
+        for char_index, char in enumerate(token):
+            if not char.isalpha():
+                out_chars.append(char)
+                continue
+            shift = 1 + ((seed + index + char_index) % 3)
+            alphabet = "abcdefghijklmnopqrstuvwxyz"
+            is_upper = char.isupper()
+            base_char = char.lower()
+            pos = alphabet.find(base_char)
+            if pos < 0:
+                out_chars.append(char)
+                continue
+            shifted = alphabet[(pos + shift) % len(alphabet)]
+            out_chars.append(shifted.upper() if is_upper else shifted)
+        return "".join(out_chars)
+
+    @classmethod
+    def _interpret_shygazun_runtime(cls, payload: Mapping[str, object]) -> dict[str, object]:
+        deity = str(payload.get("deity", cls._LANGUAGE_DEITY_DEFAULT)).strip().lower() or cls._LANGUAGE_DEITY_DEFAULT
+        utterance_raw = str(payload.get("utterance", "")).strip()
+        if utterance_raw == "":
+            raise ValueError("utterance_required")
+        mode = str(payload.get("mode", "explicit")).strip().lower() or "explicit"
+        mutate_tokens = bool(payload.get("mutate_tokens", True))
+        kaganue_pressure = cls._clamp_unit(payload.get("kaganue_pressure", cls._DEMON_PRESSURE_DEFAULTS.get("kaganue", 0.0)))
+        normalized_utterance = " ".join(utterance_raw.split())
+        source_tokens = [token for token in normalized_utterance.split(" ") if token.strip() != ""]
+        canonical_tokens = [token.lower() for token in source_tokens]
+        confusion_budget = max(0, min(len(canonical_tokens), int(round(kaganue_pressure * len(canonical_tokens)))))
+        seed_raw = cls._canonical_hash(
+            {
+                "deity": deity,
+                "mode": mode,
+                "utterance": normalized_utterance,
+                "kaganue_pressure": kaganue_pressure,
+            }
+        )
+        seed = int(seed_raw[:8], 16)
+        ranked_indexes = sorted(
+            range(len(canonical_tokens)),
+            key=lambda token_index: cls._canonical_hash(
+                {
+                    "seed": seed_raw,
+                    "token_index": token_index,
+                    "token": canonical_tokens[token_index],
+                }
+            ),
+        )
+        distorted_tokens = list(canonical_tokens)
+        mutated_indexes = set(ranked_indexes[:confusion_budget]) if mutate_tokens else set()
+        for token_index in sorted(mutated_indexes):
+            distorted_tokens[token_index] = cls._distort_token_for_kaganue(
+                token=canonical_tokens[token_index],
+                seed=seed,
+                index=token_index,
+            )
+        akinenwun_hits: list[dict[str, object]] = []
+        try:
+            from qqva.shygazun_compiler import compile_akinenwun_to_ir
+
+            for token in canonical_tokens:
+                if token.isalpha():
+                    try:
+                        ir = compile_akinenwun_to_ir(token)
+                    except Exception:
+                        continue
+                    if isinstance(ir, dict) and len(ir.keys()) > 0:
+                        akinenwun_hits.append(
+                            {
+                                "token": token,
+                                "ir_hash": cls._canonical_hash(ir)[:16],
+                            }
+                        )
+        except Exception:
+            akinenwun_hits = []
+        return {
+            "deity": deity,
+            "demon": cls._LANGUAGE_DEMON_CONFUSER,
+            "mode": mode,
+            "utterance": normalized_utterance,
+            "canonical_tokens": canonical_tokens,
+            "interpreted_tokens": distorted_tokens,
+            "kaganue_pressure": kaganue_pressure,
+            "confusion_index": round(kaganue_pressure * 100.0, 2),
+            "mutated_count": len(mutated_indexes),
+            "semantic_payload": {
+                "token_count": len(canonical_tokens),
+                "akinenwun_hits": akinenwun_hits,
+                "story_vector": {
+                    "density": len(canonical_tokens),
+                    "entropy_hint": cls._canonical_hash(distorted_tokens)[:12],
+                },
+            },
+        }
 
     @staticmethod
     def _csv_to_list(value: str) -> list[str]:
@@ -3998,6 +4118,23 @@ class AtelierService:
                 example_payload={"fae_kind": "undines", "social_class": "townsfolk", "realm_bindings": ["mercurie"]},
             ),
             RuntimeActionCatalogItemOut(
+                kind="shygazun.interpret",
+                summary="Interpret Shygazun text under Jabiru with deterministic Kaganue confusion pressure.",
+                payload_fields={
+                    "utterance": "str",
+                    "deity": "str|optional (default jabiru)",
+                    "mode": "str|optional",
+                    "kaganue_pressure": "float(0..1)|optional",
+                    "mutate_tokens": "bool|optional",
+                },
+                example_payload={
+                    "utterance": "entity hearth 4 2 furnace lex TyKoWuVu",
+                    "deity": "jabiru",
+                    "mode": "explicit",
+                    "kaganue_pressure": 0.25,
+                },
+            ),
+            RuntimeActionCatalogItemOut(
                 kind="render.scene.load",
                 summary="Load a scenegraph into deterministic renderer runtime state.",
                 requires_realm=True,
@@ -5106,6 +5243,8 @@ class AtelierService:
                         "actor_id": actor_key,
                         **normalized,
                     }
+                elif action.kind == "shygazun.interpret":
+                    result = self._interpret_shygazun_runtime(action_payload)
                 elif action.kind == "render.scene.load":
                     result = _render_scene_load(action_payload)
                 elif action.kind == "render.scene.tick":

@@ -109,6 +109,17 @@
       }
     },
     {
+      "action_id": "jabiru_interpret",
+      "kind": "shygazun.interpret",
+      "payload": {
+        "utterance": "entity hearth 4 2 furnace lex TyKoWuVu",
+        "deity": "jabiru",
+        "mode": "explicit",
+        "kaganue_pressure": 0.35,
+        "mutate_tokens": true
+      }
+    },
+    {
       "action_id": "lapidus_market_adjust",
       "kind": "world.market.stock.adjust",
       "payload": {
