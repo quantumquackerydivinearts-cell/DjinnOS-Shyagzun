@@ -14,7 +14,7 @@ It is a tooling-layer spec for parsing and placement emission. It does not grant
 ## Statement Form
 
 ```cobra
-entity <id> <x> <y> <tag>
+entity <id> <x> <y> <z> <tag>
 ```
 
 Example:
