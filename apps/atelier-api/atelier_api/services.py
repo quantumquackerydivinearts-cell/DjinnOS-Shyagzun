@@ -206,6 +206,10 @@ class AtelierService:
     _BREATH_KO_ESCAPE_RADIUS = 4
     _BREATH_KO_MAX_ITER_CAP = 16384
     _BREATH_KO_SUPPORTED_MAX_ITER = 4096
+    _DEATH_PATRON_ID = "moshize"
+    _DEATH_PATRON_NAME = "Moshize the Goddess of Past Life Memories"
+    _KILL_PATRON_ID = "negaya"
+    _KILL_PATRON_NAME = "Negaya the Void Wraith and Knower of Bodies"
     _VITRIOL_AXES: tuple[str, ...] = (
         "vitality",
         "introspection",
@@ -2826,6 +2830,28 @@ class AtelierService:
         return kd_ratio_milli, chaos_meter
 
     @classmethod
+    def _akashic_memory_seed(
+        cls,
+        *,
+        snapshot_hash: str,
+        actor_id: str,
+        player_name: str,
+        canonical_game_number: int,
+        deaths: int,
+    ) -> str:
+        seed_hash = cls._canonical_hash(
+            {
+                "snapshot_hash": snapshot_hash,
+                "actor_id": actor_id,
+                "player_name": player_name,
+                "canonical_game_number": canonical_game_number,
+                "deaths": max(0, deaths),
+                "patron": cls._DEATH_PATRON_ID,
+            }
+        )
+        return f"akm_{seed_hash[:24]}"
+
+    @classmethod
     def _build_breath_ko_iteration(
         cls,
         *,
@@ -2894,8 +2920,14 @@ class AtelierService:
             quest_completion=int(payload.get("quest_completion") or 0),
             kills=int(payload.get("kills") or 0),
             deaths=int(payload.get("deaths") or 0),
+            kill_patron_id=str(payload.get("kill_patron_id") or cls._KILL_PATRON_ID),
+            kill_patron_name=str(payload.get("kill_patron_name") or cls._KILL_PATRON_NAME),
+            death_patron_id=str(payload.get("death_patron_id") or cls._DEATH_PATRON_ID),
+            death_patron_name=str(payload.get("death_patron_name") or cls._DEATH_PATRON_NAME),
             kd_ratio_milli=int(payload.get("kd_ratio_milli") or 0),
             chaos_meter=int(payload.get("chaos_meter") or 0),
+            akashic_memory_seed=str(payload.get("akashic_memory_seed") or ""),
+            void_body_mark_hash=str(payload.get("void_body_mark_hash") or ""),
             azoth_int=str(payload.get("azoth_int") or "0"),
             b_real=int(payload.get("b_real") or 0),
             b_imag=int(payload.get("b_imag") or 0),
@@ -2950,6 +2982,23 @@ class AtelierService:
         kills = max(0, int(payload.kills)) if payload.kills is not None else inferred_kills
         deaths = max(0, int(payload.deaths)) if payload.deaths is not None else inferred_deaths
         kd_ratio_milli, chaos_meter = self._chaos_from_kd(kills=kills, deaths=deaths)
+        akashic_memory_seed = self._akashic_memory_seed(
+            snapshot_hash=snapshot_hash,
+            actor_id=payload.actor_id,
+            player_name=player_name,
+            canonical_game_number=canonical_game_number,
+            deaths=deaths,
+        )
+        void_body_mark_hash = self._canonical_hash(
+            {
+                "snapshot_hash": snapshot_hash,
+                "actor_id": payload.actor_id,
+                "player_name": player_name,
+                "canonical_game_number": canonical_game_number,
+                "kills": kills,
+                "patron": self._KILL_PATRON_ID,
+            }
+        )
 
         save_hash_int = self._hex_to_int(snapshot_hash)
         player_name_int = self._name_to_int(player_name)
@@ -3013,8 +3062,14 @@ class AtelierService:
             "quest_completion": quest_completion,
             "kills": kills,
             "deaths": deaths,
+            "kill_patron_id": self._KILL_PATRON_ID,
+            "kill_patron_name": self._KILL_PATRON_NAME,
+            "death_patron_id": self._DEATH_PATRON_ID,
+            "death_patron_name": self._DEATH_PATRON_NAME,
             "kd_ratio_milli": kd_ratio_milli,
             "chaos_meter": chaos_meter,
+            "akashic_memory_seed": akashic_memory_seed,
+            "void_body_mark_hash": void_body_mark_hash,
             "azoth_int": str(azoth_int),
             "b_real": b_real,
             "b_imag": b_imag,

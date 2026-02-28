@@ -614,6 +614,11 @@ def test_game_breath_ko_generate_is_deterministic_and_listable() -> None:
     assert first_payload["special_case_rank"] >= 0
     assert first_payload["chaos_meter"] > 50
     assert first_payload["kd_ratio_milli"] == 4000
+    assert first_payload["kill_patron_id"] == "negaya"
+    assert first_payload["death_patron_id"] == "moshize"
+    assert first_payload["akashic_memory_seed"].startswith("akm_")
+    assert isinstance(first_payload["void_body_mark_hash"], str)
+    assert len(first_payload["void_body_mark_hash"]) == 64
 
     listed = client.get("/v1/game/breath/ko?workspace_id=main&actor_id=player_breath", headers=observe_headers)
     assert listed.status_code == 200

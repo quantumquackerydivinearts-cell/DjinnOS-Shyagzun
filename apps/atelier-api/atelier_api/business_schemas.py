@@ -1116,8 +1116,14 @@ class BreathKoOut(BaseModel):
     quest_completion: int
     kills: int
     deaths: int
+    kill_patron_id: str
+    kill_patron_name: str
+    death_patron_id: str
+    death_patron_name: str
     kd_ratio_milli: int
     chaos_meter: int
+    akashic_memory_seed: str
+    void_body_mark_hash: str
     azoth_int: str
     b_real: int
     b_imag: int
