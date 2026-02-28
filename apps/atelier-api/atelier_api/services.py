@@ -100,6 +100,9 @@ from .business_schemas import (
     QuestGraphListOut,
     QuestGraphStepInput,
     QuestGraphUpsertInput,
+    BreathKoGenerateInput,
+    BreathKoListOut,
+    BreathKoOut,
     QuestStepEdgeResolveOut,
     JournalEntryCreate,
     JournalEntryOut,
@@ -198,6 +201,11 @@ from .types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse
 
 class AtelierService:
     _QUEST_GRAPH_RUNTIME_SCHEMA_VERSION = "v1"
+    _BREATH_KO_KIND = "breath.ko.v1"
+    _BREATH_KO_FIXED_SCALE = 1_000_000
+    _BREATH_KO_ESCAPE_RADIUS = 4
+    _BREATH_KO_MAX_ITER_CAP = 16384
+    _BREATH_KO_SUPPORTED_MAX_ITER = 4096
     _VITRIOL_AXES: tuple[str, ...] = (
         "vitality",
         "introspection",
@@ -2756,6 +2764,235 @@ class AtelierService:
             emit_kernel=False,
         )
         return QuestAdvanceByGraphDryRunOut(graph=graph, advance=advance, persisted=False)
+
+    @staticmethod
+    def _hex_to_int(value: str) -> int:
+        return int(value, 16)
+
+    @staticmethod
+    def _name_to_int(value: str) -> int:
+        encoded = value.encode("utf-8")
+        if len(encoded) == 0:
+            return 0
+        return int.from_bytes(encoded, byteorder="big", signed=False)
+
+    @classmethod
+    def _level_from_tables(cls, tables: PlayerStateTables) -> int:
+        levels = cls._dict_from_table(tables.levels)
+        for key in ("current_level", "level", "current", "value"):
+            maybe = levels.get(key)
+            if isinstance(maybe, int):
+                return max(1, maybe)
+        return 1
+
+    @classmethod
+    def _build_breath_ko_iteration(
+        cls,
+        *,
+        azoth_int: int,
+        save_hash_int: int,
+        max_iter: int,
+        attempt: int,
+    ) -> tuple[int, int, int, bool, str]:
+        scale = cls._BREATH_KO_FIXED_SCALE
+        escape_sq = (cls._BREATH_KO_ESCAPE_RADIUS * scale) ** 2
+        seed = cls._canonical_hash(
+            {
+                "azoth_int": str(azoth_int),
+                "save_hash_int": str(save_hash_int),
+                "max_iter": max_iter,
+                "attempt": attempt,
+            }
+        )
+        seed_int = cls._hex_to_int(seed)
+        b_real = int(seed_int % (4 * scale)) - (2 * scale)
+        b_imag = int((seed_int >> 29) % (4 * scale)) - (2 * scale)
+        x_real = int((azoth_int % (4 * scale)) - (2 * scale))
+        x_imag = int((save_hash_int % (4 * scale)) - (2 * scale))
+
+        escaped = False
+        escape_iter = max_iter
+        samples: list[tuple[int, int, int]] = []
+        for i in range(max_iter):
+            rr = x_real * x_real
+            ii = x_imag * x_imag
+            ri2 = 2 * x_real * x_imag
+            x_real = (rr - ii) // scale + b_real
+            x_imag = ri2 // scale + b_imag
+            mag_sq = (x_real * x_real) + (x_imag * x_imag)
+            if i < 64 or i % 97 == 0:
+                samples.append((i, x_real, x_imag))
+            if mag_sq > escape_sq:
+                escaped = True
+                escape_iter = i + 1
+                break
+        if not samples or samples[-1][0] != escape_iter:
+            samples.append((escape_iter, x_real, x_imag))
+        orbit_signature_hash = cls._canonical_hash(
+            {
+                "samples": samples,
+                "escaped": escaped,
+                "escape_iter": escape_iter,
+                "max_iter": max_iter,
+                "b_real": b_real,
+                "b_imag": b_imag,
+            }
+        )
+        return b_real, b_imag, escape_iter, escaped, orbit_signature_hash
+
+    @classmethod
+    def _breath_ko_from_manifest(cls, row: AssetManifestOut) -> BreathKoOut:
+        payload = row.payload if isinstance(row.payload, dict) else {}
+        return BreathKoOut(
+            breath_id=str(payload.get("breath_id") or row.manifest_id),
+            workspace_id=row.workspace_id,
+            actor_id=str(payload.get("actor_id") or ""),
+            snapshot_hash=str(payload.get("snapshot_hash") or ""),
+            player_name=str(payload.get("player_name") or ""),
+            canonical_game_number=int(payload.get("canonical_game_number") or 0),
+            level=int(payload.get("level") or 1),
+            quest_completion=int(payload.get("quest_completion") or 0),
+            azoth_int=str(payload.get("azoth_int") or "0"),
+            b_real=int(payload.get("b_real") or 0),
+            b_imag=int(payload.get("b_imag") or 0),
+            max_iter=int(payload.get("max_iter") or cls._BREATH_KO_SUPPORTED_MAX_ITER),
+            escape_iter=int(payload.get("escape_iter") or 0),
+            escaped=bool(payload.get("escaped", False)),
+            orbit_signature_hash=str(payload.get("orbit_signature_hash") or ""),
+            palette_seed=int(payload.get("palette_seed") or 0),
+            special_case_rank=int(payload.get("special_case_rank") or 0),
+            collision_attempt=int(payload.get("collision_attempt") or 0),
+            created_at=row.created_at,
+        )
+
+    def list_breath_ko(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str | None = None,
+    ) -> BreathKoListOut:
+        actor_filter = (actor_id or "").strip()
+        manifests = self.list_asset_manifests(workspace_id)
+        items: list[BreathKoOut] = []
+        for row in manifests:
+            if row.kind.strip().lower() != self._BREATH_KO_KIND:
+                continue
+            parsed = self._breath_ko_from_manifest(row)
+            if actor_filter != "" and parsed.actor_id != actor_filter:
+                continue
+            items.append(parsed)
+        items.sort(key=lambda item: (item.created_at, item.breath_id), reverse=True)
+        return BreathKoListOut(total=len(items), items=items)
+
+    def generate_breath_ko(
+        self,
+        *,
+        payload: BreathKoGenerateInput,
+        actor_id: str,
+        workshop_id: str,
+    ) -> BreathKoOut:
+        player_name = payload.player_name.strip()
+        if player_name == "":
+            raise ValueError("player_name_required")
+        canonical_game_number = max(0, int(payload.canonical_game_number))
+        quest_completion = max(0, int(payload.quest_completion))
+        max_iter = max(1, min(self._BREATH_KO_MAX_ITER_CAP, int(payload.max_iter)))
+
+        state = self.get_player_state(workspace_id=payload.workspace_id, actor_id=payload.actor_id)
+        snapshot_hash = state.hash
+        level = int(payload.level) if payload.level is not None else self._level_from_tables(state.tables)
+        level = max(1, level)
+
+        save_hash_int = self._hex_to_int(snapshot_hash)
+        player_name_int = self._name_to_int(player_name)
+        # Azoth polynomial monomial resolution over canonical deterministic inputs.
+        azoth_int = (
+            (17 * level)
+            + (31 * (quest_completion ** 2))
+            + (43 * (canonical_game_number ** 3))
+            + (59 * (save_hash_int ** 2))
+            + (71 * (player_name_int ** 2))
+        )
+
+        existing = self.list_breath_ko(workspace_id=payload.workspace_id, actor_id=payload.actor_id).items
+        for item in existing:
+            if (
+                item.snapshot_hash == snapshot_hash
+                and item.player_name == player_name
+                and item.canonical_game_number == canonical_game_number
+                and item.quest_completion == quest_completion
+                and item.level == level
+                and item.max_iter == max_iter
+            ):
+                return item
+
+        existing_orbit_hashes = {item.orbit_signature_hash for item in existing if item.orbit_signature_hash != ""}
+        selected: tuple[int, int, int, bool, str, int] | None = None
+        for attempt in range(64):
+            b_real, b_imag, escape_iter, escaped, orbit_signature_hash = self._build_breath_ko_iteration(
+                azoth_int=azoth_int,
+                save_hash_int=save_hash_int,
+                max_iter=max_iter,
+                attempt=attempt,
+            )
+            if orbit_signature_hash in existing_orbit_hashes:
+                continue
+            selected = (b_real, b_imag, escape_iter, escaped, orbit_signature_hash, attempt)
+            break
+        if selected is None:
+            raise ValueError("breath_ko_collision_budget_exhausted")
+
+        b_real, b_imag, escape_iter, escaped, orbit_signature_hash, collision_attempt = selected
+        palette_seed = int(orbit_signature_hash[:8], 16)
+        special_case_rank = int(orbit_signature_hash[8:16], 16) % 10000
+        breath_id = (
+            f"breath_ko:{payload.actor_id}:"
+            f"{snapshot_hash[:12]}:{orbit_signature_hash[:12]}:{collision_attempt}"
+        )
+        manifest_id = f"{breath_id}:v1"
+        breath_payload: dict[str, object] = {
+            "breath_id": breath_id,
+            "actor_id": payload.actor_id,
+            "snapshot_hash": snapshot_hash,
+            "player_name": player_name,
+            "canonical_game_number": canonical_game_number,
+            "level": level,
+            "quest_completion": quest_completion,
+            "azoth_int": str(azoth_int),
+            "b_real": b_real,
+            "b_imag": b_imag,
+            "max_iter": max_iter,
+            "escape_iter": escape_iter,
+            "escaped": escaped,
+            "orbit_signature_hash": orbit_signature_hash,
+            "palette_seed": palette_seed,
+            "special_case_rank": special_case_rank,
+            "collision_attempt": collision_attempt,
+            "fractal": "x^2+b",
+            "fixed_scale": self._BREATH_KO_FIXED_SCALE,
+        }
+        saved = self.create_asset_manifest(
+            AssetManifestCreate(
+                workspace_id=payload.workspace_id,
+                realm_id="lapidus",
+                manifest_id=manifest_id,
+                name=f"Breath of Ko {payload.actor_id}",
+                kind=self._BREATH_KO_KIND,
+                payload=breath_payload,
+            )
+        )
+        out = self._breath_ko_from_manifest(saved)
+        self._kernel.place(
+            raw=f"game.breath.ko.generate {payload.actor_id} {out.breath_id}",
+            context={
+                "workspace_id": payload.workspace_id,
+                "rule": "breath_ko_generate",
+                "result": out.model_dump(mode="json"),
+            },
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        return out
 
     def emit_dialogue(
         self,

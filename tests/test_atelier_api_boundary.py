@@ -527,6 +527,98 @@ def test_game_rule_alchemy_interface() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_breath_ko_generate_is_deterministic_and_listable() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _ManifestRow:
+        def __init__(
+            self,
+            *,
+            id: str,
+            workspace_id: str,
+            realm_id: str,
+            manifest_id: str,
+            name: str,
+            kind: str,
+            payload_json: str,
+            payload_hash: str,
+            created_at: datetime,
+        ) -> None:
+            self.id = id
+            self.workspace_id = workspace_id
+            self.realm_id = realm_id
+            self.manifest_id = manifest_id
+            self.name = name
+            self.kind = kind
+            self.payload_json = payload_json
+            self.payload_hash = payload_hash
+            self.created_at = created_at
+
+    class _BreathRepo:
+        def __init__(self) -> None:
+            self.player_rows: dict[tuple[str, str], PlayerState] = {}
+            self.manifests: list[_ManifestRow] = []
+
+        def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+            return self.player_rows.get((workspace_id, actor_id))
+
+        def save_player_state(self, row: PlayerState) -> PlayerState:
+            self.player_rows[(row.workspace_id, row.actor_id)] = row
+            return row
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[_ManifestRow]:
+            return [row for row in self.manifests if row.workspace_id == workspace_id]
+
+        def create_asset_manifest(self, row: object) -> object:
+            manifest = _ManifestRow(
+                id=f"m_{len(self.manifests) + 1}",
+                workspace_id=str(getattr(row, "workspace_id")),
+                realm_id=str(getattr(row, "realm_id")),
+                manifest_id=str(getattr(row, "manifest_id")),
+                name=str(getattr(row, "name")),
+                kind=str(getattr(row, "kind")),
+                payload_json=str(getattr(row, "payload_json")),
+                payload_hash=str(getattr(row, "payload_hash")),
+                created_at=datetime.now(timezone.utc),
+            )
+            self.manifests.append(manifest)
+            return manifest
+
+    repo = _BreathRepo()
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    place_headers = _headers("kernel.place", role="steward", token=_admin_gate_token("tester", "workshop-1"))
+    observe_headers = _headers("kernel.observe", role="artisan")
+    body = {
+        "workspace_id": "main",
+        "actor_id": "player_breath",
+        "player_name": "Kael",
+        "canonical_game_number": 42,
+        "quest_completion": 73,
+        "max_iter": 4096,
+    }
+
+    first = client.post("/v1/game/breath/ko/generate", json=body, headers=place_headers)
+    second = client.post("/v1/game/breath/ko/generate", json=body, headers=place_headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["breath_id"] == second_payload["breath_id"]
+    assert first_payload["orbit_signature_hash"] == second_payload["orbit_signature_hash"]
+    assert first_payload["max_iter"] == 4096
+    assert first_payload["special_case_rank"] >= 0
+
+    listed = client.get("/v1/game/breath/ko?workspace_id=main&actor_id=player_breath", headers=observe_headers)
+    assert listed.status_code == 200
+    listed_payload = listed.json()
+    assert listed_payload["total"] == 1
+    assert listed_payload["items"][0]["breath_id"] == first_payload["breath_id"]
+    app.dependency_overrides.clear()
+
+
 def test_game_rule_blacksmith_and_combat_paths() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

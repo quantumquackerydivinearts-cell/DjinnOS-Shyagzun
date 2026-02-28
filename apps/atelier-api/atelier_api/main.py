@@ -139,6 +139,9 @@ from .business_schemas import (
     SaveExportOut,
     SupplierCreate,
     SupplierOut,
+    BreathKoGenerateInput,
+    BreathKoListOut,
+    BreathKoOut,
 )
 from .rendering_schemas import (
     RendererTablesInput,
@@ -2107,6 +2110,50 @@ def advance_game_quest_by_graph_dry_run(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/breath/ko/generate")
+def generate_breath_ko(
+    payload: BreathKoGenerateInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> BreathKoOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    try:
+        return svc.generate_breath_ko(
+            payload=payload,
+            actor_id=ctx.actor_id,
+            workshop_id=workshop.identity.workshop_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/game/breath/ko")
+def list_breath_ko(
+    workspace_id: str,
+    actor_id: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> BreathKoListOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    _ = workshop
+    return svc.list_breath_ko(workspace_id=workspace_id, actor_id=actor_id)
 
 
 @app.post("/v1/game/vitriol/apply-ruler-influence")

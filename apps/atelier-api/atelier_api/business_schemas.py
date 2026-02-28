@@ -1093,6 +1093,43 @@ class QuestAdvanceByGraphDryRunOut(BaseModel):
     persisted: bool = False
 
 
+class BreathKoGenerateInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    player_name: str
+    canonical_game_number: int
+    quest_completion: int
+    level: int | None = None
+    max_iter: int = 4096
+
+
+class BreathKoOut(BaseModel):
+    breath_id: str
+    workspace_id: str
+    actor_id: str
+    snapshot_hash: str
+    player_name: str
+    canonical_game_number: int
+    level: int
+    quest_completion: int
+    azoth_int: str
+    b_real: int
+    b_imag: int
+    max_iter: int
+    escape_iter: int
+    escaped: bool
+    orbit_signature_hash: str
+    palette_seed: int
+    special_case_rank: int
+    collision_attempt: int
+    created_at: datetime
+
+
+class BreathKoListOut(BaseModel):
+    total: int
+    items: list[BreathKoOut] = Field(default_factory=list)
+
+
 class CharacterDictionaryCreate(BaseModel):
     workspace_id: str
     character_id: str
