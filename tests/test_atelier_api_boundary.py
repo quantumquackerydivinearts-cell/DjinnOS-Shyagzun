@@ -2591,6 +2591,8 @@ def test_game_runtime_consume_shygazun_interpretation_is_hash_deterministic() ->
                     "mode": "explicit",
                     "kaganue_pressure": 0.4,
                     "mutate_tokens": True,
+                    "explain_mode": "compound",
+                    "lore_overlay": "anecdotal",
                 },
             }
         ],
@@ -2606,6 +2608,8 @@ def test_game_runtime_consume_shygazun_interpretation_is_hash_deterministic() ->
     first_result = first_payload["results"][0]["result"]
     second_result = second_payload["results"][0]["result"]
     assert first_result["interpreted_tokens"] == second_result["interpreted_tokens"]
+    assert isinstance(first_result["compound_trace"], list)
+    assert first_result["lore_overlay"] == "anecdotal"
     app.dependency_overrides.clear()
 
 

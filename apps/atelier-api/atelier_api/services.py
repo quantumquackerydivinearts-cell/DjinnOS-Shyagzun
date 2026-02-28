@@ -284,6 +284,14 @@ class AtelierService:
     _REALM_IDS: tuple[str, ...] = ("lapidus", "mercurie", "sulphera")
     _LANGUAGE_DEITY_DEFAULT = "jabiru"
     _LANGUAGE_DEMON_CONFUSER = "kaganue"
+    _SHYGAZUN_OPPOSITION_PAIRS: tuple[tuple[str, str], ...] = (
+        ("A", "O"),
+        ("I", "E"),
+        ("Y", "U"),
+        ("Ta", "Zo"),
+        ("Ha", "Ga"),
+        ("Va", "Vo"),
+    )
 
     def __init__(
         self,
@@ -350,12 +358,119 @@ class AtelierService:
         return "".join(out_chars)
 
     @classmethod
+    def _resolve_symbol_entry_for_token(
+        cls,
+        *,
+        token: str,
+    ) -> list[dict[str, object]]:
+        try:
+            from qqva.shygazun_compiler import default_symbol_inventory, split_akinenwun
+
+            inventory = default_symbol_inventory()
+            parts = split_akinenwun(token)
+        except Exception:
+            return []
+        out: list[dict[str, object]] = []
+        for part in parts:
+            entries = inventory.entries_for(part)
+            if len(entries) == 0:
+                out.append(
+                    {
+                        "symbol": part,
+                        "known": False,
+                        "tongue": None,
+                        "meaning": None,
+                        "decimal": None,
+                    }
+                )
+                continue
+            entry = entries[0]
+            out.append(
+                {
+                    "symbol": str(entry["symbol"]),
+                    "known": True,
+                    "tongue": str(entry["tongue"]),
+                    "meaning": str(entry["meaning"]),
+                    "decimal": int(entry["decimal"]),
+                }
+            )
+        return out
+
+    @classmethod
+    def _is_symbol_opposition(cls, left: str, right: str) -> bool:
+        pair = {left, right}
+        for a, b in cls._SHYGAZUN_OPPOSITION_PAIRS:
+            if pair == {a, b}:
+                return True
+        return False
+
+    @classmethod
+    def _compound_relation_trace(
+        cls,
+        *,
+        primitives: Sequence[Mapping[str, object]],
+        lore_overlay: str,
+    ) -> dict[str, object]:
+        if len(primitives) <= 1:
+            return {
+                "relation_kind": "atomic",
+                "edges": [],
+                "lore_overlay": lore_overlay,
+                "explanation": "atomic symbol with no compound edge",
+            }
+        edges: list[dict[str, object]] = []
+        relation_counts = {"opposition": 0, "reinforcement": 0, "composition": 0}
+        for idx in range(len(primitives) - 1):
+            left = primitives[idx]
+            right = primitives[idx + 1]
+            left_symbol = str(left.get("symbol") or "")
+            right_symbol = str(right.get("symbol") or "")
+            left_tongue = left.get("tongue")
+            right_tongue = right.get("tongue")
+            if cls._is_symbol_opposition(left_symbol, right_symbol):
+                relation = "opposition"
+            elif left_tongue is not None and left_tongue == right_tongue:
+                relation = "reinforcement"
+            else:
+                relation = "composition"
+            relation_counts[relation] += 1
+            edges.append(
+                {
+                    "from": left_symbol,
+                    "to": right_symbol,
+                    "relation": relation,
+                }
+            )
+        if relation_counts["opposition"] > 0:
+            primary_relation = "opposition"
+        elif relation_counts["reinforcement"] > relation_counts["composition"]:
+            primary_relation = "reinforcement"
+        else:
+            primary_relation = "composition"
+        if primary_relation == "opposition":
+            explanation = "compound encodes semantic tension; meaning resolves through contradiction"
+        elif primary_relation == "reinforcement":
+            explanation = "compound reinforces a single semantic family across adjacent symbols"
+        else:
+            explanation = "compound composes distinct primitives into a derived semantic packet"
+        if lore_overlay == "anecdotal":
+            explanation += " with anecdotal overlay enabled"
+        return {
+            "relation_kind": primary_relation,
+            "edges": edges,
+            "lore_overlay": lore_overlay,
+            "explanation": explanation,
+        }
+
+    @classmethod
     def _interpret_shygazun_runtime(cls, payload: Mapping[str, object]) -> dict[str, object]:
         deity = str(payload.get("deity", cls._LANGUAGE_DEITY_DEFAULT)).strip().lower() or cls._LANGUAGE_DEITY_DEFAULT
         utterance_raw = str(payload.get("utterance", "")).strip()
         if utterance_raw == "":
             raise ValueError("utterance_required")
         mode = str(payload.get("mode", "explicit")).strip().lower() or "explicit"
+        explain_mode = str(payload.get("explain_mode", "none")).strip().lower() or "none"
+        lore_overlay = str(payload.get("lore_overlay", "none")).strip().lower() or "none"
         mutate_tokens = bool(payload.get("mutate_tokens", True))
         kaganue_pressure = cls._clamp_unit(payload.get("kaganue_pressure", cls._DEMON_PRESSURE_DEFAULTS.get("kaganue", 0.0)))
         normalized_utterance = " ".join(utterance_raw.split())
@@ -390,10 +505,11 @@ class AtelierService:
                 index=token_index,
             )
         akinenwun_hits: list[dict[str, object]] = []
+        compound_trace: list[dict[str, object]] = []
         try:
             from qqva.shygazun_compiler import compile_akinenwun_to_ir
 
-            for token in canonical_tokens:
+            for idx, token in enumerate(source_tokens):
                 if token.isalpha():
                     try:
                         ir = compile_akinenwun_to_ir(token)
@@ -406,12 +522,29 @@ class AtelierService:
                                 "ir_hash": cls._canonical_hash(ir)[:16],
                             }
                         )
+                if explain_mode in {"compound", "compound_explain", "full"}:
+                    primitives = cls._resolve_symbol_entry_for_token(token=token)
+                    if len(primitives) > 0:
+                        compound_trace.append(
+                            {
+                                "token": token,
+                                "token_index": idx,
+                                "primitives": list(primitives),
+                                "relation_trace": cls._compound_relation_trace(
+                                    primitives=primitives,
+                                    lore_overlay=lore_overlay,
+                                ),
+                            }
+                        )
         except Exception:
             akinenwun_hits = []
-        return {
+            compound_trace = []
+        out: dict[str, object] = {
             "deity": deity,
             "demon": cls._LANGUAGE_DEMON_CONFUSER,
             "mode": mode,
+            "explain_mode": explain_mode,
+            "lore_overlay": lore_overlay,
             "utterance": normalized_utterance,
             "canonical_tokens": canonical_tokens,
             "interpreted_tokens": distorted_tokens,
@@ -427,6 +560,9 @@ class AtelierService:
                 },
             },
         }
+        if explain_mode in {"compound", "compound_explain", "full"}:
+            out["compound_trace"] = compound_trace
+        return out
 
     @staticmethod
     def _csv_to_list(value: str) -> list[str]:
@@ -4128,12 +4264,16 @@ class AtelierService:
                     "mode": "str|optional",
                     "kaganue_pressure": "float(0..1)|optional",
                     "mutate_tokens": "bool|optional",
+                    "explain_mode": "str|optional (none|compound|full)",
+                    "lore_overlay": "str|optional (none|anecdotal)",
                 },
                 example_payload={
                     "utterance": "entity hearth 4 2 furnace lex TyKoWuVu",
                     "deity": "jabiru",
                     "mode": "explicit",
                     "kaganue_pressure": 0.25,
+                    "explain_mode": "compound",
+                    "lore_overlay": "anecdotal",
                 },
             ),
             RuntimeActionCatalogItemOut(
