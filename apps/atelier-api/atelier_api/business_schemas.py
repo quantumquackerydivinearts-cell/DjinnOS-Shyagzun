@@ -775,6 +775,7 @@ GateSource = Literal[
     "order",
     "akashic_memory",
     "void_mark",
+    "sanity",
 ]
 GateComparator = Literal["gte", "eq", "present"]
 RuntimeActionKind = Literal[
@@ -799,6 +800,7 @@ RuntimeActionKind = Literal[
     "world.market.stock.adjust",
     "world.market.sovereignty.transition",
     "breath.ko.evaluate",
+    "sanity.adjust",
 ]
 
 
@@ -921,6 +923,7 @@ class GateStateInput(BaseModel):
     order: dict[str, int] = Field(default_factory=dict)
     akashic_memory: list[str] = Field(default_factory=list)
     void_mark: list[str] = Field(default_factory=list)
+    sanity: dict[str, int] = Field(default_factory=dict)
 
 
 class GateRequirement(BaseModel):

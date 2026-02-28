@@ -1,0 +1,86 @@
+{
+  "workspace_id": "main",
+  "quest_id": "trial_of_memory_and_void",
+  "version": "v1",
+  "name": "Breath Gate Template",
+  "start_step_id": "step_entry",
+  "headless": true,
+  "metadata": {
+    "runtime_schema_version": "v1",
+    "template": "breath_gate",
+    "notes": "Chaos/order plus akashic/void branching template."
+  },
+  "steps": [
+    {
+      "step_id": "step_entry",
+      "label": "Entry",
+      "edges": [
+        {
+          "edge_id": "to_order_path",
+          "to_step_id": "step_order_memory",
+          "priority": 10,
+          "requirements": [
+            {
+              "source": "order",
+              "key": "meter",
+              "comparator": "gte",
+              "int_value": 60
+            },
+            {
+              "source": "akashic_memory",
+              "key": "akm_required_seed",
+              "comparator": "present",
+              "bool_value": true
+            }
+          ],
+          "set_flags": {
+            "breath_order_path": true
+          }
+        },
+        {
+          "edge_id": "to_chaos_path",
+          "to_step_id": "step_chaos_void",
+          "priority": 20,
+          "requirements": [
+            {
+              "source": "chaos",
+              "key": "meter",
+              "comparator": "gte",
+              "int_value": 60
+            },
+            {
+              "source": "void_mark",
+              "key": "void_required_hash",
+              "comparator": "present",
+              "bool_value": true
+            }
+          ],
+          "set_flags": {
+            "breath_chaos_path": true
+          }
+        },
+        {
+          "edge_id": "to_balance_path",
+          "to_step_id": "step_balance",
+          "priority": 99,
+          "requirements": [],
+          "set_flags": {
+            "breath_balance_path": true
+          }
+        }
+      ]
+    },
+    {
+      "step_id": "step_order_memory",
+      "label": "Order Memory"
+    },
+    {
+      "step_id": "step_chaos_void",
+      "label": "Chaos Void"
+    },
+    {
+      "step_id": "step_balance",
+      "label": "Balance"
+    }
+  ]
+}

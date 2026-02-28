@@ -264,6 +264,7 @@ class AtelierService:
         "drovitth": "lawful_neutral",
     }
     _WORLD_STREAM_MAX_LOADED_REGIONS = 128
+    _SANITY_KEYS: tuple[str, ...] = ("alchemical", "terrestrial", "cosmic", "narrative")
 
     def __init__(
         self,
@@ -1917,6 +1918,8 @@ class AtelierService:
             return int(payload.state.chaos.get(key, 0))
         if source == "order":
             return int(payload.state.order.get(key, 0))
+        if source == "sanity":
+            return int(payload.state.sanity.get(key, 0))
         if source == "flags":
             return bool(payload.state.flags.get(key, False))
         if source == "dialogue_flags":
@@ -2068,6 +2071,11 @@ class AtelierService:
         void_hash = str(breath_obj.get("void_body_mark_hash", "")).strip()
         if void_hash != "":
             void_mark = sorted(set([*void_mark, void_hash]))
+        sanity_obj = cls._dict_from_table(flags_obj.get("sanity"))
+        sanity: dict[str, int] = {
+            key: max(0, min(100, cls._int_from_table(sanity_obj.get(key), 50)))
+            for key in cls._SANITY_KEYS
+        }
 
         return GateStateInput(
             skills=skills,
@@ -2080,7 +2088,35 @@ class AtelierService:
             order=order,
             akashic_memory=akashic_memory,
             void_mark=void_mark,
+            sanity=sanity,
         )
+
+    @classmethod
+    def _extract_sanity_from_flags(cls, flags_obj: Mapping[str, object]) -> dict[str, int]:
+        sanity_obj = cls._dict_from_table(flags_obj.get("sanity"))
+        return {
+            key: max(0, min(100, cls._int_from_table(sanity_obj.get(key), 50)))
+            for key in cls._SANITY_KEYS
+        }
+
+    @classmethod
+    def _apply_sanity_adjustment(
+        cls,
+        *,
+        current: Mapping[str, int],
+        delta: Mapping[str, object] | None = None,
+        set_values: Mapping[str, object] | None = None,
+    ) -> dict[str, int]:
+        next_values = {key: max(0, min(100, int(current.get(key, 50)))) for key in cls._SANITY_KEYS}
+        if delta is not None:
+            for key in cls._SANITY_KEYS:
+                if key in delta:
+                    next_values[key] = max(0, min(100, next_values[key] + cls._int_from_table(delta.get(key), 0)))
+        if set_values is not None:
+            for key in cls._SANITY_KEYS:
+                if key in set_values:
+                    next_values[key] = max(0, min(100, cls._int_from_table(set_values.get(key), next_values[key])))
+        return next_values
 
     def resolve_dialogue_branch(
         self,
@@ -3776,6 +3812,15 @@ class AtelierService:
                     "deaths": 6,
                 },
             ),
+            RuntimeActionCatalogItemOut(
+                kind="sanity.adjust",
+                summary="Adjust four sanity channels (alchemical, terrestrial, cosmic, narrative).",
+                payload_fields={
+                    "delta": "dict[str,int]|optional",
+                    "set": "dict[str,int]|optional",
+                },
+                example_payload={"delta": {"cosmic": -5, "narrative": 3}},
+            ),
         ]
         return RuntimeActionCatalogOut(action_count=len(actions), actions=actions)
 
@@ -3791,6 +3836,7 @@ class AtelierService:
         runtime_market_stock: dict[str, dict[str, int]] = {}
         runtime_market_meta: dict[str, dict[str, object]] = {}
         runtime_breath_context: dict[str, dict[str, object]] = {}
+        runtime_sanity_state: dict[str, dict[str, int]] = {}
 
         def _normalize_realm_for_runtime(value: object) -> str:
             realm = str(value or "").strip().lower()
@@ -4321,6 +4367,53 @@ class AtelierService:
                         emit_kernel=bool(action_payload.get("emit_kernel", True)),
                     )
                     runtime_breath_context[payload.actor_id] = dict(result)
+                elif action.kind == "sanity.adjust":
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id))
+                    delta_obj = action_payload.get("delta")
+                    set_obj = action_payload.get("set")
+                    delta_map = cast(dict[str, object], delta_obj) if isinstance(delta_obj, dict) else {}
+                    set_map = cast(dict[str, object], set_obj) if isinstance(set_obj, dict) else {}
+                    if self._repo is None:
+                        current = runtime_sanity_state.get(
+                            actor_key,
+                            {key: 50 for key in self._SANITY_KEYS},
+                        )
+                        updated = self._apply_sanity_adjustment(
+                            current=current,
+                            delta=delta_map,
+                            set_values=set_map,
+                        )
+                        runtime_sanity_state[actor_key] = dict(updated)
+                        result = {
+                            "workspace_id": payload.workspace_id,
+                            "actor_id": actor_key,
+                            "sanity": updated,
+                        }
+                    else:
+                        state = self.get_player_state(workspace_id=payload.workspace_id, actor_id=actor_key)
+                        flags_obj = dict(state.tables.flags)
+                        current = self._extract_sanity_from_flags(flags_obj)
+                        updated = self._apply_sanity_adjustment(
+                            current=current,
+                            delta=delta_map,
+                            set_values=set_map,
+                        )
+                        flags_obj["sanity"] = updated
+                        self.apply_player_state(
+                            payload=PlayerStateApplyInput(
+                                workspace_id=payload.workspace_id,
+                                actor_id=actor_key,
+                                tables=PlayerStateTables(flags=flags_obj),
+                                mode="merge",
+                            ),
+                            actor_id=actor_id,
+                            workshop_id=workshop_id,
+                        )
+                        result = {
+                            "workspace_id": payload.workspace_id,
+                            "actor_id": actor_key,
+                            "sanity": updated,
+                        }
                 else:
                     raise ValueError(f"unsupported_runtime_action:{action.kind}")
                 results.append(

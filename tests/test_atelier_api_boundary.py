@@ -2367,6 +2367,127 @@ def test_game_runtime_consume_mixed_realm_world_stream_plan_is_hash_deterministi
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_consume_realm_reward_policy_is_hash_deterministic() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=4),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "realm_reward_policy_determinism",
+        "actions": [
+            {
+                "action_id": "eval_breath",
+                "kind": "breath.ko.evaluate",
+                "payload": {
+                    "player_name": "Kael",
+                    "canonical_game_number": 88,
+                    "quest_completion": 23,
+                    "kills": 2,
+                    "deaths": 8,
+                },
+            },
+            {
+                "action_id": "mercurie_adjust",
+                "kind": "world.market.stock.adjust",
+                "payload": {
+                    "realm_id": "mercurie",
+                    "item_id": "moon_salt",
+                    "delta": 10,
+                    "use_breath_context": True,
+                    "influence_bp": 10000,
+                },
+            },
+            {
+                "action_id": "sulphera_adjust",
+                "kind": "world.market.stock.adjust",
+                "payload": {
+                    "realm_id": "sulphera",
+                    "item_id": "infernal_ash",
+                    "delta": 10,
+                    "use_breath_context": True,
+                    "influence_bp": 10000,
+                },
+            },
+            {
+                "action_id": "lapidus_adjust",
+                "kind": "world.market.stock.adjust",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "item_id": "iron_ingot",
+                    "delta": 10,
+                    "use_breath_context": True,
+                    "influence_bp": 10000,
+                    "royl_loyalty": 80,
+                },
+            },
+        ],
+    }
+    first = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    second = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["hash"] == second_payload["hash"]
+    assert first_payload["failed_count"] == 0
+    first_results = {item["action_id"]: item for item in first_payload["results"]}
+    assert first_results["mercurie_adjust"]["result"]["realm_reward_policy"] == "order"
+    assert first_results["sulphera_adjust"]["result"]["realm_reward_policy"] == "chaos"
+    assert first_results["lapidus_adjust"]["result"]["realm_reward_policy"] == "royl_loyalty"
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_supports_sanity_adjust_action() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=2),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "sanity_adjust_plan",
+        "actions": [
+            {
+                "action_id": "sanity_delta",
+                "kind": "sanity.adjust",
+                "payload": {"delta": {"cosmic": -10, "narrative": 5}},
+            },
+            {
+                "action_id": "sanity_set",
+                "kind": "sanity.adjust",
+                "payload": {"set": {"alchemical": 70, "terrestrial": 65}},
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+    first = results["sanity_delta"]["result"]
+    assert first["sanity"]["cosmic"] == 40
+    assert first["sanity"]["narrative"] == 55
+    second = results["sanity_set"]["result"]
+    assert second["sanity"]["alchemical"] == 70
+    assert second["sanity"]["terrestrial"] == 65
+    assert second["sanity"]["cosmic"] == 40
+    app.dependency_overrides.clear()
+
+
 def test_game_runtime_consume_supports_scenegraph_region_preload_action() -> None:
     fake = FakeKernelClient()
     kernel = KernelIntegrationService(fake)
@@ -3124,6 +3245,44 @@ def test_game_gate_evaluate_supports_breath_sources() -> None:
             {"source": "order", "key": "meter", "comparator": "gte", "int_value": 70},
             {"source": "akashic_memory", "key": "akm_deadbeef", "comparator": "present", "bool_value": True},
             {"source": "void_mark", "key": ("f" * 64), "comparator": "present", "bool_value": True},
+        ],
+    }
+    res = client.post("/v1/game/rules/gates/evaluate", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["allowed"] is True
+    assert out["matched_count"] == out["total_count"]
+    app.dependency_overrides.clear()
+
+
+def test_game_gate_evaluate_supports_sanity_source() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "gate_id": "gate_sanity",
+        "operator": "and",
+        "state": {
+            "skills": {},
+            "inventory": {},
+            "vitriol": {},
+            "dialogue_flags": [],
+            "previous_dialogue": [],
+            "flags": {},
+            "sanity": {
+                "alchemical": 70,
+                "terrestrial": 65,
+                "cosmic": 40,
+                "narrative": 55,
+            },
+        },
+        "requirements": [
+            {"source": "sanity", "key": "alchemical", "comparator": "gte", "int_value": 60},
+            {"source": "sanity", "key": "cosmic", "comparator": "gte", "int_value": 35},
         ],
     }
     res = client.post("/v1/game/rules/gates/evaluate", json=payload, headers=headers)
