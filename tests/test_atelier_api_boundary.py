@@ -1430,6 +1430,137 @@ def test_game_quest_graph_hash_and_dry_run_are_deterministic_and_non_persistent(
     app.dependency_overrides.clear()
 
 
+def test_game_quest_graph_runtime_schema_compatibility_blocks_load_and_advance() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+
+    class _ManifestRow:
+        def __init__(
+            self,
+            *,
+            id: str,
+            workspace_id: str,
+            realm_id: str,
+            manifest_id: str,
+            name: str,
+            kind: str,
+            payload_json: str,
+            payload_hash: str,
+            created_at: datetime,
+        ) -> None:
+            self.id = id
+            self.workspace_id = workspace_id
+            self.realm_id = realm_id
+            self.manifest_id = manifest_id
+            self.name = name
+            self.kind = kind
+            self.payload_json = payload_json
+            self.payload_hash = payload_hash
+            self.created_at = created_at
+
+    class _CompatRepo:
+        def __init__(self) -> None:
+            self.rows: dict[tuple[str, str], PlayerState] = {}
+            self.manifests: list[_ManifestRow] = []
+
+        def get_player_state(self, workspace_id: str, actor_id: str) -> PlayerState | None:
+            return self.rows.get((workspace_id, actor_id))
+
+        def save_player_state(self, row: PlayerState) -> PlayerState:
+            self.rows[(row.workspace_id, row.actor_id)] = row
+            return row
+
+        def list_asset_manifests(self, workspace_id: str) -> Sequence[_ManifestRow]:
+            return [row for row in self.manifests if row.workspace_id == workspace_id]
+
+        def create_asset_manifest(self, row: object) -> object:
+            idx = len(self.manifests) + 1
+            manifest = _ManifestRow(
+                id=f"m_{idx}",
+                workspace_id=str(getattr(row, "workspace_id")),
+                realm_id=str(getattr(row, "realm_id")),
+                manifest_id=str(getattr(row, "manifest_id")),
+                name=str(getattr(row, "name")),
+                kind=str(getattr(row, "kind")),
+                payload_json=str(getattr(row, "payload_json")),
+                payload_hash=str(getattr(row, "payload_hash")),
+                created_at=datetime.now(timezone.utc),
+            )
+            self.manifests.append(manifest)
+            return manifest
+
+    repo = _CompatRepo()
+    app.dependency_overrides[_atelier_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(repo=repo, kernel=kernel)
+    client = TestClient(app)
+    write_headers = _headers("quest.write", role="steward")
+    read_headers = _headers("quest.read", role="artisan")
+    place_headers = _headers("kernel.place", role="steward", token=_admin_gate_token("tester", "workshop-1"))
+
+    compatible = client.post(
+        "/v1/game/quests/graphs",
+        json={
+            "workspace_id": "main",
+            "quest_id": "q_compat",
+            "version": "v1",
+            "start_step_id": "s0",
+            "headless": True,
+            "steps": [{"step_id": "s0", "edges": []}],
+            "metadata": {"runtime_schema_version": "v1"},
+        },
+        headers=write_headers,
+    )
+    assert compatible.status_code == 200
+    assert compatible.json()["runtime_schema_version"] == "v1"
+
+    incompatible = client.post(
+        "/v1/game/quests/graphs",
+        json={
+            "workspace_id": "main",
+            "quest_id": "q_incompat",
+            "version": "v1",
+            "start_step_id": "s0",
+            "headless": True,
+            "steps": [{"step_id": "s0", "edges": []}],
+            "metadata": {"runtime_schema_version": "v2"},
+        },
+        headers=write_headers,
+    )
+    assert incompatible.status_code == 200
+    assert incompatible.json()["runtime_schema_version"] == "v2"
+
+    blocked_load = client.get(
+        "/v1/game/quests/graphs?workspace_id=main&quest_id=q_incompat&version=v1",
+        headers=read_headers,
+    )
+    assert blocked_load.status_code == 400
+    assert blocked_load.json()["detail"].startswith("quest_graph_incompatible_runtime_schema:")
+
+    blocked_advance = client.post(
+        "/v1/game/quests/advance/by-graph",
+        json={
+            "workspace_id": "main",
+            "actor_id": "player_compat",
+            "quest_id": "q_incompat",
+            "event_id": "evt_compat",
+            "current_step_id": "s0",
+            "version": "v1",
+            "headless": True,
+            "state": {"skills": {}, "inventory": {}, "vitriol": {}, "dialogue_flags": [], "previous_dialogue": [], "flags": {}},
+        },
+        headers=place_headers,
+    )
+    assert blocked_advance.status_code == 400
+    assert blocked_advance.json()["detail"].startswith("quest_graph_incompatible_runtime_schema:")
+
+    hash_ok = client.get(
+        "/v1/game/quests/graphs/hash?workspace_id=main&quest_id=q_incompat&version=v1",
+        headers=read_headers,
+    )
+    assert hash_ok.status_code == 200
+    app.dependency_overrides.clear()
+
+
 def test_vitriol_apply_ruler_influence_clamps_to_one_to_ten() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake

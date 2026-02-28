@@ -197,6 +197,7 @@ from .types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse
 
 
 class AtelierService:
+    _QUEST_GRAPH_RUNTIME_SCHEMA_VERSION = "v1"
     _VITRIOL_AXES: tuple[str, ...] = (
         "vitality",
         "introspection",
@@ -2409,6 +2410,10 @@ class AtelierService:
     @classmethod
     def _quest_graph_from_manifest(cls, row: AssetManifestOut) -> QuestGraphOut:
         payload_obj = row.payload if isinstance(row.payload, dict) else {}
+        metadata = cls._dict_from_table(payload_obj.get("metadata"))
+        runtime_schema_version = str(metadata.get("runtime_schema_version") or cls._QUEST_GRAPH_RUNTIME_SCHEMA_VERSION).strip()
+        if runtime_schema_version == "":
+            runtime_schema_version = cls._QUEST_GRAPH_RUNTIME_SCHEMA_VERSION
         steps_raw = payload_obj.get("steps")
         step_items = steps_raw if isinstance(steps_raw, list) else []
         steps: list[QuestGraphStepInput] = []
@@ -2421,8 +2426,9 @@ class AtelierService:
             version=str(payload_obj.get("version") or ""),
             start_step_id=str(payload_obj.get("start_step_id") or ""),
             headless=bool(payload_obj.get("headless", True)),
+            runtime_schema_version=runtime_schema_version,
             steps=cls._canonical_quest_graph_steps(steps),
-            metadata=cls._dict_from_table(payload_obj.get("metadata")),
+            metadata=metadata,
             manifest_id=row.manifest_id,
             payload_hash=row.payload_hash,
             created_at=row.created_at,
@@ -2483,13 +2489,23 @@ class AtelierService:
                 if edge.priority < 0:
                     warnings.append(f"negative_priority:{step.step_id}:{edge_id or 'unknown'}")
 
+        metadata = dict(payload.metadata)
+        runtime_schema_version = str(metadata.get("runtime_schema_version") or self._QUEST_GRAPH_RUNTIME_SCHEMA_VERSION).strip()
+        if runtime_schema_version == "":
+            runtime_schema_version = self._QUEST_GRAPH_RUNTIME_SCHEMA_VERSION
+        if runtime_schema_version != self._QUEST_GRAPH_RUNTIME_SCHEMA_VERSION:
+            warnings.append(
+                f"incompatible_runtime_schema_version:{runtime_schema_version}:supported:{self._QUEST_GRAPH_RUNTIME_SCHEMA_VERSION}"
+            )
+        metadata["runtime_schema_version"] = runtime_schema_version
+
         graph_payload: dict[str, object] = {
             "quest_id": quest_id,
             "version": version,
             "start_step_id": start_step_id,
             "headless": True,
             "steps": [item.model_dump() for item in steps],
-            "metadata": dict(payload.metadata),
+            "metadata": metadata,
         }
         return QuestGraphValidateOut(
             ok=len(errors) == 0,
@@ -2527,13 +2543,18 @@ class AtelierService:
             return out
 
         steps = self._canonical_quest_graph_steps(payload.steps)
+        metadata = dict(payload.metadata)
+        runtime_schema_version = str(metadata.get("runtime_schema_version") or self._QUEST_GRAPH_RUNTIME_SCHEMA_VERSION).strip()
+        if runtime_schema_version == "":
+            runtime_schema_version = self._QUEST_GRAPH_RUNTIME_SCHEMA_VERSION
+        metadata["runtime_schema_version"] = runtime_schema_version
         payload_obj: dict[str, object] = {
             "quest_id": quest_id,
             "version": version,
             "start_step_id": payload.start_step_id.strip(),
             "headless": True,
             "steps": [item.model_dump() for item in steps],
-            "metadata": dict(payload.metadata),
+            "metadata": metadata,
         }
         saved = self.create_asset_manifest(
             AssetManifestCreate(
@@ -2553,6 +2574,7 @@ class AtelierService:
         workspace_id: str,
         quest_id: str,
         version: str | None = None,
+        enforce_runtime_compat: bool = True,
     ) -> QuestGraphOut:
         quest_key = quest_id.strip()
         if quest_key == "":
@@ -2575,7 +2597,13 @@ class AtelierService:
         if not candidates:
             raise ValueError("quest_graph_not_found")
         candidates.sort(key=lambda item: (item.created_at, item.version, item.manifest_id), reverse=True)
-        return candidates[0]
+        selected = candidates[0]
+        if enforce_runtime_compat and selected.runtime_schema_version != self._QUEST_GRAPH_RUNTIME_SCHEMA_VERSION:
+            raise ValueError(
+                "quest_graph_incompatible_runtime_schema:"
+                f"{selected.runtime_schema_version}:supported:{self._QUEST_GRAPH_RUNTIME_SCHEMA_VERSION}"
+            )
+        return selected
 
     def get_latest_quest_graph(
         self,
@@ -2596,7 +2624,12 @@ class AtelierService:
         quest_id: str,
         version: str | None = None,
     ) -> QuestGraphHashOut:
-        graph = self.get_quest_graph(workspace_id=workspace_id, quest_id=quest_id, version=version)
+        graph = self.get_quest_graph(
+            workspace_id=workspace_id,
+            quest_id=quest_id,
+            version=version,
+            enforce_runtime_compat=False,
+        )
         graph_payload: dict[str, object] = {
             "quest_id": graph.quest_id,
             "version": graph.version,

@@ -1040,6 +1040,7 @@ class QuestGraphOut(BaseModel):
     version: str
     start_step_id: str
     headless: bool
+    runtime_schema_version: str
     steps: list[QuestGraphStepInput] = Field(default_factory=list)
     metadata: dict[str, object] = Field(default_factory=dict)
     manifest_id: str
