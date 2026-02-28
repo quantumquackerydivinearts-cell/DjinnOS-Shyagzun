@@ -8,6 +8,10 @@
     "start": "electron .",
     "build": "vite build",
     "build:web": "vite build",
+    "clean:desktop": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }; if (Test-Path release\\\\desktop) { Remove-Item -Recurse -Force release\\\\desktop }\"",
+    "rebuild:desktop": "npm run clean:desktop && npm run build:web",
+    "pack:desktop:dir": "npm run rebuild:desktop && npx electron-builder --dir",
+    "pack:desktop:win": "npm run rebuild:desktop && npx electron-builder --win portable nsis",
     "test": "vitest run",
     "preview": "vite preview",
     "mobile:android:init": "npx cap add android",
@@ -31,5 +35,29 @@
     "vitest": "^2.1.8",
     "vite": "^5.4.10",
     "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.quantumquackery.atelier.desktop",
+    "productName": "Atelier Desktop",
+    "directories": {
+      "output": "release/desktop",
+      "buildResources": "public"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "asar": true,
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "artifactName": "atelier-desktop-${version}-${arch}.${ext}"
+    }
   }
 }

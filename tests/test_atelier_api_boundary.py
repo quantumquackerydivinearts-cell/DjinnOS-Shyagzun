@@ -2720,6 +2720,70 @@ def test_game_runtime_consume_shygazun_canonical_corrector_is_deterministic() ->
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_consume_audio_cues_are_backend_callable_and_deterministic() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=2),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "audio_cues",
+        "actions": [
+            {
+                "action_id": "stage_cue",
+                "kind": "audio.cue.stage",
+                "payload": {
+                    "cue_id": "sfx_door_open",
+                    "filename": "audio/sfx/door_open.wav",
+                    "channel": "sfx",
+                    "loop": False,
+                    "gain": 0.8,
+                    "start_ms": 0,
+                },
+            },
+            {
+                "action_id": "play_cue",
+                "kind": "audio.cue.play",
+                "payload": {
+                    "cue_id": "sfx_door_open",
+                },
+            },
+            {
+                "action_id": "stop_cue",
+                "kind": "audio.cue.stop",
+                "payload": {
+                    "cue_id": "sfx_door_open",
+                },
+            },
+        ],
+    }
+    first = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    second = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["failed_count"] == 0
+    assert first_payload["hash"] == second_payload["hash"]
+    staged = first_payload["results"][0]["result"]
+    played = first_payload["results"][1]["result"]
+    stopped = first_payload["results"][2]["result"]
+    assert staged["cue"]["cue_id"] == "sfx_door_open"
+    assert staged["cue"]["filename"] == "audio/sfx/door_open.wav"
+    assert played["command"]["op"] == "play"
+    assert played["command"]["cue_id"] == "sfx_door_open"
+    assert stopped["command"]["op"] == "stop"
+    assert stopped["command"]["cue_id"] == "sfx_door_open"
+    app.dependency_overrides.clear()
+
+
 def test_game_shygazun_translate_endpoint_is_deterministic() -> None:
     fake = FakeKernelClient()
     kernel = KernelIntegrationService(fake)

@@ -4,6 +4,7 @@ const path = require("path");
 
 const isDev = !app.isPackaged;
 const STUDIO_FILE_LIMIT = 1024 * 1024;
+const STUDIO_BINARY_FILE_LIMIT = 25 * 1024 * 1024;
 
 function assertWithinRoot(rootDir, targetPath) {
   const normalizedRoot = path.resolve(rootDir);
@@ -128,6 +129,31 @@ function registerIpcHandlers() {
     await fs.mkdir(path.dirname(absolutePath), { recursive: true });
     await fs.writeFile(absolutePath, content, "utf8");
     return { ok: true, filename: path.basename(absolutePath) };
+  });
+
+  ipcMain.handle("studio:read-binary-file-base64", async (_event, rootDir, filename) => {
+    if (typeof rootDir !== "string" || rootDir.trim() === "") {
+      throw new Error("studio_fs_root_required");
+    }
+    if (typeof filename !== "string" || filename.trim() === "") {
+      throw new Error("studio_fs_filename_required");
+    }
+    const normalizedRoot = path.resolve(rootDir);
+    const absolutePath = assertWithinRoot(normalizedRoot, path.join(normalizedRoot, filename));
+    const stat = await fs.stat(absolutePath);
+    if (!stat.isFile()) {
+      throw new Error("studio_fs_not_file");
+    }
+    if (stat.size > STUDIO_BINARY_FILE_LIMIT) {
+      throw new Error("studio_fs_binary_file_too_large");
+    }
+    const bytes = await fs.readFile(absolutePath);
+    return {
+      ok: true,
+      filename: path.basename(absolutePath),
+      size: stat.size,
+      base64: bytes.toString("base64"),
+    };
   });
 
   ipcMain.handle("renderer:open-window", async (_event, payload) => {

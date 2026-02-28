@@ -1,19 +1,24 @@
 param(
-    [switch]$VerifyShygazun
+    [switch]$VerifyShygazun,
+    [ValidateSet("dev", "desktop")]
+    [string]$UiMode = "dev"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$launcher = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+$stackScript = "C:\DjinnOS\scripts\start_atelier_stack.ps1"
+if (-not (Test-Path -LiteralPath $stackScript)) {
+    throw "Stack launcher not found: $stackScript"
+}
 
-Start-Process -FilePath $launcher -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "C:\DjinnOS\start-kernel.ps1"
-Start-Sleep -Seconds 1
-Start-Process -FilePath $launcher -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "C:\DjinnOS\start-atelier-api.ps1"
-Start-Sleep -Seconds 1
-Start-Process -FilePath $launcher -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "C:\DjinnOS\start-atelier-desktop.ps1"
+# Starts:
+# 1) Kernel service (uvicorn 127.0.0.1:8000)
+# 2) Atelier API service (uvicorn 127.0.0.1:9000)
+# 3) Desktop shell (UiMode=dev => Vite + Electron main)
+& $stackScript -UiMode $UiMode
 
 if ($VerifyShygazun) {
-    Start-Sleep -Seconds 4
+    Start-Sleep -Seconds 2
     & "C:\DjinnOS\scripts\verify_shygazun_surfaces.ps1"
 }

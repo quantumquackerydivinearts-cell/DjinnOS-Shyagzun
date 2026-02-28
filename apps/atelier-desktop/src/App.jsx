@@ -495,6 +495,26 @@ function clampInt(value, min, max, fallback) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+function audioMimeTypeForFilename(filename) {
+  const lower = String(filename || "").toLowerCase();
+  if (lower.endsWith(".mp3")) {
+    return "audio/mpeg";
+  }
+  if (lower.endsWith(".wav")) {
+    return "audio/wav";
+  }
+  if (lower.endsWith(".ogg")) {
+    return "audio/ogg";
+  }
+  if (lower.endsWith(".flac")) {
+    return "audio/flac";
+  }
+  if (lower.endsWith(".m4a")) {
+    return "audio/mp4";
+  }
+  return "application/octet-stream";
+}
+
 function normalizeCamera3d(camera) {
   const source = camera && typeof camera === "object" ? camera : {};
   const yaw = Number.isFinite(Number(source.yaw)) ? Number(source.yaw) : -35;
@@ -2600,8 +2620,12 @@ export function App() {
   const [studioFsSelectedScript, setStudioFsSelectedScript] = useState("");
   const [studioFsSceneFiles, setStudioFsSceneFiles] = useState([]);
   const [studioFsSpriteFiles, setStudioFsSpriteFiles] = useState([]);
+  const [studioFsAudioFiles, setStudioFsAudioFiles] = useState([]);
   const [studioFsSelectedScene, setStudioFsSelectedScene] = useState("");
   const [studioFsSelectedSprite, setStudioFsSelectedSprite] = useState("");
+  const [studioFsSelectedAudio, setStudioFsSelectedAudio] = useState("");
+  const [rendererAudioStageLabel, setRendererAudioStageLabel] = useState("");
+  const [rendererAudioStages, setRendererAudioStages] = useState([]);
 
   const caps = useMemo(() => capabilitiesForRole(role).join(","), [role]);
   const datasetSummary = useMemo(
@@ -4131,6 +4155,17 @@ export function App() {
     return Boolean(window.atelierDesktop && window.atelierDesktop.fs);
   }
 
+  async function listStudioAudioFiles(rootDir) {
+    const suffixes = [".mp3", ".wav", ".ogg", ".flac", ".m4a"];
+    const grouped = await Promise.all(
+      suffixes.map((suffix) => window.atelierDesktop.fs.listAssetsBySuffix(rootDir, suffix))
+    );
+    const merged = grouped.flatMap((result) =>
+      result && result.ok && Array.isArray(result.files) ? result.files : []
+    );
+    return Array.from(new Set(merged)).sort((a, b) => String(a).localeCompare(String(b)));
+  }
+
   async function chooseStudioFsFolder() {
     await runAction("studio_fs_choose", async () => {
       if (!hasDesktopFs()) {
@@ -4157,6 +4192,9 @@ export function App() {
         setStudioFsSpriteFiles(sprites.files);
         setStudioFsSelectedSprite(sprites.files.length > 0 ? String(sprites.files[0]) : "");
       }
+      const audioFiles = await listStudioAudioFiles(nextRoot);
+      setStudioFsAudioFiles(audioFiles);
+      setStudioFsSelectedAudio(audioFiles.length > 0 ? String(audioFiles[0]) : "");
       return result;
     });
   }
@@ -4191,18 +4229,69 @@ export function App() {
       }
       const scenes = await window.atelierDesktop.fs.listAssetsBySuffix(studioFsRoot, ".scene.json");
       const sprites = await window.atelierDesktop.fs.listAssetsBySuffix(studioFsRoot, ".sprite.json");
+      const audioFiles = await listStudioAudioFiles(studioFsRoot);
       const sceneFiles = scenes && scenes.ok && Array.isArray(scenes.files) ? scenes.files : [];
       const spriteFiles = sprites && sprites.ok && Array.isArray(sprites.files) ? sprites.files : [];
       setStudioFsSceneFiles(sceneFiles);
       setStudioFsSpriteFiles(spriteFiles);
+      setStudioFsAudioFiles(audioFiles);
       if (sceneFiles.length > 0) {
         setStudioFsSelectedScene(String(sceneFiles[0]));
       }
       if (spriteFiles.length > 0) {
         setStudioFsSelectedSprite(String(spriteFiles[0]));
       }
-      return { scene_count: sceneFiles.length, sprite_count: spriteFiles.length };
+      if (audioFiles.length > 0) {
+        setStudioFsSelectedAudio(String(audioFiles[0]));
+      }
+      return { scene_count: sceneFiles.length, sprite_count: spriteFiles.length, audio_count: audioFiles.length };
     });
+  }
+
+  async function stageSelectedFsAudioToRenderer() {
+    await runAction("renderer_audio_stage", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      if (!studioFsSelectedAudio) {
+        throw new Error("studio_fs no audio selected");
+      }
+      const result = await window.atelierDesktop.fs.readBinaryFileBase64(studioFsRoot, studioFsSelectedAudio);
+      if (!result || !result.ok || typeof result.base64 !== "string") {
+        throw new Error("studio_fs_read_audio failed");
+      }
+      const mime = audioMimeTypeForFilename(studioFsSelectedAudio);
+      const dataUrl = `data:${mime};base64,${result.base64}`;
+      const nextId = `audio_${Date.now()}`;
+      const nextLabel = String(rendererAudioStageLabel || studioFsSelectedAudio).trim() || studioFsSelectedAudio;
+      const nextEntry = {
+        id: nextId,
+        label: nextLabel,
+        filename: studioFsSelectedAudio,
+        mime,
+        size: Number(result.size || 0),
+        volume: 1,
+        loop: false,
+        dataUrl,
+      };
+      setRendererAudioStages((prev) => [nextEntry, ...prev].slice(0, 32));
+      setRendererAudioStageLabel("");
+      setRendererGameStatus(`audio_staged:${studioFsSelectedAudio}`);
+      return { staged_id: nextId, filename: studioFsSelectedAudio, size: nextEntry.size };
+    });
+  }
+
+  function updateRendererAudioStage(stageId, patch) {
+    setRendererAudioStages((prev) =>
+      prev.map((entry) => (entry.id === stageId ? { ...entry, ...patch } : entry))
+    );
+  }
+
+  function removeRendererAudioStage(stageId) {
+    setRendererAudioStages((prev) => prev.filter((entry) => entry.id !== stageId));
   }
 
   async function exportRendererSceneToFs() {
@@ -5311,12 +5400,36 @@ export function App() {
       if (!sourceText) {
         throw new Error("source_text_required");
       }
-      const result = await apiCall("/v1/game/shygazun/translate", "POST", {
-        source_text: sourceText,
-        direction: String(shygazunTranslateDirection || "auto"),
+      const direction = String(shygazunTranslateDirection || "auto");
+      const actorId = String(rendererTablesActorId || "player").trim() || "player";
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
+        workspace_id: workspaceId,
+        actor_id: actorId,
+        plan_id: `shygazun_translate_${Date.now()}`,
+        actions: [
+          {
+            action_id: "translate",
+            kind: "shygazun.translate",
+            payload: {
+              source_text: sourceText,
+              direction,
+            },
+          },
+        ],
       });
-      setShygazunTranslateOutput(result);
-      return result;
+      const actionResult = Array.isArray(consumed?.results)
+        ? consumed.results.find((item) => item && item.action_id === "translate")
+        : null;
+      if (!actionResult || !actionResult.ok) {
+        throw new Error(
+          actionResult && typeof actionResult.error === "string"
+            ? actionResult.error
+            : "shygazun_translate_failed"
+        );
+      }
+      const runtimeResult = actionResult.result || {};
+      setShygazunTranslateOutput(runtimeResult);
+      return runtimeResult;
     });
   };
 
@@ -5326,11 +5439,61 @@ export function App() {
       if (!sourceText) {
         throw new Error("source_text_required");
       }
-      const result = await apiCall("/v1/game/shygazun/correct", "POST", {
-        source_text: sourceText,
+      const actorId = String(rendererTablesActorId || "player").trim() || "player";
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
+        workspace_id: workspaceId,
+        actor_id: actorId,
+        plan_id: `shygazun_correct_${Date.now()}`,
+        actions: [
+          {
+            action_id: "correct",
+            kind: "shygazun.correct",
+            payload: {
+              source_text: sourceText,
+            },
+          },
+        ],
       });
-      setShygazunCorrectOutput(result);
-      return result;
+      const actionResult = Array.isArray(consumed?.results)
+        ? consumed.results.find((item) => item && item.action_id === "correct")
+        : null;
+      if (!actionResult || !actionResult.ok) {
+        throw new Error(
+          actionResult && typeof actionResult.error === "string"
+            ? actionResult.error
+            : "shygazun_correct_failed"
+        );
+      }
+      const runtimeResult = actionResult.result || {};
+      setShygazunCorrectOutput(runtimeResult);
+      return runtimeResult;
+    });
+  };
+
+  const runBackendAudioCue = async (kind, payload) => {
+    await runAction(`audio_${String(kind).replace(".", "_")}`, async () => {
+      const actorId = String(rendererTablesActorId || "player").trim() || "player";
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
+        workspace_id: workspaceId,
+        actor_id: actorId,
+        plan_id: `audio_${String(kind).replace(".", "_")}_${Date.now()}`,
+        actions: [
+          {
+            action_id: "audio",
+            kind,
+            payload,
+          },
+        ],
+      });
+      const actionResult = Array.isArray(consumed?.results) ? consumed.results[0] : null;
+      if (!actionResult || !actionResult.ok) {
+        throw new Error(
+          actionResult && typeof actionResult.error === "string"
+            ? actionResult.error
+            : `audio_action_failed:${kind}`
+        );
+      }
+      return actionResult.result || {};
     });
   };
 
@@ -6551,6 +6714,92 @@ export function App() {
               />
               <pre>{JSON.stringify(shygazunTranslateOutput || {}, null, 2)}</pre>
               <pre>{JSON.stringify(shygazunCorrectOutput || {}, null, 2)}</pre>
+            </section>
+            <section className="panel">
+              <h3>Audio Staging</h3>
+              <p>Load audio files from Studio FS, preview them, and trigger backend-callable cue commands.</p>
+              <div className="row">
+                <button className="action" onClick={refreshStudioFsAssets}>Refresh File Index</button>
+                <select value={studioFsSelectedAudio} onChange={(e) => setStudioFsSelectedAudio(e.target.value)}>
+                  <option value="">select audio file</option>
+                  {studioFsAudioFiles.map((name) => (
+                    <option key={`audio-fs-${name}`} value={name}>{name}</option>
+                  ))}
+                </select>
+                <input
+                  value={rendererAudioStageLabel}
+                  onChange={(e) => setRendererAudioStageLabel(e.target.value)}
+                  placeholder="cue label (optional)"
+                />
+                <button className="action" onClick={stageSelectedFsAudioToRenderer}>Stage from File</button>
+                <span className="badge">{`Audio files: ${studioFsAudioFiles.length}`}</span>
+                <span className="badge">{`Staged cues: ${rendererAudioStages.length}`}</span>
+              </div>
+              {rendererAudioStages.length === 0 ? (
+                <p>No staged audio cues yet.</p>
+              ) : (
+                rendererAudioStages.map((cue) => (
+                  <div className="row" key={cue.id}>
+                    <input value={cue.label || ""} onChange={(e) => updateRendererAudioStage(cue.id, { label: e.target.value })} />
+                    <input value={cue.channel || "sfx"} onChange={(e) => updateRendererAudioStage(cue.id, { channel: e.target.value })} />
+                    <input
+                      value={cue.volume}
+                      onChange={(e) => updateRendererAudioStage(cue.id, { volume: Math.max(0, Math.min(2, Number(e.target.value || 1))) })}
+                    />
+                    <label className="inline-toggle">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(cue.loop)}
+                        onChange={(e) => updateRendererAudioStage(cue.id, { loop: e.target.checked })}
+                      />
+                      Loop
+                    </label>
+                    <button
+                      className="action"
+                      onClick={() =>
+                        runBackendAudioCue("audio.cue.stage", {
+                          cue_id: cue.id,
+                          filename: cue.filename,
+                          channel: cue.channel || "sfx",
+                          loop: Boolean(cue.loop),
+                          gain: Number(cue.volume || 1),
+                          start_ms: 0,
+                          tags: [cue.label || cue.filename],
+                        })
+                      }
+                    >
+                      Backend Stage
+                    </button>
+                    <button
+                      className="action"
+                      onClick={() =>
+                        runBackendAudioCue("audio.cue.play", {
+                          cue_id: cue.id,
+                          channel: cue.channel || "sfx",
+                          loop: Boolean(cue.loop),
+                          gain: Number(cue.volume || 1),
+                          start_ms: 0,
+                        })
+                      }
+                    >
+                      Backend Play
+                    </button>
+                    <button
+                      className="action"
+                      onClick={() =>
+                        runBackendAudioCue("audio.cue.stop", {
+                          cue_id: cue.id,
+                          channel: cue.channel || "sfx",
+                        })
+                      }
+                    >
+                      Backend Stop
+                    </button>
+                    <button className="action" onClick={() => removeRendererAudioStage(cue.id)}>Remove</button>
+                    <audio controls preload="metadata" src={cue.dataUrl} />
+                  </div>
+                ))
+              )}
             </section>
             <section className="panel">
               <h3>Script + Asset Pipeline</h3>

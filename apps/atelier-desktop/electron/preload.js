@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("atelierDesktop", {
     listAssetsBySuffix: async (rootDir, suffix) => ipcRenderer.invoke("studio:list-assets-by-suffix", rootDir, suffix),
     readCobraScript: async (rootDir, filename) => ipcRenderer.invoke("studio:read-cobra-script", rootDir, filename),
     readTextFile: async (rootDir, filename) => ipcRenderer.invoke("studio:read-text-file", rootDir, filename),
+    readBinaryFileBase64: async (rootDir, filename) =>
+      ipcRenderer.invoke("studio:read-binary-file-base64", rootDir, filename),
     writeCobraScript: async (rootDir, filename, content) =>
       ipcRenderer.invoke("studio:write-cobra-script", rootDir, filename, content),
     writeTextFile: async (rootDir, filename, content) =>

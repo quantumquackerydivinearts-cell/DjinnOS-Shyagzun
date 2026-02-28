@@ -4524,6 +4524,54 @@ class AtelierService:
                 },
             ),
             RuntimeActionCatalogItemOut(
+                kind="audio.cue.stage",
+                summary="Stage an audio cue in deterministic runtime state from file/asset metadata.",
+                payload_fields={
+                    "cue_id": "str",
+                    "filename": "str",
+                    "channel": "str|optional",
+                    "loop": "bool|optional",
+                    "gain": "float(0..2)|optional",
+                    "start_ms": "int|optional",
+                },
+                example_payload={
+                    "cue_id": "sfx_door_open",
+                    "filename": "sfx/door_open.wav",
+                    "channel": "sfx",
+                    "loop": False,
+                    "gain": 1.0,
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="audio.cue.play",
+                summary="Emit deterministic play command for a staged audio cue.",
+                payload_fields={
+                    "cue_id": "str",
+                    "channel": "str|optional",
+                    "loop": "bool|optional",
+                    "gain": "float(0..2)|optional",
+                    "start_ms": "int|optional",
+                },
+                example_payload={
+                    "cue_id": "sfx_door_open",
+                    "channel": "sfx",
+                    "loop": False,
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="audio.cue.stop",
+                summary="Emit deterministic stop command for one cue or full channel.",
+                payload_fields={
+                    "cue_id": "str|optional",
+                    "channel": "str|optional",
+                    "all": "bool|optional",
+                },
+                example_payload={
+                    "channel": "music",
+                    "all": True,
+                },
+            ),
+            RuntimeActionCatalogItemOut(
                 kind="render.scene.load",
                 summary="Load a scenegraph into deterministic renderer runtime state.",
                 requires_realm=True,
@@ -4573,6 +4621,12 @@ class AtelierService:
             "entities": {},
             "placement_index": {},
         }
+        runtime_audio_state: dict[str, object] = {
+            "tick": 0,
+            "commands_emitted": 0,
+            "staged_cues": {},
+            "last_command": {},
+        }
 
         def _normalize_realm_for_runtime(value: object) -> str:
             realm = str(value or "").strip().lower()
@@ -4608,6 +4662,36 @@ class AtelierService:
                 "entity_count": len(entities),
                 "placement_count": len(placement),
             }
+
+        def _audio_maps() -> tuple[dict[str, dict[str, object]], int, int]:
+            staged_obj = runtime_audio_state.get("staged_cues")
+            staged = cast(dict[str, dict[str, object]], staged_obj) if isinstance(staged_obj, dict) else {}
+            tick_val = self._int_from_table(runtime_audio_state.get("tick"), 0)
+            emitted = self._int_from_table(runtime_audio_state.get("commands_emitted"), 0)
+            runtime_audio_state["staged_cues"] = staged
+            runtime_audio_state["tick"] = tick_val
+            runtime_audio_state["commands_emitted"] = emitted
+            return staged, tick_val, emitted
+
+        def _audio_summary() -> dict[str, object]:
+            staged, tick_val, emitted = _audio_maps()
+            return {
+                "tick": tick_val,
+                "staged_count": len(staged),
+                "commands_emitted": emitted,
+                "last_command": runtime_audio_state.get("last_command", {}),
+            }
+
+        def _audio_channel(value: object) -> str:
+            channel = str(value or "sfx").strip().lower()
+            return channel if channel != "" else "sfx"
+
+        def _audio_gain(value: object, fallback: float = 1.0) -> float:
+            try:
+                parsed = float(value)
+            except (TypeError, ValueError):
+                parsed = fallback
+            return max(0.0, min(2.0, parsed))
 
         def _load_scene_content_for_runtime(action_payload: Mapping[str, object]) -> tuple[str, str, dict[str, object]]:
             realm_id = str(action_payload.get("realm_id", "")).strip().lower()
@@ -5638,6 +5722,98 @@ class AtelierService:
                     result = self._translate_shygazun_runtime(action_payload)
                 elif action.kind == "shygazun.correct":
                     result = self._correct_shygazun_runtime(action_payload)
+                elif action.kind == "audio.cue.stage":
+                    staged, _, _ = _audio_maps()
+                    cue_id = str(action_payload.get("cue_id", "")).strip()
+                    if cue_id == "":
+                        raise ValueError("cue_id_required")
+                    filename = str(action_payload.get("filename", "")).strip()
+                    if filename == "":
+                        raise ValueError("filename_required")
+                    channel = _audio_channel(action_payload.get("channel", "sfx"))
+                    loop = bool(action_payload.get("loop", False))
+                    gain = _audio_gain(action_payload.get("gain", 1.0), 1.0)
+                    start_ms = max(0, self._int_from_table(action_payload.get("start_ms"), 0))
+                    tags_obj = action_payload.get("tags")
+                    tags = [str(item).strip() for item in tags_obj] if isinstance(tags_obj, list) else []
+                    tags = [item for item in tags if item != ""]
+                    staged[cue_id] = {
+                        "cue_id": cue_id,
+                        "filename": filename,
+                        "channel": channel,
+                        "loop": loop,
+                        "gain": gain,
+                        "start_ms": start_ms,
+                        "tags": sorted(tags),
+                    }
+                    runtime_audio_state["last_command"] = {
+                        "op": "stage",
+                        "cue_id": cue_id,
+                        "channel": channel,
+                    }
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "actor_id": payload.actor_id,
+                        "cue": dict(staged[cue_id]),
+                        "audio_state": _audio_summary(),
+                    }
+                elif action.kind == "audio.cue.play":
+                    staged, tick_val, emitted = _audio_maps()
+                    cue_id = str(action_payload.get("cue_id", "")).strip()
+                    if cue_id == "":
+                        raise ValueError("cue_id_required")
+                    cue = staged.get(cue_id)
+                    if not isinstance(cue, dict):
+                        raise ValueError("cue_not_staged")
+                    channel = _audio_channel(action_payload.get("channel", cue.get("channel", "sfx")))
+                    loop = bool(action_payload.get("loop", cue.get("loop", False)))
+                    gain = _audio_gain(action_payload.get("gain", cue.get("gain", 1.0)), 1.0)
+                    start_ms = max(0, self._int_from_table(action_payload.get("start_ms"), cue.get("start_ms", 0)))
+                    next_tick = tick_val + 1
+                    runtime_audio_state["tick"] = next_tick
+                    runtime_audio_state["commands_emitted"] = emitted + 1
+                    command = {
+                        "op": "play",
+                        "cue_id": cue_id,
+                        "filename": str(cue.get("filename", "")),
+                        "channel": channel,
+                        "loop": loop,
+                        "gain": gain,
+                        "start_ms": start_ms,
+                        "issued_tick": next_tick,
+                    }
+                    runtime_audio_state["last_command"] = command
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "actor_id": payload.actor_id,
+                        "command": command,
+                        "audio_state": _audio_summary(),
+                    }
+                elif action.kind == "audio.cue.stop":
+                    staged, tick_val, emitted = _audio_maps()
+                    cue_id = str(action_payload.get("cue_id", "")).strip()
+                    channel = _audio_channel(action_payload.get("channel", "sfx"))
+                    stop_all = bool(action_payload.get("all", False))
+                    if stop_all and cue_id != "":
+                        cue_id = ""
+                    if cue_id != "" and cue_id not in staged:
+                        raise ValueError("cue_not_staged")
+                    next_tick = tick_val + 1
+                    runtime_audio_state["tick"] = next_tick
+                    runtime_audio_state["commands_emitted"] = emitted + 1
+                    command = {
+                        "op": "stop_all" if stop_all else "stop",
+                        "cue_id": cue_id,
+                        "channel": channel,
+                        "issued_tick": next_tick,
+                    }
+                    runtime_audio_state["last_command"] = command
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "actor_id": payload.actor_id,
+                        "command": command,
+                        "audio_state": _audio_summary(),
+                    }
                 elif action.kind == "render.scene.load":
                     result = _render_scene_load(action_payload)
                 elif action.kind == "render.scene.tick":
