@@ -5113,6 +5113,35 @@ export function App() {
     return {};
   };
 
+  const resolveRuntimeSceneContent = () => {
+    const parsed = parseObjectJson(rendererJson || "{}", {});
+    if (parsed && typeof parsed === "object" && Array.isArray(parsed.nodes)) {
+      return {
+        nodes: parsed.nodes,
+        edges: Array.isArray(parsed.edges) ? parsed.edges : [],
+      };
+    }
+    const voxels = Array.isArray(parsed.voxels) ? parsed.voxels : [];
+    if (voxels.length > 0) {
+      const nodes = voxels.map((item, index) => {
+        const entry = item && typeof item === "object" ? item : {};
+        return {
+          node_id: String(entry.id || entry.type || `voxel_${index}`),
+          kind: String(entry.type || "voxel"),
+          x: Number(entry.x || 0),
+          y: Number(entry.y || 0),
+          metadata: { z: Number(entry.z || 0) },
+        };
+      });
+      return { nodes, edges: [] };
+    }
+    return { nodes: [], edges: [] };
+  };
+
+  const runtimeRegionActorId = String(rendererTablesActorId || "player").trim() || "player";
+  const runtimeRegionSceneId =
+    `${worldRegionPipelineRealmId}/renderer-lab`;
+
   const mergeLoadedWorldRegionIntoEngineText = (engineText, region) => {
     const stateObj = parseObjectJson(engineText || "{}", {});
     const worldStream = stateObj.world_stream && typeof stateObj.world_stream === "object" ? { ...stateObj.world_stream } : {};
@@ -5157,24 +5186,71 @@ export function App() {
       throw new Error("world_region_key_required");
     }
     const payload = resolveWorldRegionPayload();
-    return apiCall("/v1/game/world/regions/load", "POST", {
+    const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
       workspace_id: workspaceId,
-      realm_id: worldRegionPipelineRealmId,
-      region_key: worldRegionPipelineKey,
-      payload,
-      cache_policy: String(rendererPipeline.worldRegionCachePolicy || "cache"),
+      actor_id: runtimeRegionActorId,
+      plan_id: `world_region_load_${Date.now()}`,
+      actions: [
+        {
+          action_id: "world_region_load",
+          kind: "world.region.load",
+          payload: {
+            realm_id: worldRegionPipelineRealmId,
+            region_key: worldRegionPipelineKey,
+            payload,
+            cache_policy: String(rendererPipeline.worldRegionCachePolicy || "cache"),
+            bind_render_scene: true,
+            scene_id: runtimeRegionSceneId,
+            scene_content: resolveRuntimeSceneContent(),
+          },
+        },
+      ],
     });
+    const actionResult = Array.isArray(consumed?.results)
+      ? consumed.results.find((item) => item && item.action_id === "world_region_load")
+      : null;
+    if (!actionResult || !actionResult.ok) {
+      throw new Error(
+        actionResult && typeof actionResult.error === "string"
+          ? actionResult.error
+          : "world_region_load_failed"
+      );
+    }
+    return actionResult.result || {};
   };
 
   const requestWorldRegionUnload = async () => {
     if (!worldRegionPipelineKey) {
       throw new Error("world_region_key_required");
     }
-    return apiCall("/v1/game/world/regions/unload", "POST", {
+    const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
       workspace_id: workspaceId,
-      realm_id: worldRegionPipelineRealmId,
-      region_key: worldRegionPipelineKey,
+      actor_id: runtimeRegionActorId,
+      plan_id: `world_region_unload_${Date.now()}`,
+      actions: [
+        {
+          action_id: "world_region_unload",
+          kind: "world.region.unload",
+          payload: {
+            realm_id: worldRegionPipelineRealmId,
+            region_key: worldRegionPipelineKey,
+            bind_render_scene: true,
+            scene_id: runtimeRegionSceneId,
+          },
+        },
+      ],
     });
+    const actionResult = Array.isArray(consumed?.results)
+      ? consumed.results.find((item) => item && item.action_id === "world_region_unload")
+      : null;
+    if (!actionResult || !actionResult.ok) {
+      throw new Error(
+        actionResult && typeof actionResult.error === "string"
+          ? actionResult.error
+          : "world_region_unload_failed"
+      );
+    }
+    return actionResult.result || {};
   };
 
   const loadWorldRegionIntoEngine = async () => {
@@ -6648,8 +6724,8 @@ export function App() {
               <span className="badge">{`Active target: ${actionPostTarget}`}</span>
             </div>
             <div className="row">
-              <button className="action" onClick={compileSceneFromCobra}>Compile Cobra -> Scene + Renderer State (API)</button>
-              <button className="action" onClick={loadSceneFromLibraryToRenderer}>Load Library Scene -> Renderer State (API)</button>
+                <button className="action" onClick={compileSceneFromCobra}>Compile Cobra {"->"} Scene + Renderer State (API)</button>
+                <button className="action" onClick={loadSceneFromLibraryToRenderer}>Load Library Scene {"->"} Renderer State (API)</button>
               <button className="action" onClick={emitSceneGraph}>POST Scene Graph Payload</button>
               <button className="action" onClick={emitHeadlessQuest}>POST Headless Quest Payload</button>
               <button className="action" onClick={emitMeditation}>POST Meditation Payload</button>
