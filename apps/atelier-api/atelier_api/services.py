@@ -82,6 +82,10 @@ from .business_schemas import (
     RuntimePlanRunOut,
     RuntimeActionCatalogOut,
     RuntimeActionCatalogItemOut,
+    ShygazunTranslateInput,
+    ShygazunTranslateOut,
+    ShygazunCorrectInput,
+    ShygazunCorrectOut,
     DialogueChoiceResolveOut,
     DialogueResolveInput,
     DialogueResolveOut,
@@ -771,6 +775,19 @@ class AtelierService:
             "corrections": corrections,
             "mode": "canonical_symbol_case_and_segmentation",
         }
+
+    def translate_shygazun(self, payload: ShygazunTranslateInput) -> ShygazunTranslateOut:
+        out = self._translate_shygazun_runtime(
+            {
+                "source_text": payload.source_text,
+                "direction": payload.direction,
+            }
+        )
+        return ShygazunTranslateOut(**out)
+
+    def correct_shygazun(self, payload: ShygazunCorrectInput) -> ShygazunCorrectOut:
+        out = self._correct_shygazun_runtime({"source_text": payload.source_text})
+        return ShygazunCorrectOut(**out)
 
     @staticmethod
     def _csv_to_list(value: str) -> list[str]:

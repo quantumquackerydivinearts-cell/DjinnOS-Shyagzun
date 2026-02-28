@@ -2720,6 +2720,57 @@ def test_game_runtime_consume_shygazun_canonical_corrector_is_deterministic() ->
     app.dependency_overrides.clear()
 
 
+def test_game_shygazun_translate_endpoint_is_deterministic() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=2),
+    )
+    client = TestClient(app)
+    headers = _headers("kernel.observe", role="artisan")
+    payload = {
+        "source_text": "love whale process",
+        "direction": "english_to_shygazun",
+    }
+    first = client.post("/v1/game/shygazun/translate", json=payload, headers=headers)
+    second = client.post("/v1/game/shygazun/translate", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload == second_payload
+    assert first_payload["target_text"] == "Aely MelKoWuVu Wu"
+    assert first_payload["resolved_count"] == 3
+    assert first_payload["unresolved"] == []
+    app.dependency_overrides.clear()
+
+
+def test_game_shygazun_correct_endpoint_is_deterministic() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=2),
+    )
+    client = TestClient(app)
+    headers = _headers("kernel.observe", role="artisan")
+    payload = {"source_text": "tykowuvu aely ta zo"}
+    first = client.post("/v1/game/shygazun/correct", json=payload, headers=headers)
+    second = client.post("/v1/game/shygazun/correct", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload == second_payload
+    assert first_payload["corrected_text"] == "TyKoWuVu Aely Ta Zo"
+    assert first_payload["resolved_count"] == 4
+    assert first_payload["unresolved"] == []
+    app.dependency_overrides.clear()
+
+
 def test_game_runtime_consume_supports_affiliation_assignments() -> None:
     fake = FakeKernelClient()
     kernel = KernelIntegrationService(fake)

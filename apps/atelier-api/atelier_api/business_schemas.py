@@ -928,6 +928,39 @@ class RuntimeActionCatalogOut(BaseModel):
     actions: list[RuntimeActionCatalogItemOut] = Field(default_factory=list)
 
 
+class ShygazunTranslateInput(BaseModel):
+    source_text: str
+    direction: Literal["auto", "english_to_shygazun", "shygazun_to_english"] = "auto"
+
+
+class ShygazunTranslateOut(BaseModel):
+    direction: str
+    source_text: str
+    target_text: str
+    token_count: int
+    resolved_count: int
+    unresolved: list[str] = Field(default_factory=list)
+    confidence: float
+    mappings: list[dict[str, object]] = Field(default_factory=list)
+    round_trip_preview: str = ""
+    lexicon_version: str = "phase1.v1"
+
+
+class ShygazunCorrectInput(BaseModel):
+    source_text: str
+
+
+class ShygazunCorrectOut(BaseModel):
+    source_text: str
+    corrected_text: str
+    token_count: int
+    resolved_count: int
+    unresolved: list[str] = Field(default_factory=list)
+    confidence: float
+    corrections: list[dict[str, object]] = Field(default_factory=list)
+    mode: str
+
+
 class GateStateInput(BaseModel):
     skills: dict[str, int] = Field(default_factory=dict)
     inventory: dict[str, int] = Field(default_factory=dict)

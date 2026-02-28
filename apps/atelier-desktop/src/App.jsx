@@ -5311,33 +5311,10 @@ export function App() {
       if (!sourceText) {
         throw new Error("source_text_required");
       }
-      const actorId = String(rendererTablesActorId || "player").trim() || "player";
-      const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
-        workspace_id: workspaceId,
-        actor_id: actorId,
-        plan_id: `shygazun_translate_${Date.now()}`,
-        actions: [
-          {
-            action_id: "translate",
-            kind: "shygazun.translate",
-            payload: {
-              source_text: sourceText,
-              direction: String(shygazunTranslateDirection || "auto"),
-            },
-          },
-        ],
+      const result = await apiCall("/v1/game/shygazun/translate", "POST", {
+        source_text: sourceText,
+        direction: String(shygazunTranslateDirection || "auto"),
       });
-      const actionResult = Array.isArray(consumed?.results)
-        ? consumed.results.find((item) => item && item.action_id === "translate")
-        : null;
-      if (!actionResult || !actionResult.ok) {
-        throw new Error(
-          actionResult && typeof actionResult.error === "string"
-            ? actionResult.error
-            : "shygazun_translate_failed"
-        );
-      }
-      const result = actionResult.result || {};
       setShygazunTranslateOutput(result);
       return result;
     });
@@ -5349,32 +5326,9 @@ export function App() {
       if (!sourceText) {
         throw new Error("source_text_required");
       }
-      const actorId = String(rendererTablesActorId || "player").trim() || "player";
-      const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
-        workspace_id: workspaceId,
-        actor_id: actorId,
-        plan_id: `shygazun_correct_${Date.now()}`,
-        actions: [
-          {
-            action_id: "correct",
-            kind: "shygazun.correct",
-            payload: {
-              source_text: sourceText,
-            },
-          },
-        ],
+      const result = await apiCall("/v1/game/shygazun/correct", "POST", {
+        source_text: sourceText,
       });
-      const actionResult = Array.isArray(consumed?.results)
-        ? consumed.results.find((item) => item && item.action_id === "correct")
-        : null;
-      if (!actionResult || !actionResult.ok) {
-        throw new Error(
-          actionResult && typeof actionResult.error === "string"
-            ? actionResult.error
-            : "shygazun_correct_failed"
-        );
-      }
-      const result = actionResult.result || {};
       setShygazunCorrectOutput(result);
       return result;
     });

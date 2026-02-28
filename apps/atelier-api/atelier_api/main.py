@@ -92,6 +92,10 @@ from .business_schemas import (
     RuntimeReplayOut,
     RuntimePlanRunOut,
     RuntimeActionCatalogOut,
+    ShygazunTranslateInput,
+    ShygazunTranslateOut,
+    ShygazunCorrectInput,
+    ShygazunCorrectOut,
     DialogueEmitInput,
     DialogueEmitOut,
     DialogueResolveInput,
@@ -2362,6 +2366,40 @@ def runtime_action_catalog(
     _enforce_role(role, "kernel.observe")
     _ = workshop
     return svc.runtime_action_catalog()
+
+
+@app.post("/v1/game/shygazun/translate")
+def translate_shygazun(
+    payload: ShygazunTranslateInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> ShygazunTranslateOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    _ = workshop
+    try:
+        return svc.translate_shygazun(payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/shygazun/correct")
+def correct_shygazun(
+    payload: ShygazunCorrectInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> ShygazunCorrectOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    _ = workshop
+    try:
+        return svc.correct_shygazun(payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/v1/suppliers")
