@@ -158,6 +158,7 @@ from .rendering_schemas import (
     RendererAssetDiagnosticsOut,
 )
 from .capabilities import CapabilityContext, parse_capabilities, require_capability
+from .auth import AuthTokenClaims, decode_auth_token
 from .config import Settings, load_settings
 from .db import get_db
 from .kernel_client import HttpKernelClient, KernelClient
@@ -221,10 +222,37 @@ def _ambroflow_context_from_payload(payload: AmbroflowPlaceInput) -> Dict[str, A
     return context
 
 
+def _auth_token_claims(authorization: Optional[str], settings: Settings) -> Optional[AuthTokenClaims]:
+    auth_value = (authorization or "").strip()
+    if auth_value == "":
+        return None
+    prefix = "Bearer "
+    if not auth_value.startswith(prefix):
+        raise HTTPException(status_code=401, detail="invalid_authorization_scheme")
+    token = auth_value[len(prefix) :].strip()
+    if token == "":
+        raise HTTPException(status_code=401, detail="invalid_authorization_token")
+    try:
+        return decode_auth_token(token=token, secret=settings.auth_token_secret)
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=f"invalid_auth_token:{str(exc)}") from exc
+
+
+def _auth_token_claims_dep(authorization: Optional[str] = Header(default=None)) -> Optional[AuthTokenClaims]:
+    return _auth_token_claims(authorization, load_settings())
+
+
 def _capability_context(
+    claims: Optional[AuthTokenClaims] = Depends(_auth_token_claims_dep),
     x_atelier_capabilities: Optional[str] = Header(default=None),
     x_atelier_actor: Optional[str] = Header(default=None),
 ) -> CapabilityContext:
+    if claims is not None:
+        return CapabilityContext(actor_id=claims.actor_id, capabilities=frozenset(claims.capabilities))
+    settings = load_settings()
+    auth_mode = (settings.auth_mode or "mixed").strip().lower()
+    if auth_mode == "token_required":
+        raise HTTPException(status_code=401, detail="missing_bearer_token")
     if x_atelier_actor is None or not x_atelier_actor.strip():
         raise HTTPException(status_code=401, detail="missing_actor")
     if x_atelier_capabilities is None:
@@ -273,8 +301,16 @@ def _workshop_context(
     )
 
 
-def _role_context(x_artisan_role: Optional[str] = Header(default=None)) -> RoleContext:
+def _role_context(
+    claims: Optional[AuthTokenClaims] = Depends(_auth_token_claims_dep),
+    x_artisan_role: Optional[str] = Header(default=None),
+) -> RoleContext:
     if x_artisan_role is None or not x_artisan_role.strip():
+        if claims is not None and claims.role is not None:
+            return RoleContext(role=claims.role)
+        settings = load_settings()
+        if (settings.auth_mode or "mixed").strip().lower() == "token_required":
+            raise HTTPException(status_code=401, detail="missing_role_claim")
         raise HTTPException(status_code=401, detail="missing_artisan_role")
     return RoleContext(role=x_artisan_role.strip().lower())
 

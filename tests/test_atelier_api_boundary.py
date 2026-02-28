@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 from typing import Any, Dict, Mapping, Optional, Sequence
@@ -16,6 +17,7 @@ sys.path.insert(0, str(API_APP_DIR))
 from atelier_api.main import app, _atelier_service, _kernel_client, _kernel_only_service  # type: ignore[import]
 from atelier_api.kernel_integration import KernelIntegrationService  # type: ignore[import]
 from atelier_api.models import PlayerState, Realm, WorldRegion  # type: ignore[import]
+from atelier_api.auth import create_auth_token  # type: ignore[import]
 from atelier_api.services import AtelierService  # type: ignore[import]
 from atelier_api.types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse  # type: ignore[import]
 from qqva.world_stream import WorldStreamController  # type: ignore[import]
@@ -98,6 +100,30 @@ def _headers(caps: str, role: str = "artisan", token: Optional[str] = None) -> D
     return headers
 
 
+def _headers_bearer(
+    *,
+    capabilities: Sequence[str],
+    role: str = "artisan",
+    actor_id: str = "tester",
+    secret: str = "DEV_ONLY_CHANGE_ME",
+) -> Dict[str, str]:
+    now = int(datetime.now(timezone.utc).timestamp())
+    jwt = create_auth_token(
+        actor_id=actor_id,
+        capabilities=tuple(capabilities),
+        role=role,
+        secret=secret,
+        iat=now,
+        exp=now + 900,
+    )
+    return {
+        "Authorization": f"Bearer {jwt}",
+        "X-Artisan-Id": "artisan-1",
+        "X-Workshop-Id": "workshop-1",
+        "X-Workshop-Scopes": "scene:*,workspace:*",
+    }
+
+
 def test_requires_actor_header() -> None:
     client = TestClient(app)
     res = client.post(
@@ -121,6 +147,48 @@ def test_forbidden_without_place_capability() -> None:
     assert res.status_code == 403
     assert fake.place_calls == 0
     app.dependency_overrides.clear()
+
+
+def test_observe_accepts_bearer_token_claims_in_mixed_mode() -> None:
+    previous_mode = os.getenv("AUTH_MODE")
+    previous_secret = os.getenv("AUTH_TOKEN_SECRET")
+    os.environ["AUTH_MODE"] = "mixed"
+    os.environ["AUTH_TOKEN_SECRET"] = "test-secret"
+    try:
+        fake = FakeKernelClient()
+        app.dependency_overrides[_kernel_client] = lambda: fake
+        client = TestClient(app)
+        headers = _headers_bearer(capabilities=["kernel.observe"], role="artisan", secret="test-secret")
+        res = client.post("/v1/atelier/observe", headers=headers)
+        assert res.status_code == 200
+    finally:
+        if previous_mode is None:
+            os.environ.pop("AUTH_MODE", None)
+        else:
+            os.environ["AUTH_MODE"] = previous_mode
+        if previous_secret is None:
+            os.environ.pop("AUTH_TOKEN_SECRET", None)
+        else:
+            os.environ["AUTH_TOKEN_SECRET"] = previous_secret
+        app.dependency_overrides.clear()
+
+
+def test_token_required_rejects_legacy_capability_headers() -> None:
+    previous_mode = os.getenv("AUTH_MODE")
+    os.environ["AUTH_MODE"] = "token_required"
+    try:
+        fake = FakeKernelClient()
+        app.dependency_overrides[_kernel_client] = lambda: fake
+        client = TestClient(app)
+        res = client.post("/v1/atelier/observe", headers=_headers("kernel.observe", role="artisan"))
+        assert res.status_code == 401
+        assert "missing_bearer_token" in str(res.text)
+    finally:
+        if previous_mode is None:
+            os.environ.pop("AUTH_MODE", None)
+        else:
+            os.environ["AUTH_MODE"] = previous_mode
+        app.dependency_overrides.clear()
 
 
 def test_place_requires_verified_admin_gate() -> None:

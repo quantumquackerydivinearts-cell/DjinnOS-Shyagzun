@@ -10,6 +10,8 @@ class Settings:
     database_url: str
     admin_gate_code: str
     admin_gate_bypass: bool
+    auth_mode: str
+    auth_token_secret: str
     required_capability_header: str
     required_actor_header: str
     cors_allowed_origins: tuple[str, ...]
@@ -34,6 +36,8 @@ def load_settings() -> Settings:
         ),
         admin_gate_code=os.getenv("ADMIN_GATE_CODE", "STEWARD_DEV_GATE"),
         admin_gate_bypass=_parse_bool(os.getenv("ADMIN_GATE_BYPASS", "false")),
+        auth_mode=os.getenv("AUTH_MODE", "mixed").strip().lower(),
+        auth_token_secret=os.getenv("AUTH_TOKEN_SECRET", "DEV_ONLY_CHANGE_ME"),
         required_capability_header="X-Atelier-Capabilities",
         required_actor_header="X-Atelier-Actor",
         cors_allowed_origins=_parse_origins(

@@ -36,3 +36,18 @@ python -m alembic -c apps/atelier-api/alembic.ini upgrade head
 ```bash
 python -m uvicorn atelier_api.main:app --host 127.0.0.1 --port 9000 --app-dir apps/atelier-api
 ```
+
+## Auth Modes
+
+Environment variables:
+
+- AUTH_MODE (legacy|mixed|token_required, default: mixed)
+- AUTH_TOKEN_SECRET (HMAC secret for bearer token signing; set a real secret outside local dev)
+
+Behavior:
+
+- legacy: requires legacy X-Atelier-* and artisan/workshop headers on protected routes.
+- mixed: accepts either bearer token claims or legacy headers. If both are present, bearer claims are preferred.
+- 	oken_required: requires Authorization: Bearer <token> and rejects legacy-only auth.
+
+Bearer token claims currently include actor, capabilities, artisan identity, role, workshop identity, and workshop scopes.
