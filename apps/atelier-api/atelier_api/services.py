@@ -265,6 +265,18 @@ class AtelierService:
     }
     _WORLD_STREAM_MAX_LOADED_REGIONS = 128
     _SANITY_KEYS: tuple[str, ...] = ("alchemical", "terrestrial", "cosmic", "narrative")
+    _UNDERWORLD_RING_ORDER: tuple[str, ...] = (
+        "pride",
+        "greed",
+        "gluttony",
+        "envy",
+        "sloth",
+        "wrath",
+        "lust",
+    )
+    _FAE_KINDS: tuple[str, ...] = ("undines", "salamanders", "dryads", "faeries", "gnomes")
+    _SOCIAL_CLASSES: tuple[str, ...] = ("assassins", "nobles", "royals", "townsfolk", "merchants", "gods")
+    _REALM_IDS: tuple[str, ...] = ("lapidus", "mercurie", "sulphera")
 
     def __init__(
         self,
@@ -1920,6 +1932,12 @@ class AtelierService:
             return int(payload.state.order.get(key, 0))
         if source == "sanity":
             return int(payload.state.sanity.get(key, 0))
+        if source == "factions":
+            return int(payload.state.factions.get(key, 0))
+        if source == "underworld":
+            return int(payload.state.underworld.get(key, 0))
+        if source == "affiliations":
+            return key in payload.state.affiliations
         if source == "flags":
             return bool(payload.state.flags.get(key, False))
         if source == "dialogue_flags":
@@ -2076,6 +2094,21 @@ class AtelierService:
             key: max(0, min(100, cls._int_from_table(sanity_obj.get(key), 50)))
             for key in cls._SANITY_KEYS
         }
+        factions_obj = cls._dict_from_table(flags_obj.get("factions"))
+        factions: dict[str, int] = {
+            key: max(0, min(100, cls._int_from_table(value, 0)))
+            for key, value in factions_obj.items()
+            if isinstance(key, str)
+        }
+        underworld_obj = cls._dict_from_table(flags_obj.get("underworld_access"))
+        underworld: dict[str, int] = {
+            "infernal_meditation": 1 if bool(underworld_obj.get("infernal_meditation")) else 0,
+            "visitors_unlocked": 1 if bool(underworld_obj.get("visitors_unlocked")) else 0,
+            "royalty_unlocked": 1 if bool(underworld_obj.get("royalty_unlocked")) else 0,
+            "asmodian_purity": max(0, min(100, cls._int_from_table(underworld_obj.get("asmodian_purity"), 0))),
+            "asmodian_ring_index": max(0, min(6, cls._int_from_table(underworld_obj.get("asmodian_ring_index"), 0))),
+        }
+        affiliations = cls._list_from_table(flags_obj.get("affiliations"))
 
         return GateStateInput(
             skills=skills,
@@ -2089,6 +2122,9 @@ class AtelierService:
             akashic_memory=akashic_memory,
             void_mark=void_mark,
             sanity=sanity,
+            factions=factions,
+            underworld=underworld,
+            affiliations=affiliations,
         )
 
     @classmethod
@@ -2117,6 +2153,74 @@ class AtelierService:
                 if key in set_values:
                     next_values[key] = max(0, min(100, cls._int_from_table(set_values.get(key), next_values[key])))
         return next_values
+
+    @classmethod
+    def _evaluate_underworld_access(
+        cls,
+        *,
+        infernal_meditation: bool,
+        vitriol_trials_cleared: bool,
+        asmodian_purity: int,
+    ) -> dict[str, object]:
+        purity = max(0, min(100, int(asmodian_purity)))
+        ring_index = min(6, max(0, (purity * 7) // 101))
+        asmodian_entry_ring = cls._UNDERWORLD_RING_ORDER[ring_index]
+        visitors_unlocked = bool(infernal_meditation)
+        royalty_unlocked = bool(vitriol_trials_cleared)
+        return {
+            "infernal_meditation": bool(infernal_meditation),
+            "vitriol_trials_cleared": bool(vitriol_trials_cleared),
+            "asmodian_purity": purity,
+            "asmodian_ring_index": ring_index,
+            "asmodian_entry_ring": asmodian_entry_ring,
+            "visitors_unlocked": visitors_unlocked,
+            "royalty_unlocked": royalty_unlocked,
+            "accessible_rings": (
+                ["visitors", "royalty"] if visitors_unlocked and royalty_unlocked else
+                ["visitors"] if visitors_unlocked else []
+            ),
+        }
+
+    @classmethod
+    def _normalize_affiliations(
+        cls,
+        *,
+        fae_kind: str,
+        social_class: str,
+        realm_bindings: Sequence[object],
+    ) -> dict[str, object]:
+        fae = fae_kind.strip().lower()
+        if fae != "" and fae not in cls._FAE_KINDS:
+            raise ValueError("invalid_fae_kind")
+        social = social_class.strip().lower()
+        if social != "" and social not in cls._SOCIAL_CLASSES:
+            raise ValueError("invalid_social_class")
+        realms = sorted(
+            {
+                str(item).strip().lower()
+                for item in realm_bindings
+                if str(item).strip().lower() in cls._REALM_IDS
+            }
+        )
+        if fae != "" and "mercurie" not in realms:
+            raise ValueError("fae_require_mercurie_binding")
+        if social == "assassins":
+            required = {"lapidus", "mercurie"}
+            if not required.issubset(set(realms)):
+                raise ValueError("assassins_require_lapidus_and_mercurie_binding")
+        affiliations: list[str] = []
+        if fae != "":
+            affiliations.append(f"fae:{fae}")
+        if social != "":
+            affiliations.append(f"class:{social}")
+        for realm in realms:
+            affiliations.append(f"realm:{realm}")
+        return {
+            "fae_kind": fae,
+            "social_class": social,
+            "realm_bindings": realms,
+            "affiliations": affiliations,
+        }
 
     def resolve_dialogue_branch(
         self,
@@ -3821,6 +3925,50 @@ class AtelierService:
                 },
                 example_payload={"delta": {"cosmic": -5, "narrative": 3}},
             ),
+            RuntimeActionCatalogItemOut(
+                kind="radio.evaluate",
+                summary="Evaluate radio availability from underworld state.",
+                payload_fields={"underworld_state": "str", "override_available": "bool|optional"},
+                example_payload={"underworld_state": "active"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="alchemy.crystal",
+                summary="Craft radio or asmodian key crystals.",
+                payload_fields={"crystal_type": "str", "purity": "int", "ingredients": "dict", "outputs": "dict", "inventory": "dict"},
+                example_payload={"crystal_type": "asmodian", "purity": 100, "ingredients": {"ore": 1}, "outputs": {"asmodian_crystal": 1}},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="infernal_meditation.unlock",
+                summary="Unlock Infernal Meditation (Alfir, Castle Azoth Library restricted section at night).",
+                payload_fields={"mentor": "str", "location": "str", "section": "str", "time_of_day": "str"},
+                example_payload={"mentor": "Alfir", "location": "Castle Azoth Library", "section": "restricted", "time_of_day": "night"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="faction.loyalty.adjust",
+                summary="Adjust faction loyalty score (0..100), e.g. ROYL.",
+                payload_fields={"faction_id": "str", "delta": "int|optional", "set_score": "int|optional"},
+                example_payload={"faction_id": "royl", "delta": 8},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="underworld.access.evaluate",
+                summary="Compute Underworld ring access from infernal meditation, trials, and asmodian purity.",
+                payload_fields={
+                    "infernal_meditation": "bool|optional",
+                    "vitriol_trials_cleared": "bool|optional",
+                    "asmodian_purity": "int|optional",
+                },
+                example_payload={"infernal_meditation": True, "vitriol_trials_cleared": True, "asmodian_purity": 100},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="affiliation.assign",
+                summary="Assign actor Fae/social affiliations and realm bindings.",
+                payload_fields={
+                    "fae_kind": "str|optional (undines,salamanders,dryads,faeries,gnomes)",
+                    "social_class": "str|optional (assassins,nobles,royals,townsfolk,merchants,gods)",
+                    "realm_bindings": "list[str]",
+                },
+                example_payload={"fae_kind": "undines", "social_class": "townsfolk", "realm_bindings": ["mercurie"]},
+            ),
         ]
         return RuntimeActionCatalogOut(action_count=len(actions), actions=actions)
 
@@ -3837,6 +3985,7 @@ class AtelierService:
         runtime_market_meta: dict[str, dict[str, object]] = {}
         runtime_breath_context: dict[str, dict[str, object]] = {}
         runtime_sanity_state: dict[str, dict[str, int]] = {}
+        runtime_flags_state: dict[str, dict[str, object]] = {}
 
         def _normalize_realm_for_runtime(value: object) -> str:
             realm = str(value or "").strip().lower()
@@ -4414,6 +4563,109 @@ class AtelierService:
                             "actor_id": actor_key,
                             "sanity": updated,
                         }
+                elif action.kind == "radio.evaluate":
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id))
+                    actor_flags = runtime_flags_state.get(actor_key, {})
+                    inferred_underworld_state = str(actor_flags.get("underworld_state", "dormant"))
+                    action_payload.setdefault("underworld_state", inferred_underworld_state)
+                    radio = self.evaluate_radio_availability(
+                        payload=RadioEvaluateInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                    merged = dict(actor_flags)
+                    merged.update(radio.flags)
+                    runtime_flags_state[actor_key] = merged
+                    result = radio.model_dump()
+                elif action.kind == "alchemy.crystal":
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id))
+                    actor_flags = runtime_flags_state.get(actor_key, {})
+                    action_payload.setdefault("infernal_meditation", bool(actor_flags.get("infernal_meditation", False)))
+                    action_payload.setdefault("vitriol_trials_cleared", bool(actor_flags.get("vitriol_trials_cleared", False)))
+                    crystal = self.craft_alchemy_crystal(
+                        payload=AlchemyCrystalInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                    if crystal.key_flags:
+                        merged = dict(actor_flags)
+                        merged.update(crystal.key_flags)
+                        runtime_flags_state[actor_key] = merged
+                    result = crystal.model_dump()
+                elif action.kind == "infernal_meditation.unlock":
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id))
+                    unlock = self.unlock_infernal_meditation(
+                        payload=InfernalMeditationUnlockInput(**action_payload),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                    merged = dict(runtime_flags_state.get(actor_key, {}))
+                    merged.update(unlock.flags)
+                    runtime_flags_state[actor_key] = merged
+                    result = unlock.model_dump()
+                elif action.kind == "faction.loyalty.adjust":
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id))
+                    faction_id = str(action_payload.get("faction_id", "")).strip().lower()
+                    if faction_id == "":
+                        raise ValueError("faction_id_required")
+                    actor_flags = dict(runtime_flags_state.get(actor_key, {}))
+                    factions_obj = actor_flags.get("factions")
+                    factions = dict(cast(dict[str, object], factions_obj)) if isinstance(factions_obj, dict) else {}
+                    current_score = max(0, min(100, self._int_from_table(factions.get(faction_id), 0)))
+                    if action_payload.get("set_score") is not None:
+                        next_score = max(0, min(100, int(action_payload.get("set_score"))))
+                    else:
+                        next_score = max(0, min(100, current_score + int(action_payload.get("delta", 0))))
+                    factions[faction_id] = next_score
+                    actor_flags["factions"] = factions
+                    runtime_flags_state[actor_key] = actor_flags
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "actor_id": actor_key,
+                        "faction_id": faction_id,
+                        "score_before": current_score,
+                        "score_after": next_score,
+                        "factions": {str(k): int(self._int_from_table(v, 0)) for k, v in factions.items()},
+                    }
+                elif action.kind == "underworld.access.evaluate":
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id))
+                    actor_flags = dict(runtime_flags_state.get(actor_key, {}))
+                    infernal_meditation = bool(action_payload.get("infernal_meditation", actor_flags.get("infernal_meditation", False)))
+                    vitriol_trials_cleared = bool(action_payload.get("vitriol_trials_cleared", actor_flags.get("vitriol_trials_cleared", False)))
+                    asmodian_purity = int(action_payload.get("asmodian_purity", actor_flags.get("asmodian_purity", 0)))
+                    underworld_access = self._evaluate_underworld_access(
+                        infernal_meditation=infernal_meditation,
+                        vitriol_trials_cleared=vitriol_trials_cleared,
+                        asmodian_purity=asmodian_purity,
+                    )
+                    actor_flags["underworld_access"] = underworld_access
+                    actor_flags["underworld_state"] = "active" if infernal_meditation else "dormant"
+                    runtime_flags_state[actor_key] = actor_flags
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "actor_id": actor_key,
+                        **underworld_access,
+                    }
+                elif action.kind == "affiliation.assign":
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id))
+                    normalized = self._normalize_affiliations(
+                        fae_kind=str(action_payload.get("fae_kind", "")),
+                        social_class=str(action_payload.get("social_class", "")),
+                        realm_bindings=cast(list[object], action_payload.get("realm_bindings", [])),
+                    )
+                    actor_flags = dict(runtime_flags_state.get(actor_key, {}))
+                    actor_flags["affiliation_profile"] = {
+                        "fae_kind": normalized["fae_kind"],
+                        "social_class": normalized["social_class"],
+                        "realm_bindings": normalized["realm_bindings"],
+                    }
+                    actor_flags["affiliations"] = normalized["affiliations"]
+                    runtime_flags_state[actor_key] = actor_flags
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "actor_id": actor_key,
+                        **normalized,
+                    }
                 else:
                     raise ValueError(f"unsupported_runtime_action:{action.kind}")
                 results.append(

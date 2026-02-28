@@ -776,6 +776,9 @@ GateSource = Literal[
     "akashic_memory",
     "void_mark",
     "sanity",
+    "factions",
+    "underworld",
+    "affiliations",
 ]
 GateComparator = Literal["gte", "eq", "present"]
 RuntimeActionKind = Literal[
@@ -801,6 +804,12 @@ RuntimeActionKind = Literal[
     "world.market.sovereignty.transition",
     "breath.ko.evaluate",
     "sanity.adjust",
+    "radio.evaluate",
+    "alchemy.crystal",
+    "infernal_meditation.unlock",
+    "faction.loyalty.adjust",
+    "underworld.access.evaluate",
+    "affiliation.assign",
 ]
 
 
@@ -924,6 +933,9 @@ class GateStateInput(BaseModel):
     akashic_memory: list[str] = Field(default_factory=list)
     void_mark: list[str] = Field(default_factory=list)
     sanity: dict[str, int] = Field(default_factory=dict)
+    factions: dict[str, int] = Field(default_factory=dict)
+    underworld: dict[str, int] = Field(default_factory=dict)
+    affiliations: list[str] = Field(default_factory=list)
 
 
 class GateRequirement(BaseModel):

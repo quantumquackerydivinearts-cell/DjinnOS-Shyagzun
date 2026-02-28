@@ -2488,6 +2488,131 @@ def test_game_runtime_consume_supports_sanity_adjust_action() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_consume_supports_story_primitives_flow() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=2),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "story_primitive_flow",
+        "actions": [
+            {
+                "action_id": "infernal_unlock",
+                "kind": "infernal_meditation.unlock",
+                "payload": {
+                    "mentor": "Alfir",
+                    "location": "Castle Azoth Library",
+                    "section": "restricted",
+                    "time_of_day": "night",
+                },
+            },
+            {
+                "action_id": "faction_royl",
+                "kind": "faction.loyalty.adjust",
+                "payload": {"faction_id": "royl", "delta": 15},
+            },
+            {
+                "action_id": "underworld_eval",
+                "kind": "underworld.access.evaluate",
+                "payload": {"vitriol_trials_cleared": True, "asmodian_purity": 100},
+            },
+            {
+                "action_id": "radio_eval",
+                "kind": "radio.evaluate",
+                "payload": {},
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+    assert results["infernal_unlock"]["result"]["unlocked"] is True
+    assert results["faction_royl"]["result"]["score_after"] == 15
+    underworld = results["underworld_eval"]["result"]
+    assert underworld["visitors_unlocked"] is True
+    assert underworld["royalty_unlocked"] is True
+    assert underworld["asmodian_entry_ring"] == "lust"
+    assert results["radio_eval"]["result"]["available"] is True
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_supports_affiliation_assignments() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=2),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    success_payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "affiliation_success",
+        "actions": [
+            {
+                "action_id": "assign_fae",
+                "kind": "affiliation.assign",
+                "payload": {
+                    "fae_kind": "undines",
+                    "social_class": "townsfolk",
+                    "realm_bindings": ["mercurie"],
+                },
+            },
+            {
+                "action_id": "assign_assassin",
+                "kind": "affiliation.assign",
+                "payload": {
+                    "social_class": "assassins",
+                    "realm_bindings": ["lapidus", "mercurie"],
+                },
+            },
+        ],
+    }
+    success = client.post("/v1/game/runtime/consume", json=success_payload, headers=headers)
+    assert success.status_code == 200
+    success_out = success.json()
+    assert success_out["failed_count"] == 0
+    success_results = {item["action_id"]: item for item in success_out["results"]}
+    assert "fae:undines" in success_results["assign_fae"]["result"]["affiliations"]
+    assert "class:assassins" in success_results["assign_assassin"]["result"]["affiliations"]
+
+    fail_payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "affiliation_fail",
+        "actions": [
+            {
+                "action_id": "bad_assassin",
+                "kind": "affiliation.assign",
+                "payload": {
+                    "social_class": "assassins",
+                    "realm_bindings": ["lapidus"],
+                },
+            }
+        ],
+    }
+    failed = client.post("/v1/game/runtime/consume", json=fail_payload, headers=headers)
+    assert failed.status_code == 200
+    failed_out = failed.json()
+    assert failed_out["failed_count"] == 1
+    assert "assassins_require_lapidus_and_mercurie_binding" in failed_out["results"][0]["error"]
+    app.dependency_overrides.clear()
+
+
 def test_game_runtime_consume_supports_scenegraph_region_preload_action() -> None:
     fake = FakeKernelClient()
     kernel = KernelIntegrationService(fake)
@@ -3283,6 +3408,39 @@ def test_game_gate_evaluate_supports_sanity_source() -> None:
         "requirements": [
             {"source": "sanity", "key": "alchemical", "comparator": "gte", "int_value": 60},
             {"source": "sanity", "key": "cosmic", "comparator": "gte", "int_value": 35},
+        ],
+    }
+    res = client.post("/v1/game/rules/gates/evaluate", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["allowed"] is True
+    assert out["matched_count"] == out["total_count"]
+    app.dependency_overrides.clear()
+
+
+def test_game_gate_evaluate_supports_affiliation_source() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "gate_id": "gate_affiliation",
+        "operator": "and",
+        "state": {
+            "skills": {},
+            "inventory": {},
+            "vitriol": {},
+            "dialogue_flags": [],
+            "previous_dialogue": [],
+            "flags": {},
+            "affiliations": ["fae:undines", "class:assassins", "realm:lapidus", "realm:mercurie"],
+        },
+        "requirements": [
+            {"source": "affiliations", "key": "class:assassins", "comparator": "present", "bool_value": True},
+            {"source": "affiliations", "key": "realm:mercurie", "comparator": "present", "bool_value": True},
         ],
     }
     res = client.post("/v1/game/rules/gates/evaluate", json=payload, headers=headers)
