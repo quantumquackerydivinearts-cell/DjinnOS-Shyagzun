@@ -1913,10 +1913,18 @@ class AtelierService:
             return int(payload.state.inventory.get(key, 0))
         if source == "vitriol":
             return int(payload.state.vitriol.get(key, 0))
+        if source == "chaos":
+            return int(payload.state.chaos.get(key, 0))
+        if source == "order":
+            return int(payload.state.order.get(key, 0))
         if source == "flags":
             return bool(payload.state.flags.get(key, False))
         if source == "dialogue_flags":
             return key in payload.state.dialogue_flags
+        if source == "akashic_memory":
+            return key in payload.state.akashic_memory
+        if source == "void_mark":
+            return key in payload.state.void_mark
         return key in payload.state.previous_dialogue
 
     @classmethod
@@ -2042,6 +2050,24 @@ class AtelierService:
             for key, value in flags_obj.items()
             if isinstance(key, str) and isinstance(value, bool)
         }
+        breath_obj = cls._dict_from_table(flags_obj.get("breath_ko"))
+        chaos: dict[str, int] = {
+            "meter": cls._int_from_table(breath_obj.get("chaos_meter"), 0),
+            "kd_ratio_milli": cls._int_from_table(breath_obj.get("kd_ratio_milli"), 0),
+            "kills": cls._int_from_table(breath_obj.get("kills"), 0),
+        }
+        order: dict[str, int] = {
+            "meter": max(0, min(100, 100 - chaos["meter"])),
+            "deaths": cls._int_from_table(breath_obj.get("deaths"), 0),
+        }
+        akashic_memory = cls._list_from_table(flags_obj.get("akashic_memory"))
+        akashic_seed = str(breath_obj.get("akashic_memory_seed", "")).strip()
+        if akashic_seed != "":
+            akashic_memory = sorted(set([*akashic_memory, akashic_seed]))
+        void_mark = cls._list_from_table(flags_obj.get("void_mark"))
+        void_hash = str(breath_obj.get("void_body_mark_hash", "")).strip()
+        if void_hash != "":
+            void_mark = sorted(set([*void_mark, void_hash]))
 
         return GateStateInput(
             skills=skills,
@@ -2050,6 +2076,10 @@ class AtelierService:
             dialogue_flags=dialogue_flags,
             previous_dialogue=previous_dialogue,
             flags=bool_flags,
+            chaos=chaos,
+            order=order,
+            akashic_memory=akashic_memory,
+            void_mark=void_mark,
         )
 
     def resolve_dialogue_branch(
@@ -2960,6 +2990,253 @@ class AtelierService:
         items.sort(key=lambda item: (item.created_at, item.breath_id), reverse=True)
         return BreathKoListOut(total=len(items), items=items)
 
+    @staticmethod
+    def _breath_policy_tags(*, chaos_meter: int, order_meter: int, kills: int, deaths: int) -> list[str]:
+        tags: list[str] = []
+        if chaos_meter >= 67:
+            tags.append("chaos.high")
+        elif chaos_meter <= 33:
+            tags.append("chaos.low")
+        else:
+            tags.append("chaos.mid")
+        if order_meter >= 67:
+            tags.append("order.high")
+        elif order_meter <= 33:
+            tags.append("order.low")
+        else:
+            tags.append("order.mid")
+        if deaths > kills:
+            tags.append("strategy.death_forward")
+        elif kills > deaths:
+            tags.append("strategy.kill_forward")
+        else:
+            tags.append("strategy.balanced")
+        return tags
+
+    def _build_breath_ko_ephemeral(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+        player_name: str,
+        canonical_game_number: int,
+        quest_completion: int,
+        kills: int,
+        deaths: int,
+        level: int,
+        max_iter: int,
+    ) -> BreathKoOut:
+        snapshot_hash = self._canonical_hash(
+            {
+                "workspace_id": workspace_id,
+                "actor_id": actor_id,
+                "player_name": player_name,
+                "canonical_game_number": canonical_game_number,
+                "quest_completion": quest_completion,
+                "kills": kills,
+                "deaths": deaths,
+                "level": level,
+                "max_iter": max_iter,
+                "mode": "ephemeral",
+            }
+        )
+        save_hash_int = self._hex_to_int(snapshot_hash)
+        player_name_int = self._name_to_int(player_name)
+        kd_ratio_milli, chaos_meter = self._chaos_from_kd(kills=kills, deaths=deaths)
+        akashic_memory_seed = self._akashic_memory_seed(
+            snapshot_hash=snapshot_hash,
+            actor_id=actor_id,
+            player_name=player_name,
+            canonical_game_number=canonical_game_number,
+            deaths=deaths,
+        )
+        void_body_mark_hash = self._canonical_hash(
+            {
+                "snapshot_hash": snapshot_hash,
+                "actor_id": actor_id,
+                "player_name": player_name,
+                "canonical_game_number": canonical_game_number,
+                "kills": kills,
+                "patron": self._KILL_PATRON_ID,
+            }
+        )
+        azoth_int = (
+            (17 * level)
+            + (31 * (quest_completion ** 2))
+            + (43 * (canonical_game_number ** 3))
+            + (59 * (save_hash_int ** 2))
+            + (71 * (player_name_int ** 2))
+            + (73 * (chaos_meter ** 2))
+            + (79 * kd_ratio_milli)
+        )
+        b_real, b_imag, escape_iter, escaped, orbit_signature_hash = self._build_breath_ko_iteration(
+            azoth_int=azoth_int,
+            save_hash_int=save_hash_int,
+            max_iter=max_iter,
+            attempt=0,
+        )
+        palette_seed = int(orbit_signature_hash[:8], 16)
+        special_case_rank = int(orbit_signature_hash[8:16], 16) % 10000
+        breath_id = f"breath_ko:{actor_id}:{snapshot_hash[:12]}:{orbit_signature_hash[:12]}:0"
+        return BreathKoOut(
+            breath_id=breath_id,
+            workspace_id=workspace_id,
+            actor_id=actor_id,
+            snapshot_hash=snapshot_hash,
+            player_name=player_name,
+            canonical_game_number=canonical_game_number,
+            level=level,
+            quest_completion=quest_completion,
+            kills=kills,
+            deaths=deaths,
+            kill_patron_id=self._KILL_PATRON_ID,
+            kill_patron_name=self._KILL_PATRON_NAME,
+            death_patron_id=self._DEATH_PATRON_ID,
+            death_patron_name=self._DEATH_PATRON_NAME,
+            kd_ratio_milli=kd_ratio_milli,
+            chaos_meter=chaos_meter,
+            akashic_memory_seed=akashic_memory_seed,
+            void_body_mark_hash=void_body_mark_hash,
+            azoth_int=str(azoth_int),
+            b_real=b_real,
+            b_imag=b_imag,
+            max_iter=max_iter,
+            escape_iter=escape_iter,
+            escaped=escaped,
+            orbit_signature_hash=orbit_signature_hash,
+            palette_seed=palette_seed,
+            special_case_rank=special_case_rank,
+            collision_attempt=0,
+            created_at=datetime.now(timezone.utc),
+        )
+
+    def evaluate_breath_ko(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+        payload: Mapping[str, object],
+        kernel_actor_id: str,
+        workshop_id: str,
+        persist_state: bool = True,
+        emit_kernel: bool = True,
+    ) -> dict[str, object]:
+        generate_inputs_present = any(
+            key in payload
+            for key in ("player_name", "canonical_game_number", "quest_completion", "kills", "deaths", "level", "max_iter")
+        )
+        latest: BreathKoOut | None = None
+        if self._repo is not None:
+            latest = next(iter(self.list_breath_ko(workspace_id=workspace_id, actor_id=actor_id).items), None)
+        selected: BreathKoOut | None = latest
+        if generate_inputs_present or selected is None:
+            player_name = str(payload.get("player_name") or (selected.player_name if selected is not None else "")).strip()
+            canonical_game_number = payload.get("canonical_game_number")
+            if canonical_game_number is None and selected is not None:
+                canonical_game_number = selected.canonical_game_number
+            quest_completion = payload.get("quest_completion")
+            if quest_completion is None and selected is not None:
+                quest_completion = selected.quest_completion
+            if player_name == "" or canonical_game_number is None or quest_completion is None:
+                raise ValueError("breath_ko_evaluate_requires_player_name_canonical_game_number_quest_completion")
+            if self._repo is None:
+                selected = self._build_breath_ko_ephemeral(
+                    workspace_id=workspace_id,
+                    actor_id=actor_id,
+                    player_name=player_name,
+                    canonical_game_number=int(canonical_game_number),
+                    quest_completion=int(quest_completion),
+                    kills=max(0, int(payload.get("kills") or 0)),
+                    deaths=max(0, int(payload.get("deaths") or 0)),
+                    level=max(1, int(payload.get("level") or 1)),
+                    max_iter=max(1, min(self._BREATH_KO_MAX_ITER_CAP, int(payload.get("max_iter") or self._BREATH_KO_SUPPORTED_MAX_ITER))),
+                )
+            else:
+                selected = self.generate_breath_ko(
+                    payload=BreathKoGenerateInput(
+                        workspace_id=workspace_id,
+                        actor_id=actor_id,
+                        player_name=player_name,
+                        canonical_game_number=int(canonical_game_number),
+                        quest_completion=int(quest_completion),
+                        kills=int(payload["kills"]) if "kills" in payload and payload.get("kills") is not None else None,
+                        deaths=int(payload["deaths"]) if "deaths" in payload and payload.get("deaths") is not None else None,
+                        level=int(payload["level"]) if "level" in payload and payload.get("level") is not None else None,
+                        max_iter=int(payload["max_iter"]) if "max_iter" in payload and payload.get("max_iter") is not None else self._BREATH_KO_SUPPORTED_MAX_ITER,
+                    ),
+                    actor_id=kernel_actor_id,
+                    workshop_id=workshop_id,
+                )
+        if selected is None:
+            raise ValueError("breath_ko_not_found")
+        order_meter = max(0, min(100, 100 - int(selected.chaos_meter)))
+        out: dict[str, object] = {
+            "workspace_id": workspace_id,
+            "actor_id": actor_id,
+            "breath_id": selected.breath_id,
+            "snapshot_hash": selected.snapshot_hash,
+            "chaos_meter": int(selected.chaos_meter),
+            "order_meter": order_meter,
+            "kills": int(selected.kills),
+            "deaths": int(selected.deaths),
+            "kill_patron_id": selected.kill_patron_id,
+            "death_patron_id": selected.death_patron_id,
+            "akashic_memory_seed": selected.akashic_memory_seed,
+            "void_body_mark_hash": selected.void_body_mark_hash,
+            "policy_tags": self._breath_policy_tags(
+                chaos_meter=int(selected.chaos_meter),
+                order_meter=order_meter,
+                kills=int(selected.kills),
+                deaths=int(selected.deaths),
+            ),
+        }
+        if persist_state and self._repo is not None:
+            state = self.get_player_state(workspace_id=workspace_id, actor_id=actor_id)
+            flags = dict(state.tables.flags)
+            flags["breath_ko"] = {
+                "breath_id": selected.breath_id,
+                "snapshot_hash": selected.snapshot_hash,
+                "chaos_meter": int(selected.chaos_meter),
+                "order_meter": order_meter,
+                "kills": int(selected.kills),
+                "deaths": int(selected.deaths),
+                "kd_ratio_milli": int(selected.kd_ratio_milli),
+                "kill_patron_id": selected.kill_patron_id,
+                "death_patron_id": selected.death_patron_id,
+                "akashic_memory_seed": selected.akashic_memory_seed,
+                "void_body_mark_hash": selected.void_body_mark_hash,
+            }
+            akashic_memory = self._list_from_table(flags.get("akashic_memory"))
+            if selected.akashic_memory_seed != "":
+                akashic_memory = sorted(set([*akashic_memory, selected.akashic_memory_seed]))
+            flags["akashic_memory"] = akashic_memory
+            void_mark = self._list_from_table(flags.get("void_mark"))
+            if selected.void_body_mark_hash != "":
+                void_mark = sorted(set([*void_mark, selected.void_body_mark_hash]))
+            flags["void_mark"] = void_mark
+            self.apply_player_state(
+                payload=PlayerStateApplyInput(
+                    workspace_id=workspace_id,
+                    actor_id=actor_id,
+                    tables=PlayerStateTables(flags=flags),
+                    mode="merge",
+                ),
+                actor_id=kernel_actor_id,
+                workshop_id=workshop_id,
+            )
+        if emit_kernel:
+            self._kernel.place(
+                raw=f"game.breath.ko.evaluate {actor_id} {selected.breath_id}",
+                context={
+                    "workspace_id": workspace_id,
+                    "rule": "breath_ko_evaluate",
+                    "result": out,
+                },
+                actor_id=kernel_actor_id,
+                workshop_id=workshop_id,
+            )
+        return out
+
     def generate_breath_ko(
         self,
         *,
@@ -3454,8 +3731,23 @@ class AtelierService:
                 kind="world.market.stock.adjust",
                 summary="Override market stock during runtime plan.",
                 requires_realm=True,
-                payload_fields={"realm_id": "str", "item_id": "str", "delta": "int|optional", "set_qty": "int|optional"},
-                example_payload={"realm_id": "lapidus", "item_id": "iron_ingot", "set_qty": 10},
+                payload_fields={
+                    "realm_id": "str",
+                    "item_id": "str",
+                    "delta": "int|optional",
+                    "set_qty": "int|optional",
+                    "use_breath_context": "bool|optional",
+                    "influence_bp": "int|optional",
+                    "royl_loyalty": "int(0..100)|optional (Lapidus)",
+                },
+                example_payload={
+                    "realm_id": "lapidus",
+                    "item_id": "iron_ingot",
+                    "delta": 5,
+                    "use_breath_context": True,
+                    "influence_bp": 5000,
+                    "royl_loyalty": 80,
+                },
             ),
             RuntimeActionCatalogItemOut(
                 kind="world.market.sovereignty.transition",
@@ -3463,6 +3755,26 @@ class AtelierService:
                 requires_realm=True,
                 payload_fields={"realm_id": "str", "overthrow": "bool", "victor_id": "str"},
                 example_payload={"realm_id": "lapidus", "overthrow": True, "victor_id": "player_commonwealth"},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="breath.ko.evaluate",
+                summary="Evaluate Breath of Ko state for runtime decisions and persist flags.",
+                payload_fields={
+                    "workspace_id": "str",
+                    "actor_id": "str",
+                    "player_name": "str|optional",
+                    "canonical_game_number": "int|optional",
+                    "quest_completion": "int|optional",
+                    "kills": "int|optional",
+                    "deaths": "int|optional",
+                },
+                example_payload={
+                    "player_name": "Kael",
+                    "canonical_game_number": 42,
+                    "quest_completion": 73,
+                    "kills": 3,
+                    "deaths": 6,
+                },
             ),
         ]
         return RuntimeActionCatalogOut(action_count=len(actions), actions=actions)
@@ -3478,6 +3790,7 @@ class AtelierService:
         runtime_regions: dict[str, dict[str, object]] = {}
         runtime_market_stock: dict[str, dict[str, int]] = {}
         runtime_market_meta: dict[str, dict[str, object]] = {}
+        runtime_breath_context: dict[str, dict[str, object]] = {}
 
         def _normalize_realm_for_runtime(value: object) -> str:
             realm = str(value or "").strip().lower()
@@ -3874,19 +4187,77 @@ class AtelierService:
                         raise ValueError("item_id_required")
                     stock_before = _effective_stock(realm_id, item_id)
                     set_qty_raw = action_payload.get("set_qty")
+                    breath_context: dict[str, object] | None = None
                     if set_qty_raw is None:
                         delta = int(action_payload.get("delta", 0))
-                        stock_after = max(0, stock_before + delta)
+                        effective_delta = delta
+                        if bool(action_payload.get("use_breath_context", False)):
+                            has_generation_inputs = any(
+                                key in action_payload
+                                for key in (
+                                    "player_name",
+                                    "canonical_game_number",
+                                    "quest_completion",
+                                    "kills",
+                                    "deaths",
+                                    "level",
+                                    "max_iter",
+                                )
+                            )
+                            cached = runtime_breath_context.get(payload.actor_id)
+                            if has_generation_inputs or cached is None:
+                                breath_context = self.evaluate_breath_ko(
+                                    workspace_id=payload.workspace_id,
+                                    actor_id=payload.actor_id,
+                                    payload=action_payload,
+                                    kernel_actor_id=actor_id,
+                                    workshop_id=workshop_id,
+                                    persist_state=True,
+                                    emit_kernel=False,
+                                )
+                                runtime_breath_context[payload.actor_id] = breath_context
+                            else:
+                                breath_context = dict(cached)
+                            chaos_meter = int(breath_context.get("chaos_meter", 0))
+                            order_meter = int(breath_context.get("order_meter", 0))
+                            reward_metric = 50
+                            reward_axis = "neutral"
+                            if realm_id == "mercurie":
+                                reward_metric = order_meter
+                                reward_axis = "order"
+                            elif realm_id == "sulphera":
+                                reward_metric = chaos_meter
+                                reward_axis = "chaos"
+                            elif realm_id == "lapidus":
+                                reward_metric = max(0, min(100, int(action_payload.get("royl_loyalty", 0))))
+                                reward_axis = "royl_loyalty"
+                            influence_bp = max(0, min(10000, int(action_payload.get("influence_bp", 2500))))
+                            reward_adv = max(-50, min(50, reward_metric - 50))
+                            effective_delta += (delta * reward_adv * influence_bp) // 500000
+                        stock_after = max(0, stock_before + effective_delta)
                     else:
                         stock_after = max(0, int(set_qty_raw))
                     _stock_overrides_for_realm(realm_id)[item_id] = stock_after
-                    result = {
+                    result_map: dict[str, object] = {
                         "workspace_id": payload.workspace_id,
                         "realm_id": realm_id,
                         "item_id": item_id,
                         "stock_before_qty": stock_before,
                         "stock_after_qty": stock_after,
                     }
+                    if set_qty_raw is None:
+                        result_map["delta"] = int(action_payload.get("delta", 0))
+                        result_map["effective_delta"] = stock_after - stock_before
+                        if bool(action_payload.get("use_breath_context", False)):
+                            result_map["realm_reward_policy"] = (
+                                "order" if realm_id == "mercurie" else
+                                "chaos" if realm_id == "sulphera" else
+                                "royl_loyalty" if realm_id == "lapidus" else
+                                "neutral"
+                            )
+                    if breath_context is not None:
+                        result_map["breath_context"] = breath_context
+                    result = result_map
                 elif action.kind == "world.market.sovereignty.transition":
                     realm_id = _normalize_realm_for_runtime(action_payload.get("realm_id"))
                     market = get_realm_market(realm_id)
@@ -3939,6 +4310,17 @@ class AtelierService:
                         "dominance_bp": dominance_bp,
                         "redistribution_policy": runtime_market_meta[realm_id]["redistribution_policy"],
                     }
+                elif action.kind == "breath.ko.evaluate":
+                    result = self.evaluate_breath_ko(
+                        workspace_id=payload.workspace_id,
+                        actor_id=payload.actor_id,
+                        payload=action_payload,
+                        kernel_actor_id=actor_id,
+                        workshop_id=workshop_id,
+                        persist_state=bool(action_payload.get("persist_state", True)),
+                        emit_kernel=bool(action_payload.get("emit_kernel", True)),
+                    )
+                    runtime_breath_context[payload.actor_id] = dict(result)
                 else:
                     raise ValueError(f"unsupported_runtime_action:{action.kind}")
                 results.append(

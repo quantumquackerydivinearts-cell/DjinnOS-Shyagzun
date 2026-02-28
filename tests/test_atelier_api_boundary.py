@@ -2494,6 +2494,58 @@ def test_game_runtime_consume_supports_market_stock_adjust_and_trade_override() 
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_consume_supports_breath_ko_evaluate_and_market_influence() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "breath_market_influence_plan",
+        "actions": [
+            {
+                "action_id": "eval_breath",
+                "kind": "breath.ko.evaluate",
+                "payload": {
+                    "player_name": "Kael",
+                    "canonical_game_number": 77,
+                    "quest_completion": 12,
+                    "kills": 1,
+                    "deaths": 5,
+                },
+            },
+            {
+                "action_id": "adjust_with_breath",
+                "kind": "world.market.stock.adjust",
+                "payload": {
+                    "realm_id": "lapidus",
+                    "item_id": "iron_ingot",
+                    "delta": 10,
+                    "use_breath_context": True,
+                    "influence_bp": 10000,
+                    "royl_loyalty": 90,
+                },
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+    eval_result = results["eval_breath"]["result"]
+    assert eval_result["death_patron_id"] == "moshize"
+    assert eval_result["kill_patron_id"] == "negaya"
+    assert eval_result["order_meter"] > eval_result["chaos_meter"]
+    stock_result = results["adjust_with_breath"]["result"]
+    assert stock_result["effective_delta"] >= 10
+    assert stock_result["realm_reward_policy"] == "royl_loyalty"
+    assert stock_result["breath_context"]["order_meter"] > stock_result["breath_context"]["chaos_meter"]
+    app.dependency_overrides.clear()
+
+
 def test_game_runtime_consume_supports_market_sovereignty_transition_with_redistribution() -> None:
     fake = FakeKernelClient()
     app.dependency_overrides[_kernel_client] = lambda: fake
@@ -3041,6 +3093,44 @@ def test_game_gate_evaluate_deterministic_for_same_payload() -> None:
     assert first_payload["allowed"] is True
     assert first_payload["matched_count"] == first_payload["total_count"]
     assert fake.place_calls == 2
+    app.dependency_overrides.clear()
+
+
+def test_game_gate_evaluate_supports_breath_sources() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "gate_id": "gate_breath_sources",
+        "operator": "and",
+        "state": {
+            "skills": {},
+            "inventory": {},
+            "vitriol": {},
+            "dialogue_flags": [],
+            "previous_dialogue": [],
+            "flags": {},
+            "chaos": {"meter": 22},
+            "order": {"meter": 78},
+            "akashic_memory": ["akm_deadbeef"],
+            "void_mark": ["f" * 64],
+        },
+        "requirements": [
+            {"source": "chaos", "key": "meter", "comparator": "gte", "int_value": 20},
+            {"source": "order", "key": "meter", "comparator": "gte", "int_value": 70},
+            {"source": "akashic_memory", "key": "akm_deadbeef", "comparator": "present", "bool_value": True},
+            {"source": "void_mark", "key": ("f" * 64), "comparator": "present", "bool_value": True},
+        ],
+    }
+    res = client.post("/v1/game/rules/gates/evaluate", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["allowed"] is True
+    assert out["matched_count"] == out["total_count"]
     app.dependency_overrides.clear()
 
 

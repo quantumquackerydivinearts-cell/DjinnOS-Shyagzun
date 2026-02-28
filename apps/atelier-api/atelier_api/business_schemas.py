@@ -764,7 +764,18 @@ class DjinnApplyOut(BaseModel):
 
 
 GateOperator = Literal["and", "or", "xor", "nor"]
-GateSource = Literal["skills", "inventory", "vitriol", "dialogue_flags", "previous_dialogue", "flags"]
+GateSource = Literal[
+    "skills",
+    "inventory",
+    "vitriol",
+    "dialogue_flags",
+    "previous_dialogue",
+    "flags",
+    "chaos",
+    "order",
+    "akashic_memory",
+    "void_mark",
+]
 GateComparator = Literal["gte", "eq", "present"]
 RuntimeActionKind = Literal[
     "levels.apply",
@@ -787,6 +798,7 @@ RuntimeActionKind = Literal[
     "world.markets.list",
     "world.market.stock.adjust",
     "world.market.sovereignty.transition",
+    "breath.ko.evaluate",
 ]
 
 
@@ -905,6 +917,10 @@ class GateStateInput(BaseModel):
     dialogue_flags: list[str] = Field(default_factory=list)
     previous_dialogue: list[str] = Field(default_factory=list)
     flags: dict[str, bool] = Field(default_factory=dict)
+    chaos: dict[str, int] = Field(default_factory=dict)
+    order: dict[str, int] = Field(default_factory=dict)
+    akashic_memory: list[str] = Field(default_factory=list)
+    void_mark: list[str] = Field(default_factory=list)
 
 
 class GateRequirement(BaseModel):
