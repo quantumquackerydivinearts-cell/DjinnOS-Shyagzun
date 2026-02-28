@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional, Sequence, cast
 from qqva.world_stream import WorldStreamController
@@ -284,6 +285,20 @@ class AtelierService:
     _REALM_IDS: tuple[str, ...] = ("lapidus", "mercurie", "sulphera")
     _LANGUAGE_DEITY_DEFAULT = "jabiru"
     _LANGUAGE_DEMON_CONFUSER = "kaganue"
+    _SHYGAZUN_TRANSLATION_LEXICON_EN_TO_SHY: dict[str, str] = {
+        "love": "Aely",
+        "whale": "MelKoWuVu",
+        "water": "Mel",
+        "earth": "Zot",
+        "air": "Puf",
+        "fire": "Shak",
+        "life": "Va",
+        "chaos": "Vo",
+        "presence": "Ta",
+        "absence": "Zo",
+        "process": "Wu",
+        "experience": "Ko",
+    }
     _SHYGAZUN_OPPOSITION_PAIRS: tuple[tuple[str, str], ...] = (
         ("A", "O"),
         ("I", "E"),
@@ -563,6 +578,90 @@ class AtelierService:
         if explain_mode in {"compound", "compound_explain", "full"}:
             out["compound_trace"] = compound_trace
         return out
+
+    @classmethod
+    def _tokenize_translation_input(cls, text: str) -> list[str]:
+        return [token for token in re.findall(r"[A-Za-z][A-Za-z']*", text) if token.strip() != ""]
+
+    @classmethod
+    def _translate_shygazun_runtime(cls, payload: Mapping[str, object]) -> dict[str, object]:
+        source_raw = str(payload.get("source_text", "")).strip()
+        if source_raw == "":
+            raise ValueError("source_text_required")
+        direction = str(payload.get("direction", "auto")).strip().lower() or "auto"
+        if direction not in {"auto", "english_to_shygazun", "shygazun_to_english"}:
+            raise ValueError("invalid_translation_direction")
+
+        lex_en_to_shy = dict(cls._SHYGAZUN_TRANSLATION_LEXICON_EN_TO_SHY)
+        lex_shy_to_en = {value.lower(): key for key, value in lex_en_to_shy.items()}
+
+        tokens = cls._tokenize_translation_input(source_raw)
+        if len(tokens) == 0:
+            raise ValueError("translation_tokens_required")
+
+        if direction == "auto":
+            has_compound_shape = any(re.search(r"[A-Z][a-z]+[A-Z]", token) for token in tokens)
+            if has_compound_shape:
+                direction = "shygazun_to_english"
+            else:
+                direction = "english_to_shygazun"
+
+        translated: list[str] = []
+        unresolved: list[str] = []
+        mappings: list[dict[str, object]] = []
+
+        if direction == "english_to_shygazun":
+            for raw_token in tokens:
+                token = raw_token.lower()
+                mapped = lex_en_to_shy.get(token)
+                if mapped is None:
+                    unresolved.append(raw_token)
+                    translated.append(raw_token)
+                    mappings.append({"source": raw_token, "target": raw_token, "resolved": False})
+                else:
+                    translated.append(mapped)
+                    mappings.append({"source": raw_token, "target": mapped, "resolved": True})
+            target_text = " ".join(translated)
+        else:
+            for raw_token in tokens:
+                token = raw_token.lower()
+                mapped = lex_shy_to_en.get(token)
+                if mapped is None:
+                    unresolved.append(raw_token)
+                    translated.append(raw_token.lower())
+                    mappings.append({"source": raw_token, "target": raw_token.lower(), "resolved": False})
+                else:
+                    translated.append(mapped)
+                    mappings.append({"source": raw_token, "target": mapped, "resolved": True})
+            target_text = " ".join(translated)
+
+        resolved_count = sum(1 for item in mappings if bool(item.get("resolved", False)))
+        token_count = len(tokens)
+        confidence = 0.0 if token_count == 0 else round(resolved_count / token_count, 4)
+        round_trip_preview = ""
+        if direction == "english_to_shygazun":
+            back_tokens = []
+            for token in translated:
+                back_tokens.append(lex_shy_to_en.get(token.lower(), token.lower()))
+            round_trip_preview = " ".join(back_tokens)
+        else:
+            back_tokens = []
+            for token in translated:
+                back_tokens.append(lex_en_to_shy.get(token.lower(), token))
+            round_trip_preview = " ".join(back_tokens)
+
+        return {
+            "direction": direction,
+            "source_text": source_raw,
+            "target_text": target_text,
+            "token_count": token_count,
+            "resolved_count": resolved_count,
+            "unresolved": unresolved,
+            "confidence": confidence,
+            "mappings": mappings,
+            "round_trip_preview": round_trip_preview,
+            "lexicon_version": "phase1.v1",
+        }
 
     @staticmethod
     def _csv_to_list(value: str) -> list[str]:
@@ -4277,6 +4376,18 @@ class AtelierService:
                 },
             ),
             RuntimeActionCatalogItemOut(
+                kind="shygazun.translate",
+                summary="Deterministic Phase-1 lexicon translator for English <-> Shygazun.",
+                payload_fields={
+                    "source_text": "str",
+                    "direction": "str|optional (auto|english_to_shygazun|shygazun_to_english)",
+                },
+                example_payload={
+                    "source_text": "love whale",
+                    "direction": "english_to_shygazun",
+                },
+            ),
+            RuntimeActionCatalogItemOut(
                 kind="render.scene.load",
                 summary="Load a scenegraph into deterministic renderer runtime state.",
                 requires_realm=True,
@@ -5387,6 +5498,8 @@ class AtelierService:
                     }
                 elif action.kind == "shygazun.interpret":
                     result = self._interpret_shygazun_runtime(action_payload)
+                elif action.kind == "shygazun.translate":
+                    result = self._translate_shygazun_runtime(action_payload)
                 elif action.kind == "render.scene.load":
                     result = _render_scene_load(action_payload)
                 elif action.kind == "render.scene.tick":

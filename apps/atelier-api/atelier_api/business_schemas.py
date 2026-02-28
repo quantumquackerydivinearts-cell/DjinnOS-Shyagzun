@@ -811,6 +811,7 @@ RuntimeActionKind = Literal[
     "underworld.access.evaluate",
     "affiliation.assign",
     "shygazun.interpret",
+    "shygazun.translate",
     "render.scene.load",
     "render.scene.tick",
     "render.scene.unload",

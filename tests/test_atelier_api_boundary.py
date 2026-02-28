@@ -399,6 +399,7 @@ def test_game_runtime_action_catalog_lists_supported_runtime_actions() -> None:
     assert "world.stream.status" in by_kind
     assert "market.trade" in by_kind
     assert "shygazun.interpret" in by_kind
+    assert "shygazun.translate" in by_kind
     assert "render.scene.load" in by_kind
     assert "render.scene.reconcile" in by_kind
     app.dependency_overrides.clear()
@@ -2610,6 +2611,71 @@ def test_game_runtime_consume_shygazun_interpretation_is_hash_deterministic() ->
     assert first_result["interpreted_tokens"] == second_result["interpreted_tokens"]
     assert isinstance(first_result["compound_trace"], list)
     assert first_result["lore_overlay"] == "anecdotal"
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_shygazun_translation_bidirectional_and_deterministic() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=2),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+
+    payload_en_to_shy = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "translate_en_to_shy",
+        "actions": [
+            {
+                "action_id": "translate",
+                "kind": "shygazun.translate",
+                "payload": {
+                    "source_text": "love whale process",
+                    "direction": "english_to_shygazun",
+                },
+            }
+        ],
+    }
+    first = client.post("/v1/game/runtime/consume", json=payload_en_to_shy, headers=headers)
+    second = client.post("/v1/game/runtime/consume", json=payload_en_to_shy, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_payload = first.json()
+    second_payload = second.json()
+    assert first_payload["failed_count"] == 0
+    assert first_payload["hash"] == second_payload["hash"]
+    result = first_payload["results"][0]["result"]
+    assert result["target_text"] == "Aely MelKoWuVu Wu"
+    assert result["confidence"] == 1.0
+    assert result["unresolved"] == []
+
+    payload_shy_to_en = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "translate_shy_to_en",
+        "actions": [
+            {
+                "action_id": "translate",
+                "kind": "shygazun.translate",
+                "payload": {
+                    "source_text": "Aely MelKoWuVu",
+                    "direction": "shygazun_to_english",
+                },
+            }
+        ],
+    }
+    shy_to_en = client.post("/v1/game/runtime/consume", json=payload_shy_to_en, headers=headers)
+    assert shy_to_en.status_code == 200
+    shy_to_en_payload = shy_to_en.json()
+    assert shy_to_en_payload["failed_count"] == 0
+    translated = shy_to_en_payload["results"][0]["result"]
+    assert translated["target_text"] == "love whale"
+    assert translated["resolved_count"] == 2
     app.dependency_overrides.clear()
 
 
