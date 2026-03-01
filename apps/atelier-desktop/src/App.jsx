@@ -513,6 +513,43 @@ function drawBusinessArchitecture(canvas, model) {
   });
 }
 
+function architectureModelToVoxels(model) {
+  const lanes = Array.isArray(model?.lanes) ? model.lanes : [];
+  const nodes = Array.isArray(model?.nodes) ? model.nodes : [];
+  const laneIndex = {};
+  lanes.forEach((lane, index) => {
+    laneIndex[lane] = index;
+  });
+  const rowByLane = {};
+  return nodes.map((node, index) => {
+    const lane = String(node.lane || "Systems");
+    const x = Number.isFinite(Number(laneIndex[lane])) ? Number(laneIndex[lane]) * 4 + 2 : (index % 6) * 2;
+    const row = Number.isFinite(Number(rowByLane[lane])) ? Number(rowByLane[lane]) : 0;
+    rowByLane[lane] = row + 1;
+    const y = row * 2 + 2;
+    const kind = String(node.kind || "component");
+    const z =
+      kind === "domain"
+        ? 3
+        : kind === "data"
+          ? 1
+          : kind === "renderer"
+            ? 2
+            : 0;
+    return {
+      x,
+      y,
+      z,
+      type: kind,
+      meta: {
+        id: String(node.id || `node_${index}`),
+        label: String(node.name || node.id || `node_${index}`),
+        lane
+      }
+    };
+  });
+}
+
 function parseArchitectureEnglish(text) {
   const domains = [];
   const systems = [];
@@ -564,11 +601,14 @@ function parseArchitectureCobra(text) {
   const systems = [];
   const tools = [];
   const flows = [];
+  let lastEntityId = "";
   String(text || "")
     .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#"))
-    .forEach((line) => {
+    .forEach((rawLine) => {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) {
+        return;
+      }
       const tokens = line.split(/\s+/);
       const head = String(tokens[0] || "").toLowerCase();
       if (head === "domain" && tokens[1]) {
@@ -588,7 +628,31 @@ function parseArchitectureCobra(text) {
         tools.push({ id: tokens[1], name: tokens.slice(2).join(" ") || tokens[1], lane: "Systems", kind: "tool" });
         return;
       }
+      if (head === "entity" && tokens[1]) {
+        const entityId = String(tokens[1]);
+        const entityKind = String(tokens[4] || "entity");
+        systems.push({
+          id: entityId,
+          name: `${entityId} (${entityKind})`,
+          lane: "Runtime",
+          kind: "service",
+          description: `entity ${tokens.slice(1).join(" ")}`
+        });
+        if (lastEntityId) {
+          flows.push({ from: lastEntityId, to: entityId, label: "placement order" });
+        }
+        lastEntityId = entityId;
+        return;
+      }
       if (head === "flow" && tokens[1] && tokens[2]) {
+        if (tokens[2] === "->" && tokens[3]) {
+          flows.push({
+            from: tokens[1],
+            to: tokens[3],
+            label: tokens.slice(4).join(" ").replace(/^:\s*/, "")
+          });
+          return;
+        }
         flows.push({
           from: tokens[1],
           to: tokens[2],
@@ -5597,6 +5661,29 @@ export function App() {
     setBusinessLogicRendererStatus("ready");
   }
 
+  function applyBusinessLogicCobraToUnifiedRenderer() {
+    const mode = String(businessLogicRendererInputMode || "").toLowerCase();
+    if (mode !== "cobra") {
+      setBusinessLogicRendererStatus("error: switch input mode to Cobra first");
+      return;
+    }
+    const cobraSource = businessLogicRendererInputText || "";
+    const parsedCobra = parseCobraShygazunScript(cobraSource);
+    if (Array.isArray(parsedCobra.entities) && parsedCobra.entities.length > 0) {
+      setRendererCobra(cobraSource);
+      setRendererVisualSource("cobra");
+      setBusinessLogicRendererStatus("ready");
+    } else {
+      const architectureSpec = parseArchitectureInput("cobra", cobraSource);
+      const architectureModel = normalizeArchitectureSpec(architectureSpec);
+      const voxels = architectureModelToVoxels(architectureModel);
+      setRendererJson(JSON.stringify({ voxels }, null, 2));
+      setRendererVisualSource("json");
+      setBusinessLogicRendererStatus(`ready: mapped architecture to ${voxels.length} voxel nodes`);
+    }
+    setSection("Renderer Lab");
+  }
+
   function compileGameSpecToRenderer() {
     const spec = parseObjectJson(rendererGameSpecText, {});
     const scene = spec.scene && typeof spec.scene === "object" ? spec.scene : {};
@@ -6805,6 +6892,7 @@ export function App() {
               </select>
               <button className="action" onClick={loadBusinessLogicArchitectureTemplate}>Load Template</button>
               <button className="action" onClick={snapshotDerivedArchitectureToBusinessLogicInput}>Snapshot Derived</button>
+              <button className="action" onClick={applyBusinessLogicCobraToUnifiedRenderer}>Apply Cobra {"->"} Unified Renderer</button>
               <span className={`badge ${businessLogicRendererSpecResult.error ? "err" : "ok"}`}>{`Status: ${businessLogicRendererStatus}`}</span>
               <span className="badge">{`Nodes: ${businessLogicArchitectureModel.nodes.length}`}</span>
               <span className="badge">{`Flows: ${businessLogicArchitectureModel.flows.length}`}</span>
