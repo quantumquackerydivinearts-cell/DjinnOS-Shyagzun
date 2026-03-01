@@ -4,8 +4,28 @@ import hashlib
 import json
 import math
 import re
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, cast
+
+
+def _ensure_repo_root_on_path() -> None:
+    if "qqva" in sys.modules:
+        return
+    current = Path(__file__).resolve()
+    candidates = [current.parents[3], current.parents[2], current.parents[1]]
+    for candidate in candidates:
+        qqva_dir = candidate / "qqva"
+        if qqva_dir.is_dir():
+            candidate_str = str(candidate)
+            if candidate_str not in sys.path:
+                sys.path.insert(0, candidate_str)
+            return
+
+
+_ensure_repo_root_on_path()
+
 from qqva.world_stream import WorldStreamController
 
 from .business_schemas import (

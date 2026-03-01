@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   "Suppliers",
   "Inventory",
   "Graph Maker",
+  "Business Logic",
   "Renderer Lab",
   "Privacy"
 ];
@@ -265,6 +266,390 @@ function parseObjectJson(text, fallback = {}) {
   } catch {
     return fallback;
   }
+}
+
+const BUSINESS_ARCHITECTURE_TEMPLATE = JSON.stringify(
+  {
+    domains: [
+      { id: "crm", name: "CRM", lane: "Business", kind: "domain" },
+      { id: "world", name: "World Runtime", lane: "Systems", kind: "domain" },
+      { id: "render", name: "Rendering", lane: "Delivery", kind: "domain" }
+    ],
+    systems: [
+      { id: "contacts", name: "Contacts Service", lane: "Systems", kind: "service", domain: "crm" },
+      { id: "quests", name: "Headless Quest Engine", lane: "Runtime", kind: "engine", domain: "world" },
+      { id: "market", name: "Market Rules", lane: "Runtime", kind: "rules", domain: "world" },
+      { id: "renderer", name: "Unified Renderer", lane: "Delivery", kind: "renderer", domain: "render" },
+      { id: "db12", name: "12-Layer Store", lane: "Data", kind: "data" }
+    ],
+    tools: [
+      { id: "cobra", name: "Cobra Compiler", lane: "Systems", kind: "tool" },
+      { id: "studio", name: "Studio Hub FS", lane: "Data", kind: "tool" }
+    ],
+    flows: [
+      { from: "contacts", to: "db12", label: "persist" },
+      { from: "quests", to: "db12", label: "state writes" },
+      { from: "market", to: "db12", label: "table updates" },
+      { from: "cobra", to: "quests", label: "scripts" },
+      { from: "db12", to: "renderer", label: "render state" }
+    ]
+  },
+  null,
+  2
+);
+
+function laneRank(lane) {
+  const normalized = String(lane || "").trim().toLowerCase();
+  if (normalized === "business") {
+    return 0;
+  }
+  if (normalized === "systems") {
+    return 1;
+  }
+  if (normalized === "runtime") {
+    return 2;
+  }
+  if (normalized === "data") {
+    return 3;
+  }
+  if (normalized === "delivery") {
+    return 4;
+  }
+  return 99;
+}
+
+function normalizeArchitectureSpec(rawSpec) {
+  const spec = rawSpec && typeof rawSpec === "object" ? rawSpec : {};
+  const mergedNodes = []
+    .concat(Array.isArray(spec.domains) ? spec.domains : [])
+    .concat(Array.isArray(spec.systems) ? spec.systems : [])
+    .concat(Array.isArray(spec.tools) ? spec.tools : []);
+  const nodesMap = {};
+  mergedNodes.forEach((rawNode, index) => {
+    if (!rawNode || typeof rawNode !== "object") {
+      return;
+    }
+    const id = String(rawNode.id || `node_${index}`);
+    nodesMap[id] = {
+      id,
+      name: String(rawNode.name || rawNode.title || id),
+      lane: String(rawNode.lane || "Systems"),
+      kind: String(rawNode.kind || "component"),
+      domain: rawNode.domain ? String(rawNode.domain) : "",
+      description: rawNode.description ? String(rawNode.description) : ""
+    };
+  });
+  const lanes = Object.values(nodesMap)
+    .map((node) => node.lane)
+    .filter((lane, index, arr) => arr.indexOf(lane) === index)
+    .sort((a, b) => {
+      const diff = laneRank(a) - laneRank(b);
+      return diff !== 0 ? diff : a.localeCompare(b);
+    });
+  const flows = (Array.isArray(spec.flows) ? spec.flows : [])
+    .map((flow, index) => {
+      if (!flow || typeof flow !== "object") {
+        return null;
+      }
+      return {
+        id: String(flow.id || `flow_${index}`),
+        from: String(flow.from || ""),
+        to: String(flow.to || ""),
+        label: String(flow.label || "")
+      };
+    })
+    .filter((flow) => flow && nodesMap[flow.from] && nodesMap[flow.to]);
+  return {
+    lanes,
+    nodes: Object.values(nodesMap),
+    flows
+  };
+}
+
+function deriveBusinessArchitectureSpec(rendererTables, rendererPipeline, studioFiles) {
+  const tableKeys = rendererTables && typeof rendererTables === "object" ? Object.keys(rendererTables) : [];
+  const domains = [
+    { id: "crm", name: "Business Domain", lane: "Business", kind: "domain" },
+    { id: "runtime", name: "Runtime Domain", lane: "Runtime", kind: "domain" },
+    { id: "delivery", name: "Delivery Domain", lane: "Delivery", kind: "domain" }
+  ];
+  const systems = [
+    { id: "atelier_api", name: "Atelier API", lane: "Systems", kind: "service", domain: "crm" },
+    { id: "kernel", name: "Shygazun Kernel", lane: "Runtime", kind: "engine", domain: "runtime" },
+    { id: "renderer", name: "Unified Renderer", lane: "Delivery", kind: "renderer", domain: "delivery" },
+    { id: "table_store", name: "State Tables", lane: "Data", kind: "data", description: tableKeys.join(", ") }
+  ];
+  const tools = [
+    { id: "cobra", name: "Cobra Compiler", lane: "Systems", kind: "tool" },
+    { id: "studio_fs", name: `Studio Files (${Array.isArray(studioFiles) ? studioFiles.length : 0})`, lane: "Data", kind: "tool" },
+    { id: "pipeline", name: "Renderer Pipeline", lane: "Systems", kind: "tool", description: rendererPipeline && rendererPipeline.mode ? String(rendererPipeline.mode) : "" }
+  ];
+  const flows = [
+    { from: "atelier_api", to: "table_store", label: "business writes" },
+    { from: "kernel", to: "table_store", label: "runtime writes" },
+    { from: "cobra", to: "kernel", label: "script compile" },
+    { from: "table_store", to: "renderer", label: "render state" },
+    { from: "studio_fs", to: "cobra", label: "script source" },
+    { from: "pipeline", to: "renderer", label: "material pass" }
+  ];
+  return { domains, systems, tools, flows };
+}
+
+function architectureNodeColor(kind) {
+  const k = String(kind || "").toLowerCase();
+  if (k === "domain") {
+    return "#2f4f9d";
+  }
+  if (k === "service") {
+    return "#266d56";
+  }
+  if (k === "engine" || k === "rules") {
+    return "#6f4b1f";
+  }
+  if (k === "data") {
+    return "#5e2b69";
+  }
+  if (k === "renderer") {
+    return "#25416b";
+  }
+  if (k === "tool") {
+    return "#4a4f57";
+  }
+  return "#3f4754";
+}
+
+function drawBusinessArchitecture(canvas, model) {
+  if (!canvas || !model) {
+    return;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+  const width = Math.max(960, Math.floor(canvas.clientWidth || 960));
+  const height = Math.max(420, Math.floor(canvas.clientHeight || 420));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  ctx.clearRect(0, 0, width, height);
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#0b0e12");
+  gradient.addColorStop(1, "#101722");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+  const lanes = Array.isArray(model.lanes) && model.lanes.length ? model.lanes : ["Systems"];
+  const laneW = width / lanes.length;
+  const lanePadding = 14;
+  lanes.forEach((lane, laneIndex) => {
+    const x = Math.floor(laneIndex * laneW);
+    ctx.fillStyle = laneIndex % 2 === 0 ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.04)";
+    ctx.fillRect(x, 0, Math.ceil(laneW), height);
+    ctx.fillStyle = "#d6dce6";
+    ctx.font = "600 12px ui-sans-serif";
+    ctx.fillText(lane, x + lanePadding, 20);
+  });
+  const nodesByLane = {};
+  lanes.forEach((lane) => {
+    nodesByLane[lane] = model.nodes.filter((node) => node.lane === lane);
+  });
+  const nodeW = Math.min(240, Math.max(160, laneW - 20));
+  const nodeH = 68;
+  const coords = {};
+  lanes.forEach((lane, laneIndex) => {
+    const nodes = nodesByLane[lane] || [];
+    nodes.forEach((node, rowIndex) => {
+      const x = Math.floor(laneIndex * laneW + (laneW - nodeW) / 2);
+      const y = 36 + rowIndex * (nodeH + 14);
+      coords[node.id] = { x, y, w: nodeW, h: nodeH };
+    });
+  });
+  ctx.strokeStyle = "rgba(176,196,222,0.45)";
+  ctx.lineWidth = 1.25;
+  model.flows.forEach((flow) => {
+    const from = coords[flow.from];
+    const to = coords[flow.to];
+    if (!from || !to) {
+      return;
+    }
+    const x1 = from.x + from.w;
+    const y1 = from.y + from.h / 2;
+    const x2 = to.x;
+    const y2 = to.y + to.h / 2;
+    const cx = (x1 + x2) / 2;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.bezierCurveTo(cx, y1, cx, y2, x2, y2);
+    ctx.stroke();
+    if (flow.label) {
+      ctx.fillStyle = "rgba(210,220,235,0.92)";
+      ctx.font = "11px ui-sans-serif";
+      ctx.fillText(flow.label, cx + 6, (y1 + y2) / 2 - 4);
+    }
+  });
+  model.nodes.forEach((node) => {
+    const box = coords[node.id];
+    if (!box) {
+      return;
+    }
+    ctx.fillStyle = architectureNodeColor(node.kind);
+    ctx.strokeStyle = "rgba(255,255,255,0.16)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(box.x, box.y, box.w, box.h, 10);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#f4f7fb";
+    ctx.font = "600 12px ui-sans-serif";
+    ctx.fillText(node.name, box.x + 10, box.y + 22);
+    ctx.fillStyle = "rgba(242,247,252,0.86)";
+    ctx.font = "11px ui-sans-serif";
+    ctx.fillText(`${node.kind}${node.domain ? ` · ${node.domain}` : ""}`, box.x + 10, box.y + 40);
+    if (node.description) {
+      const clipped = node.description.length > 44 ? `${node.description.slice(0, 44)}...` : node.description;
+      ctx.fillStyle = "rgba(220,230,240,0.8)";
+      ctx.fillText(clipped, box.x + 10, box.y + 56);
+    }
+  });
+}
+
+function parseArchitectureEnglish(text) {
+  const domains = [];
+  const systems = [];
+  const tools = [];
+  const flows = [];
+  String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"))
+    .forEach((line, index) => {
+      const flowMatch = line.match(/^flow\s+([A-Za-z0-9_.-]+)\s*->\s*([A-Za-z0-9_.-]+)(?:\s*:\s*(.+))?$/i);
+      if (flowMatch) {
+        flows.push({ from: flowMatch[1], to: flowMatch[2], label: String(flowMatch[3] || "") });
+        return;
+      }
+      const domainMatch = line.match(/^domain\s+([A-Za-z0-9_.-]+)(?:\s*:\s*(.+))?$/i);
+      if (domainMatch) {
+        domains.push({ id: domainMatch[1], name: String(domainMatch[2] || domainMatch[1]), lane: "Business", kind: "domain" });
+        return;
+      }
+      const toolMatch = line.match(/^tool\s+([A-Za-z0-9_.-]+)(?:\s*:\s*(.+))?$/i);
+      if (toolMatch) {
+        tools.push({ id: toolMatch[1], name: String(toolMatch[2] || toolMatch[1]), lane: "Systems", kind: "tool" });
+        return;
+      }
+      const systemMatch = line.match(/^system\s+([A-Za-z0-9_.-]+)(?:\s+in\s+([A-Za-z0-9_.-]+))?(?:\s*:\s*(.+))?$/i);
+      if (systemMatch) {
+        systems.push({
+          id: systemMatch[1],
+          domain: String(systemMatch[2] || ""),
+          name: String(systemMatch[3] || systemMatch[1]),
+          lane: "Runtime",
+          kind: "service"
+        });
+        return;
+      }
+      systems.push({
+        id: `line_${index}`,
+        name: line,
+        lane: "Runtime",
+        kind: "service"
+      });
+    });
+  return { domains, systems, tools, flows };
+}
+
+function parseArchitectureCobra(text) {
+  const domains = [];
+  const systems = [];
+  const tools = [];
+  const flows = [];
+  String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"))
+    .forEach((line) => {
+      const tokens = line.split(/\s+/);
+      const head = String(tokens[0] || "").toLowerCase();
+      if (head === "domain" && tokens[1]) {
+        domains.push({ id: tokens[1], name: tokens.slice(2).join(" ") || tokens[1], lane: "Business", kind: "domain" });
+        return;
+      }
+      if (head === "system" && tokens[1]) {
+        systems.push({
+          id: tokens[1],
+          name: tokens.slice(2).join(" ") || tokens[1],
+          lane: "Runtime",
+          kind: "service"
+        });
+        return;
+      }
+      if (head === "tool" && tokens[1]) {
+        tools.push({ id: tokens[1], name: tokens.slice(2).join(" ") || tokens[1], lane: "Systems", kind: "tool" });
+        return;
+      }
+      if (head === "flow" && tokens[1] && tokens[2]) {
+        flows.push({
+          from: tokens[1],
+          to: tokens[2],
+          label: tokens.slice(3).join(" ")
+        });
+      }
+    });
+  return { domains, systems, tools, flows };
+}
+
+function parseArchitectureShygazun(text) {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  const domains = [];
+  const systems = [];
+  const tools = [];
+  const flows = [];
+  lines.forEach((line, index) => {
+    const tokens = line.split(/\s+/);
+    const lead = String(tokens[0] || "").toLowerCase();
+    if (lead === "ty" || lead === "tykowuvu" || lead === "domain") {
+      const id = String(tokens[1] || `domain_${index}`);
+      domains.push({ id, name: tokens.slice(2).join(" ") || id, lane: "Business", kind: "domain" });
+      return;
+    }
+    if (lead === "wu" || lead === "tashamowun" || lead === "system") {
+      const id = String(tokens[1] || `system_${index}`);
+      systems.push({ id, name: tokens.slice(2).join(" ") || id, lane: "Runtime", kind: "service" });
+      return;
+    }
+    if (lead === "fi" || lead === "tool") {
+      const id = String(tokens[1] || `tool_${index}`);
+      tools.push({ id, name: tokens.slice(2).join(" ") || id, lane: "Systems", kind: "tool" });
+      return;
+    }
+    if ((lead === "ru" || lead === "flow") && tokens[1] && tokens[2]) {
+      flows.push({ from: tokens[1], to: tokens[2], label: tokens.slice(3).join(" ") });
+      return;
+    }
+    systems.push({ id: `shy_${index}`, name: line, lane: "Runtime", kind: "service" });
+  });
+  return { domains, systems, tools, flows };
+}
+
+function parseArchitectureInput(mode, text) {
+  const normalized = String(mode || "json").toLowerCase();
+  if (normalized === "json") {
+    return parseObjectJson(text, {});
+  }
+  if (normalized === "english") {
+    return parseArchitectureEnglish(text);
+  }
+  if (normalized === "cobra") {
+    return parseArchitectureCobra(text);
+  }
+  if (normalized === "shygazun") {
+    return parseArchitectureShygazun(text);
+  }
+  return parseObjectJson(text, {});
 }
 
 function isPlainObject(value) {
@@ -2146,6 +2531,28 @@ export function App() {
   });
   const [rendererVisualSource, setRendererVisualSource] = useState("json");
   const unifiedRendererCanvasRef = useRef(null);
+  const businessRendererCanvasRef = useRef(null);
+  const businessLogicRendererCanvasRef = useRef(null);
+  const [businessRendererInputMode, setBusinessRendererInputMode] = useState(
+    () => localStorage.getItem("atelier.business_renderer.input_mode") || "json"
+  );
+  const [businessRendererInputText, setBusinessRendererInputText] = useState(
+    () => localStorage.getItem("atelier.business_renderer.input_text") || BUSINESS_ARCHITECTURE_TEMPLATE
+  );
+  const [businessRendererUseDerived, setBusinessRendererUseDerived] = useState(
+    () => localStorage.getItem("atelier.business_renderer.use_derived") !== "0"
+  );
+  const [businessRendererStatus, setBusinessRendererStatus] = useState("ready");
+  const [businessLogicRendererInputMode, setBusinessLogicRendererInputMode] = useState(
+    () => localStorage.getItem("atelier.business_logic_renderer.input_mode") || "json"
+  );
+  const [businessLogicRendererInputText, setBusinessLogicRendererInputText] = useState(
+    () => localStorage.getItem("atelier.business_logic_renderer.input_text") || BUSINESS_ARCHITECTURE_TEMPLATE
+  );
+  const [businessLogicRendererUseDerived, setBusinessLogicRendererUseDerived] = useState(
+    () => localStorage.getItem("atelier.business_logic_renderer.use_derived") !== "0"
+  );
+  const [businessLogicRendererStatus, setBusinessLogicRendererStatus] = useState("ready");
   const [contentValidateSource, setContentValidateSource] = useState("cobra");
   const [contentValidateSceneId, setContentValidateSceneId] = useState("lapidus/renderer-lab");
   const [contentValidatePayload, setContentValidatePayload] = useState("");
@@ -4810,6 +5217,103 @@ export function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, [unifiedRendererVoxels, effectiveVoxelSettings]);
 
+  const derivedBusinessArchitectureSpec = useMemo(
+    () => deriveBusinessArchitectureSpec(rendererTables, rendererPipeline, studioFiles),
+    [rendererTables, rendererPipeline, studioFiles]
+  );
+  const businessRendererSpecResult = useMemo(() => {
+    if (businessRendererUseDerived) {
+      return { spec: derivedBusinessArchitectureSpec, error: "" };
+    }
+    const mode = String(businessRendererInputMode || "json").toLowerCase();
+    if (mode === "json") {
+      try {
+        const parsed = JSON.parse(businessRendererInputText || "{}");
+        return { spec: parsed && typeof parsed === "object" ? parsed : {}, error: "" };
+      } catch {
+        return { spec: {}, error: "JSON parse error" };
+      }
+    }
+    return {
+      spec: parseArchitectureInput(mode, businessRendererInputText),
+      error: ""
+    };
+  }, [
+    businessRendererUseDerived,
+    derivedBusinessArchitectureSpec,
+    businessRendererInputMode,
+    businessRendererInputText
+  ]);
+  const businessArchitectureModel = useMemo(
+    () => normalizeArchitectureSpec(businessRendererSpecResult.spec),
+    [businessRendererSpecResult]
+  );
+  const businessLogicRendererSpecResult = useMemo(() => {
+    if (businessLogicRendererUseDerived) {
+      return { spec: derivedBusinessArchitectureSpec, error: "" };
+    }
+    const mode = String(businessLogicRendererInputMode || "json").toLowerCase();
+    if (mode === "json") {
+      try {
+        const parsed = JSON.parse(businessLogicRendererInputText || "{}");
+        return { spec: parsed && typeof parsed === "object" ? parsed : {}, error: "" };
+      } catch {
+        return { spec: {}, error: "JSON parse error" };
+      }
+    }
+    return {
+      spec: parseArchitectureInput(mode, businessLogicRendererInputText),
+      error: ""
+    };
+  }, [
+    businessLogicRendererUseDerived,
+    derivedBusinessArchitectureSpec,
+    businessLogicRendererInputMode,
+    businessLogicRendererInputText
+  ]);
+  const businessLogicArchitectureModel = useMemo(
+    () => normalizeArchitectureSpec(businessLogicRendererSpecResult.spec),
+    [businessLogicRendererSpecResult]
+  );
+
+  useEffect(() => {
+    const canvas = businessRendererCanvasRef.current;
+    if (!canvas) {
+      return undefined;
+    }
+    drawBusinessArchitecture(canvas, businessArchitectureModel);
+    const handleResize = () => drawBusinessArchitecture(canvas, businessArchitectureModel);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [businessArchitectureModel]);
+
+  useEffect(() => {
+    const canvas = businessLogicRendererCanvasRef.current;
+    if (!canvas) {
+      return undefined;
+    }
+    drawBusinessArchitecture(canvas, businessLogicArchitectureModel);
+    const handleResize = () => drawBusinessArchitecture(canvas, businessLogicArchitectureModel);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [businessLogicArchitectureModel]);
+
+  useEffect(() => {
+    if (businessRendererSpecResult.error) {
+      setBusinessRendererStatus(`error: ${businessRendererSpecResult.error}`);
+      return;
+    }
+    setBusinessRendererStatus("ready");
+  }, [businessRendererSpecResult]);
+
+  useEffect(() => {
+    if (businessLogicRendererSpecResult.error) {
+      setBusinessLogicRendererStatus(`error: ${businessLogicRendererSpecResult.error}`);
+      return;
+    }
+    setBusinessLogicRendererStatus("ready");
+  }, [businessLogicRendererSpecResult]);
+
   useEffect(() => {
     if (contentValidatePayload && contentValidatePayload.trim()) {
       return;
@@ -4852,6 +5356,12 @@ export function App() {
     localStorage.setItem("atelier.renderer.tables_meta", JSON.stringify(rendererTablesMeta));
     localStorage.setItem("atelier.renderer.tables_precedence", rendererTablesPrecedence);
     localStorage.setItem("atelier.renderer.state_commit_mode", rendererStateCommitMode);
+    localStorage.setItem("atelier.business_renderer.input_mode", businessRendererInputMode);
+    localStorage.setItem("atelier.business_renderer.input_text", businessRendererInputText);
+    localStorage.setItem("atelier.business_renderer.use_derived", businessRendererUseDerived ? "1" : "0");
+    localStorage.setItem("atelier.business_logic_renderer.input_mode", businessLogicRendererInputMode);
+    localStorage.setItem("atelier.business_logic_renderer.input_text", businessLogicRendererInputText);
+    localStorage.setItem("atelier.business_logic_renderer.use_derived", businessLogicRendererUseDerived ? "1" : "0");
     localStorage.setItem("atelier.lesson_actor", lessonActorId);
   }, [
     rendererVisualSource,
@@ -4866,6 +5376,12 @@ export function App() {
     rendererTablesMeta,
     rendererTablesPrecedence,
     rendererStateCommitMode,
+    businessRendererInputMode,
+    businessRendererInputText,
+    businessRendererUseDerived,
+    businessLogicRendererInputMode,
+    businessLogicRendererInputText,
+    businessLogicRendererUseDerived,
     rendererRealmId,
     validateBeforeEmit,
     lessonActorId,
@@ -5051,6 +5567,34 @@ export function App() {
       tick: Number(rendererEngineState.tick || 0) + 1
     };
     setRendererEngineStateText(JSON.stringify(next, null, 2));
+  }
+
+  function loadBusinessArchitectureTemplate() {
+    setBusinessRendererUseDerived(false);
+    setBusinessRendererInputMode("json");
+    setBusinessRendererInputText(BUSINESS_ARCHITECTURE_TEMPLATE);
+    setBusinessRendererStatus("ready");
+  }
+
+  function snapshotDerivedArchitectureToInput() {
+    setBusinessRendererUseDerived(false);
+    setBusinessRendererInputMode("json");
+    setBusinessRendererInputText(JSON.stringify(derivedBusinessArchitectureSpec, null, 2));
+    setBusinessRendererStatus("ready");
+  }
+
+  function loadBusinessLogicArchitectureTemplate() {
+    setBusinessLogicRendererUseDerived(false);
+    setBusinessLogicRendererInputMode("json");
+    setBusinessLogicRendererInputText(BUSINESS_ARCHITECTURE_TEMPLATE);
+    setBusinessLogicRendererStatus("ready");
+  }
+
+  function snapshotDerivedArchitectureToBusinessLogicInput() {
+    setBusinessLogicRendererUseDerived(false);
+    setBusinessLogicRendererInputMode("json");
+    setBusinessLogicRendererInputText(JSON.stringify(derivedBusinessArchitectureSpec, null, 2));
+    setBusinessLogicRendererStatus("ready");
   }
 
   function compileGameSpecToRenderer() {
@@ -6238,6 +6782,154 @@ export function App() {
         </section>
       );
     }
+    if (section === "Business Logic") {
+      return (
+        <>
+          <section className="panel unified-renderer">
+            <h2>Business Architecture Renderer</h2>
+            <p>Isolated architecture workspace for business model organization and tool/systems design.</p>
+            <div className="row">
+              <label className="inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={businessLogicRendererUseDerived}
+                  onChange={(e) => setBusinessLogicRendererUseDerived(e.target.checked)}
+                />
+                Use derived state model
+              </label>
+              <select value={businessLogicRendererInputMode} onChange={(e) => setBusinessLogicRendererInputMode(e.target.value)}>
+                <option value="json">Input: JSON</option>
+                <option value="english">Input: English</option>
+                <option value="cobra">Input: Cobra</option>
+                <option value="shygazun">Input: Shygazun</option>
+              </select>
+              <button className="action" onClick={loadBusinessLogicArchitectureTemplate}>Load Template</button>
+              <button className="action" onClick={snapshotDerivedArchitectureToBusinessLogicInput}>Snapshot Derived</button>
+              <span className={`badge ${businessLogicRendererSpecResult.error ? "err" : "ok"}`}>{`Status: ${businessLogicRendererStatus}`}</span>
+              <span className="badge">{`Nodes: ${businessLogicArchitectureModel.nodes.length}`}</span>
+              <span className="badge">{`Flows: ${businessLogicArchitectureModel.flows.length}`}</span>
+              <span className="badge">{`Lanes: ${businessLogicArchitectureModel.lanes.length}`}</span>
+            </div>
+            <canvas
+              ref={businessLogicRendererCanvasRef}
+              className="unified-canvas"
+              style={{ minHeight: "420px", touchAction: "none" }}
+            />
+            <textarea
+              className="editor editor-mono renderer-editor"
+              value={businessLogicRendererInputText}
+              onChange={(e) => setBusinessLogicRendererInputText(e.target.value)}
+              placeholder={
+                businessLogicRendererInputMode === "json"
+                  ? "JSON architecture spec"
+                  : businessLogicRendererInputMode === "english"
+                    ? "domain crm: CRM\nsystem contacts in crm: Contacts Service\nflow contacts -> db12: persist"
+                    : businessLogicRendererInputMode === "cobra"
+                      ? "domain crm CRM\nsystem contacts Contacts Service\nflow contacts db12 persist"
+                      : "Ty crm CRM\nWu contacts Contacts Service\nRu contacts db12 persist"
+              }
+            />
+          </section>
+          <section className="panel">
+            <h2>Game System Creator</h2>
+            <p>Author and move game content between Cobra, scene library, renderer state, and save export.</p>
+            <div className="row">
+              <select value={actionPostTarget} onChange={(e) => setActionPostTarget(e.target.value)}>
+                <option value="api">POST Target: API (:9000)</option>
+                <option value="engine_inbox">POST Target: Engine Script Inbox</option>
+                <option value="repo">POST Target: In-App Repo File</option>
+              </select>
+              {actionPostTarget === "engine_inbox" ? (
+                <select value={actionPostEngineFileId} onChange={(e) => setActionPostEngineFileId(e.target.value)}>
+                  <option value="">engine script (optional)</option>
+                  {studioFiles.map((file) => (
+                    <option key={`biz-post-engine-${file.id}`} value={file.id}>{`${file.folder}/${file.name}`}</option>
+                  ))}
+                </select>
+              ) : null}
+              {actionPostTarget === "repo" ? (
+                <input
+                  value={actionPostRepoFolder}
+                  onChange={(e) => setActionPostRepoFolder(e.target.value)}
+                  placeholder="repo folder (e.g. runtime-posts)"
+                />
+              ) : null}
+              <span className="badge">{`Active target: ${actionPostTarget}`}</span>
+            </div>
+            <div className="row">
+              <button className="action" onClick={compileSceneFromCobra}>Compile Cobra {"->"} Scene + Renderer State (API)</button>
+              <button className="action" onClick={loadSceneFromLibraryToRenderer}>Load Library Scene {"->"} Renderer State (API)</button>
+              <button className="action" onClick={emitSceneGraph}>POST Scene Graph Payload</button>
+              <button className="action" onClick={emitHeadlessQuest}>POST Headless Quest Payload</button>
+              <button className="action" onClick={emitMeditation}>POST Meditation Payload</button>
+              <button className="action" onClick={exportGameSave}>Fetch Save Snapshot</button>
+              <button className="action" onClick={() => saveExport && downloadJson(`game-save-${workspaceId}.json`, saveExport)}>Download Save JSON</button>
+            </div>
+            <div className="row">
+              <input value={sceneCompileSceneId} onChange={(e) => setSceneCompileSceneId(e.target.value)} placeholder="scene id (realm/scene)" />
+              <input value={rendererLibrarySceneId} onChange={(e) => setRendererLibrarySceneId(e.target.value)} placeholder="load scene id (realm/scene)" />
+              <input value={sceneCompileName} onChange={(e) => setSceneCompileName(e.target.value)} placeholder="scene name" />
+              <input value={sceneCompileDescription} onChange={(e) => setSceneCompileDescription(e.target.value)} placeholder="scene description" />
+              <span className="badge">{`Realm: ${rendererRealmId}`}</span>
+            </div>
+            <h3>Headless Quest Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={headlessQuestText} onChange={(e) => setHeadlessQuestText(e.target.value)} />
+            <h3>Meditation Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={meditationText} onChange={(e) => setMeditationText(e.target.value)} />
+            <h3>Scene Graph Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={sceneGraphText} onChange={(e) => setSceneGraphText(e.target.value)} />
+            <h3>Save Export</h3>
+            <pre>{JSON.stringify(saveExport || {}, null, 2)}</pre>
+          </section>
+          <section className="panel">
+            <h2>RPG Rule Engine</h2>
+            <p>Deterministic rule payload execution to API, engine inbox, or repo-backed action stream.</p>
+            <div className="row">
+              <span className="badge">{`POST target: ${actionPostTarget}`}</span>
+            </div>
+            <div className="row">
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/levels/apply", levelRuleText, "game_rule_level_apply")}>POST Level Apply</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/skills/train", skillRuleText, "game_rule_skill_train")}>POST Skill Train</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/perks/unlock", perkRuleText, "game_rule_perk_unlock")}>POST Perk Unlock</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/alchemy/craft", alchemyRuleText, "game_rule_alchemy_craft")}>POST Alchemy Craft</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/blacksmith/forge", blacksmithRuleText, "game_rule_blacksmith_forge")}>POST Blacksmith Forge</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/combat/resolve", combatRuleText, "game_rule_combat_resolve")}>POST Combat Resolve</button>
+            </div>
+            <div className="row">
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/market/quote", marketQuoteText, "game_rule_market_quote")}>POST Market Quote</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/rules/market/trade", marketTradeText, "game_rule_market_trade")}>POST Market Trade</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/apply-ruler-influence", vitriolApplyText, "game_vitriol_apply")}>POST VITRIOL Apply Influence</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/compute", vitriolComputeText, "game_vitriol_compute")}>POST VITRIOL Compute</button>
+              <button className="action" onClick={() => runGameRule("/v1/game/vitriol/clear-expired", vitriolClearText, "game_vitriol_clear_expired")}>POST VITRIOL Clear Expired</button>
+            </div>
+            <h3>Level Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={levelRuleText} onChange={(e) => setLevelRuleText(e.target.value)} />
+            <h3>Skill Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={skillRuleText} onChange={(e) => setSkillRuleText(e.target.value)} />
+            <h3>Perk Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={perkRuleText} onChange={(e) => setPerkRuleText(e.target.value)} />
+            <h3>Alchemy Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={alchemyRuleText} onChange={(e) => setAlchemyRuleText(e.target.value)} />
+            <h3>Blacksmith Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={blacksmithRuleText} onChange={(e) => setBlacksmithRuleText(e.target.value)} />
+            <h3>Combat Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={combatRuleText} onChange={(e) => setCombatRuleText(e.target.value)} />
+            <h3>Market Quote Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={marketQuoteText} onChange={(e) => setMarketQuoteText(e.target.value)} />
+            <h3>Market Trade Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={marketTradeText} onChange={(e) => setMarketTradeText(e.target.value)} />
+            <h3>VITRIOL Apply Payload (1..10 per axis)</h3>
+            <textarea className="editor editor-mono renderer-editor" value={vitriolApplyText} onChange={(e) => setVitriolApplyText(e.target.value)} />
+            <h3>VITRIOL Compute Payload (1..10 per axis)</h3>
+            <textarea className="editor editor-mono renderer-editor" value={vitriolComputeText} onChange={(e) => setVitriolComputeText(e.target.value)} />
+            <h3>VITRIOL Clear-Expired Payload</h3>
+            <textarea className="editor editor-mono renderer-editor" value={vitriolClearText} onChange={(e) => setVitriolClearText(e.target.value)} />
+            <h3>Rule Output</h3>
+            <pre>{JSON.stringify(gameRulesOutput || {}, null, 2)}</pre>
+          </section>
+        </>
+      );
+    }
     if (section === "Renderer Lab") {
       return (
         <>
@@ -6250,6 +6942,51 @@ export function App() {
               <button className="action" onClick={compileSceneGraphPreview}>Compile Scene Graph</button>
               <button className="action" onClick={() => setRendererEngineStateText(JSON.stringify({ tick: 0, camera: { x: 0, y: 0 } }, null, 2))}>Reset Engine</button>
             </div>
+            <section className="panel unified-renderer">
+              <h3>Business Architecture Renderer</h3>
+              <p>Architecture-focused canvas for business model organization and tool/systems design.</p>
+              <div className="row">
+                <label className="inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={businessRendererUseDerived}
+                    onChange={(e) => setBusinessRendererUseDerived(e.target.checked)}
+                  />
+                  Use derived state model
+                </label>
+                <select value={businessRendererInputMode} onChange={(e) => setBusinessRendererInputMode(e.target.value)}>
+                  <option value="json">Input: JSON</option>
+                  <option value="english">Input: English</option>
+                  <option value="cobra">Input: Cobra</option>
+                  <option value="shygazun">Input: Shygazun</option>
+                </select>
+                <button className="action" onClick={loadBusinessArchitectureTemplate}>Load Template</button>
+                <button className="action" onClick={snapshotDerivedArchitectureToInput}>Snapshot Derived</button>
+                <span className={`badge ${businessRendererSpecResult.error ? "err" : "ok"}`}>{`Status: ${businessRendererStatus}`}</span>
+                <span className="badge">{`Nodes: ${businessArchitectureModel.nodes.length}`}</span>
+                <span className="badge">{`Flows: ${businessArchitectureModel.flows.length}`}</span>
+                <span className="badge">{`Lanes: ${businessArchitectureModel.lanes.length}`}</span>
+              </div>
+              <canvas
+                ref={businessRendererCanvasRef}
+                className="unified-canvas"
+                style={{ minHeight: "420px", touchAction: "none" }}
+              />
+              <textarea
+                className="editor editor-mono renderer-editor"
+                value={businessRendererInputText}
+                onChange={(e) => setBusinessRendererInputText(e.target.value)}
+                placeholder={
+                  businessRendererInputMode === "json"
+                    ? "JSON architecture spec"
+                    : businessRendererInputMode === "english"
+                      ? "domain crm: CRM\nsystem contacts in crm: Contacts Service\nflow contacts -> db12: persist"
+                      : businessRendererInputMode === "cobra"
+                        ? "domain crm CRM\nsystem contacts Contacts Service\nflow contacts db12 persist"
+                        : "Ty crm CRM\nWu contacts Service\nRu contacts db12 persist"
+                }
+              />
+            </section>
             <section className="panel unified-renderer">
               <h3>Unified Visual Renderer</h3>
               <p>Single visual surface fed by JSON, Cobra entities, or Engine state.</p>
