@@ -1,0 +1,34 @@
+{
+  "workspace_id": "main",
+  "actor_id": "system",
+  "plan_id": "quest_invariants_baseline_replay",
+  "actions": [
+    {
+      "action_id": "seed_canon_pack",
+      "kind": "content.pack.load_canon",
+      "payload": {
+        "apply_to_db": true
+      }
+    },
+    {
+      "action_id": "check_branch_contracts",
+      "kind": "module.run",
+      "payload": {
+        "module_id": "module.quest.advance_by_graph",
+        "mode": "invariant_probe",
+        "suite_id": "baseline",
+        "probe": "main_progress_presence"
+      }
+    },
+    {
+      "action_id": "check_lock_conflicts",
+      "kind": "module.run",
+      "payload": {
+        "module_id": "module.quest.advance_by_graph",
+        "mode": "invariant_probe",
+        "suite_id": "baseline",
+        "probe": "lock_conflict"
+      }
+    }
+  ]
+}

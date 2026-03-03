@@ -1632,6 +1632,19 @@
         "actions.1.kind"
       ],
       "expected_hash": "9e0bf98a96e692dcb763e31f7e4844f314338bb4b1a4e903e02526c3316fd485"
+    },
+    {
+      "id": "quest_invariants_baseline_replay",
+      "path": "gameplay/runtime_plans/quest_invariants_baseline_replay.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.1.kind"
+      ],
+      "expected_hash": "40ea0ee5399fef38ae54a90423fc2d28b18f400fa8635d025d6bcb80272d6711"
     }
   ]
 }

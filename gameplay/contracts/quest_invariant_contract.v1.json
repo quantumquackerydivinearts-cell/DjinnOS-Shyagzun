@@ -1,0 +1,30 @@
+{
+  "id": "quest_invariant_contract.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "description": "Tier-2 cross-quest invariant contract for progression and state safety.",
+  "required_fields": [
+    "suite_id",
+    "scope",
+    "invariants"
+  ],
+  "invariant_required_fields": [
+    "invariant_id",
+    "type",
+    "description",
+    "check",
+    "severity"
+  ],
+  "allowed_types": [
+    "progression_reachability",
+    "state_consistency",
+    "reward_uniqueness",
+    "lock_conflict",
+    "timeline_consistency",
+    "currency_consistency"
+  ],
+  "allowed_severity": [
+    "error",
+    "warn"
+  ]
+}

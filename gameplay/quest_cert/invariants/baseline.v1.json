@@ -1,0 +1,138 @@
+{
+  "id": "quest_invariants.baseline.v1",
+  "suite_id": "baseline",
+  "scope": {
+    "quest_count": 61,
+    "quest_ids": [
+      "0001_KLST",
+      "0002_KLST",
+      "0003_KLST",
+      "0004_KLST",
+      "0005_KLST",
+      "0006_KLST",
+      "0008_KLST",
+      "0009_KLST",
+      "0010_KLST",
+      "0011_KLST",
+      "0012_KLST",
+      "0013_KLST",
+      "0014_KLST",
+      "0015_KLST",
+      "0016_KLST",
+      "0017_KLST",
+      "0018_KLST",
+      "0019_KLST",
+      "0020_KLST",
+      "0021_KLST",
+      "0022_KLST",
+      "0023_KLST",
+      "0024_KLST",
+      "0025_KLST",
+      "0026_KLST",
+      "0027_KLST",
+      "0028_KLST",
+      "0029_KLST",
+      "0030_KLST",
+      "0031_KLST",
+      "0032_KLST",
+      "0033_KLST",
+      "0034_KLST",
+      "0035_KLST",
+      "0036_KLST",
+      "0037_KLST",
+      "0038_KLST",
+      "0039_KLST",
+      "0040_KLST",
+      "0041_KLST",
+      "0042_KLST",
+      "0043_KLST",
+      "0044_KLST",
+      "0045_KLST",
+      "0046_KLST",
+      "0047_KLST",
+      "0048_KLST",
+      "0049_KLST",
+      "0050_KLST",
+      "0051_KLST",
+      "0052_KLST",
+      "0053_KLST",
+      "0054_KLST",
+      "0055_KLST",
+      "0056_KLST",
+      "0057_KLST",
+      "0058_KLST",
+      "0059_KLST",
+      "0060_KLST",
+      "0061_KLST",
+      "0007_KLST"
+    ],
+    "mainline_only": true
+  },
+  "invariants": [
+    {
+      "invariant_id": "inv.progression.no_dead_end_mainline",
+      "type": "progression_reachability",
+      "description": "Each mainline quest must have at least one progress branch available from active state.",
+      "check": {
+        "kind": "branch_contract_presence",
+        "required_branch_type": "main_progress"
+      },
+      "severity": "error"
+    },
+    {
+      "invariant_id": "inv.state.no_progress_and_hard_lock",
+      "type": "state_consistency",
+      "description": "A quest cannot be in progress and hard-lock simultaneously.",
+      "check": {
+        "kind": "mutual_exclusion_flags",
+        "lhs": "quest.<id>.progress",
+        "rhs": "quest.<id>.hard_lock"
+      },
+      "severity": "error"
+    },
+    {
+      "invariant_id": "inv.rewards.no_duplicate_unique",
+      "type": "reward_uniqueness",
+      "description": "Unique rewards can only be granted once across the campaign.",
+      "check": {
+        "kind": "unique_reward_once",
+        "source": "quest_rewards"
+      },
+      "severity": "error"
+    },
+    {
+      "invariant_id": "inv.lock.no_bilateral_lock_loop",
+      "type": "lock_conflict",
+      "description": "No pair of quests may mutually hard-lock each other without alternative path.",
+      "check": {
+        "kind": "dependency_cycle_without_escape",
+        "graph": "quest_locks"
+      },
+      "severity": "error"
+    },
+    {
+      "invariant_id": "inv.timeline.monotonic_scene_clock",
+      "type": "timeline_consistency",
+      "description": "Scene clock must advance monotonically inside a quest branch trace.",
+      "check": {
+        "kind": "monotonic_scene_clock",
+        "clock_field": "scene_clock"
+      },
+      "severity": "warn"
+    },
+    {
+      "invariant_id": "inv.currency.realm_exchange_route",
+      "type": "currency_consistency",
+      "description": "Mercurie currency exchange must route through Lapidus or Sulphera.",
+      "check": {
+        "kind": "exchange_route_constraint",
+        "from_realm": "mercurie",
+        "allowed_intermediates": [
+          "lapidus",
+          "sulphera"
+        ]
+      },
+      "severity": "error"
+    }
+  ]
+}

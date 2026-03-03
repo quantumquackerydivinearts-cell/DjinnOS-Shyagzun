@@ -121,6 +121,31 @@
         "branches.0.branch_type"
       ],
       "expected_hash": "2f3389f56f852f9adeec81adf6b8aa8858dcb38d860a3184b8d2f78d716be6d6"
+    },
+    {
+      "id": "quest_invariant_contract_schema",
+      "path": "gameplay/contracts/quest_invariant_contract.v1.json",
+      "type": "quest_invariant_contract",
+      "required_fields": [
+        "id",
+        "version",
+        "required_fields",
+        "invariant_required_fields",
+        "allowed_types"
+      ],
+      "expected_hash": "453a7372f272deae986462bc3c2705b507848fc3a6cbc2713fc59c828c6def7b"
+    },
+    {
+      "id": "quest_invariant_baseline",
+      "path": "gameplay/quest_cert/invariants/baseline.v1.json",
+      "type": "quest_invariant_contract",
+      "required_fields": [
+        "suite_id",
+        "scope.quest_ids",
+        "invariants",
+        "invariants.0.invariant_id"
+      ],
+      "expected_hash": "f82065f2d5855866811fafe364e6b4a28377dec408e06723686d279eb8221e26"
     }
   ]
 }
