@@ -1,0 +1,30 @@
+{
+  "id": "quest_cert.0041_KLST.v1",
+  "quest_id": "0041_KLST",
+  "quest_name": "Poisons and Lectures",
+  "sequence_index": 40,
+  "tiers": {
+    "tier0_schema_determinism": {
+      "status": "planned",
+      "determinism_cases": [],
+      "required_fields": [
+        "quest_id",
+        "quest_name"
+      ]
+    },
+    "tier1_branch_contracts": {
+      "status": "planned",
+      "branch_cases": []
+    },
+    "tier2_cross_quest_invariants": {
+      "status": "planned",
+      "invariant_cases": []
+    },
+    "tier3_campaign_replay": {
+      "status": "planned",
+      "replay_cases": []
+    }
+  },
+  "notes": "Generated scaffold. Fill tier cases progressively.",
+  "updated_at": "2026-03-03"
+}

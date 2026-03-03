@@ -181,6 +181,10 @@ def main() -> int:
         ok, output = _run_command([sys.executable, "-m", "compileall", "qqva"], cwd=ROOT)
         add_check("python_compile_qqva", ok, {"output_tail": output[-1000:]})
 
+    if bool(commands.get("quest_cert_validation", True)):
+        ok, output = _run_command([sys.executable, "scripts/validate_quest_cert.py"], cwd=ROOT)
+        add_check("quest_cert_validation", ok, {"output_tail": output[-1000:]})
+
     if bool(commands.get("determinism_check", True)):
         ok, output = _run_command([sys.executable, "scripts/verify_determinism.py", "--all-corpora"], cwd=ROOT)
         add_check("determinism_replay_contract", ok, {"output_tail": output[-1000:]})

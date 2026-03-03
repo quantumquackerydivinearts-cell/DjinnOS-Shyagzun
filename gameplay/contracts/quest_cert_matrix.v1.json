@@ -1,0 +1,879 @@
+{
+  "id": "quest_cert_matrix.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "source": "gameplay/content_packs/canon/quests.json",
+  "policy": {
+    "tier_definitions": {
+      "tier0_schema_determinism": "Per-quest schema and deterministic replay hash contract.",
+      "tier1_branch_contracts": "Branch/fork contract coverage for major gates and deadlines.",
+      "tier2_cross_quest_invariants": "Cross-quest state invariants and progression safety.",
+      "tier3_campaign_replay": "Representative full-campaign replay traces."
+    },
+    "required_for_go_no_go": [
+      "tier0_schema_determinism"
+    ],
+    "target_mainline_count": 60
+  },
+  "summary": {
+    "quest_count": 61,
+    "mainline_count": 61,
+    "planned_count": 61
+  },
+  "rows": [
+    {
+      "quest_id": "0001_KLST",
+      "quest_name": "Fate Knocks",
+      "sequence_index": 1,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "high"
+    },
+    {
+      "quest_id": "0002_KLST",
+      "quest_name": "Destiny Calls",
+      "sequence_index": 2,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "high"
+    },
+    {
+      "quest_id": "0003_KLST",
+      "quest_name": "Yellow Brick Road",
+      "sequence_index": 3,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "high"
+    },
+    {
+      "quest_id": "0004_KLST",
+      "quest_name": "The Golden Path",
+      "sequence_index": 4,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "high"
+    },
+    {
+      "quest_id": "0005_KLST",
+      "quest_name": "Darker Secrets",
+      "sequence_index": 5,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "high"
+    },
+    {
+      "quest_id": "0006_KLST",
+      "quest_name": "Twaddlespeak",
+      "sequence_index": 6,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "high"
+    },
+    {
+      "quest_id": "0008_KLST",
+      "quest_name": "Bunsen For Hire",
+      "sequence_index": 7,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "high"
+    },
+    {
+      "quest_id": "0009_KLST",
+      "quest_name": "Demons and Diamonds",
+      "sequence_index": 8,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "high"
+    },
+    {
+      "quest_id": "0010_KLST",
+      "quest_name": "Perfect Circles",
+      "sequence_index": 9,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "high"
+    },
+    {
+      "quest_id": "0011_KLST",
+      "quest_name": "The Siren Sounds",
+      "sequence_index": 10,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "high"
+    },
+    {
+      "quest_id": "0012_KLST",
+      "quest_name": "The Mines",
+      "sequence_index": 11,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0013_KLST",
+      "quest_name": "War Never Changes",
+      "sequence_index": 12,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0014_KLST",
+      "quest_name": "Bombast",
+      "sequence_index": 13,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0015_KLST",
+      "quest_name": "Underworld",
+      "sequence_index": 14,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0016_KLST",
+      "quest_name": "Transcendental",
+      "sequence_index": 15,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0017_KLST",
+      "quest_name": "Loss, I Fear",
+      "sequence_index": 16,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0018_KLST",
+      "quest_name": "Growing Pains",
+      "sequence_index": 17,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0019_KLST",
+      "quest_name": "Wish Upon a Horse",
+      "sequence_index": 18,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0020_KLST",
+      "quest_name": "Wish Upon a Falling Star",
+      "sequence_index": 19,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0021_KLST",
+      "quest_name": "Starlight Shows",
+      "sequence_index": 20,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0022_KLST",
+      "quest_name": "Good Soldiers",
+      "sequence_index": 21,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0023_KLST",
+      "quest_name": "Mercenary Type",
+      "sequence_index": 22,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0024_KLST",
+      "quest_name": "Death Hallows",
+      "sequence_index": 23,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0025_KLST",
+      "quest_name": "Assassination",
+      "sequence_index": 24,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0026_KLST",
+      "quest_name": "Good Grief",
+      "sequence_index": 25,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0027_KLST",
+      "quest_name": "Echoes of the Past",
+      "sequence_index": 26,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0028_KLST",
+      "quest_name": "A Haunting Notion",
+      "sequence_index": 27,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0029_KLST",
+      "quest_name": "Doom and Gloom",
+      "sequence_index": 28,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0030_KLST",
+      "quest_name": "Plasma Freeze",
+      "sequence_index": 29,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0031_KLST",
+      "quest_name": "Master Koga",
+      "sequence_index": 30,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0032_KLST",
+      "quest_name": "Mona Lisa",
+      "sequence_index": 31,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0033_KLST",
+      "quest_name": "Zoha are",
+      "sequence_index": 32,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0034_KLST",
+      "quest_name": "Children? By Atom!",
+      "sequence_index": 33,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0035_KLST",
+      "quest_name": "Choices in Hell",
+      "sequence_index": 34,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0036_KLST",
+      "quest_name": "Consequence",
+      "sequence_index": 35,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0037_KLST",
+      "quest_name": "Witching Hour",
+      "sequence_index": 36,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0038_KLST",
+      "quest_name": "Wild Things",
+      "sequence_index": 37,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0039_KLST",
+      "quest_name": "Storybook",
+      "sequence_index": 38,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0040_KLST",
+      "quest_name": "Priceless",
+      "sequence_index": 39,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0041_KLST",
+      "quest_name": "Poisons and Lectures",
+      "sequence_index": 40,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0042_KLST",
+      "quest_name": "Meaning Less",
+      "sequence_index": 41,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0043_KLST",
+      "quest_name": "Less is More",
+      "sequence_index": 42,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0044_KLST",
+      "quest_name": "Voracity",
+      "sequence_index": 43,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0045_KLST",
+      "quest_name": "Good old .45",
+      "sequence_index": 44,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0046_KLST",
+      "quest_name": "Most Obscenities",
+      "sequence_index": 45,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0047_KLST",
+      "quest_name": "Shaped Charge",
+      "sequence_index": 46,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0048_KLST",
+      "quest_name": "De Lucion",
+      "sequence_index": 47,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0049_KLST",
+      "quest_name": "Had Me in the First Half",
+      "sequence_index": 48,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0050_KLST",
+      "quest_name": "Prophet of Ko",
+      "sequence_index": 49,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0051_KLST",
+      "quest_name": "Eclipse!",
+      "sequence_index": 50,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0052_KLST",
+      "quest_name": "The Abyss",
+      "sequence_index": 51,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0053_KLST",
+      "quest_name": "Chosen Dues",
+      "sequence_index": 52,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0054_KLST",
+      "quest_name": "Stolen Valor",
+      "sequence_index": 53,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0055_KLST",
+      "quest_name": "Ring-a-Ding-Ding",
+      "sequence_index": 54,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0056_KLST",
+      "quest_name": "Priestly Affair",
+      "sequence_index": 55,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0057_KLST",
+      "quest_name": "Fairly, a Priestess",
+      "sequence_index": 56,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0058_KLST",
+      "quest_name": "Rouse The Depths",
+      "sequence_index": 57,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0059_KLST",
+      "quest_name": "The Woods",
+      "sequence_index": 58,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0060_KLST",
+      "quest_name": "In Service To Starlight",
+      "sequence_index": 59,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0061_KLST",
+      "quest_name": "Ko's Great Tale",
+      "sequence_index": 60,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    },
+    {
+      "quest_id": "0007_KLST",
+      "quest_name": "Dream of Glass",
+      "sequence_index": 61,
+      "is_mainline": true,
+      "tier_status": {
+        "tier0_schema_determinism": "planned",
+        "tier1_branch_contracts": "planned",
+        "tier2_cross_quest_invariants": "planned",
+        "tier3_campaign_replay": "planned"
+      },
+      "owner": "unassigned",
+      "priority": "normal"
+    }
+  ]
+}

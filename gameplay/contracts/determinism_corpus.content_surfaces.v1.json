@@ -71,6 +71,30 @@
         "replay_contract.require_same_hash_on_replay"
       ],
       "expected_hash": "ce6f6523c63dbdfa493501a2b637eabc0c3638c5554c1fe6a946009c928e0ff4"
+    },
+    {
+      "id": "quest_cert_matrix",
+      "path": "gameplay/contracts/quest_cert_matrix.v1.json",
+      "type": "quest_cert_contract",
+      "required_fields": [
+        "id",
+        "version",
+        "rows",
+        "rows.0.quest_id",
+        "rows.0.tier_status.tier0_schema_determinism"
+      ],
+      "expected_hash": "ce9a4ece29f1db846acdce5b62574ce379e011254601ff4734d1e71ec996b85d"
+    },
+    {
+      "id": "quest_cert_stub_first",
+      "path": "gameplay/quest_cert/quests/0001_KLST.json",
+      "type": "quest_cert_contract",
+      "required_fields": [
+        "quest_id",
+        "tiers.tier0_schema_determinism.status",
+        "tiers.tier3_campaign_replay.status"
+      ],
+      "expected_hash": "c44d1ced00652bb616cff58fa55d9a4fff393f2809a9d174f3c15942cdfee013"
     }
   ]
 }
