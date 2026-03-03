@@ -1,0 +1,41 @@
+{
+  "module_id": "module.market.trade.realm_policy",
+  "module_version": "v1",
+  "purpose": "Run market trade with realm policy and deterministic stock/liquidity effects",
+  "inputs": {
+    "payload": {
+      "realm_id": "lapidus",
+      "item_id": "iron_ingot",
+      "side": "buy",
+      "quantity": 1,
+      "available_liquidity": 1000
+    },
+    "required_refs": [
+      "L2:market.scalars"
+    ],
+    "optional_refs": [
+      "L7:market.policy_chunk"
+    ]
+  },
+  "execution": {
+    "runtime_action_kind": "market.trade",
+    "deterministic": true,
+    "nonlinear_safe": true,
+    "collapse_policy": "no_auto_collapse"
+  },
+  "outputs": {
+    "result_payload_path": "result",
+    "expected_ref_keys": [],
+    "store_function": false
+  },
+  "commit": {
+    "requires_attestation": true,
+    "attestation_kind": "lotus",
+    "on_missing_attestation": "leave_frontier_open"
+  },
+  "replay_contract": {
+    "hash_inputs": true,
+    "hash_outputs": true,
+    "require_same_hash_on_replay": true
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "determinism_corpus.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "algorithm": "sha256(canonical_json_sorted_keys)",
+  "cases": [
+    {
+      "id": "plan_fate_knocks_day1",
+      "path": "gameplay/runtime_plans/fate_knocks_day1_plan.json",
+      "type": "runtime_plan",
+      "expected_hash": "c17791f32616448443bdc8597c545172dce4e4b828be76c39fec7a0437abbb0c"
+    },
+    {
+      "id": "plan_fate_knocks_trace",
+      "path": "gameplay/runtime_plans/fate_knocks_trace_plan.json",
+      "type": "runtime_plan",
+      "expected_hash": "47690b9989163ca9fb12aacb05743800a7248dbce323b5affaea7841e0d3a698"
+    },
+    {
+      "id": "plan_story_pack",
+      "path": "gameplay/runtime_plans/story_pack_plan.json",
+      "type": "runtime_plan",
+      "expected_hash": "3741d7f926f5d0e41602aba44c82f31bc57a25899ca782817c05372976f3c670"
+    },
+    {
+      "id": "plan_full_feature",
+      "path": "gameplay/runtime_plans/full_feature_plan.json",
+      "type": "runtime_plan",
+      "expected_hash": "15681a53914b62bbb963ca03ba06345b27293d5895618e2c6c1392566c08430f"
+    },
+    {
+      "id": "plan_day_scene_main_generated",
+      "path": "gameplay/runtime_plans/day_scene_plan.main.generated.json",
+      "type": "runtime_plan",
+      "expected_hash": "5ddc5b5b3f3f5f7e879bae9f907863f57f8853b2c7db6e40dcdbea7b1309b2d9"
+    }
+  ]
+}

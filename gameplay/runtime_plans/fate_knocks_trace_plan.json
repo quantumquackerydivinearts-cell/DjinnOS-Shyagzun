@@ -1,0 +1,67 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "fate_knocks_trace_plan",
+  "actions": [
+    {
+      "action_id": "seed_byte_table",
+      "kind": "content.pack.load_byte_table",
+      "payload": {}
+    },
+    {
+      "action_id": "seed_canon_pack",
+      "kind": "content.pack.load_canon",
+      "payload": {
+        "apply_to_db": true
+      }
+    },
+    {
+      "action_id": "bootstrap_fate_knocks",
+      "kind": "quest.fate_knocks.bootstrap",
+      "payload": {
+        "player_name": "Kael",
+        "player_gender": "nonbinary",
+        "month": "Shyalz",
+        "deadline_hour_local": 19,
+        "quiz_points_budget": 28,
+        "quiz_answers": [4, 4, 4, 4, 4, 4, 4]
+      }
+    },
+    {
+      "action_id": "deadline_check_08",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 8
+      }
+    },
+    {
+      "action_id": "deadline_check_12",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 12
+      }
+    },
+    {
+      "action_id": "deadline_check_18",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 18
+      }
+    },
+    {
+      "action_id": "deadline_check_20",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 20
+      }
+    },
+    {
+      "action_id": "deadline_check_23",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 23
+      }
+    }
+  ]
+}
+

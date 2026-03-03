@@ -1,0 +1,24 @@
+{
+  "schema_version": "v1",
+  "pack_id": "canon.flags.core",
+  "source": "user_sheet_best_effort",
+  "flags": [
+    { "flag_id": 0, "name": "Usable" },
+    { "flag_id": 1, "name": "Unusable" },
+    { "flag_id": 2, "name": "Full" },
+    { "flag_id": 3, "name": "Empty" },
+    { "flag_id": 4, "name": "Alive" },
+    { "flag_id": 5, "name": "Dead" },
+    { "flag_id": 6, "name": "Movable" },
+    { "flag_id": 7, "name": "Immobilized" },
+    { "flag_id": 8, "name": "Poisonous" },
+    { "flag_id": 9, "name": "Flammable" },
+    { "flag_id": 10, "name": "Inert" },
+    { "flag_id": 11, "name": "Explosive" },
+    { "flag_id": 12, "name": "Token" },
+    { "flag_id": 13, "name": "Collector" },
+    { "flag_id": 14, "name": "Powdered" },
+    { "flag_id": 15, "name": "Molten" }
+  ]
+}
+

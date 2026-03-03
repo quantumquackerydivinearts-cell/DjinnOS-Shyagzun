@@ -1,0 +1,29 @@
+{
+  "id": "production_budgets.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "renderer": {
+    "max_main_bundle_bytes": 550000,
+    "max_main_bundle_gzip_bytes": 160000,
+    "max_worker_bundle_bytes": 20000
+  },
+  "content": {
+    "max_runtime_plan_actions": 500,
+    "max_runtime_plan_count": 200
+  },
+  "acceptance": {
+    "required_gate_status_by_id": {
+      "gate_a_scene_coherence": "done",
+      "gate_b_input_parity": "done",
+      "gate_c_lod_fidelity": "done",
+      "gate_d_motion_integrity": "done",
+      "gate_e_atlas_texturing": "done",
+      "gate_f_performance_envelope": "done"
+    }
+  },
+  "commands": {
+    "content_pack_validation": true,
+    "python_compile": true,
+    "determinism_check": true
+  }
+}

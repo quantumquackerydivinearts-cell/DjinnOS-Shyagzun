@@ -1,0 +1,36 @@
+{
+  "schema_version": "v1",
+  "pack_id": "canon.items.core",
+  "source": "user_sheet_best_effort",
+  "items": [
+    { "item_id": "0035_KLIT", "item_name": "Health potion" },
+    { "item_id": null, "item_name": "Cherry" },
+    { "item_id": null, "item_name": "Apple" },
+    { "item_id": null, "item_name": "Pommegranite" },
+    { "item_id": null, "item_name": "Barley" },
+    { "item_id": null, "item_name": "Pine Needle" },
+    { "item_id": null, "item_name": "Acorn" },
+    { "item_id": null, "item_name": "Lotus Flower" },
+    { "item_id": null, "item_name": "Lotus Seed" },
+    { "item_id": null, "item_name": "Pine Nut" },
+    { "item_id": null, "item_name": "Apple Seed" },
+    { "item_id": null, "item_name": "Cherry pit" },
+    { "item_id": null, "item_name": "Necklace" },
+
+    { "item_id": null, "item_template": "Ring", "material_var": true, "source_label": "()Ring" },
+    { "item_id": null, "item_template": "Ingot", "material_var": true, "source_label": "()Ingot" },
+    { "item_id": null, "item_template": "Coin", "material_var": true, "source_label": "()Coin" },
+    { "item_id": null, "item_template": "Dagger", "material_var": true, "source_label": "()Dagger" },
+    { "item_id": null, "item_template": "Sword", "material_var": true, "source_label": "()Sword" },
+    { "item_id": null, "item_name": "Shield" },
+    { "item_id": null, "item_name": "Bow" },
+    { "item_id": null, "item_template": "Arrow", "material_var": true, "source_label": "()Arrow" },
+    { "item_id": null, "item_template": "Staff", "material_var": true, "source_label": "()Staff" },
+
+    { "item_id": null, "item_name": "Desire Crystal" },
+    { "item_id": null, "item_name": "Angelic Spear" },
+    { "item_id": null, "item_name": "Angelic Gun" },
+    { "item_id": null, "item_name": "Demonic Irons" }
+  ]
+}
+

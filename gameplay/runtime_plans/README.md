@@ -25,10 +25,61 @@ py scripts/consume_runtime_plan.py gameplay/runtime_plans/breath_realm_rewards_p
 py scripts/consume_runtime_plan.py gameplay/runtime_plans/story_pack_plan.json
 ```
 
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/fate_knocks_day1_plan.json
+```
+
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/fate_knocks_trace_plan.json
+```
+
 Generate a Breath-aware plan from CLI defaults or overrides:
 
 ```powershell
 py scripts/build_breath_runtime_plan.py --output gameplay/runtime_plans/breath_realm_rewards_plan.generated.json
+```
+
+Generate a scene-driven day plan (scene clock advances + hand-coded quests):
+
+```powershell
+py scripts/build_procgen_day_plan.py `
+  --include-byte-table `
+  --include-canon-pack `
+  --days 2 `
+  --scene-cycle gameplay/runtime_plans/day_scene_cycle.default.json `
+  --quest-actions gameplay/runtime_plans/quest_actions_fate_knocks_day1.json `
+  --output gameplay/runtime_plans/day_cycle_plan.generated.json
+```
+
+Optional: inject time-responsive AI/market overlays by scene (kept out of base day template):
+
+```powershell
+py scripts/build_procgen_day_plan.py `
+  --include-byte-table `
+  --include-canon-pack `
+  --days 1 `
+  --scene-cycle gameplay/runtime_plans/day_scene_cycle.default.json `
+  --quest-actions gameplay/runtime_plans/quest_actions_fate_knocks_day1.json `
+  --scene-overlays gameplay/runtime_plans/day_scene_ai_overlay.market.json `
+  --output gameplay/runtime_plans/day_cycle_plan.generated.json
+```
+
+Canonical composed "main" plan (scene clock + hand-coded quests + overlays + renderer sync):
+
+```powershell
+py scripts/build_procgen_day_plan.py --profile main
+```
+
+Consume canonical main plan:
+
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/day_scene_plan.main.generated.json
+```
+
+Consume generated plan:
+
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/day_cycle_plan.generated.json
 ```
 
 Run the canonical story pack and print deterministic hash:
@@ -53,6 +104,11 @@ Supported runtime kinds include world streaming and realm economy catalog access
 - `world.market.sovereignty.transition`
 - `breath.ko.evaluate`
 - `sanity.adjust`
+- `quest.fate_knocks.bootstrap`
+- `quest.fate_knocks.deadline_check`
+- `render.scene.load`
+- `render.scene.tick`
+- `render.scene.reconcile`
 
 Lapidus market metadata is synced to Caravan dominance:
 - `dominant_operator: "lord_nexiott"`

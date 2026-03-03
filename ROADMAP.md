@@ -2,6 +2,11 @@
 
 This roadmap targets a usable, serious dev platform. It is ordered by dependency and risk.
 
+## Renderer Quality Contract (Active)
+- Contract: `docs/RENDERER_QUALITY_CONTRACT.md`
+- Acceptance checklist: `gameplay/contracts/renderer_acceptance_checklist.v1.json`
+- Rule: renderer work is not "done" until all contract gates are marked pass with evidence.
+
 ## Milestone 1: Runtime World Streaming (Sprint 4, ~3 weeks)
 - Region store keyed by `realm_id` + `region_key` with payload hash
 - Load/unload endpoints

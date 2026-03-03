@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import math
 import re
@@ -27,6 +28,7 @@ def _ensure_repo_root_on_path() -> None:
 _ensure_repo_root_on_path()
 
 from qqva.world_stream import WorldStreamController
+from qqva.aster_colors import resolve_aster_color
 
 from .business_schemas import (
     ArtisanBootstrapInput,
@@ -68,6 +70,8 @@ from .business_schemas import (
     LevelApplyOut,
     SkillTrainInput,
     SkillTrainOut,
+    SkillCatalogOut,
+    CANONICAL_GAME_SKILLS,
     PerkUnlockInput,
     PerkUnlockOut,
     AlchemyCraftInput,
@@ -96,12 +100,19 @@ from .business_schemas import (
     GateOperator,
     RuntimeConsumeInput,
     RuntimeConsumeOut,
+    RuntimeActionInput,
     RuntimeActionOut,
     RuntimeReplayInput,
     RuntimeReplayOut,
     RuntimePlanRunOut,
     RuntimeActionCatalogOut,
     RuntimeActionCatalogItemOut,
+    ModuleSpecOut,
+    ModuleCatalogOut,
+    ModuleValidateInput,
+    ModuleValidateOut,
+    ShygazunInterpretInput,
+    ShygazunInterpretOut,
     ShygazunTranslateInput,
     ShygazunTranslateOut,
     ShygazunCorrectInput,
@@ -166,6 +177,10 @@ from .business_schemas import (
     WorldStreamStatusOut,
     RealmCoinOut,
     RealmMarketOut,
+    Numeral3DInput,
+    Numeral3DOut,
+    FibonacciOrderingInput,
+    FibonacciOrderingOut,
     DialogueEmitInput,
     DialogueEmitOut,
     VitriolApplyRulerInfluenceInput,
@@ -195,6 +210,7 @@ from .rendering_schemas import (
 )
 from .kernel_integration import KernelIntegrationService
 from .market_logic import get_realm_coin, get_realm_market, list_realm_coins, list_realm_markets
+from .pygame_worker import PygameWorkerManager, get_pygame_worker_manager
 from .models import (
     ArtisanAccount,
     Booking,
@@ -337,12 +353,14 @@ class AtelierService:
         repo: AtelierRepository | None,
         kernel: KernelIntegrationService,
         world_stream: WorldStreamController | None = None,
+        pygame_worker: PygameWorkerManager | None = None,
     ) -> None:
         self._repo = repo
         self._kernel = kernel
         self._world_stream = world_stream or WorldStreamController(
             max_loaded_regions=self._WORLD_STREAM_MAX_LOADED_REGIONS
         )
+        self._pygame_worker = pygame_worker or get_pygame_worker_manager()
 
     def _require_repo(self) -> AtelierRepository:
         if self._repo is None:
@@ -356,6 +374,733 @@ class AtelierService:
     @staticmethod
     def _canonical_hash(payload: object) -> str:
         return hashlib.sha256(AtelierService._canonical_json(payload).encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _resolve_aster_metadata(meta: dict[str, object]) -> tuple[str | None, str | None]:
+        source = ""
+        aster_colors_obj = meta.get("aster_colors")
+        if isinstance(aster_colors_obj, list):
+            parts = [str(item).strip() for item in aster_colors_obj if str(item).strip() != ""]
+            if parts:
+                source = "+".join(parts)
+        elif isinstance(aster_colors_obj, str) and aster_colors_obj.strip() != "":
+            source = aster_colors_obj.strip()
+        elif "aster_colors" in meta and aster_colors_obj is not None:
+            raise ValueError("invalid_aster_colors_type")
+
+        if source == "":
+            explicit_aster = str(meta.get("aster_color") or "").strip()
+            if explicit_aster != "":
+                source = explicit_aster
+            else:
+                color_text = str(meta.get("color") or "").strip()
+                if color_text.lower().startswith("aster:"):
+                    source = color_text.split(":", 1)[1].strip()
+        if source == "":
+            return None, None
+
+        resolved = resolve_aster_color(source)
+        meta["aster_color"] = resolved["canonical"]
+        meta["rgb"] = resolved["rgb"]
+        meta["color"] = resolved["rgb"]
+        meta["aster_palette_spot"] = resolved["palette_spot"]
+        meta["aster_components"] = list(resolved["components"])
+        return str(resolved["canonical"]), str(resolved["rgb"])
+
+    def _validate_aster_scene_content(self, content: Mapping[str, object]) -> None:
+        nodes_obj = content.get("nodes")
+        if not isinstance(nodes_obj, list):
+            return
+        for node in nodes_obj:
+            if not isinstance(node, dict):
+                continue
+            metadata_obj = node.get("metadata")
+            if not isinstance(metadata_obj, dict):
+                continue
+            self._resolve_aster_metadata(cast(dict[str, object], metadata_obj))
+
+    @staticmethod
+    def _repo_root() -> Path:
+        return Path(__file__).resolve().parents[3]
+
+    def _load_json_file(self, path: Path) -> dict[str, object]:
+        raw = path.read_text(encoding="utf-8")
+        parsed = json.loads(raw)
+        return cast(dict[str, object], parsed) if isinstance(parsed, dict) else {}
+
+    def _load_shygazun_byte_entries(self) -> list[dict[str, object]]:
+        raw_index: object | None = None
+        try:
+            from shygazun.kernel.constants.byte_table import SHYGAZUN_SYMBOL_INDEX  # type: ignore
+
+            raw_index = SHYGAZUN_SYMBOL_INDEX
+        except Exception:
+            module_path = self._repo_root() / "DjinnOS-Shyagzun" / "shygazun" / "kernel" / "constants" / "byte_table.py"
+            if module_path.exists():
+                spec = importlib.util.spec_from_file_location("nested_shygazun_byte_table", str(module_path))
+                if spec is not None and spec.loader is not None:
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    raw_index = getattr(module, "SHYGAZUN_SYMBOL_INDEX", None)
+        if not isinstance(raw_index, dict):
+            raise ValueError("shygazun_symbol_index_unavailable")
+        entries: list[dict[str, object]] = []
+        for symbol_obj, entry_objs in raw_index.items():
+            if not isinstance(entry_objs, (list, tuple)):
+                continue
+            for entry_obj in entry_objs:
+                if not isinstance(entry_obj, dict):
+                    continue
+                decimal = self._int_from_table(entry_obj.get("decimal"), -1)
+                if decimal < 0:
+                    continue
+                symbol = str(entry_obj.get("symbol", symbol_obj)).strip()
+                tongue = str(entry_obj.get("tongue", "")).strip()
+                meaning = str(entry_obj.get("meaning", "")).strip()
+                if symbol == "":
+                    continue
+                entries.append(
+                    {
+                        "decimal": decimal,
+                        "symbol": symbol,
+                        "tongue": tongue,
+                        "meaning": meaning,
+                    }
+                )
+        entries.sort(key=lambda item: (int(item["decimal"]), str(item["symbol"]), str(item["tongue"])))
+        return entries
+
+    def _load_byte_table_into_layers(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+    ) -> dict[str, object]:
+        entries = self._load_shygazun_byte_entries()
+        if self._repo is None:
+            return {
+                "workspace_id": workspace_id,
+                "actor_id": actor_id,
+                "persisted": False,
+                "reason": "repository_unavailable",
+                "entry_count": len(entries),
+                "seeded": {
+                    "layer_nodes_created": 0,
+                    "layer_nodes_skipped": 0,
+                    "layer_edges_created": 0,
+                    "layer_edges_skipped": 0,
+                    "layer_events_created": 0,
+                },
+            }
+        repo = self._require_repo()
+        seeded = {
+            "layer_nodes_created": 0,
+            "layer_nodes_skipped": 0,
+            "layer_edges_created": 0,
+            "layer_edges_skipped": 0,
+            "layer_events_created": 0,
+        }
+        existing_nodes = repo.list_layer_nodes(workspace_id=workspace_id)
+        node_by_key: dict[str, LayerNode] = {row.node_key: row for row in existing_nodes}
+        existing_edges = repo.list_layer_edges(workspace_id=workspace_id)
+        edge_keys = {(row.from_node_id, row.to_node_id, row.edge_kind) for row in existing_edges}
+
+        def _ensure_node(layer_index: int, node_key: str, payload_obj: dict[str, object]) -> LayerNode:
+            row = node_by_key.get(node_key)
+            if row is not None:
+                seeded["layer_nodes_skipped"] += 1
+                return row
+            payload_hash = self._canonical_hash(payload_obj)
+            row = repo.create_layer_node(
+                LayerNode(
+                    workspace_id=workspace_id,
+                    layer_index=layer_index,
+                    node_key=node_key,
+                    payload_json=self._canonical_json(payload_obj),
+                    payload_hash=payload_hash,
+                )
+            )
+            node_by_key[node_key] = row
+            seeded["layer_nodes_created"] += 1
+            repo.create_layer_event(
+                LayerEvent(
+                    workspace_id=workspace_id,
+                    event_kind="content.pack.load_byte_table",
+                    actor_id=actor_id,
+                    node_id=row.id,
+                    edge_id=None,
+                    payload_hash=payload_hash,
+                )
+            )
+            seeded["layer_events_created"] += 1
+            return row
+
+        def _ensure_edge(from_node_id: str, to_node_id: str, edge_kind: str, metadata_obj: dict[str, object]) -> None:
+            edge_key = (from_node_id, to_node_id, edge_kind)
+            if edge_key in edge_keys:
+                seeded["layer_edges_skipped"] += 1
+                return
+            row = repo.create_layer_edge(
+                LayerEdge(
+                    workspace_id=workspace_id,
+                    from_node_id=from_node_id,
+                    to_node_id=to_node_id,
+                    edge_kind=edge_kind,
+                    metadata_json=self._canonical_json(metadata_obj),
+                )
+            )
+            edge_keys.add(edge_key)
+            seeded["layer_edges_created"] += 1
+            repo.create_layer_event(
+                LayerEvent(
+                    workspace_id=workspace_id,
+                    event_kind="content.pack.load_byte_table.edge",
+                    actor_id=actor_id,
+                    node_id=None,
+                    edge_id=row.id,
+                    payload_hash=self._canonical_hash(metadata_obj),
+                )
+            )
+            seeded["layer_events_created"] += 1
+
+        for entry in entries:
+            decimal = int(entry["decimal"])
+            symbol = str(entry["symbol"])
+            tongue = str(entry["tongue"])
+            meaning = str(entry["meaning"])
+            bits = format(max(0, min(255, decimal)), "08b")
+            node_l1 = _ensure_node(
+                1,
+                f"byte_table::byte::{decimal:03d}",
+                {"decimal": decimal, "bits8": bits},
+            )
+            node_l2 = _ensure_node(
+                2,
+                f"byte_table::scalar::{decimal:03d}",
+                {"decimal": decimal, "float": float(decimal)},
+            )
+            node_l3 = _ensure_node(
+                3,
+                f"byte_table::bool::{symbol}::{decimal:03d}",
+                {"has_tongue": tongue != "", "has_meaning": meaning != ""},
+            )
+            node_l10_symbol = _ensure_node(
+                10,
+                f"byte_table::symbol::{symbol}::{decimal:03d}",
+                {"decimal": decimal, "symbol": symbol, "tongue": tongue, "meaning": meaning},
+            )
+            node_l10_tongue = _ensure_node(
+                10,
+                f"byte_table::tongue::{tongue if tongue != '' else 'unknown'}",
+                {"tongue": tongue},
+            )
+            _ensure_edge(node_l1.id, node_l2.id, "classifies", {"from": "byte", "to": "scalar"})
+            _ensure_edge(node_l2.id, node_l10_symbol.id, "maps_to_symbol", {"decimal": decimal, "symbol": symbol})
+            _ensure_edge(node_l3.id, node_l10_symbol.id, "constrains", {"has_meaning": meaning != ""})
+            _ensure_edge(node_l10_symbol.id, node_l10_tongue.id, "belongs_to_tongue", {"tongue": tongue})
+
+        return {
+            "workspace_id": workspace_id,
+            "actor_id": actor_id,
+            "persisted": True,
+            "entry_count": len(entries),
+            "seeded": seeded,
+        }
+
+    def _load_canon_content_pack(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+        workshop_id: str,
+        pack_dir: str = "gameplay/content_packs/canon",
+        apply_to_db: bool = True,
+    ) -> dict[str, object]:
+        base_dir = self._repo_root() / pack_dir
+        manifest_path = base_dir / "manifest.json"
+        if not manifest_path.exists():
+            raise ValueError(f"content_pack_manifest_missing:{manifest_path}")
+        manifest = self._load_json_file(manifest_path)
+        files_obj = manifest.get("files")
+        files = [str(item) for item in files_obj] if isinstance(files_obj, list) else []
+        if len(files) == 0:
+            raise ValueError("content_pack_manifest_files_empty")
+
+        loaded_docs: dict[str, dict[str, object]] = {}
+        for filename in files:
+            path = base_dir / filename
+            if not path.exists():
+                raise ValueError(f"content_pack_file_missing:{path}")
+            loaded_docs[filename] = self._load_json_file(path)
+
+        summary: dict[str, object] = {
+            "pack_dir": str(pack_dir),
+            "manifest": manifest,
+            "loaded_files": sorted(list(loaded_docs.keys())),
+            "apply_to_db": bool(apply_to_db),
+            "seeded": {
+                "characters_created": 0,
+                "characters_skipped": 0,
+                "quests_created": 0,
+                "quests_skipped": 0,
+                "scene_dialogue_staged": 0,
+                "scene_dialogue_skipped": 0,
+                "items_created": 0,
+                "items_skipped": 0,
+                "flags_added": 0,
+                "layer_nodes_created": 0,
+                "layer_nodes_skipped": 0,
+                "layer_events_created": 0,
+            },
+            "counts": {},
+        }
+
+        characters_doc = loaded_docs.get("characters.json", {})
+        quests_doc = loaded_docs.get("quests.json", {})
+        items_doc = loaded_docs.get("items.json", {})
+        flags_doc = loaded_docs.get("flags.json", {})
+        tools_doc = loaded_docs.get("tools.json", {})
+
+        characters = self._list_of_dicts(characters_doc.get("characters"))
+        quests = self._list_of_dicts(quests_doc.get("quests"))
+        items = self._list_of_dicts(items_doc.get("items"))
+        flags = self._list_of_dicts(flags_doc.get("flags"))
+        tools = self._list_of_dicts(tools_doc.get("tools"))
+
+        summary["counts"] = {
+            "characters": len(characters),
+            "quests": len(quests),
+            "items": len(items),
+            "flags": len(flags),
+            "tools": len(tools),
+        }
+
+        if not apply_to_db:
+            return summary
+
+        repo = self._require_repo()
+        seeded = cast(dict[str, int], summary["seeded"])
+
+        existing_chars = self.list_character_dictionary_entries(workspace_id)
+        existing_char_ids = {row.character_id for row in existing_chars}
+        for row in characters:
+            character_id = str(row.get("character_id", "")).strip()
+            name = str(row.get("name", "")).strip()
+            if character_id == "" or name == "":
+                continue
+            if character_id in existing_char_ids:
+                seeded["characters_skipped"] += 1
+                continue
+            self.create_character_dictionary_entry(
+                CharacterDictionaryCreate(
+                    workspace_id=workspace_id,
+                    character_id=character_id,
+                    name=name,
+                    aliases=[],
+                    bio="",
+                    tags=[],
+                    faction=character_id.split("_", 1)[1] if "_" in character_id else "",
+                    metadata={},
+                )
+            )
+            existing_char_ids.add(character_id)
+            seeded["characters_created"] += 1
+
+        existing_quests = self.list_named_quests(workspace_id)
+        existing_quest_ids = {row.quest_id for row in existing_quests}
+        quest_dialogue_rows: list[dict[str, object]] = []
+        for row in quests:
+            quest_id = str(row.get("quest_id", "")).strip()
+            name = str(row.get("name", "")).strip()
+            if quest_id == "" or name == "":
+                continue
+            quest_dialogue_rows.append(
+                {
+                    "quest_id": quest_id,
+                    "scene_id": f"quest/{quest_id.lower()}",
+                    "dialogue_id": f"dlg.{quest_id.lower()}.intro",
+                    "title": name,
+                    "lines": [
+                        {
+                            "speaker": "narrator",
+                            "text": name,
+                        }
+                    ],
+                }
+            )
+            if quest_id in existing_quest_ids:
+                seeded["quests_skipped"] += 1
+                continue
+            self.create_named_quest(
+                NamedQuestCreate(
+                    workspace_id=workspace_id,
+                    quest_id=quest_id,
+                    name=name,
+                    status="inactive",
+                    current_step="",
+                    requirements={},
+                    rewards={},
+                )
+            )
+            existing_quest_ids.add(quest_id)
+            seeded["quests_created"] += 1
+
+        existing_items = self.list_inventory_items(workspace_id)
+        existing_skus = {row.sku for row in existing_items}
+        for row in items:
+            item_id = str(row.get("item_id", "")).strip()
+            item_name = str(row.get("item_name", "")).strip()
+            item_template = str(row.get("item_template", "")).strip()
+            material_var = bool(row.get("material_var", False))
+            effective_name = item_name if item_name != "" else item_template
+            if effective_name == "":
+                continue
+            sku = item_id if item_id != "" else f"canon.item.{self._canonical_hash(row)[:12]}"
+            if sku in existing_skus:
+                seeded["items_skipped"] += 1
+                continue
+            notes = ""
+            if material_var:
+                notes = "material_var=true"
+            if "source_label" in row:
+                source_label = str(row.get("source_label", "")).strip()
+                if source_label != "":
+                    notes = f"{notes};source_label={source_label}".strip(";")
+            repo.create_inventory_item(
+                InventoryItem(
+                    workspace_id=workspace_id,
+                    sku=sku,
+                    name=effective_name,
+                    quantity_on_hand=0,
+                    reorder_level=0,
+                    unit_cost_cents=0,
+                    currency="USD",
+                    supplier_id=None,
+                    notes=notes,
+                )
+            )
+            existing_skus.add(sku)
+            seeded["items_created"] += 1
+
+        state = self.get_player_state(workspace_id=workspace_id, actor_id=actor_id)
+        current_flags = dict(state.tables.flags)
+        added = 0
+        for row in flags:
+            name = str(row.get("name", "")).strip()
+            if name == "":
+                continue
+            key = f"canon.flag.{name.lower().replace(' ', '_')}"
+            if key in current_flags:
+                continue
+            current_flags[key] = False
+            added += 1
+        if added > 0:
+            self.apply_player_state(
+                payload=PlayerStateApplyInput(
+                    workspace_id=workspace_id,
+                    actor_id=actor_id,
+                    mode="merge",
+                    tables=PlayerStateTables(flags=current_flags),
+                ),
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
+        seeded["flags_added"] = added
+
+        # 12-layer lineage projection for canon pack content.
+        layer_map = {
+            "flags.json": 3,       # booleans
+            "items.json": 5,       # entities
+            "tools.json": 5,       # entities/tools
+            "characters.json": 6,  # character histories
+            "quests.json": 9,      # dialogue/story quest surfaces
+            "start_sequence.json": 9,
+            "fate_knocks_quiz.json": 9,
+        }
+        existing_nodes = self.list_layer_nodes(workspace_id=workspace_id)
+        existing_node_keys = {row.node_key for row in existing_nodes}
+        for filename, doc in loaded_docs.items():
+            layer_index = layer_map.get(filename)
+            if layer_index is None:
+                continue
+            key_suffix = filename.replace(".json", "")
+            node_key = f"canon::{key_suffix}"
+            if node_key in existing_node_keys:
+                seeded["layer_nodes_skipped"] += 1
+                continue
+            payload_obj: dict[str, object] = {
+                "pack_id": str(doc.get("pack_id", "")),
+                "schema_version": str(doc.get("schema_version", "")),
+                "filename": filename,
+                "counts": summary.get("counts", {}),
+            }
+            node_hash = self._canonical_hash(payload_obj)
+            node = repo.create_layer_node(
+                LayerNode(
+                    workspace_id=workspace_id,
+                    layer_index=layer_index,
+                    node_key=node_key,
+                    payload_json=self._canonical_json(payload_obj),
+                    payload_hash=node_hash,
+                )
+            )
+            seeded["layer_nodes_created"] += 1
+            existing_node_keys.add(node_key)
+            repo.create_layer_event(
+                LayerEvent(
+                    workspace_id=workspace_id,
+                    event_kind="content.pack.load_canon",
+                    actor_id=actor_id,
+                    node_id=node.id,
+                    edge_id=None,
+                    payload_hash=node_hash,
+                )
+            )
+            seeded["layer_events_created"] += 1
+
+        # Stage per-quest dialogue surfaces in layer 9 for scene dialogue bootstrapping.
+        for dialogue in quest_dialogue_rows:
+            quest_id = str(dialogue.get("quest_id", "")).strip()
+            if quest_id == "":
+                continue
+            dialogue_key = f"canon::dialogue::{quest_id}"
+            if dialogue_key in existing_node_keys:
+                seeded["scene_dialogue_skipped"] += 1
+                continue
+            dialogue_payload = {
+                "quest_id": quest_id,
+                "scene_id": str(dialogue.get("scene_id", "")),
+                "dialogue_id": str(dialogue.get("dialogue_id", "")),
+                "title": str(dialogue.get("title", "")),
+                "lines": dialogue.get("lines", []),
+            }
+            dialogue_hash = self._canonical_hash(dialogue_payload)
+            node = repo.create_layer_node(
+                LayerNode(
+                    workspace_id=workspace_id,
+                    layer_index=9,
+                    node_key=dialogue_key,
+                    payload_json=self._canonical_json(dialogue_payload),
+                    payload_hash=dialogue_hash,
+                )
+            )
+            existing_node_keys.add(dialogue_key)
+            seeded["scene_dialogue_staged"] += 1
+            seeded["layer_nodes_created"] += 1
+            repo.create_layer_event(
+                LayerEvent(
+                    workspace_id=workspace_id,
+                    event_kind="content.pack.dialogue.stage",
+                    actor_id=actor_id,
+                    node_id=node.id,
+                    edge_id=None,
+                    payload_hash=dialogue_hash,
+                )
+            )
+            seeded["layer_events_created"] += 1
+        return summary
+
+    def _bootstrap_fate_knocks(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+        workshop_id: str,
+        payload: Mapping[str, object],
+    ) -> dict[str, object]:
+        player_name = str(payload.get("player_name", "")).strip()
+        player_gender = str(payload.get("player_gender", "")).strip()
+        if player_name == "":
+            raise ValueError("player_name_required")
+        if player_gender == "":
+            raise ValueError("player_gender_required")
+        month = str(payload.get("month", "Shyalz")).strip() or "Shyalz"
+        deadline_hour_local = max(0, min(23, self._int_from_table(payload.get("deadline_hour_local"), 19)))
+        points_budget = max(1, self._int_from_table(payload.get("quiz_points_budget"), 28))
+        quiz_answers_obj = payload.get("quiz_answers")
+        quiz_answers = [self._int_from_table(item, 0) for item in quiz_answers_obj] if isinstance(quiz_answers_obj, list) else []
+        quiz_valid = len(quiz_answers) == 7 and sum(quiz_answers) == points_budget and all(item >= 0 for item in quiz_answers)
+        vitriol_axes = (
+            "vitality",
+            "introspection",
+            "tactility",
+            "reflectivity",
+            "ingenuity",
+            "ostentation",
+            "levity",
+        )
+        vitriol_map = {axis: (quiz_answers[index] if quiz_valid else 0) for index, axis in enumerate(vitriol_axes)}
+        dominant_sorted = sorted(vitriol_map.items(), key=lambda item: (-item[1], item[0]))
+        skill_tags = [item[0] for item in dominant_sorted[:3]]
+
+        if self._repo is None:
+            return {
+                "workspace_id": workspace_id,
+                "actor_id": actor_id,
+                "quest_id": "0001_KLST",
+                "quest_name": "Fate Knocks",
+                "day_index": 1,
+                "month": month,
+                "location": "Azonithia/Wiltoll Street/player_home",
+                "weather": "storm_morning",
+                "castle_report_deadline_hour_local": deadline_hour_local,
+                "stipend_revocation_if_missed": True,
+                "lottery_selected": True,
+                "quiz_points_budget": points_budget,
+                "quiz_answers": quiz_answers,
+                "quiz_valid": quiz_valid,
+                "vitriol": vitriol_map if quiz_valid else {},
+                "skill_tags": skill_tags,
+                "persisted": False,
+                "reason": "repository_unavailable",
+            }
+
+        state = self.get_player_state(workspace_id=workspace_id, actor_id=actor_id)
+        merged_flags = dict(state.tables.flags)
+        merged_flags.update(
+            {
+                "intro.day_index": 1,
+                "intro.quest_id": "0001_KLST",
+                "intro.quest_name": "Fate Knocks",
+                "intro.location": "Azonithia/Wiltoll Street/player_home",
+                "intro.weather": "storm_morning",
+                "intro.month": month,
+                "intro.planet": "Aeralune",
+                "intro.legacy_planet": "Kepler 452B",
+                "intro.courier_service": "Royal Courier Service",
+                "intro.letter_from": "0000_0451",
+                "intro.letter_sender_name": "Alexandria Hypatia",
+                "intro.castle_report_deadline_hour_local": deadline_hour_local,
+                "intro.castle_report_required": True,
+                "intro.castle_report_penalty": "royal_stipend_revoked",
+                "intro.royal_lottery_selected": True,
+                "intro.apprenticeship_role": "high_alchemist_apprentice",
+                "player.name": player_name,
+                "player.gender": player_gender,
+                "player.origin.parent_alchemist_status": "deceased_plague",
+                "player.origin.parent_mother_role": "baker",
+                "intro.quiz_question_count": 7,
+                "intro.quiz_points_budget": points_budget,
+                "intro.quiz_completed": quiz_valid,
+                "skills.tag_primary": skill_tags[0] if len(skill_tags) > 0 else "",
+                "skills.tag_secondary": skill_tags[1] if len(skill_tags) > 1 else "",
+                "skills.tag_tertiary": skill_tags[2] if len(skill_tags) > 2 else "",
+            }
+        )
+        self.apply_player_state(
+            payload=PlayerStateApplyInput(
+                workspace_id=workspace_id,
+                actor_id=actor_id,
+                mode="merge",
+                tables=PlayerStateTables(flags=merged_flags, vitriol=vitriol_map if quiz_valid else {}),
+            ),
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+
+        existing_quests = self.list_named_quests(workspace_id)
+        if "0001_KLST" not in {row.quest_id for row in existing_quests}:
+            self.create_named_quest(
+                NamedQuestCreate(
+                    workspace_id=workspace_id,
+                    quest_id="0001_KLST",
+                    name="Fate Knocks",
+                    status="active",
+                    current_step="intro_wakeup",
+                    requirements={},
+                    rewards={},
+                )
+            )
+
+        return {
+            "workspace_id": workspace_id,
+            "actor_id": actor_id,
+            "quest_id": "0001_KLST",
+            "quest_name": "Fate Knocks",
+            "day_index": 1,
+            "month": month,
+            "location": "Azonithia/Wiltoll Street/player_home",
+            "weather": "storm_morning",
+            "castle_report_deadline_hour_local": deadline_hour_local,
+            "stipend_revocation_if_missed": True,
+            "lottery_selected": True,
+            "quiz_points_budget": points_budget,
+            "quiz_answers": quiz_answers,
+            "quiz_valid": quiz_valid,
+            "vitriol": vitriol_map if quiz_valid else {},
+            "skill_tags": skill_tags,
+        }
+
+    def _fate_knocks_deadline_check(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+        workshop_id: str,
+        payload: Mapping[str, object],
+    ) -> dict[str, object]:
+        if self._repo is None:
+            current_hour = self._int_from_table(payload.get("current_hour_local"), 0)
+            return {
+                "workspace_id": workspace_id,
+                "actor_id": actor_id,
+                "quest_id": "0001_KLST",
+                "current_hour_local": current_hour,
+                "deadline_hour_local": self._int_from_table(payload.get("deadline_hour_local"), 19),
+                "reported_to_castle": False,
+                "triggered": False,
+                "royal_stipend_active": True,
+                "royal_stipend_revoked": False,
+                "deadline_failed": False,
+                "world_decay_index": 0,
+                "persisted": False,
+                "reason": "repository_unavailable",
+            }
+        state = self.get_player_state(workspace_id=workspace_id, actor_id=actor_id)
+        flags = dict(state.tables.flags)
+        quest_id = str(flags.get("intro.quest_id", "0001_KLST"))
+        deadline_hour = self._int_from_table(flags.get("intro.castle_report_deadline_hour_local", 19), 19)
+        current_hour = self._int_from_table(payload.get("current_hour_local"), self._int_from_table(state.tables.clock.get("hour_local"), 0))
+        reported = bool(flags.get("intro.castle_report_completed", False))
+        stipend_revoked = bool(flags.get("intro.royal_stipend_revoked", False))
+        stipend_active = bool(flags.get("intro.royal_stipend_active", True))
+
+        triggered = False
+        if not reported and current_hour >= deadline_hour and not stipend_revoked:
+            stipend_revoked = True
+            stipend_active = False
+            flags["intro.royal_stipend_revoked"] = True
+            flags["intro.royal_stipend_active"] = False
+            flags["intro.deadline_failed"] = True
+            decay_index = self._int_from_table(flags.get("world_decay_index"), 0)
+            flags["world_decay_index"] = decay_index + 1
+            triggered = True
+
+        if triggered:
+            self.apply_player_state(
+                payload=PlayerStateApplyInput(
+                    workspace_id=workspace_id,
+                    actor_id=actor_id,
+                    mode="merge",
+                    tables=PlayerStateTables(flags=flags),
+                ),
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
+
+        return {
+            "workspace_id": workspace_id,
+            "actor_id": actor_id,
+            "quest_id": quest_id,
+            "current_hour_local": current_hour,
+            "deadline_hour_local": deadline_hour,
+            "reported_to_castle": reported,
+            "triggered": triggered,
+            "royal_stipend_active": stipend_active if not triggered else False,
+            "royal_stipend_revoked": stipend_revoked,
+            "deadline_failed": bool(flags.get("intro.deadline_failed", False)),
+            "world_decay_index": self._int_from_table(flags.get("world_decay_index"), 0),
+        }
 
     @staticmethod
     def _clamp_unit(value: object) -> float:
@@ -799,14 +1544,268 @@ class AtelierService:
     def translate_shygazun(self, payload: ShygazunTranslateInput) -> ShygazunTranslateOut:
         out = self._translate_shygazun_runtime(
             {
+                "workspace_id": payload.workspace_id,
+                "actor_id": payload.actor_id,
                 "source_text": payload.source_text,
                 "direction": payload.direction,
             }
         )
+        lineage_nodes, lineage_edges, fn_id, fn_hash, node_refs, nodes_by_layer = self._persist_math_lineage(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            node_payloads=[
+                (
+                    1,
+                    "shygazun.translate.byte_basis",
+                    {
+                        "source_bytes": list(payload.source_text.encode("utf-8")),
+                        "token_count": int(out.get("token_count", 0)),
+                    },
+                ),
+                (
+                    7,
+                    "shygazun.translate.causal_chunk",
+                    {
+                        "direction": str(out.get("direction", payload.direction)),
+                        "resolved_count": int(out.get("resolved_count", 0)),
+                        "unresolved_count": len(cast(list[object], out.get("unresolved", []))),
+                    },
+                ),
+                (
+                    8,
+                    "shygazun.translate.path",
+                    {
+                        "mappings": cast(list[dict[str, object]], out.get("mappings", [])),
+                    },
+                ),
+                (
+                    9,
+                    "shygazun.translate.dialogue",
+                    {
+                        "source_text": str(out.get("source_text", payload.source_text)),
+                        "target_text": str(out.get("target_text", "")),
+                    },
+                ),
+                (
+                    10,
+                    "shygazun.translate.entities",
+                    {
+                        "resolved_targets": [
+                            str(item.get("target", ""))
+                            for item in cast(list[dict[str, object]], out.get("mappings", []))
+                            if bool(item.get("resolved", False))
+                        ],
+                    },
+                ),
+                (
+                    11,
+                    "shygazun.translate.render_constraints",
+                    {
+                        "lexicon_version": str(out.get("lexicon_version", "phase1.v1")),
+                        "confidence": float(out.get("confidence", 0.0)),
+                    },
+                ),
+            ],
+            edge_payloads=[
+                ("derives", 1, 7, {"from_key": "shygazun.translate.byte_basis", "to_key": "shygazun.translate.causal_chunk"}),
+                ("indexes", 7, 8, {"from_key": "shygazun.translate.causal_chunk", "to_key": "shygazun.translate.path"}),
+                ("binds", 8, 9, {"from_key": "shygazun.translate.path", "to_key": "shygazun.translate.dialogue"}),
+                ("names", 9, 10, {"from_key": "shygazun.translate.dialogue", "to_key": "shygazun.translate.entities"}),
+                ("constrains", 10, 11, {"from_key": "shygazun.translate.entities", "to_key": "shygazun.translate.render_constraints"}),
+            ],
+            function_id="shygazun.translate.compute",
+            function_signature="(source_text:str,direction:str)->translation",
+            function_body="deterministic lexical mapping with unresolved passthrough",
+            function_metadata={
+                "workspace_id": payload.workspace_id,
+                "actor_id": payload.actor_id,
+                "direction": payload.direction,
+            },
+        )
+        out.update(
+            {
+                "workspace_id": payload.workspace_id,
+                "actor_id": payload.actor_id,
+                "lineage_node_ids": lineage_nodes,
+                "lineage_edge_ids": lineage_edges,
+                "lineage_node_refs": node_refs,
+                "lineage_nodes_by_layer": nodes_by_layer,
+                "function_store_id": fn_id,
+                "function_hash": fn_hash,
+            }
+        )
         return ShygazunTranslateOut(**out)
 
+    def interpret_shygazun(self, payload: ShygazunInterpretInput) -> ShygazunInterpretOut:
+        out = self._interpret_shygazun_runtime(
+            {
+                "utterance": payload.utterance,
+                "deity": payload.deity,
+                "mode": payload.mode,
+                "explain_mode": payload.explain_mode,
+                "lore_overlay": payload.lore_overlay,
+                "mutate_tokens": payload.mutate_tokens,
+                "kaganue_pressure": payload.kaganue_pressure,
+            }
+        )
+        lineage_nodes, lineage_edges, fn_id, fn_hash, node_refs, nodes_by_layer = self._persist_math_lineage(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            node_payloads=[
+                (
+                    1,
+                    "shygazun.interpret.byte_basis",
+                    {
+                        "utterance_bytes": list(payload.utterance.encode("utf-8")),
+                        "token_count": int(
+                            self._int_from_table(
+                                self._dict_from_table(out.get("semantic_payload")).get("token_count"),
+                                0,
+                            )
+                        ),
+                    },
+                ),
+                (
+                    7,
+                    "shygazun.interpret.causal_chunk",
+                    {
+                        "deity": str(out.get("deity", "")),
+                        "demon": str(out.get("demon", "")),
+                        "mutated_count": int(self._int_from_table(out.get("mutated_count"), 0)),
+                    },
+                ),
+                (
+                    8,
+                    "shygazun.interpret.path",
+                    {
+                        "canonical_tokens": cast(list[object], out.get("canonical_tokens", [])),
+                        "interpreted_tokens": cast(list[object], out.get("interpreted_tokens", [])),
+                    },
+                ),
+                (
+                    9,
+                    "shygazun.interpret.dialogue",
+                    {
+                        "utterance": str(out.get("utterance", "")),
+                    },
+                ),
+                (
+                    11,
+                    "shygazun.interpret.render_constraints",
+                    {
+                        "confusion_index": float(out.get("confusion_index", 0.0)),
+                        "kaganue_pressure": float(out.get("kaganue_pressure", 0.0)),
+                    },
+                ),
+            ],
+            edge_payloads=[
+                ("derives", 1, 7, {"from_key": "shygazun.interpret.byte_basis", "to_key": "shygazun.interpret.causal_chunk"}),
+                ("indexes", 7, 8, {"from_key": "shygazun.interpret.causal_chunk", "to_key": "shygazun.interpret.path"}),
+                ("binds", 8, 9, {"from_key": "shygazun.interpret.path", "to_key": "shygazun.interpret.dialogue"}),
+                ("constrains", 9, 11, {"from_key": "shygazun.interpret.dialogue", "to_key": "shygazun.interpret.render_constraints"}),
+            ],
+            function_id="shygazun.interpret.compute",
+            function_signature="(utterance:str,pressure:float,mode:str)->semantic_payload",
+            function_body="deterministic token interpretation with optional confusion mutation",
+            function_metadata={
+                "workspace_id": payload.workspace_id,
+                "actor_id": payload.actor_id,
+                "mode": payload.mode,
+            },
+        )
+        out.update(
+            {
+                "workspace_id": payload.workspace_id,
+                "actor_id": payload.actor_id,
+                "lineage_node_ids": lineage_nodes,
+                "lineage_edge_ids": lineage_edges,
+                "lineage_node_refs": node_refs,
+                "lineage_nodes_by_layer": nodes_by_layer,
+                "function_store_id": fn_id,
+                "function_hash": fn_hash,
+            }
+        )
+        return ShygazunInterpretOut(**out)
+
     def correct_shygazun(self, payload: ShygazunCorrectInput) -> ShygazunCorrectOut:
-        out = self._correct_shygazun_runtime({"source_text": payload.source_text})
+        out = self._correct_shygazun_runtime(
+            {
+                "workspace_id": payload.workspace_id,
+                "actor_id": payload.actor_id,
+                "source_text": payload.source_text,
+            }
+        )
+        lineage_nodes, lineage_edges, fn_id, fn_hash, node_refs, nodes_by_layer = self._persist_math_lineage(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            node_payloads=[
+                (
+                    1,
+                    "shygazun.correct.byte_basis",
+                    {
+                        "source_bytes": list(payload.source_text.encode("utf-8")),
+                        "token_count": int(out.get("token_count", 0)),
+                    },
+                ),
+                (
+                    7,
+                    "shygazun.correct.causal_chunk",
+                    {
+                        "resolved_count": int(out.get("resolved_count", 0)),
+                        "unresolved_count": len(cast(list[object], out.get("unresolved", []))),
+                        "mode": str(out.get("mode", "canonical_symbol_case_and_segmentation")),
+                    },
+                ),
+                (
+                    8,
+                    "shygazun.correct.path",
+                    {
+                        "corrections": cast(list[dict[str, object]], out.get("corrections", [])),
+                    },
+                ),
+                (
+                    9,
+                    "shygazun.correct.dialogue",
+                    {
+                        "source_text": str(out.get("source_text", payload.source_text)),
+                        "corrected_text": str(out.get("corrected_text", "")),
+                    },
+                ),
+                (
+                    11,
+                    "shygazun.correct.render_constraints",
+                    {
+                        "confidence": float(out.get("confidence", 0.0)),
+                        "mode": str(out.get("mode", "canonical_symbol_case_and_segmentation")),
+                    },
+                ),
+            ],
+            edge_payloads=[
+                ("derives", 1, 7, {"from_key": "shygazun.correct.byte_basis", "to_key": "shygazun.correct.causal_chunk"}),
+                ("indexes", 7, 8, {"from_key": "shygazun.correct.causal_chunk", "to_key": "shygazun.correct.path"}),
+                ("binds", 8, 9, {"from_key": "shygazun.correct.path", "to_key": "shygazun.correct.dialogue"}),
+                ("constrains", 9, 11, {"from_key": "shygazun.correct.dialogue", "to_key": "shygazun.correct.render_constraints"}),
+            ],
+            function_id="shygazun.correct.compute",
+            function_signature="(source_text:str)->canonicalized_text",
+            function_body="deterministic case+segmentation correction against canonical symbol lookup",
+            function_metadata={
+                "workspace_id": payload.workspace_id,
+                "actor_id": payload.actor_id,
+            },
+        )
+        out.update(
+            {
+                "workspace_id": payload.workspace_id,
+                "actor_id": payload.actor_id,
+                "lineage_node_ids": lineage_nodes,
+                "lineage_edge_ids": lineage_edges,
+                "lineage_node_refs": node_refs,
+                "lineage_nodes_by_layer": nodes_by_layer,
+                "function_store_id": fn_id,
+                "function_hash": fn_hash,
+            }
+        )
         return ShygazunCorrectOut(**out)
 
     @staticmethod
@@ -818,6 +1817,147 @@ class AtelierService:
     @staticmethod
     def _list_to_csv(values: Sequence[str]) -> str:
         return ",".join(item.strip() for item in values if item.strip() != "")
+
+    @staticmethod
+    def _repo_root_path() -> Path:
+        return Path(__file__).resolve().parents[3]
+
+    @classmethod
+    def _module_specs_dir(cls) -> Path:
+        return cls._repo_root_path() / "gameplay" / "modules"
+
+    @classmethod
+    def _deep_merge_map(cls, base: Mapping[str, object], override: Mapping[str, object]) -> dict[str, object]:
+        merged = dict(base)
+        for key, value in override.items():
+            if (
+                key in merged
+                and isinstance(merged.get(key), dict)
+                and isinstance(value, dict)
+            ):
+                merged[key] = cls._deep_merge_map(
+                    cast(dict[str, object], merged[key]),
+                    cast(dict[str, object], value),
+                )
+            else:
+                merged[key] = value
+        return merged
+
+    @classmethod
+    def _load_module_spec(cls, module_id: str) -> dict[str, object]:
+        normalized = module_id.strip()
+        if normalized == "":
+            raise ValueError("module_id_required")
+        if not re.fullmatch(r"[A-Za-z0-9._-]+", normalized):
+            raise ValueError("invalid_module_id")
+        spec_path = cls._module_specs_dir() / f"{normalized}.json"
+        if not spec_path.is_file():
+            raise ValueError("module_spec_not_found")
+        parsed = json.loads(spec_path.read_text(encoding="utf-8"))
+        if not isinstance(parsed, dict):
+            raise ValueError("invalid_module_spec")
+        return cast(dict[str, object], parsed)
+
+    @classmethod
+    def _module_spec_to_out(cls, spec: Mapping[str, object]) -> ModuleSpecOut:
+        inputs_obj = spec.get("inputs")
+        inputs = cast(dict[str, object], inputs_obj) if isinstance(inputs_obj, dict) else {}
+        outputs_obj = spec.get("outputs")
+        outputs = cast(dict[str, object], outputs_obj) if isinstance(outputs_obj, dict) else {}
+        execution_obj = spec.get("execution")
+        execution = cast(dict[str, object], execution_obj) if isinstance(execution_obj, dict) else {}
+        required_refs_obj = inputs.get("required_refs")
+        optional_refs_obj = inputs.get("optional_refs")
+        expected_ref_keys_obj = outputs.get("expected_ref_keys")
+        payload_obj = inputs.get("payload")
+        return ModuleSpecOut(
+            module_id=str(spec.get("module_id", "")),
+            module_version=str(spec.get("module_version", "")),
+            purpose=str(spec.get("purpose", "")),
+            runtime_action_kind=str(execution.get("runtime_action_kind", "")),
+            required_refs=[str(item) for item in required_refs_obj] if isinstance(required_refs_obj, list) else [],
+            optional_refs=[str(item) for item in optional_refs_obj] if isinstance(optional_refs_obj, list) else [],
+            expected_ref_keys=[str(item) for item in expected_ref_keys_obj] if isinstance(expected_ref_keys_obj, list) else [],
+            payload=cast(dict[str, object], payload_obj) if isinstance(payload_obj, dict) else {},
+        )
+
+    def _validate_module_spec_dict(self, spec: Mapping[str, object]) -> ModuleValidateOut:
+        errors: list[str] = []
+        warnings: list[str] = []
+        module_id = str(spec.get("module_id", "")).strip()
+        module_version = str(spec.get("module_version", "")).strip()
+        if module_id == "":
+            errors.append("module_id_required")
+        elif not re.fullmatch(r"[A-Za-z0-9._-]+", module_id):
+            errors.append("invalid_module_id")
+        if module_version == "":
+            errors.append("module_version_required")
+
+        execution_obj = spec.get("execution")
+        execution = cast(dict[str, object], execution_obj) if isinstance(execution_obj, dict) else {}
+        runtime_action_kind = str(execution.get("runtime_action_kind", "")).strip()
+        if runtime_action_kind == "":
+            errors.append("runtime_action_kind_required")
+        elif runtime_action_kind == "module.run":
+            errors.append("module_run_recursion_disallowed")
+        else:
+            valid_kinds = {item.kind for item in self.runtime_action_catalog().actions}
+            if runtime_action_kind not in valid_kinds:
+                errors.append("unsupported_runtime_action_kind")
+
+        inputs_obj = spec.get("inputs")
+        inputs = cast(dict[str, object], inputs_obj) if isinstance(inputs_obj, dict) else {}
+        payload_obj = inputs.get("payload")
+        if not isinstance(payload_obj, dict):
+            errors.append("inputs.payload_required")
+
+        outputs_obj = spec.get("outputs")
+        outputs = cast(dict[str, object], outputs_obj) if isinstance(outputs_obj, dict) else {}
+        expected_ref_keys_obj = outputs.get("expected_ref_keys")
+        if expected_ref_keys_obj is not None and not isinstance(expected_ref_keys_obj, list):
+            errors.append("outputs.expected_ref_keys_must_be_list")
+        if isinstance(expected_ref_keys_obj, list):
+            for item in expected_ref_keys_obj:
+                ref = str(item).strip()
+                if not re.fullmatch(r"L\d+:[A-Za-z0-9._-]+", ref):
+                    errors.append(f"invalid_expected_ref_key:{ref}")
+        if isinstance(expected_ref_keys_obj, list) and len(expected_ref_keys_obj) == 0:
+            warnings.append("expected_ref_keys_empty")
+
+        return ModuleValidateOut(
+            ok=len(errors) == 0,
+            module_id=module_id,
+            module_version=module_version,
+            runtime_action_kind=runtime_action_kind,
+            errors=sorted(set(errors)),
+            warnings=sorted(set(warnings)),
+        )
+
+    def list_module_specs(self) -> ModuleCatalogOut:
+        specs_dir = self._module_specs_dir()
+        modules: list[ModuleSpecOut] = []
+        if specs_dir.is_dir():
+            for path in sorted(specs_dir.glob("*.json")):
+                try:
+                    parsed = json.loads(path.read_text(encoding="utf-8"))
+                    if isinstance(parsed, dict):
+                        modules.append(self._module_spec_to_out(cast(dict[str, object], parsed)))
+                except Exception:
+                    continue
+        modules.sort(key=lambda item: item.module_id)
+        return ModuleCatalogOut(module_count=len(modules), modules=modules)
+
+    def get_module_spec(self, module_id: str) -> ModuleSpecOut:
+        spec = self._load_module_spec(module_id)
+        return self._module_spec_to_out(spec)
+
+    def validate_module_spec(self, payload: ModuleValidateInput) -> ModuleValidateOut:
+        if payload.spec is not None:
+            return self._validate_module_spec_dict(payload.spec)
+        if payload.module_id is None:
+            raise ValueError("module_id_or_spec_required")
+        spec = self._load_module_spec(payload.module_id)
+        return self._validate_module_spec_dict(spec)
 
     @staticmethod
     def _json_to_object_map(value: str) -> dict[str, object]:
@@ -1418,7 +2558,8 @@ class AtelierService:
                 return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
             if kind == "skills.train":
                 ranks = self._dict_from_table(tables.skills.get("ranks"))
-                skill_id = str(payload.get("skill_id") or "")
+                skill_id = self._canonical_skill_id(str(payload.get("skill_id") or ""))
+                payload["skill_id"] = skill_id
                 payload.setdefault("current_rank", self._int_from_table(ranks.get(skill_id, 0), 0))
                 payload.setdefault("points_available", self._int_from_table(tables.skills.get("points_available"), 0))
                 skill_payload = SkillTrainInput.model_validate(payload)
@@ -1428,7 +2569,7 @@ class AtelierService:
                     workshop_id=workshop_id,
                     emit_kernel=False,
                 )
-                ranks[skill_payload.skill_id] = result.rank_after
+                ranks[result.skill_id] = result.rank_after
                 skills = dict(tables.skills)
                 skills["ranks"] = ranks
                 skills["points_available"] = result.points_remaining
@@ -1640,6 +2781,20 @@ class AtelierService:
                 flags[key] = value
                 updated_tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
                 return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload={"key": key, "value": value})
+            if kind == "math.numeral_3d":
+                numeral_payload = Numeral3DInput.model_validate(payload)
+                result = self.compute_numeral_3d(payload=numeral_payload, actor_id=actor_id)
+                flags = dict(tables.flags)
+                flags["math_numeral_3d"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
+            if kind == "math.fibonacci_ordering":
+                fib_payload = FibonacciOrderingInput.model_validate(payload)
+                result = self.compute_fibonacci_ordering(payload=fib_payload, actor_id=actor_id)
+                flags = dict(tables.flags)
+                flags["math_fibonacci_ordering"] = result.model_dump()
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
+                return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
         except Exception as exc:
             return tables, GameTickEventResult(kind=event.kind, ok=False, detail=str(exc), payload=dict(payload))
         return tables, GameTickEventResult(kind=event.kind, ok=False, detail="unsupported_event", payload=dict(payload))
@@ -1853,6 +3008,7 @@ class AtelierService:
         workshop_id: str,
         emit_kernel: bool = True,
     ) -> SkillTrainOut:
+        skill_id = self._canonical_skill_id(payload.skill_id)
         rank_before = max(0, payload.current_rank)
         points = max(0, payload.points_available)
         max_rank = max(1, payload.max_rank)
@@ -1861,7 +3017,7 @@ class AtelierService:
         points_after = points - 1 if trained else points
         result = SkillTrainOut(
             actor_id=payload.actor_id,
-            skill_id=payload.skill_id,
+            skill_id=skill_id,
             rank_before=rank_before,
             rank_after=rank_after,
             points_remaining=points_after,
@@ -1869,7 +3025,7 @@ class AtelierService:
         )
         if emit_kernel:
             self._kernel.place(
-                raw=f"game.skill.train {payload.actor_id} {payload.skill_id}",
+                raw=f"game.skill.train {payload.actor_id} {skill_id}",
                 context={
                     "workspace_id": payload.workspace_id,
                     "rule": "skill_train",
@@ -3456,6 +4612,139 @@ class AtelierService:
             return 0
         return int.from_bytes(encoded, byteorder="big", signed=False)
 
+    @staticmethod
+    def _is_prime(value: int) -> bool:
+        n = int(value)
+        if n < 2:
+            return False
+        if n in (2, 3):
+            return True
+        if n % 2 == 0 or n % 3 == 0:
+            return False
+        i = 5
+        while i * i <= n:
+            if n % i == 0 or n % (i + 2) == 0:
+                return False
+            i += 6
+        return True
+
+    @staticmethod
+    def _fibonacci_sequence(count: int) -> list[int]:
+        n = max(0, int(count))
+        if n == 0:
+            return []
+        seq = [1, 1]
+        while len(seq) < n:
+            seq.append(seq[-1] + seq[-2])
+        return seq[:n]
+
+    def _persist_math_lineage(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+        node_payloads: Sequence[tuple[int, str, dict[str, object]]],
+        edge_payloads: Sequence[tuple[str, int, int, dict[str, object]]],
+        function_id: str,
+        function_signature: str,
+        function_body: str,
+        function_metadata: dict[str, object],
+    ) -> tuple[list[str], list[str], str | None, str | None, dict[str, str], dict[int, list[str]]]:
+        if self._repo is None:
+            return [], [], None, None, {}, {}
+        function_hash = self._canonical_hash(
+            {
+                "workspace_id": workspace_id,
+                "function_id": function_id,
+                "version": "v1",
+                "signature": function_signature,
+                "body": function_body,
+                "metadata": function_metadata,
+            }
+        )
+        function_node_key = f"function.{function_id}"
+        effective_nodes = list(node_payloads)
+        effective_nodes.append(
+            (
+                12,
+                function_node_key,
+                {
+                    "function_id": function_id,
+                    "version": "v1",
+                    "signature": function_signature,
+                    "function_hash": function_hash,
+                },
+            )
+        )
+        effective_edges = list(edge_payloads)
+        if effective_nodes:
+            non_function_nodes = [node for node in effective_nodes if not (node[0] == 12 and node[1] == function_node_key)]
+            if non_function_nodes:
+                terminal_layer, terminal_key, _ = max(non_function_nodes, key=lambda row: row[0])
+                effective_edges.append(
+                    (
+                        "resolved_by",
+                        terminal_layer,
+                        12,
+                        {"from_key": terminal_key, "to_key": function_node_key, "function_id": function_id},
+                    )
+                )
+        created_nodes: list[LayerNodeOut] = []
+        for layer_index, node_key, payload in effective_nodes:
+            created_nodes.append(
+                self.create_layer_node(
+                    payload=LayerNodeCreate(
+                        workspace_id=workspace_id,
+                        layer_index=layer_index,
+                        node_key=node_key,
+                        payload=payload,
+                    ),
+                    actor_id=actor_id,
+                )
+            )
+        node_lookup: dict[tuple[int, str], str] = {
+            (node.layer_index, node.node_key): node.id for node in created_nodes
+        }
+        created_edges: list[LayerEdgeOut] = []
+        for edge_kind, from_layer, to_layer, metadata in effective_edges:
+            from_key = str(metadata.get("from_key") or "")
+            to_key = str(metadata.get("to_key") or "")
+            from_node_id = node_lookup.get((from_layer, from_key))
+            to_node_id = node_lookup.get((to_layer, to_key))
+            if from_node_id is None or to_node_id is None:
+                continue
+            created_edges.append(
+                self.create_layer_edge(
+                    payload=LayerEdgeCreate(
+                        workspace_id=workspace_id,
+                        from_node_id=from_node_id,
+                        to_node_id=to_node_id,
+                        edge_kind=edge_kind,
+                        metadata=metadata,
+                    ),
+                    actor_id=actor_id,
+                )
+            )
+        node_refs: dict[str, str] = {}
+        nodes_by_layer: dict[int, list[str]] = {}
+        for node in created_nodes:
+            node_refs[f"L{node.layer_index}:{node.node_key}"] = node.id
+            nodes_by_layer.setdefault(node.layer_index, []).append(node.id)
+        for layer, values in nodes_by_layer.items():
+            values.sort()
+        fn = self.create_function_store_entry(
+            payload=FunctionStoreCreate(
+                workspace_id=workspace_id,
+                function_id=function_id,
+                version="v1",
+                signature=function_signature,
+                body=function_body,
+                metadata=function_metadata,
+            ),
+            actor_id=actor_id,
+        )
+        return [node.id for node in created_nodes], [edge.id for edge in created_edges], fn.id, fn.function_hash, node_refs, nodes_by_layer
+
     @classmethod
     def _level_from_tables(cls, tables: PlayerStateTables) -> int:
         levels = cls._dict_from_table(tables.levels)
@@ -3484,6 +4773,141 @@ class AtelierService:
         kills = _first_int(("kills", "kill_count", "defeats", "k"))
         deaths = _first_int(("deaths", "death_count", "d"))
         return max(0, kills or 0), max(0, deaths or 0)
+
+    def compute_numeral_3d(
+        self,
+        *,
+        payload: Numeral3DInput,
+        actor_id: str,
+    ) -> Numeral3DOut:
+        ring_base = max(2, min(64, int(payload.ring_base)))
+        x = int(payload.x)
+        y = int(payload.y)
+        z = int(payload.z)
+        dx = x % ring_base
+        dy = y % ring_base
+        dz = z % ring_base
+        scalar_index = dx + (dy * ring_base) + (dz * ring_base * ring_base)
+        octant = (
+            ("P" if x >= 0 else "N")
+            + ("P" if y >= 0 else "N")
+            + ("P" if z >= 0 else "N")
+        )
+        magnitude = round(math.sqrt((x * x) + (y * y) + (z * z)), 6)
+        lineage_nodes, lineage_edges, fn_id, fn_hash, node_refs, nodes_by_layer = self._persist_math_lineage(
+            workspace_id=payload.workspace_id,
+            actor_id=actor_id,
+            node_payloads=[
+                (1, "numeral.bitgrid", {"bits": {"x": format(dx, "b"), "y": format(dy, "b"), "z": format(dz, "b")}, "ring_base": ring_base}),
+                (2, "numeral.scalar", {"scalar_index": scalar_index, "ring_base": ring_base}),
+                (3, "numeral.polarity", {"x_positive": x >= 0, "y_positive": y >= 0, "z_positive": z >= 0}),
+                (4, "numeral.vector", {"x": x, "y": y, "z": z, "octant": octant, "magnitude": magnitude}),
+                (7, "numeral.causal_chunk", {"operation": "vector_to_scalar_projection", "ring_base": ring_base}),
+                (8, "numeral.path", {"digits": {"x": dx, "y": dy, "z": dz}, "ordering": "axis_lexicographic"}),
+                (11, "numeral.render_constraints", {"projection": "2.5d_or_3d", "depth_hint": dz, "octant": octant}),
+            ],
+            edge_payloads=[
+                ("derives", 1, 2, {"from_key": "numeral.bitgrid", "to_key": "numeral.scalar"}),
+                ("classifies", 2, 3, {"from_key": "numeral.scalar", "to_key": "numeral.polarity"}),
+                ("derives", 4, 2, {"from_key": "numeral.vector", "to_key": "numeral.scalar"}),
+                ("coordinates", 3, 4, {"from_key": "numeral.polarity", "to_key": "numeral.vector"}),
+                ("chunks", 4, 7, {"from_key": "numeral.vector", "to_key": "numeral.causal_chunk"}),
+                ("indexes", 7, 8, {"from_key": "numeral.causal_chunk", "to_key": "numeral.path"}),
+                ("constrains", 8, 11, {"from_key": "numeral.path", "to_key": "numeral.render_constraints"}),
+            ],
+            function_id="math.numeral_3d.compute",
+            function_signature="(x:int,y:int,z:int,ring_base:int)->numeral3d",
+            function_body="scalar_index = (x%base) + (y%base)*base + (z%base)*base^2",
+            function_metadata={
+                "ring_base": ring_base,
+                "workspace_id": payload.workspace_id,
+                "actor_id": payload.actor_id,
+            },
+        )
+        return Numeral3DOut(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            ring_base=ring_base,
+            vector={"x": x, "y": y, "z": z},
+            digits={"x": dx, "y": dy, "z": dz},
+            scalar_index=scalar_index,
+            octant=octant,
+            magnitude=magnitude,
+            lineage_node_ids=lineage_nodes,
+            lineage_edge_ids=lineage_edges,
+            lineage_node_refs=node_refs,
+            lineage_nodes_by_layer=nodes_by_layer,
+            function_store_id=fn_id,
+            function_hash=fn_hash,
+        )
+
+    def compute_fibonacci_ordering(
+        self,
+        *,
+        payload: FibonacciOrderingInput,
+        actor_id: str,
+    ) -> FibonacciOrderingOut:
+        ring_base = max(2, min(64, int(payload.ring_base)))
+        raw_items = [str(item).strip() for item in payload.item_ids]
+        items = [item for item in raw_items if item != ""]
+        if not items:
+            raise ValueError("item_ids_required")
+        canonical_items = sorted(set(items))
+        fib = self._fibonacci_sequence(len(canonical_items))
+        weighted: list[tuple[str, int, int]] = []
+        for index, item_id in enumerate(canonical_items):
+            weight = fib[index]
+            if payload.prioritize_primes and self._is_prime(index + 2):
+                weight += ring_base
+            weighted.append((item_id, weight, index))
+        weighted.sort(key=lambda row: (-row[1], row[0], row[2]))
+        ordered_item_ids = [row[0] for row in weighted]
+        rank_map = {item_id: rank for rank, item_id in enumerate(ordered_item_ids)}
+        lineage_nodes, lineage_edges, fn_id, fn_hash, node_refs, nodes_by_layer = self._persist_math_lineage(
+            workspace_id=payload.workspace_id,
+            actor_id=actor_id,
+            node_payloads=[
+                (1, "fibonacci.bitgrid", {"weights_binary": [format(value, "b") for value in fib], "count": len(fib)}),
+                (2, "fibonacci.scalars", {"weights": fib, "ring_base": ring_base}),
+                (3, "fibonacci.prime_flags", {"prime_index_flags": [self._is_prime(index + 2) for index, _ in enumerate(canonical_items)]}),
+                (7, "fibonacci.causal_chunk", {"operation": "rank_weighting", "prioritize_primes": bool(payload.prioritize_primes)}),
+                (8, "fibonacci.order", {"ordered_item_ids": ordered_item_ids, "rank_map": rank_map}),
+                (10, "fibonacci.items", {"item_ids": canonical_items}),
+                (11, "fibonacci.render_constraints", {"ordering_channel": "scenegraph_priority", "priority_count": len(ordered_item_ids)}),
+            ],
+            edge_payloads=[
+                ("derives", 1, 2, {"from_key": "fibonacci.bitgrid", "to_key": "fibonacci.scalars"}),
+                ("classifies", 2, 3, {"from_key": "fibonacci.scalars", "to_key": "fibonacci.prime_flags"}),
+                ("chunks", 3, 7, {"from_key": "fibonacci.prime_flags", "to_key": "fibonacci.causal_chunk"}),
+                ("weights", 2, 8, {"from_key": "fibonacci.scalars", "to_key": "fibonacci.order"}),
+                ("indexes", 10, 8, {"from_key": "fibonacci.items", "to_key": "fibonacci.order"}),
+                ("constrains", 8, 11, {"from_key": "fibonacci.order", "to_key": "fibonacci.render_constraints"}),
+            ],
+            function_id="math.fibonacci_ordering.compute",
+            function_signature="(item_ids:list[str],ring_base:int,prioritize_primes:bool)->ordering",
+            function_body="weight(i)=fib(i)+base if prime-index boost enabled",
+            function_metadata={
+                "ring_base": ring_base,
+                "prioritize_primes": bool(payload.prioritize_primes),
+                "workspace_id": payload.workspace_id,
+                "actor_id": payload.actor_id,
+            },
+        )
+        return FibonacciOrderingOut(
+            workspace_id=payload.workspace_id,
+            actor_id=payload.actor_id,
+            ring_base=ring_base,
+            item_ids=canonical_items,
+            ordered_item_ids=ordered_item_ids,
+            fibonacci_weights=fib,
+            rank_map=rank_map,
+            lineage_node_ids=lineage_nodes,
+            lineage_edge_ids=lineage_edges,
+            lineage_node_refs=node_refs,
+            lineage_nodes_by_layer=nodes_by_layer,
+            function_store_id=fn_id,
+            function_hash=fn_hash,
+        )
 
     @staticmethod
     def _chaos_from_kd(*, kills: int, deaths: int) -> tuple[int, int]:
@@ -4501,6 +5925,53 @@ class AtelierService:
                 example_payload={"fae_kind": "undines", "social_class": "townsfolk", "realm_bindings": ["mercurie"]},
             ),
             RuntimeActionCatalogItemOut(
+                kind="quest.advance_by_graph",
+                summary="Advance quest deterministically using latest or specified quest graph.",
+                payload_fields={
+                    "workspace_id": "str",
+                    "actor_id": "str",
+                    "quest_id": "str",
+                    "from_step_id": "str|optional",
+                    "graph_version": "str|optional",
+                    "dry_run": "bool|optional",
+                },
+                example_payload={
+                    "workspace_id": "main",
+                    "actor_id": "player",
+                    "quest_id": "main_story",
+                    "from_step_id": "intro",
+                    "dry_run": False,
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="quest.fate_knocks.bootstrap",
+                summary="Bootstrap Day 1 opening for Fate Knocks including quiz budget/VITRIOL mapping and Castle Azoth deadline.",
+                payload_fields={
+                    "player_name": "str",
+                    "player_gender": "str",
+                    "month": "str|optional (default Shyalz)",
+                    "deadline_hour_local": "int|optional (default 19)",
+                    "quiz_points_budget": "int|optional (default 28)",
+                    "quiz_answers": "list[int]|optional (len 7, sum == budget)",
+                },
+                example_payload={
+                    "player_name": "Kael",
+                    "player_gender": "nonbinary",
+                    "month": "Shyalz",
+                    "deadline_hour_local": 19,
+                    "quiz_points_budget": 28,
+                    "quiz_answers": [4, 4, 4, 4, 4, 4, 4],
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="quest.fate_knocks.deadline_check",
+                summary="Evaluate Castle Azoth report deadline and revoke stipend if missed.",
+                payload_fields={
+                    "current_hour_local": "int|optional (falls back to player clock hour_local)",
+                },
+                example_payload={"current_hour_local": 20},
+            ),
+            RuntimeActionCatalogItemOut(
                 kind="shygazun.interpret",
                 summary="Interpret Shygazun text under Jabiru with deterministic Kaganue confusion pressure.",
                 payload_fields={
@@ -4541,6 +6012,37 @@ class AtelierService:
                 },
                 example_payload={
                     "source_text": "tykowuvu aely ta zo",
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="math.numeral_3d",
+                summary="Compute base-ring 3D numeral projection and lineage references.",
+                payload_fields={
+                    "workspace_id": "str",
+                    "actor_id": "str",
+                    "x": "int",
+                    "y": "int",
+                    "z": "int",
+                    "ring_base": "int|optional (default 12)",
+                },
+                example_payload={"workspace_id": "main", "actor_id": "player", "x": 3, "y": 5, "z": 2, "ring_base": 12},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="math.fibonacci_ordering",
+                summary="Compute deterministic Fibonacci ordering with optional prime-index boost.",
+                payload_fields={
+                    "workspace_id": "str",
+                    "actor_id": "str",
+                    "item_ids": "list[str]",
+                    "ring_base": "int|optional (default 12)",
+                    "prioritize_primes": "bool|optional",
+                },
+                example_payload={
+                    "workspace_id": "main",
+                    "actor_id": "player",
+                    "item_ids": ["market", "alchemy", "combat", "dialogue"],
+                    "ring_base": 12,
+                    "prioritize_primes": True,
                 },
             ),
             RuntimeActionCatalogItemOut(
@@ -4601,8 +6103,18 @@ class AtelierService:
             RuntimeActionCatalogItemOut(
                 kind="render.scene.tick",
                 summary="Advance renderer runtime tick and apply deterministic entity updates.",
-                payload_fields={"dt": "int|optional", "updates": "list[dict]|optional"},
-                example_payload={"dt": 1, "updates": [{"scene_id": "lapidus/player_home", "entity_id": "npc_1", "x": 5, "y": 2}]},
+                payload_fields={
+                    "dt": "int|optional",
+                    "updates": "list[dict]|optional",
+                    "enqueue_pygame": "bool|optional",
+                    "pygame_command_kind": "str|optional",
+                },
+                example_payload={
+                    "dt": 1,
+                    "updates": [{"scene_id": "lapidus/player_home", "entity_id": "npc_1", "x": 5, "y": 2}],
+                    "enqueue_pygame": True,
+                    "pygame_command_kind": "render_scene_tick_delta",
+                },
             ),
             RuntimeActionCatalogItemOut(
                 kind="render.scene.unload",
@@ -4617,6 +6129,67 @@ class AtelierService:
                 requires_realm=True,
                 payload_fields={"realm_id": "str", "scene_id": "str", "scene_content": "dict|optional", "apply": "bool|optional"},
                 example_payload={"realm_id": "lapidus", "scene_id": "lapidus/player_home", "apply": True},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="pygame.worker.enqueue",
+                summary="Enqueue a command for the isolated pygame worker manager.",
+                payload_fields={
+                    "command_kind": "str|optional (default runtime_action.forward)",
+                    "runtime_action_kind": "str",
+                    "payload": "dict|optional",
+                },
+                example_payload={
+                    "command_kind": "runtime_action.forward",
+                    "runtime_action_kind": "audio.cue.play",
+                    "payload": {"cue_id": "sfx_door_open", "channel": "sfx"},
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="pygame.worker.status",
+                summary="Return queue/availability status for the isolated pygame worker manager.",
+                payload_fields={},
+                example_payload={},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="pygame.worker.dequeue",
+                summary="Dequeue one or more pending commands from the isolated pygame worker manager.",
+                payload_fields={
+                    "max_items": "int|optional (default 1, max 256)",
+                },
+                example_payload={"max_items": 16},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="content.pack.load_canon",
+                summary="Load canonical content pack files and hydrate DB/player-state defaults deterministically.",
+                payload_fields={
+                    "pack_dir": "str|optional (default gameplay/content_packs/canon)",
+                    "apply_to_db": "bool|optional (default true)",
+                    "actor_id": "str|optional (defaults runtime actor_id)",
+                },
+                example_payload={
+                    "pack_dir": "gameplay/content_packs/canon",
+                    "apply_to_db": True,
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="content.pack.load_byte_table",
+                summary="Materialize full Shygazun byte table into 12-layer lineage nodes/edges.",
+                payload_fields={},
+                example_payload={},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="module.run",
+                summary="Run a module spec from gameplay/modules and enforce expected lineage refs.",
+                payload_fields={
+                    "module_id": "str",
+                    "module_version": "str|optional",
+                    "payload_overrides": "dict|optional",
+                },
+                example_payload={
+                    "module_id": "module.shygazun.interpret",
+                    "module_version": "v1",
+                    "payload_overrides": {"kaganue_pressure": 0.15},
+                },
             ),
         ]
         return RuntimeActionCatalogOut(action_count=len(actions), actions=actions)
@@ -4752,6 +6325,7 @@ class AtelierService:
                 y = float(node.get("y") or 0.0)
                 metadata_obj = node.get("metadata")
                 metadata = cast(dict[str, object], metadata_obj) if isinstance(metadata_obj, dict) else {}
+                self._resolve_aster_metadata(metadata)
                 z = self._int_from_table(metadata.get("z"), 0)
                 placement_id = str(metadata.get("placement_id") or f"{scene_id}:{node_id}")
                 out.append(
@@ -4840,7 +6414,11 @@ class AtelierService:
                     return _render_identity(_render_scene_key(realm_id, scene_id), entity_id)
             return None
 
-        def _render_scene_tick(action_payload: Mapping[str, object]) -> dict[str, object]:
+        def _render_scene_tick(
+            action_payload: Mapping[str, object],
+            *,
+            action_id: str,
+        ) -> dict[str, object]:
             loaded_scenes, entities, placement_index, tick_val = _render_state_maps()
             dt = max(0, self._int_from_table(action_payload.get("dt"), 1))
             next_tick = tick_val + dt
@@ -4858,6 +6436,7 @@ class AtelierService:
             )
             applied = 0
             removed = 0
+            pygame_ops: list[dict[str, object]] = []
             for raw_item in normalized_updates:
                 update = cast(dict[str, object], raw_item)
                 identity = _resolve_runtime_identity(update)
@@ -4870,6 +6449,18 @@ class AtelierService:
                     placement_id = str(entity.get("placement_id", "")).strip()
                     if placement_id != "":
                         placement_index.pop(placement_id, None)
+                    pygame_ops.append(
+                        {
+                            "op": "remove",
+                            "identity": identity,
+                            "placement_id": placement_id,
+                            "scene_key": str(entity.get("scene_key", "")),
+                            "entity_id": str(entity.get("entity_id", "")),
+                            "realm_id": str(entity.get("realm_id", "")),
+                            "scene_id": str(entity.get("scene_id", "")),
+                            "tick": next_tick,
+                        }
+                    )
                     entities.pop(identity, None)
                     scene_key = str(entity.get("scene_key", ""))
                     scene_row = loaded_scenes.get(scene_key)
@@ -4890,18 +6481,56 @@ class AtelierService:
                 if "metadata" in update and isinstance(update.get("metadata"), dict):
                     merged_meta = dict(cast(dict[str, object], entity.get("metadata", {})))
                     merged_meta.update(cast(dict[str, object], update.get("metadata")))
+                    self._resolve_aster_metadata(merged_meta)
                     entity["metadata"] = merged_meta
                 scene_key = str(entity.get("scene_key", ""))
                 scene_row = loaded_scenes.get(scene_key)
                 if isinstance(scene_row, dict):
                     scene_row["last_tick"] = next_tick
+                pygame_ops.append(
+                    {
+                        "op": "move",
+                        "identity": identity,
+                        "placement_id": str(entity.get("placement_id", "")),
+                        "scene_key": scene_key,
+                        "entity_id": str(entity.get("entity_id", "")),
+                        "realm_id": str(entity.get("realm_id", "")),
+                        "scene_id": str(entity.get("scene_id", "")),
+                        "kind": str(entity.get("kind", "entity")),
+                        "x": float(entity.get("x", 0.0)),
+                        "y": float(entity.get("y", 0.0)),
+                        "z": int(entity.get("z", 0)),
+                        "metadata": dict(cast(dict[str, object], entity.get("metadata", {}))),
+                        "tick": next_tick,
+                    }
+                )
                 applied += 1
+            enqueue_pygame = bool(action_payload.get("enqueue_pygame", False))
+            pygame_enqueue: dict[str, object] | None = None
+            if enqueue_pygame:
+                command_kind = str(action_payload.get("pygame_command_kind", "render_scene_tick_delta")).strip().lower()
+                if command_kind == "":
+                    command_kind = "render_scene_tick_delta"
+                pygame_enqueue = self._pygame_worker.enqueue(
+                    workspace_id=payload.workspace_id,
+                    actor_id=payload.actor_id,
+                    action_id=action_id,
+                    command_kind=command_kind,
+                    runtime_action_kind="render.scene.tick",
+                    payload={
+                        "tick_before": tick_val,
+                        "tick_after": next_tick,
+                        "ops": pygame_ops,
+                    },
+                )
             return {
                 "workspace_id": payload.workspace_id,
                 "tick_before": tick_val,
                 "tick_after": next_tick,
                 "applied_updates": applied,
                 "removed_entities": removed,
+                "pygame_delta_ops": pygame_ops,
+                "pygame_enqueue": pygame_enqueue,
                 "renderer_state": _render_summary(),
             }
 
@@ -5736,12 +7365,71 @@ class AtelierService:
                         "actor_id": actor_key,
                         **normalized,
                     }
+                elif action.kind == "quest.advance_by_graph":
+                    normalized_payload = dict(action_payload)
+                    normalized_payload.setdefault("workspace_id", payload.workspace_id)
+                    normalized_payload.setdefault("actor_id", payload.actor_id)
+                    dry_run = bool(normalized_payload.pop("dry_run", False))
+                    quest_payload = QuestAdvanceByGraphInput.model_validate(normalized_payload)
+                    if dry_run:
+                        result = self.advance_quest_step_by_graph_dry_run(payload=quest_payload).model_dump()
+                    else:
+                        result = self.advance_quest_step_by_graph(
+                            payload=quest_payload,
+                            actor_id=actor_id,
+                            workshop_id=workshop_id,
+                        ).model_dump()
+                elif action.kind == "quest.fate_knocks.bootstrap":
+                    result = self._bootstrap_fate_knocks(
+                        workspace_id=payload.workspace_id,
+                        actor_id=payload.actor_id,
+                        workshop_id=workshop_id,
+                        payload=action_payload,
+                    )
+                elif action.kind == "quest.fate_knocks.deadline_check":
+                    result = self._fate_knocks_deadline_check(
+                        workspace_id=payload.workspace_id,
+                        actor_id=payload.actor_id,
+                        workshop_id=workshop_id,
+                        payload=action_payload,
+                    )
                 elif action.kind == "shygazun.interpret":
-                    result = self._interpret_shygazun_runtime(action_payload)
+                    normalized_payload = dict(action_payload)
+                    normalized_payload.setdefault("workspace_id", payload.workspace_id)
+                    normalized_payload.setdefault("actor_id", payload.actor_id)
+                    result = self.interpret_shygazun(
+                        payload=ShygazunInterpretInput.model_validate(normalized_payload),
+                    ).model_dump()
                 elif action.kind == "shygazun.translate":
-                    result = self._translate_shygazun_runtime(action_payload)
+                    normalized_payload = dict(action_payload)
+                    normalized_payload.setdefault("workspace_id", payload.workspace_id)
+                    normalized_payload.setdefault("actor_id", payload.actor_id)
+                    result = self.translate_shygazun(
+                        payload=ShygazunTranslateInput.model_validate(normalized_payload),
+                    ).model_dump()
                 elif action.kind == "shygazun.correct":
-                    result = self._correct_shygazun_runtime(action_payload)
+                    normalized_payload = dict(action_payload)
+                    normalized_payload.setdefault("workspace_id", payload.workspace_id)
+                    normalized_payload.setdefault("actor_id", payload.actor_id)
+                    result = self.correct_shygazun(
+                        payload=ShygazunCorrectInput.model_validate(normalized_payload),
+                    ).model_dump()
+                elif action.kind == "math.numeral_3d":
+                    normalized_payload = dict(action_payload)
+                    normalized_payload.setdefault("workspace_id", payload.workspace_id)
+                    normalized_payload.setdefault("actor_id", payload.actor_id)
+                    result = self.compute_numeral_3d(
+                        payload=Numeral3DInput.model_validate(normalized_payload),
+                        actor_id=actor_id,
+                    ).model_dump()
+                elif action.kind == "math.fibonacci_ordering":
+                    normalized_payload = dict(action_payload)
+                    normalized_payload.setdefault("workspace_id", payload.workspace_id)
+                    normalized_payload.setdefault("actor_id", payload.actor_id)
+                    result = self.compute_fibonacci_ordering(
+                        payload=FibonacciOrderingInput.model_validate(normalized_payload),
+                        actor_id=actor_id,
+                    ).model_dump()
                 elif action.kind == "audio.cue.stage":
                     staged, _, _ = _audio_maps()
                     cue_id = str(action_payload.get("cue_id", "")).strip()
@@ -5837,11 +7525,152 @@ class AtelierService:
                 elif action.kind == "render.scene.load":
                     result = _render_scene_load(action_payload)
                 elif action.kind == "render.scene.tick":
-                    result = _render_scene_tick(action_payload)
+                    result = _render_scene_tick(action_payload, action_id=action.action_id)
                 elif action.kind == "render.scene.unload":
                     result = _render_scene_unload(action_payload)
                 elif action.kind == "render.scene.reconcile":
                     result = _render_scene_reconcile(action_payload)
+                elif action.kind == "pygame.worker.enqueue":
+                    command_kind = str(action_payload.get("command_kind", "runtime_action.forward")).strip().lower()
+                    if command_kind == "":
+                        command_kind = "runtime_action.forward"
+                    runtime_action_kind = str(action_payload.get("runtime_action_kind", "")).strip()
+                    if runtime_action_kind == "":
+                        raise ValueError("runtime_action_kind_required")
+                    command_payload_obj = action_payload.get("payload")
+                    command_payload = (
+                        cast(dict[str, object], command_payload_obj)
+                        if isinstance(command_payload_obj, dict)
+                        else {}
+                    )
+                    enqueue_receipt = self._pygame_worker.enqueue(
+                        workspace_id=payload.workspace_id,
+                        actor_id=payload.actor_id,
+                        action_id=action.action_id,
+                        command_kind=command_kind,
+                        runtime_action_kind=runtime_action_kind,
+                        payload=command_payload,
+                    )
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "actor_id": payload.actor_id,
+                        "enqueue": enqueue_receipt,
+                    }
+                elif action.kind == "pygame.worker.status":
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "actor_id": payload.actor_id,
+                        "status": self._pygame_worker.status(),
+                    }
+                elif action.kind == "pygame.worker.dequeue":
+                    max_items = max(1, min(256, self._int_from_table(action_payload.get("max_items"), 1)))
+                    items: list[dict[str, object]] = []
+                    for _ in range(max_items):
+                        item = self._pygame_worker.dequeue_nowait()
+                        if item is None:
+                            break
+                        items.append(item)
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "actor_id": payload.actor_id,
+                        "dequeued_count": len(items),
+                        "items": items,
+                        "status": self._pygame_worker.status(),
+                    }
+                elif action.kind == "content.pack.load_canon":
+                    pack_dir = str(action_payload.get("pack_dir", "gameplay/content_packs/canon")).strip()
+                    if pack_dir == "":
+                        pack_dir = "gameplay/content_packs/canon"
+                    apply_to_db = bool(action_payload.get("apply_to_db", True))
+                    target_actor_id = str(action_payload.get("actor_id", payload.actor_id)).strip()
+                    if target_actor_id == "":
+                        target_actor_id = payload.actor_id
+                    result = self._load_canon_content_pack(
+                        workspace_id=payload.workspace_id,
+                        actor_id=target_actor_id,
+                        workshop_id=workshop_id,
+                        pack_dir=pack_dir,
+                        apply_to_db=apply_to_db,
+                    )
+                elif action.kind == "content.pack.load_byte_table":
+                    result = self._load_byte_table_into_layers(
+                        workspace_id=payload.workspace_id,
+                        actor_id=payload.actor_id,
+                    )
+                elif action.kind == "module.run":
+                    module_id = str(action_payload.get("module_id", "")).strip()
+                    expected_version = str(action_payload.get("module_version", "")).strip()
+                    payload_overrides_obj = action_payload.get("payload_overrides")
+                    payload_overrides = (
+                        cast(dict[str, object], payload_overrides_obj)
+                        if isinstance(payload_overrides_obj, dict)
+                        else {}
+                    )
+                    spec = self._load_module_spec(module_id)
+                    spec_version = str(spec.get("module_version", ""))
+                    if expected_version != "" and expected_version != spec_version:
+                        raise ValueError("module_version_mismatch")
+                    execution_obj = spec.get("execution")
+                    execution = cast(dict[str, object], execution_obj) if isinstance(execution_obj, dict) else {}
+                    runtime_action_kind = str(execution.get("runtime_action_kind", "")).strip()
+                    if runtime_action_kind == "":
+                        raise ValueError("module_runtime_action_kind_required")
+                    if runtime_action_kind == "module.run":
+                        raise ValueError("module_run_recursion_disallowed")
+                    inputs_obj = spec.get("inputs")
+                    inputs = cast(dict[str, object], inputs_obj) if isinstance(inputs_obj, dict) else {}
+                    base_payload_obj = inputs.get("payload")
+                    base_payload = cast(dict[str, object], base_payload_obj) if isinstance(base_payload_obj, dict) else {}
+                    merged_payload = self._deep_merge_map(base_payload, payload_overrides)
+                    merged_payload.setdefault("workspace_id", payload.workspace_id)
+                    merged_payload.setdefault("actor_id", payload.actor_id)
+                    nested_run = self.consume_runtime_plan(
+                        payload=RuntimeConsumeInput(
+                            workspace_id=payload.workspace_id,
+                            actor_id=payload.actor_id,
+                            plan_id=f"{payload.plan_id}::{module_id}",
+                            actions=[
+                                RuntimeActionInput(
+                                    action_id=f"{action.action_id}::exec",
+                                    kind=cast(Any, runtime_action_kind),
+                                    payload=merged_payload,
+                                )
+                            ],
+                        ),
+                        actor_id=actor_id,
+                        workshop_id=workshop_id,
+                    )
+                    nested_action = nested_run.actions[0] if len(nested_run.actions) > 0 else None
+                    if nested_action is None:
+                        raise ValueError("module_nested_action_missing")
+                    if not nested_action.ok:
+                        raise ValueError(f"module_nested_failed:{nested_action.error}")
+                    outputs_obj = spec.get("outputs")
+                    outputs = cast(dict[str, object], outputs_obj) if isinstance(outputs_obj, dict) else {}
+                    expected_refs_obj = outputs.get("expected_ref_keys")
+                    expected_ref_keys = (
+                        [str(item) for item in expected_refs_obj if str(item).strip() != ""]
+                        if isinstance(expected_refs_obj, list)
+                        else []
+                    )
+                    lineage_refs_obj = nested_action.result.get("lineage_node_refs")
+                    lineage_refs = (
+                        cast(dict[str, object], lineage_refs_obj)
+                        if isinstance(lineage_refs_obj, dict)
+                        else {}
+                    )
+                    available_ref_keys = sorted(str(key) for key in lineage_refs.keys())
+                    missing_ref_keys = sorted(key for key in expected_ref_keys if key not in lineage_refs)
+                    if len(missing_ref_keys) > 0:
+                        raise ValueError(f"module_expected_refs_missing:{','.join(missing_ref_keys)}")
+                    result = {
+                        "module_id": module_id,
+                        "module_version": spec_version,
+                        "runtime_action_kind": runtime_action_kind,
+                        "expected_ref_keys": expected_ref_keys,
+                        "available_ref_keys": available_ref_keys,
+                        "nested": nested_run.model_dump(),
+                    }
                 else:
                     raise ValueError(f"unsupported_runtime_action:{action.kind}")
                 results.append(
@@ -6296,6 +8125,9 @@ class AtelierService:
                 raise ValueError(f"missing_material_asset:{kind}")
             return "default", "fallback:default"
 
+        def _resolve_aster_color_from_metadata(meta: dict[str, object]) -> tuple[str | None, str | None]:
+            return self._resolve_aster_metadata(meta)
+
         def _project_position(*, x: float, y: float, z: int) -> tuple[float, float, float]:
             if render_mode == "2.5d":
                 screen_x = (x - y) * (tile_width / 2.0)
@@ -6337,6 +8169,11 @@ class AtelierService:
             )
             screen_x, screen_y, depth_key = _project_position(x=x, y=y, z=z)
             out_meta = dict(metadata)
+            aster_color, rgb = _resolve_aster_color_from_metadata(out_meta)
+            if aster_color is not None and rgb is not None:
+                out_meta["aster_color"] = aster_color
+                out_meta["rgb"] = rgb
+                out_meta["color"] = rgb
             if sprite_source.startswith("fallback") or material_source.startswith("fallback"):
                 fallback_count += 1
                 out_meta["asset_fallback"] = {
@@ -6366,6 +8203,8 @@ class AtelierService:
                     depth_key=depth_key,
                     sprite=sprite,
                     material=material,
+                    aster_color=aster_color,
+                    rgb=rgb,
                     metadata=out_meta,
                 )
             )
@@ -6411,6 +8250,11 @@ class AtelierService:
                     )
                 else:
                     continue
+                aster_color, rgb = _resolve_aster_color_from_metadata(meta)
+                if aster_color is not None and rgb is not None:
+                    meta["aster_color"] = aster_color
+                    meta["rgb"] = rgb
+                    meta["color"] = rgb
                 screen_x, screen_y, depth_key = _project_position(x=ex, y=ey, z=ez)
                 if sprite_source.startswith("fallback") or material_source.startswith("fallback"):
                     fallback_count += 1
@@ -6431,6 +8275,8 @@ class AtelierService:
                         depth_key=depth_key,
                         sprite=sprite,
                         material=material,
+                        aster_color=aster_color,
+                        rgb=rgb,
                         metadata=meta,
                     )
                 )
@@ -6682,6 +8528,8 @@ class AtelierService:
                     },
                     material=drawable.material,
                     sprite=drawable.sprite,
+                    aster_color=drawable.aster_color,
+                    rgb=drawable.rgb,
                     metadata=drawable.metadata,
                 )
             )
@@ -6880,6 +8728,7 @@ class AtelierService:
         realm_error = validate_scene_realm(payload.scene_id, payload.realm_id)
         if realm_error:
             raise ValueError(realm_error)
+        self._validate_aster_scene_content(payload.content)
         content_hash = self._canonical_hash(payload.content)
         row = Scene(
             workspace_id=payload.workspace_id,
@@ -6915,6 +8764,7 @@ class AtelierService:
         if payload.description is not None:
             row.description = payload.description
         if payload.content is not None:
+            self._validate_aster_scene_content(payload.content)
             row.content_json = self._canonical_json(payload.content)
             row.content_hash = self._canonical_hash(payload.content)
         row.updated_at = datetime.utcnow()
@@ -7622,3 +9472,23 @@ class AtelierService:
         row.artisan_access_verified = True
         saved = repo.save_artisan_account(row)
         return ArtisanAccessIssueOut(artisan_code=code, status=self._to_access_status(saved))
+    @staticmethod
+    def _canonical_skill_id(raw_skill_id: str) -> str:
+        normalized = str(raw_skill_id or "").strip().lower()
+        if normalized == "":
+            return ""
+        normalized = normalized.replace("-", "_").replace(" ", "_")
+        alias_map = {
+            "energyweapons": "energy_weapons",
+            "melee": "melee_weapons",
+            "meleeweapon": "melee_weapons",
+            "meleeweapons": "melee_weapons",
+            "lock_pick": "lockpick",
+        }
+        mapped = alias_map.get(normalized, normalized)
+        if mapped in CANONICAL_GAME_SKILLS:
+            return mapped
+        return normalized
+
+    def list_skill_catalog(self) -> SkillCatalogOut:
+        return SkillCatalogOut(skills=list(CANONICAL_GAME_SKILLS))

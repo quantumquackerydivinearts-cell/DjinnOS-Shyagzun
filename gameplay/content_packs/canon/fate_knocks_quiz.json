@@ -1,0 +1,62 @@
+{
+  "schema_version": "v1",
+  "pack_id": "canon.quiz.fate_knocks.vitriol",
+  "quest_id": "0001_KLST",
+  "quiz": {
+    "question_count": 7,
+    "answer_type": "integer",
+    "points_budget": 28,
+    "axes": [
+      "vitality",
+      "introspection",
+      "tactility",
+      "reflectivity",
+      "ingenuity",
+      "ostentation",
+      "levity"
+    ],
+    "rules": [
+      "Exactly 7 integer answers.",
+      "Sum of all answers must equal points_budget.",
+      "Axis order is fixed and positional."
+    ]
+  },
+  "questions": [
+    {
+      "question_id": "q1_vitality",
+      "axis": "vitality",
+      "prompt": "How much effort do you commit before certainty?"
+    },
+    {
+      "question_id": "q2_introspection",
+      "axis": "introspection",
+      "prompt": "How long do you reflect before action?"
+    },
+    {
+      "question_id": "q3_tactility",
+      "axis": "tactility",
+      "prompt": "How strongly do you rely on hands-on process?"
+    },
+    {
+      "question_id": "q4_reflectivity",
+      "axis": "reflectivity",
+      "prompt": "How often do you revise after outcomes?"
+    },
+    {
+      "question_id": "q5_ingenuity",
+      "axis": "ingenuity",
+      "prompt": "How often do you attempt novel synthesis?"
+    },
+    {
+      "question_id": "q6_ostentation",
+      "axis": "ostentation",
+      "prompt": "How visible should your mastery be?"
+    },
+    {
+      "question_id": "q7_levity",
+      "axis": "levity",
+      "prompt": "How much ease and humor do you keep under pressure?"
+    }
+  ]
+}
+

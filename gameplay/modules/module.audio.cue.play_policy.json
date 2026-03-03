@@ -1,0 +1,40 @@
+{
+  "module_id": "module.audio.cue.play_policy",
+  "module_version": "v1",
+  "purpose": "Emit deterministic play command for a staged audio cue",
+  "inputs": {
+    "payload": {
+      "cue_id": "sfx_door_open",
+      "channel": "sfx",
+      "loop": false,
+      "gain": 1.0
+    },
+    "required_refs": [
+      "L9:scene.dialogue"
+    ],
+    "optional_refs": [
+      "L11:audio.constraints"
+    ]
+  },
+  "execution": {
+    "runtime_action_kind": "audio.cue.play",
+    "deterministic": true,
+    "nonlinear_safe": true,
+    "collapse_policy": "no_auto_collapse"
+  },
+  "outputs": {
+    "result_payload_path": "result",
+    "expected_ref_keys": [],
+    "store_function": false
+  },
+  "commit": {
+    "requires_attestation": true,
+    "attestation_kind": "lotus",
+    "on_missing_attestation": "leave_frontier_open"
+  },
+  "replay_contract": {
+    "hash_inputs": true,
+    "hash_outputs": true,
+    "require_same_hash_on_replay": true
+  }
+}

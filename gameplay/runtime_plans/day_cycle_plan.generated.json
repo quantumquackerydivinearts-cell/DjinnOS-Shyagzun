@@ -1,0 +1,234 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "day_cycle_plan",
+  "meta": {
+    "generator": "build_procgen_day_plan.py",
+    "days": 1,
+    "scene_cycle_file": "gameplay/runtime_plans/day_scene_cycle.default.json",
+    "scene_count_per_day": 5,
+    "quest_actions_file": "gameplay\\runtime_plans\\quest_actions_fate_knocks_day1.json",
+    "quest_position": "after_days",
+    "quests_hand_coded": true,
+    "day_progression_metric": "scene",
+    "scene_overlays_file": "gameplay/runtime_plans/day_scene_ai_overlay.market.json"
+  },
+  "actions": [
+    {
+      "action_id": "seed_byte_table",
+      "kind": "content.pack.load_byte_table",
+      "payload": {}
+    },
+    {
+      "action_id": "seed_canon_pack",
+      "kind": "content.pack.load_canon",
+      "payload": {
+        "apply_to_db": true
+      }
+    },
+    {
+      "action_id": "day_01_stream_status_open",
+      "kind": "world.stream.status",
+      "payload": {}
+    },
+    {
+      "action_id": "day_01_scene_01_lapidus_home_morning_clock",
+      "kind": "render.scene.tick",
+      "payload": {
+        "dt": 15,
+        "updates": [],
+        "enqueue_pygame": false,
+        "day_index": 1,
+        "scene_index": 1,
+        "scene_id": "lapidus/home_morning",
+        "clock_advance": 15
+      }
+    },
+    {
+      "action_id": "day_01_scene_lapidus_home_morning_heartbeat",
+      "kind": "world.stream.status",
+      "payload": {
+        "day_index": 1,
+        "scene_index": 1,
+        "scene_id": "lapidus/home_morning"
+      }
+    },
+    {
+      "action_id": "day_01_scene_02_lapidus_street_commute_clock",
+      "kind": "render.scene.tick",
+      "payload": {
+        "dt": 20,
+        "updates": [],
+        "enqueue_pygame": false,
+        "day_index": 1,
+        "scene_index": 2,
+        "scene_id": "lapidus/street_commute",
+        "clock_advance": 20
+      }
+    },
+    {
+      "action_id": "day_01_scene_lapidus_street_commute_heartbeat",
+      "kind": "world.stream.status",
+      "payload": {
+        "day_index": 1,
+        "scene_index": 2,
+        "scene_id": "lapidus/street_commute"
+      }
+    },
+    {
+      "action_id": "day_01_scene_03_lapidus_market_midday_clock",
+      "kind": "render.scene.tick",
+      "payload": {
+        "dt": 40,
+        "updates": [],
+        "enqueue_pygame": false,
+        "day_index": 1,
+        "scene_index": 3,
+        "scene_id": "lapidus/market_midday",
+        "clock_advance": 40
+      }
+    },
+    {
+      "action_id": "day_01_scene_lapidus_market_midday_heartbeat",
+      "kind": "world.stream.status",
+      "payload": {
+        "day_index": 1,
+        "scene_index": 3,
+        "scene_id": "lapidus/market_midday"
+      }
+    },
+    {
+      "action_id": "day_01_scene_lapidus_market_midday_lapidus_shift",
+      "kind": "world.market.stock.adjust",
+      "payload": {
+        "realm_id": "lapidus",
+        "item_id": "iron_ingot",
+        "delta": 1,
+        "day_index": 1,
+        "scene_index": 3,
+        "scene_id": "lapidus/market_midday"
+      }
+    },
+    {
+      "action_id": "day_01_scene_lapidus_market_midday_mercurie_supply",
+      "kind": "world.market.stock.adjust",
+      "payload": {
+        "realm_id": "mercurie",
+        "item_id": "moon_salt",
+        "delta": 2,
+        "day_index": 1,
+        "scene_index": 3,
+        "scene_id": "lapidus/market_midday"
+      }
+    },
+    {
+      "action_id": "day_01_scene_04_lapidus_castle_evening_clock",
+      "kind": "render.scene.tick",
+      "payload": {
+        "dt": 45,
+        "updates": [],
+        "enqueue_pygame": false,
+        "day_index": 1,
+        "scene_index": 4,
+        "scene_id": "lapidus/castle_evening",
+        "clock_advance": 45
+      }
+    },
+    {
+      "action_id": "day_01_scene_lapidus_castle_evening_heartbeat",
+      "kind": "world.stream.status",
+      "payload": {
+        "day_index": 1,
+        "scene_index": 4,
+        "scene_id": "lapidus/castle_evening"
+      }
+    },
+    {
+      "action_id": "day_01_scene_05_lapidus_night_return_clock",
+      "kind": "render.scene.tick",
+      "payload": {
+        "dt": 20,
+        "updates": [],
+        "enqueue_pygame": false,
+        "day_index": 1,
+        "scene_index": 5,
+        "scene_id": "lapidus/night_return",
+        "clock_advance": 20
+      }
+    },
+    {
+      "action_id": "day_01_scene_lapidus_night_return_heartbeat",
+      "kind": "world.stream.status",
+      "payload": {
+        "day_index": 1,
+        "scene_index": 5,
+        "scene_id": "lapidus/night_return"
+      }
+    },
+    {
+      "action_id": "day_01_scene_lapidus_night_return_sulphera_flux",
+      "kind": "world.market.stock.adjust",
+      "payload": {
+        "realm_id": "sulphera",
+        "item_id": "infernal_ash",
+        "delta": 1,
+        "day_index": 1,
+        "scene_index": 5,
+        "scene_id": "lapidus/night_return"
+      }
+    },
+    {
+      "action_id": "day_01_markets_close",
+      "kind": "world.markets.list",
+      "payload": {}
+    },
+    {
+      "action_id": "bootstrap_fate_knocks",
+      "kind": "quest.fate_knocks.bootstrap",
+      "payload": {
+        "player_name": "Kael",
+        "player_gender": "nonbinary",
+        "month": "Shyalz",
+        "deadline_hour_local": 19,
+        "quiz_points_budget": 28,
+        "quiz_answers": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "action_id": "hour_08_check",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 8
+      }
+    },
+    {
+      "action_id": "hour_12_check",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 12
+      }
+    },
+    {
+      "action_id": "hour_18_check",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 18
+      }
+    },
+    {
+      "action_id": "hour_20_check",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 20
+      }
+    }
+  ]
+}

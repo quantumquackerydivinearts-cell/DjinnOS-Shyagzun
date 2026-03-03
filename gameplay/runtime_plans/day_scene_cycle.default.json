@@ -1,0 +1,67 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "day_scene_cycle.default",
+  "actions": [
+    {
+      "action_id": "scene_01_lapidus_home_morning",
+      "kind": "module.run",
+      "payload": {
+        "module_id": "module.render.scene.reconcile",
+        "overrides": {
+          "scene_id": "lapidus/home_morning",
+          "label": "Wake",
+          "clock_advance": 15
+        }
+      }
+    },
+    {
+      "action_id": "scene_02_lapidus_street_commute",
+      "kind": "module.run",
+      "payload": {
+        "module_id": "module.render.scene.reconcile",
+        "overrides": {
+          "scene_id": "lapidus/street_commute",
+          "label": "Commute",
+          "clock_advance": 20
+        }
+      }
+    },
+    {
+      "action_id": "scene_03_lapidus_market_midday",
+      "kind": "module.run",
+      "payload": {
+        "module_id": "module.render.scene.reconcile",
+        "overrides": {
+          "scene_id": "lapidus/market_midday",
+          "label": "Market",
+          "clock_advance": 40
+        }
+      }
+    },
+    {
+      "action_id": "scene_04_lapidus_castle_evening",
+      "kind": "module.run",
+      "payload": {
+        "module_id": "module.render.scene.reconcile",
+        "overrides": {
+          "scene_id": "lapidus/castle_evening",
+          "label": "Castle",
+          "clock_advance": 45
+        }
+      }
+    },
+    {
+      "action_id": "scene_05_lapidus_night_return",
+      "kind": "module.run",
+      "payload": {
+        "module_id": "module.render.scene.reconcile",
+        "overrides": {
+          "scene_id": "lapidus/night_return",
+          "label": "Return",
+          "clock_advance": 20
+        }
+      }
+    }
+  ]
+}

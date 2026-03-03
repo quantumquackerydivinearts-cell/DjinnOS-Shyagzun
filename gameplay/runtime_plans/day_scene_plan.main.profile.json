@@ -1,0 +1,14 @@
+{
+  "profile": "main",
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "day_scene_plan_main",
+  "days": 1,
+  "scene_cycle": "gameplay/runtime_plans/day_scene_cycle.default.json",
+  "quest_actions": "gameplay/runtime_plans/quest_actions_fate_knocks_day1.json",
+  "scene_overlays": "gameplay/runtime_plans/day_scene_ai_overlay.market.json",
+  "include_byte_table": true,
+  "include_canon_pack": true,
+  "render_sync": true,
+  "output": "gameplay/runtime_plans/day_scene_plan.main.generated.json"
+}

@@ -1,4 +1,5 @@
 from .ambroflow_shim import AmbroflowShim
+from .aster_colors import resolve_aster_color
 from .atelier_port import AtelierPort
 from .kernel_landing_port import HttpKernelLandingPort
 from .projection import build_projection
@@ -14,6 +15,7 @@ from .world_stream import WorldStreamController
 
 __all__ = [
     "AmbroflowShim",
+    "resolve_aster_color",
     "AtelierPort",
     "HttpKernelLandingPort",
     "build_projection",

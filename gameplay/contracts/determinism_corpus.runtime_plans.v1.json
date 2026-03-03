@@ -1,0 +1,70 @@
+{
+  "id": "determinism_corpus.runtime_plans.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "algorithm": "sha256(canonical_json_sorted_keys)",
+  "cases": [
+    {
+      "id": "plan_day_scene_cycle_default",
+      "path": "gameplay/runtime_plans/day_scene_cycle.default.json",
+      "type": "runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions"
+      ],
+      "expected_hash": "b428f1def13adc7135fcc2a8408a0deab63d35f2f5b21484629aa1946c011f45"
+    },
+    {
+      "id": "plan_day_scene_ai_overlay_market",
+      "path": "gameplay/runtime_plans/day_scene_ai_overlay.market.json",
+      "type": "runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions"
+      ],
+      "expected_hash": "6a34e8a405e6f8c00ef604dfc26200916e38b6eeb580ecb8ae0c15d032445a67"
+    },
+    {
+      "id": "plan_day_scene_main_profile",
+      "path": "gameplay/runtime_plans/day_scene_plan.main.profile.json",
+      "type": "runtime_plan",
+      "required_fields": [
+        "profile",
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "scene_cycle",
+        "quest_actions"
+      ],
+      "expected_hash": "8a0211e28432789980bcdbf8da0307f02b7b57b87355f4c8a8cb182524525ec4"
+    },
+    {
+      "id": "plan_world_stream",
+      "path": "gameplay/runtime_plans/world_stream_plan.json",
+      "type": "runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions"
+      ],
+      "expected_hash": "f06c7cc30ddd859896f9cd0dfeee5e12d42d5ae5548a26c0f5d9090c9825a1cf"
+    },
+    {
+      "id": "plan_breath_realm_rewards",
+      "path": "gameplay/runtime_plans/breath_realm_rewards_plan.json",
+      "type": "runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions"
+      ],
+      "expected_hash": "80d7fc169ece21f41bfc771652464c871d30f3d589fcf4a94d46ab193454d135"
+    }
+  ]
+}

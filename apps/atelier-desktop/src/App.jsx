@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import sceneGraphDefaults from "../../../scene_graph_defaults.json";
 import { consumeInboxBatch } from "./engineInbox";
+import { applyRenderPack, createRenderPack, validateRenderPack } from "./rendererCore";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:9000";
 
@@ -268,6 +269,43 @@ function parseObjectJson(text, fallback = {}) {
   }
 }
 
+class PanelErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, message: "" };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, message: error instanceof Error ? error.message : "panel render failed" };
+  }
+
+  componentDidCatch(error) {
+    // Keep panel failure isolated so the rest of the studio remains usable.
+    console.error("panel_error_boundary", error);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.panelKey !== this.props.panelKey && this.state.hasError) {
+      this.setState({ hasError: false, message: "" });
+    }
+  }
+
+  render() {
+    if (!this.state.hasError) {
+      return this.props.children;
+    }
+    return (
+      <section className="panel">
+        <h2>Panel Recovered</h2>
+        <p>{this.state.message || "A panel error was contained."}</p>
+        <button className="action" onClick={() => this.setState({ hasError: false, message: "" })}>
+          Retry Panel
+        </button>
+      </section>
+    );
+  }
+}
+
 const BUSINESS_ARCHITECTURE_TEMPLATE = JSON.stringify(
   {
     domains: [
@@ -297,6 +335,103 @@ const BUSINESS_ARCHITECTURE_TEMPLATE = JSON.stringify(
   null,
   2
 );
+
+const RENDERER_TEST_SPEC_FRAGMENTS = [
+  {
+    id: "room.town_square",
+    label: "Room: Town Square",
+    spec: {
+      renderer_json: {
+        scene: { id: "room_town_square", name: "Town Square" },
+        voxels: [
+          { id: "sq_0", type: "cobble", x: 0, y: 0, z: 0, color: "#7d7f86" },
+          { id: "sq_1", type: "cobble", x: 1, y: 0, z: 0, color: "#7d7f86" },
+          { id: "sq_2", type: "cobble", x: 0, y: 1, z: 0, color: "#7d7f86" },
+          { id: "sq_3", type: "cobble", x: 1, y: 1, z: 0, color: "#7d7f86" },
+          { id: "fountain_core", type: "fountain", x: 3, y: 2, z: 1, color: "#8fb8d9" },
+        ],
+      },
+    },
+  },
+  {
+    id: "room.alchemy_lab",
+    label: "Room: Alchemy Lab",
+    spec: {
+      renderer_json: {
+        scene: { id: "room_alchemy_lab", name: "Alchemy Lab" },
+        voxels: [
+          { id: "lab_floor_0", type: "stone", x: 0, y: 0, z: 0, color: "#5e646d" },
+          { id: "lab_floor_1", type: "stone", x: 1, y: 0, z: 0, color: "#5e646d" },
+          { id: "lab_floor_2", type: "stone", x: 2, y: 0, z: 0, color: "#5e646d" },
+          { id: "lab_bench", type: "bench", x: 2, y: 1, z: 1, color: "#6a4b33" },
+          { id: "lab_furnace", type: "furnace", x: 4, y: 2, z: 2, color: "#8d5f32" },
+          { id: "lab_alembic", type: "alembic", x: 3, y: 1, z: 2, color: "#9ec9d4" },
+        ],
+      },
+    },
+  },
+  {
+    id: "scene.storm_morning",
+    label: "Scene: Storm Morning Sky",
+    spec: {
+      renderer_json: {
+        background: { kind: "sky_gradient", top: "#556b7f", bottom: "#1d2e40" },
+        meta: { weather: "storm", period: "morning" },
+      },
+      settings: {
+        background: "#1d2e40",
+        lighting: { enabled: true, x: 0.28, y: -0.82, z: 0.74, ambient: 0.34, intensity: 0.84 },
+      },
+    },
+  },
+  {
+    id: "spawn.player_center",
+    label: "Spawn: Player Center",
+    spec: {
+      renderer_json: {
+        voxels: [{ id: "player", type: "player", x: 2, y: 2, z: 1, color: "#f6c677", meta: { role: "player" } }],
+      },
+      controls: {
+        player_id: "player",
+        follow_player: true,
+        keyboard_motion: true,
+        click_move: true,
+        path_step_ms: 70,
+        player_step: 1,
+      },
+      signal: { player_position: { x: 0, y: 0, z: 0 } },
+    },
+  },
+  {
+    id: "set.market_stalls",
+    label: "Set: Market Stalls",
+    spec: {
+      renderer_json: {
+        voxels: [
+          { id: "stall_a_base", type: "stall", x: 6, y: 1, z: 1, color: "#835f3d" },
+          { id: "stall_a_awning", type: "awning", x: 6, y: 1, z: 2, color: "#a63f3f" },
+          { id: "stall_b_base", type: "stall", x: 8, y: 2, z: 1, color: "#6f5a44" },
+          { id: "stall_b_awning", type: "awning", x: 8, y: 2, z: 2, color: "#c08b3a" },
+        ],
+      },
+    },
+  },
+  {
+    id: "profile.cardinal_hd",
+    label: "Profile: Cardinal HD",
+    spec: {
+      settings: {
+        renderMode: "2.5d",
+        projection: "cardinal",
+        renderScale: 2,
+        tile: 28,
+        zScale: 10,
+        pixelate: false,
+        outline: true,
+      },
+    },
+  },
+];
 
 function laneRank(lane) {
   const normalized = String(lane || "").trim().toLowerCase();
@@ -925,6 +1060,472 @@ function tokenColor(token) {
   return map[token] || "#607d8b";
 }
 
+function parseHexColor(value) {
+  const text = String(value || "").trim();
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(text);
+  if (!m) {
+    return null;
+  }
+  const raw = m[1];
+  return {
+    r: Number.parseInt(raw.slice(0, 2), 16),
+    g: Number.parseInt(raw.slice(2, 4), 16),
+    b: Number.parseInt(raw.slice(4, 6), 16),
+  };
+}
+
+function byteToHex(value) {
+  return Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
+}
+
+function stylizeVoxelColor(hex, style) {
+  const mode = String(style || "default");
+  if (mode === "pokemon_ds") {
+    const rgb = parseHexColor(hex);
+    if (!rgb) {
+      return hex;
+    }
+    const q = 32;
+    let r = Math.round(rgb.r / q) * q;
+    let g = Math.round(rgb.g / q) * q;
+    let b = Math.round(rgb.b / q) * q;
+    const avg = (r + g + b) / 3;
+    if (avg < 84) {
+      r += 14;
+      g += 14;
+      b += 14;
+    }
+    if (avg > 212) {
+      r -= 8;
+      g -= 8;
+      b -= 8;
+    }
+    return `#${byteToHex(r)}${byteToHex(g)}${byteToHex(b)}`;
+  }
+  if (mode === "classic_fallout") {
+    const rgb = parseHexColor(hex);
+    if (!rgb) {
+      return hex;
+    }
+    const luma = 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+    const olive = {
+      r: Math.max(0, Math.min(255, luma * 0.78 + 28)),
+      g: Math.max(0, Math.min(255, luma * 0.9 + 34)),
+      b: Math.max(0, Math.min(255, luma * 0.62 + 12)),
+    };
+    const q = 24;
+    const r = Math.round(olive.r / q) * q;
+    const g = Math.round(olive.g / q) * q;
+    const b = Math.round(olive.b / q) * q;
+    return `#${byteToHex(r)}${byteToHex(g)}${byteToHex(b)}`;
+  }
+  if (mode === "pokemon_g45") {
+    const rgb = parseHexColor(hex);
+    if (!rgb) {
+      return hex;
+    }
+    const q = 16;
+    let r = Math.round(rgb.r / q) * q;
+    let g = Math.round(rgb.g / q) * q;
+    let b = Math.round(rgb.b / q) * q;
+    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (luma < 74) {
+      r += 18;
+      g += 18;
+      b += 18;
+    } else if (luma > 212) {
+      r -= 10;
+      g -= 10;
+      b -= 10;
+    }
+    return `#${byteToHex(r)}${byteToHex(g)}${byteToHex(b)}`;
+  }
+  if (mode === "pixel_voxel_hybrid") {
+    const rgb = parseHexColor(hex);
+    if (!rgb) {
+      return hex;
+    }
+    const q = 20;
+    let r = Math.round(rgb.r / q) * q;
+    let g = Math.round(rgb.g / q) * q;
+    let b = Math.round(rgb.b / q) * q;
+    // Slightly bias toward readable midtones so pixel clusters stay legible.
+    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (luma < 72) {
+      r += 14;
+      g += 14;
+      b += 14;
+    } else if (luma > 220) {
+      r -= 10;
+      g -= 10;
+      b -= 10;
+    }
+    return `#${byteToHex(r)}${byteToHex(g)}${byteToHex(b)}`;
+  }
+  if (mode !== "default") {
+    return hex;
+  }
+  return hex;
+}
+
+function isHighFidelityStyle(style) {
+  return String(style || "").toLowerCase() === "pokemon_g45";
+}
+
+function isHybridPixelVoxelStyle(style) {
+  return String(style || "").toLowerCase() === "pixel_voxel_hybrid";
+}
+
+function nearestTokenForColor(hex) {
+  const rgb = parseHexColor(hex);
+  if (!rgb) {
+    return "Ru";
+  }
+  const tokens = ["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"];
+  let bestToken = tokens[0];
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const token of tokens) {
+    const sample = parseHexColor(tokenColor(token));
+    if (!sample) {
+      continue;
+    }
+    const d =
+      (rgb.r - sample.r) * (rgb.r - sample.r) +
+      (rgb.g - sample.g) * (rgb.g - sample.g) +
+      (rgb.b - sample.b) * (rgb.b - sample.b);
+    if (d < bestDistance) {
+      bestDistance = d;
+      bestToken = token;
+    }
+  }
+  return bestToken;
+}
+
+function clampNumber(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, n));
+}
+
+const DAISY_TONGUE_ROWS = [
+  { symbol: "Lo", meaning: "Segments / Identity" },
+  { symbol: "Yei", meaning: "Component / Integrator" },
+  { symbol: "Ol", meaning: "Deadzone / Relative Void" },
+  { symbol: "X", meaning: "Joint / Interlock" },
+  { symbol: "Yx", meaning: "Fulcrum / Crux" },
+  { symbol: "Go", meaning: "Plug / Blocker" },
+  { symbol: "Foa", meaning: "Degree / Space" },
+  { symbol: "Oy", meaning: "Depths / Layers" },
+  { symbol: "W", meaning: "Freefall / Socket Space" },
+  { symbol: "Th", meaning: "Cuff / Indentation" },
+  { symbol: "Kael", meaning: "Cluster / Fruit / Flower" },
+  { symbol: "Ro", meaning: "Ion-channel / Gate / Receptor" },
+  { symbol: "Gl", meaning: "Membrane / Muscle" },
+  { symbol: "To", meaning: "Scaffold / Framework" },
+  { symbol: "Ma", meaning: "Web / Interchange" },
+  { symbol: "Ne", meaning: "Network / System" },
+  { symbol: "Ym", meaning: "Radial Space" },
+  { symbol: "Nz", meaning: "Switch / Circuit Actuator" },
+  { symbol: "Sho", meaning: "Valve / Fluid Actuator" },
+  { symbol: "Hi", meaning: "Lever / Radial Actuator" },
+  { symbol: "Mh", meaning: "Bond" },
+  { symbol: "Zhi", meaning: "Eye / Vortex" },
+  { symbol: "Vr", meaning: "Rotor / Tensor" },
+  { symbol: "St", meaning: "Surface" },
+  { symbol: "Fn", meaning: "Passage / Pathway" },
+  { symbol: "N", meaning: "Seed / Sheet / Fiber" },
+];
+
+const DAISY_TONGUE_SYMBOLS = DAISY_TONGUE_ROWS.map((row) => row.symbol);
+
+function parseDaisySymbolSequence(text) {
+  const raw = String(text || "");
+  const parts = raw
+    .split(/[\s,|/;]+/)
+    .map((item) => item.trim())
+    .filter((item) => item !== "");
+  const seen = new Set();
+  const out = [];
+  for (const symbol of parts) {
+    if (!DAISY_TONGUE_SYMBOLS.includes(symbol)) {
+      continue;
+    }
+    if (seen.has(symbol)) {
+      continue;
+    }
+    seen.add(symbol);
+    out.push(symbol);
+  }
+  return out;
+}
+
+function buildDaisyRoleComposition(archetype, symmetry, allowedSymbols) {
+  const allow = Array.isArray(allowedSymbols) && allowedSymbols.length > 0 ? allowedSymbols : DAISY_TONGUE_SYMBOLS;
+  const has = new Set(allow);
+  const pick = (candidates, fallback) => {
+    for (const symbol of candidates) {
+      if (has.has(symbol)) {
+        return symbol;
+      }
+    }
+    if (has.has(fallback)) {
+      return fallback;
+    }
+    return allow[0];
+  };
+  const actuatorByArchetype =
+    archetype === "serpentine"
+      ? ["Sho", "Nz", "Hi"]
+      : archetype === "avian"
+      ? ["Hi", "Nz", "Sho"]
+      : archetype === "beast"
+      ? ["Nz", "Hi", "Sho"]
+      : ["Nz", "Sho", "Hi"];
+  const spatialBySymmetry = symmetry === "radial" ? ["Ym", "Foa", "Oy"] : ["Foa", "Oy", "Ym"];
+  return {
+    identity: pick(["Lo", "N"], "Lo"),
+    integrator: pick(["Yei", "Ne"], "Yei"),
+    framework: pick(["To", "Ma"], "To"),
+    network: pick(["Ne", "Ma"], "Ne"),
+    membrane: pick(["Gl", "St"], "Gl"),
+    surface: pick(["St", "Gl"], "St"),
+    passage: pick(["Fn", "Ro"], "Fn"),
+    joint: pick(["X", "Yx"], "X"),
+    fulcrum: pick(["Yx", "X"], "Yx"),
+    bond: pick(["Mh", "Go"], "Mh"),
+    gateway: pick(["Ro", "Fn"], "Ro"),
+    cluster: pick(["Kael", "N"], "Kael"),
+    depth: pick(["Oy", "Foa"], "Oy"),
+    spatial: pick(spatialBySymmetry, "Foa"),
+    actuator_primary: pick(actuatorByArchetype, "Nz"),
+    seed: pick(["N", "Lo"], "N"),
+  };
+}
+
+function sanitizeDaisyRoleOverrides(overrides, allowedSymbols, baseComposition) {
+  const out = {};
+  if (!overrides || typeof overrides !== "object") {
+    return out;
+  }
+  const allowedSet = new Set(Array.isArray(allowedSymbols) ? allowedSymbols : []);
+  const allowedKeys = new Set(Object.keys(baseComposition || {}));
+  for (const [key, value] of Object.entries(overrides)) {
+    if (!allowedKeys.has(String(key))) {
+      continue;
+    }
+    const symbol = String(value || "").trim();
+    if (symbol === "") {
+      continue;
+    }
+    if (allowedSet.size > 0 && !allowedSet.has(symbol)) {
+      continue;
+    }
+    out[String(key)] = symbol;
+  }
+  return out;
+}
+
+function buildDaisyBodyplanSpec(config) {
+  const systemId = String(config.system_id || "daisy.system.alpha");
+  const archetype = String(config.archetype || "humanoid");
+  const symmetry = String(config.symmetry || "bilateral");
+  const segmentCount = Math.round(clampNumber(config.segment_count, 1, 24, 7));
+  const limbPairs = Math.round(clampNumber(config.limb_pairs, 0, 8, 2));
+  const coreToken = String(config.core_token || "Ki");
+  const accentToken = String(config.accent_token || "Fu");
+  const seed = Math.round(clampNumber(config.seed, 0, 999999, 42));
+  const useWholeTongue = Boolean(config.use_whole_tongue ?? true);
+  const customSymbols = Array.isArray(config.daisy_symbols) ? config.daisy_symbols.map((s) => String(s)) : [];
+  const allowedSymbols =
+    useWholeTongue || customSymbols.length === 0
+      ? DAISY_TONGUE_SYMBOLS.slice()
+      : customSymbols.filter((symbol) => DAISY_TONGUE_SYMBOLS.includes(symbol));
+  const compositionBase = buildDaisyRoleComposition(archetype, symmetry, allowedSymbols);
+  const roleOverridesRaw =
+    config && config.role_overrides && typeof config.role_overrides === "object" ? config.role_overrides : {};
+  const roleOverrides = sanitizeDaisyRoleOverrides(roleOverridesRaw, allowedSymbols, compositionBase);
+  const composition = { ...compositionBase, ...roleOverrides };
+  const usedSymbols = Array.from(new Set(Object.values(composition)));
+  return {
+    schema: "qqva.daisy.bodyplan.v1",
+    system_id: systemId,
+    archetype,
+    symmetry,
+    segment_count: segmentCount,
+    limb_pairs: limbPairs,
+    palette: {
+      core_token: coreToken,
+      accent_token: accentToken,
+      core_rgb: tokenColor(coreToken),
+      accent_rgb: tokenColor(accentToken),
+    },
+    seed,
+    daisy_tongue: {
+      use_whole_tongue: useWholeTongue,
+      allowed_symbols: allowedSymbols,
+      composition,
+      role_overrides: roleOverrides,
+      semantics: "role_composition",
+      lexicon_ref: "byte_table:Daisy",
+      coverage: {
+        total: DAISY_TONGUE_SYMBOLS.length,
+        allowed: allowedSymbols.length,
+        used: usedSymbols.length,
+      },
+    },
+    generated_at: new Date().toISOString(),
+  };
+}
+
+function daisyBodyplanToVoxels(spec) {
+  const segmentCount = Math.round(clampNumber(spec.segment_count, 1, 24, 7));
+  const limbPairs = Math.round(clampNumber(spec.limb_pairs, 0, 8, 2));
+  const symmetry = String(spec.symmetry || "bilateral");
+  const coreToken = String(spec?.palette?.core_token || "Ki");
+  const accentToken = String(spec?.palette?.accent_token || "Fu");
+  const coreColor = tokenColor(coreToken);
+  const accentColor = tokenColor(accentToken);
+  const systemId = String(spec.system_id || "daisy.system.alpha");
+  const archetype = String(spec.archetype || "humanoid");
+  const composition =
+    spec && spec.daisy_tongue && spec.daisy_tongue.composition && typeof spec.daisy_tongue.composition === "object"
+      ? spec.daisy_tongue.composition
+      : buildDaisyRoleComposition(archetype, symmetry, DAISY_TONGUE_SYMBOLS);
+  const voxels = [];
+  for (let i = 0; i < segmentCount; i += 1) {
+    const isHead = i === segmentCount - 1;
+    const daisySymbol = isHead ? String(composition.integrator || "Yei") : String(composition.identity || "Lo");
+    voxels.push({
+      id: `daisy_core_${i + 1}`,
+      type: isHead ? "daisy_head" : "daisy_core",
+      x: 0,
+      y: i,
+      z: Math.floor(i * 0.35),
+      color: coreColor,
+      meta: {
+        daisy: true,
+        role: isHead ? "head" : "core",
+        system_id: systemId,
+        archetype,
+        core_token: coreToken,
+        daisy_symbol: daisySymbol,
+      },
+    });
+  }
+  const limbStart = Math.max(1, Math.floor(segmentCount * 0.2));
+  const limbEnd = Math.max(limbStart, Math.floor(segmentCount * 0.9));
+  const span = Math.max(1, limbEnd - limbStart);
+  for (let p = 0; p < limbPairs; p += 1) {
+    const y = limbStart + Math.floor((p / Math.max(1, limbPairs - 1 || 1)) * span);
+    const reach = 1 + (p % 3);
+    const leftSymbol = String(composition.joint || "X");
+    const rightSymbol = String(composition.bond || "Mh");
+    voxels.push({
+      id: `daisy_limb_l_${p + 1}`,
+      type: "daisy_limb",
+      x: -reach,
+      y,
+      z: Math.max(0, Math.floor(y * 0.2)),
+      color: accentColor,
+      meta: {
+        daisy: true,
+        role: "limb",
+        side: "left",
+        pair: p + 1,
+        system_id: systemId,
+        accent_token: accentToken,
+        daisy_symbol: leftSymbol,
+      },
+    });
+    voxels.push({
+      id: `daisy_limb_r_${p + 1}`,
+      type: "daisy_limb",
+      x: reach,
+      y,
+      z: Math.max(0, Math.floor(y * 0.2)),
+      color: accentColor,
+      meta: {
+        daisy: true,
+        role: "limb",
+        side: "right",
+        pair: p + 1,
+        system_id: systemId,
+        accent_token: accentToken,
+        daisy_symbol: rightSymbol,
+      },
+    });
+    if (symmetry === "radial") {
+      const forwardSymbol = String(composition.actuator_primary || "Nz");
+      const backwardSymbol = String(composition.spatial || "Foa");
+      voxels.push({
+        id: `daisy_limb_f_${p + 1}`,
+        type: "daisy_limb",
+        x: 0,
+        y: y + 1,
+        z: reach,
+        color: accentColor,
+        meta: {
+          daisy: true,
+          role: "limb",
+          side: "forward",
+          pair: p + 1,
+          system_id: systemId,
+          accent_token: accentToken,
+          daisy_symbol: forwardSymbol,
+        },
+      });
+      voxels.push({
+        id: `daisy_limb_b_${p + 1}`,
+        type: "daisy_limb",
+        x: 0,
+        y: y - 1,
+        z: Math.max(0, -reach),
+        color: accentColor,
+        meta: {
+          daisy: true,
+          role: "limb",
+          side: "backward",
+          pair: p + 1,
+          system_id: systemId,
+          accent_token: accentToken,
+          daisy_symbol: backwardSymbol,
+        },
+      });
+    }
+  }
+  voxels.push({
+    id: "daisy_system_framework",
+    type: "daisy_system_node",
+    x: -2,
+    y: -1,
+    z: 0,
+    color: accentColor,
+    meta: {
+      daisy: true,
+      role: "framework",
+      system_id: systemId,
+      daisy_symbol: String(composition.framework || "To"),
+    },
+  });
+  voxels.push({
+    id: "daisy_system_network",
+    type: "daisy_system_node",
+    x: 2,
+    y: -1,
+    z: 0,
+    color: accentColor,
+    meta: {
+      daisy: true,
+      role: "network",
+      system_id: systemId,
+      daisy_symbol: String(composition.network || "Ne"),
+    },
+  });
+  return voxels;
+}
+
 function tokenOpacity(token) {
   const map = {
     Ha: 1,
@@ -1125,6 +1726,240 @@ const TILE_PROC_FORM_LIBRARY = {
     "}",
     "return { tiles, links: [] };",
   ].join("\n"),
+  navigable_town: [
+    "const tiles = [];",
+    "const links = [];",
+    "const entities = [];",
+    "const walkableSet = new Set();",
+    "const centerX = Math.floor(cols / 2);",
+    "const centerY = Math.floor(rows / 2);",
+    "const toKey = (x, y) => `${x},${y}`;",
+    "for (let y = 0; y < rows; y += 1) {",
+    "  for (let x = 0; x < cols; x += 1) {",
+    "    const border = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;",
+    "    const crossRoad = Math.abs(x - centerX) <= 1 || Math.abs(y - centerY) <= 1;",
+    "    const lane = x % 8 === 0 || y % 8 === 0;",
+    "    const isWalk = !border && (crossRoad || lane);",
+    "    tiles.push({",
+    "      x, y, layer: \"base\",",
+    "      color_token: border ? \"Ga\" : isWalk ? \"El\" : \"Ki\",",
+    "      opacity_token: border ? \"Ung\" : \"Na\",",
+    "      presence_token: \"Ta\",",
+    "      meta: { walkable: isWalk }",
+    "    });",
+    "    if (isWalk) walkable.add(toKey(x, y));",
+    "  }",
+    "}",
+    "const dirs = [[1,0],[-1,0],[0,1],[0,-1]];",
+    "for (const key of walkable) {",
+    "  const [xRaw, yRaw] = key.split(\",\");",
+    "  const x = Number(xRaw);",
+    "  const y = Number(yRaw);",
+    "  for (const [dx, dy] of dirs) {",
+    "    const nx = x + dx;",
+    "    const ny = y + dy;",
+    "    const nKey = toKey(nx, ny);",
+    "    if (!walkable.has(nKey)) continue;",
+    "    if (nx < x || ny < y) continue;",
+    "    links.push({ ax: x, ay: y, bx: nx, by: ny });",
+    "  }",
+    "}",
+    "entities.push({ id: \"player\", kind: \"player\", x: centerX, y: centerY, z: 1 });",
+    "for (let i = 0; i < 8; i += 1) {",
+    "  const ox = ((seed + i * 11) % (cols - 4)) + 2;",
+    "  const oy = ((seed * 3 + i * 7) % (rows - 4)) + 2;",
+    "  if (walkable.has(toKey(ox, oy))) {",
+    "    entities.push({ id: `npc_${i + 1}`, kind: \"npc\", x: ox, y: oy, z: 1 });",
+    "  }",
+    "}",
+    "return { tiles, links, entities };",
+  ].join("\n"),
+  navigable_wilds: [
+    "function noise(x, y, s) {",
+    "  const n = Math.sin((x * 12.9898 + y * 78.233 + s) * 43758.5453);",
+    "  return n - Math.floor(n);",
+    "}",
+    "const tiles = [];",
+    "const links = [];",
+    "const entities = [];",
+    "const walkable = new Set();",
+    "const toKey = (x, y) => `${x},${y}`;",
+    "for (let y = 0; y < rows; y += 1) {",
+    "  for (let x = 0; x < cols; x += 1) {",
+    "    const n = noise(x, y, seed);",
+    "    const river = Math.abs(y - Math.floor(rows * 0.55 + Math.sin(x * 0.17) * 3)) <= 1;",
+    "    const isRock = n > 0.76;",
+    "    const isWalk = !river && !isRock;",
+    "    tiles.push({",
+    "      x, y, layer: \"base\",",
+    "      color_token: river ? \"Fu\" : isRock ? \"Ga\" : \"Ki\",",
+    "      opacity_token: river ? \"Wu\" : isRock ? \"Ung\" : \"Na\",",
+    "      presence_token: \"Ta\",",
+    "      meta: { walkable: isWalk }",
+    "    });",
+    "    if (isWalk) walkable.add(toKey(x, y));",
+    "  }",
+    "}",
+    "const dirs = [[1,0],[-1,0],[0,1],[0,-1]];",
+    "for (const key of walkable) {",
+    "  const [xRaw, yRaw] = key.split(\",\");",
+    "  const x = Number(xRaw);",
+    "  const y = Number(yRaw);",
+    "  for (const [dx, dy] of dirs) {",
+    "    const nx = x + dx;",
+    "    const ny = y + dy;",
+    "    const nKey = toKey(nx, ny);",
+    "    if (!walkable.has(nKey)) continue;",
+    "    if (nx < x || ny < y) continue;",
+    "    links.push({ ax: x, ay: y, bx: nx, by: ny });",
+    "  }",
+    "}",
+    "const centerX = Math.floor(cols / 2);",
+    "const centerY = Math.floor(rows / 2);",
+    "entities.push({ id: \"player\", kind: \"player\", x: centerX, y: centerY, z: 1 });",
+    "for (let i = 0; i < 10; i += 1) {",
+    "  const ox = ((seed * 5 + i * 13) % (cols - 2)) + 1;",
+    "  const oy = ((seed * 7 + i * 17) % (rows - 2)) + 1;",
+    "  if (walkable.has(toKey(ox, oy))) entities.push({ id: `npc_wild_${i + 1}`, kind: \"npc\", x: ox, y: oy, z: 1 });",
+    "}",
+    "return { tiles, links, entities };",
+  ].join("\n"),
+  humanoid_curve: [
+    "const tiles = [];",
+    "const links = [];",
+    "const entities = [];",
+    "const walkable = new Set();",
+    "const toKey = (x, y) => `${x},${y}`;",
+    "const cx = Math.floor(cols * 0.5);",
+    "const cy = Math.floor(rows * 0.52);",
+    "const clamp01 = (v) => Math.max(0, Math.min(1, v));",
+    "const dist = (x1, y1, x2, y2) => Math.hypot(x1 - x2, y1 - y2);",
+    "const sdfCircle = (x, y, ox, oy, r) => dist(x, y, ox, oy) - r;",
+    "const sdfCapsule = (x, y, ax, ay, bx, by, r) => {",
+    "  const pax = x - ax;",
+    "  const pay = y - ay;",
+    "  const bax = bx - ax;",
+    "  const bay = by - ay;",
+    "  const h = clamp01((pax * bax + pay * bay) / Math.max(1e-6, bax * bax + bay * bay));",
+    "  const qx = pax - bax * h;",
+    "  const qy = pay - bay * h;",
+    "  return Math.hypot(qx, qy) - r;",
+    "};",
+    "",
+    "// Curved humanoid primitives",
+    "const torsoTopX = cx;",
+    "const torsoTopY = cy - 8;",
+    "const torsoBotX = cx;",
+    "const torsoBotY = cy + 4;",
+    "const leftArmAX = cx - 1;",
+    "const leftArmAY = cy - 6;",
+    "const leftArmBX = cx - 8;",
+    "const leftArmBY = cy - 1;",
+    "const rightArmAX = cx + 1;",
+    "const rightArmAY = cy - 6;",
+    "const rightArmBX = cx + 8;",
+    "const rightArmBY = cy - 1;",
+    "const leftLegAX = cx - 1;",
+    "const leftLegAY = cy + 4;",
+    "const leftLegBX = cx - 4;",
+    "const leftLegBY = cy + 13;",
+    "const rightLegAX = cx + 1;",
+    "const rightLegAY = cy + 4;",
+    "const rightLegBX = cx + 4;",
+    "const rightLegBY = cy + 13;",
+    "const headX = cx;",
+    "const headY = cy - 12;",
+    "",
+    "for (let y = 0; y < rows; y += 1) {",
+    "  for (let x = 0; x < cols; x += 1) {",
+    "    const dHead = sdfCircle(x, y, headX, headY, 3.2);",
+    "    const dTorso = sdfCapsule(x, y, torsoTopX, torsoTopY, torsoBotX, torsoBotY, 2.6);",
+    "    const dArmL = sdfCapsule(x, y, leftArmAX, leftArmAY, leftArmBX, leftArmBY, 1.35);",
+    "    const dArmR = sdfCapsule(x, y, rightArmAX, rightArmAY, rightArmBX, rightArmBY, 1.35);",
+    "    const dLegL = sdfCapsule(x, y, leftLegAX, leftLegAY, leftLegBX, leftLegBY, 1.55);",
+    "    const dLegR = sdfCapsule(x, y, rightLegAX, rightLegAY, rightLegBX, rightLegBY, 1.55);",
+    "    const d = Math.min(dHead, dTorso, dArmL, dArmR, dLegL, dLegR);",
+    "    const inside = d <= 0;",
+    "    const edgeBand = Math.max(0, Math.min(3, Math.floor((d + 1.8) * 1.35)));",
+    "    const lod = inside ? 3 : Math.max(0, 2 - edgeBand);",
+    "    const shade = inside ? \"El\" : d < 1.6 ? \"Ot\" : \"Ga\";",
+    "    const walkableCell = inside;",
+    "    if (inside || d < 1.2) {",
+    "      tiles.push({",
+    "        x, y, layer: \"base\",",
+    "        color_token: shade,",
+    "        opacity_token: inside ? \"Na\" : \"Wu\",",
+    "        presence_token: \"Ta\",",
+    "        meta: { lod, walkable: walkableCell, curve: true, sdf: Number(d.toFixed(3)) }",
+    "      });",
+    "      if (walkableCell) walkableSet.add(toKey(x, y));",
+    "    }",
+    "  }",
+    "}",
+    "",
+    "// 4-neighbor walk graph over body interior",
+    "const dirs = [[1,0],[-1,0],[0,1],[0,-1]];",
+    "for (const key of walkableSet) {",
+    "  const [xRaw, yRaw] = key.split(\",\");",
+    "  const x = Number(xRaw);",
+    "  const y = Number(yRaw);",
+    "  for (const [dx, dy] of dirs) {",
+    "    const nx = x + dx;",
+    "    const ny = y + dy;",
+    "    const nKey = toKey(nx, ny);",
+    "    if (!walkableSet.has(nKey)) continue;",
+    "    if (nx < x || ny < y) continue;",
+    "    links.push({ ax: x, ay: y, bx: nx, by: ny });",
+    "  }",
+    "}",
+    "",
+    "entities.push({ id: \"player\", kind: \"player\", x: cx, y: cy + 1, z: 1 });",
+    "entities.push({ id: \"npc_curve_demo\", kind: \"npc\", x: cx, y: cy - 4, z: 1 });",
+    "return { tiles, links, entities };",
+  ].join("\n"),
+  grilled_cheese: [
+    "const tiles = [];",
+    "const links = [];",
+    "const entities = [];",
+    "const cx = Math.floor(cols * 0.5);",
+    "const cy = Math.floor(rows * 0.55);",
+    "const w = Math.max(12, Math.floor(cols * 0.32));",
+    "const h = Math.max(8, Math.floor(rows * 0.22));",
+    "const left = cx - Math.floor(w / 2);",
+    "const top = cy - Math.floor(h / 2);",
+    "const right = left + w - 1;",
+    "const bottom = top + h - 1;",
+    "",
+    "for (let y = 0; y < rows; y += 1) {",
+    "  for (let x = 0; x < cols; x += 1) {",
+    "    const inRect = x >= left && x <= right && y >= top && y <= bottom;",
+    "    if (!inRect) continue;",
+    "    const edge = x === left || x === right || y === top || y === bottom;",
+    "    const crust = edge || x === left + 1 || x === right - 1 || y === top + 1 || y === bottom - 1;",
+    "    const cheeseBand = y >= top + Math.floor(h * 0.42) && y <= top + Math.floor(h * 0.62);",
+    "    const searMark = ((x + y + seed) % 7 === 0) || ((x * 2 + y + seed) % 11 === 0);",
+    "    const color = crust ? \"Ot\" : cheeseBand ? \"Ru\" : searMark ? \"Ga\" : \"El\";",
+    "    const opacity = crust ? \"Ung\" : cheeseBand ? \"Na\" : \"Wu\";",
+    "    tiles.push({",
+    "      x, y, layer: \"base\", color_token: color, opacity_token: opacity, presence_token: \"Ta\",",
+    "      meta: { lod: 3, subject: \"grilled_cheese\", edible: true }",
+    "    });",
+    "  }",
+    "}",
+    "",
+    "// Plate shadow under sandwich",
+    "const plateY = Math.min(rows - 2, bottom + 2);",
+    "for (let x = left - 2; x <= right + 2; x += 1) {",
+    "  if (x < 0 || x >= cols) continue;",
+    "  tiles.push({",
+    "    x, y: plateY, layer: \"detail\", color_token: \"Ga\", opacity_token: \"Wu\", presence_token: \"Ta\",",
+    "    meta: { lod: 2, subject: \"plate_shadow\" }",
+    "  });",
+    "}",
+    "",
+    "entities.push({ id: \"grilled_cheese_test\", kind: \"prop\", x: cx, y: cy, z: 1 });",
+    "return { tiles, links, entities };",
+  ].join("\n"),
 };
 
 const ASSET_GEN_PROFILE_V1 = {
@@ -1139,6 +1974,189 @@ const ASSET_GEN_PROFILE_V1 = {
   layer: "base",
   template: "ring_bloom",
 };
+
+const RENDERER_WORLD_MATERIAL_KIT = [
+  { id: "grass", color: "#5f934f" },
+  { id: "dirt", color: "#7a5d3f" },
+  { id: "stone", color: "#7b7f87" },
+  { id: "water", color: "#4f7ea3" },
+  { id: "sand", color: "#b59b72" },
+  { id: "wood", color: "#93673f" },
+  { id: "wall", color: "#a48f78" },
+  { id: "roof", color: "#7f5347" },
+  { id: "metal", color: "#97a2b2" },
+  { id: "foliage", color: "#4f844f" },
+  { id: "sprite_skin", color: "#d7b195" },
+  { id: "sprite_cloth", color: "#4a5f9d" },
+];
+
+function worldNoise(x, y) {
+  const v =
+    Math.sin(x * 0.21) * 0.9 +
+    Math.cos(y * 0.31) * 0.8 +
+    Math.sin((x + y) * 0.12) * 0.55;
+  return v;
+}
+
+function buildLandscapeVoxels({
+  width = 46,
+  height = 30,
+  originX = -10,
+  originY = -8,
+} = {}) {
+  const voxels = [];
+  for (let gy = 0; gy < height; gy += 1) {
+    for (let gx = 0; gx < width; gx += 1) {
+      const worldX = originX + gx;
+      const worldY = originY + gy;
+      const riverCenter = height * 0.46 + Math.sin(gx * 0.24) * 2.6;
+      const riverBand = Math.abs(gy - riverCenter);
+      if (riverBand <= 0.9) {
+        voxels.push({
+          id: `land_water_${gx}_${gy}`,
+          type: "terrain_water",
+          x: worldX,
+          y: worldY,
+          z: 0,
+          material: "water",
+          meta: { layer: "ground", material: "water", lod: 2 },
+        });
+        continue;
+      }
+      const n = worldNoise(gx, gy);
+      const mound = Math.max(0, Math.min(2, Math.floor((n + 1.45) * 0.95)));
+      for (let z = 0; z <= mound; z += 1) {
+        const isTop = z === mound;
+        const mat = isTop ? (mound >= 2 ? "stone" : riverBand < 2.1 ? "sand" : "grass") : "dirt";
+        voxels.push({
+          id: `land_${gx}_${gy}_${z}`,
+          type: "terrain",
+          x: worldX,
+          y: worldY,
+          z,
+          material: mat,
+          meta: { layer: z === 0 ? "ground" : "detail", material: mat, lod: 2 },
+        });
+      }
+      if (mound <= 1 && (gx + gy) % 19 === 0) {
+        voxels.push({
+          id: `tree_trunk_${gx}_${gy}`,
+          type: "flora_trunk",
+          x: worldX,
+          y: worldY,
+          z: mound + 1,
+          material: "wood",
+          meta: { layer: "detail", material: "wood", lod: 2 },
+        });
+        voxels.push({
+          id: `tree_leaf_${gx}_${gy}`,
+          type: "flora_leaf",
+          x: worldX,
+          y: worldY,
+          z: mound + 2,
+          material: "foliage",
+          meta: { layer: "detail", material: "foliage", lod: 3 },
+        });
+      }
+    }
+  }
+  return voxels;
+}
+
+function buildStructureVoxels({
+  originX = 10,
+  originY = 6,
+} = {}) {
+  const voxels = [];
+  const footprintW = 8;
+  const footprintH = 7;
+  const wallH = 4;
+  for (let y = 0; y < footprintH; y += 1) {
+    for (let x = 0; x < footprintW; x += 1) {
+      const wx = originX + x;
+      const wy = originY + y;
+      voxels.push({
+        id: `house_floor_${x}_${y}`,
+        type: "structure_floor",
+        x: wx,
+        y: wy,
+        z: 1,
+        material: "wood",
+        meta: { layer: "base", material: "wood", lod: 3 },
+      });
+      const edge = x === 0 || y === 0 || x === footprintW - 1 || y === footprintH - 1;
+      if (!edge) {
+        continue;
+      }
+      for (let z = 2; z < 2 + wallH; z += 1) {
+        if (y === 0 && x >= 3 && x <= 4 && z <= 3) {
+          continue;
+        }
+        voxels.push({
+          id: `house_wall_${x}_${y}_${z}`,
+          type: "structure_wall",
+          x: wx,
+          y: wy,
+          z,
+          material: "wall",
+          meta: { layer: "mid", material: "wall", lod: 3 },
+        });
+      }
+      const roofZ = 2 + wallH;
+      if (x > 0 && x < footprintW - 1 && y > 0 && y < footprintH - 1) {
+        voxels.push({
+          id: `house_roof_${x}_${y}`,
+          type: "structure_roof",
+          x: wx,
+          y: wy,
+          z: roofZ,
+          material: "roof",
+          meta: { layer: "sky", material: "roof", lod: 2 },
+        });
+      }
+    }
+  }
+  const towerBaseX = originX + footprintW + 3;
+  const towerBaseY = originY + 1;
+  for (let y = 0; y < 3; y += 1) {
+    for (let x = 0; x < 3; x += 1) {
+      for (let z = 1; z < 8; z += 1) {
+        voxels.push({
+          id: `tower_${x}_${y}_${z}`,
+          type: "structure_tower",
+          x: towerBaseX + x,
+          y: towerBaseY + y,
+          z,
+          material: z >= 7 ? "roof" : "stone",
+          meta: { layer: z >= 6 ? "sky" : "mid", material: z >= 7 ? "roof" : "stone", lod: 3 },
+        });
+      }
+    }
+  }
+  return voxels;
+}
+
+function buildSpriteFigureVoxels({ x = 5, y = 4, baseZ = 2, id = "sprite_hero", cloth = "sprite_cloth" } = {}) {
+  return [
+    {
+      id,
+      type: "sprite_actor",
+      x,
+      y,
+      z: baseZ,
+      material: cloth,
+      meta: {
+        layer: "mid",
+        material: cloth,
+        lod: 3,
+        sprite2d: true,
+        render_mode: "sprite2d",
+        sprite_w: 1.25,
+        sprite_h: 1.95,
+      },
+    },
+  ];
+}
 
 function monthLabel(year, month) {
   return new Date(year, month, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -1766,9 +2784,9 @@ function resolveRoseVector(payload, engineState) {
   return null;
 }
 
-function normalizeVoxelItem(item, index) {
+function normalizeVoxelItem(item, index, semanticLexicon = DEFAULT_SHYGAZUN_RENDER_LEXICON) {
   const entry = item && typeof item === "object" ? item : {};
-  const meta = entry.meta && typeof entry.meta === "object" ? entry.meta : {};
+  const meta = entry.meta && typeof entry.meta === "object" ? { ...entry.meta } : {};
   const posArray = Array.isArray(entry.pos)
     ? entry.pos
     : Array.isArray(entry.position)
@@ -1787,7 +2805,44 @@ function normalizeVoxelItem(item, index) {
         : entry.at && typeof entry.at === "object" && !Array.isArray(entry.at)
           ? entry.at
           : null;
-  const type = String(entry.type || entry.kind || entry.tag || entry.id || ("voxel_" + index));
+  const semanticTokens = collectSemanticTokens(entry, meta);
+  const semanticTypeFromTag = semanticValueFromTokens(semanticTokens, "type");
+  const semanticRoleFromTag = semanticValueFromTokens(semanticTokens, "role");
+  const semanticMaterialFromTag = semanticValueFromTokens(semanticTokens, "material");
+  const semanticLayerFromTag = semanticValueFromTokens(semanticTokens, "layer");
+  const rawType = String(entry.type || entry.kind || entry.tag || entry.id || ("voxel_" + index));
+  const rawKind = String(entry.kind || meta.kind || rawType);
+  const rawRole = String(entry.role || meta.role || semanticRoleFromTag || "");
+  const type = resolveLexiconAlias("type", semanticTypeFromTag || rawType, semanticLexicon);
+  const kind = resolveLexiconAlias("type", rawKind, semanticLexicon);
+  const canonicalRole = resolveLexiconAlias("role", rawRole, semanticLexicon);
+  const canonicalMaterial = resolveLexiconAlias(
+    "material",
+    semanticMaterialFromTag || entry.material || meta.material || "",
+    semanticLexicon
+  );
+  const canonicalLayer = resolveLexiconAlias(
+    "layer",
+    semanticLayerFromTag || entry.layer || meta.layer || "",
+    semanticLexicon
+  );
+  if (canonicalRole) {
+    meta.role = canonicalRole;
+  }
+  if (canonicalMaterial) {
+    meta.material = canonicalMaterial;
+  }
+  if (canonicalLayer) {
+    meta.layer = canonicalLayer;
+  }
+  meta.semantic_tokens = semanticTokens;
+  meta.semantic_canonical = {
+    role: canonicalRole || "",
+    type: String(type || ""),
+    kind: String(kind || ""),
+    material: canonicalMaterial || "",
+    layer: canonicalLayer || "",
+  };
   const color = typeof entry.color === "string"
     ? entry.color
     : typeof meta.color === "string"
@@ -1869,7 +2924,25 @@ function normalizeVoxelItem(item, index) {
     (meta.frame_right && typeof meta.frame_right === "object" ? meta.frame_right : null) ||
     (meta.frameRight && typeof meta.frameRight === "object" ? meta.frameRight : null) ||
     null;
+  const id = String(entry.id || entry.entity_id || meta.id || ("voxel_" + index));
+  const lod =
+    entry.lod && typeof entry.lod === "object" && !Array.isArray(entry.lod)
+      ? { ...entry.lod }
+      : meta.lod && typeof meta.lod === "object" && !Array.isArray(meta.lod)
+        ? { ...meta.lod }
+        : {};
+  const lodVariants = Array.isArray(entry.lod_variants)
+    ? entry.lod_variants
+    : Array.isArray(entry.lodVariants)
+      ? entry.lodVariants
+      : Array.isArray(meta.lod_variants)
+        ? meta.lod_variants
+        : Array.isArray(meta.lodVariants)
+          ? meta.lodVariants
+          : [];
   return {
+    id,
+    kind,
     x,
     y,
     z,
@@ -1883,11 +2956,634 @@ function normalizeVoxelItem(item, index) {
     frame,
     frameTop,
     frameLeft,
-    frameRight
+    frameRight,
+    lod,
+    lodVariants
   };
 }
 
-function normalizeSceneGraphNode(node, index) {
+function isSpritePlaneVoxel(item) {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+  const meta = item.meta && typeof item.meta === "object" ? item.meta : {};
+  if (typeof item.sprite2d === "boolean") {
+    return item.sprite2d;
+  }
+  if (typeof meta.sprite2d === "boolean") {
+    return meta.sprite2d;
+  }
+  const renderMode = String(meta.render_mode || meta.renderMode || "").toLowerCase();
+  if (renderMode === "sprite2d" || renderMode === "billboard") {
+    return true;
+  }
+  const type = String(item.type || "").toLowerCase();
+  const kind = String(item.kind || "").toLowerCase();
+  return type.includes("sprite") || kind.includes("sprite");
+}
+
+function resolveSpritePlaneMetrics(item, tile) {
+  const meta = item && item.meta && typeof item.meta === "object" ? item.meta : {};
+  const widthTiles =
+    Number(item.sprite_w || item.spriteWidth || meta.sprite_w || meta.spriteWidth || 1.2) || 1.2;
+  const heightTiles =
+    Number(item.sprite_h || item.spriteHeight || meta.sprite_h || meta.spriteHeight || 1.8) || 1.8;
+  const anchorYTiles =
+    Number(item.sprite_anchor_y || item.spriteAnchorY || meta.sprite_anchor_y || meta.spriteAnchorY || 1.0) || 1.0;
+  return {
+    w: Math.max(4, Number(tile) * Math.max(0.3, widthTiles)),
+    h: Math.max(6, Number(tile) * Math.max(0.6, heightTiles)),
+    anchorY: Number(tile) * Math.max(0, anchorYTiles),
+  };
+}
+
+function normalizeFrameRect(frame) {
+  if (!frame || typeof frame !== "object") {
+    return null;
+  }
+  const w = Number(frame.w || frame.width || 0);
+  const h = Number(frame.h || frame.height || 0);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
+    return null;
+  }
+  return {
+    x: Number(frame.x || 0),
+    y: Number(frame.y || 0),
+    w,
+    h,
+  };
+}
+
+function normalizeFrameSequence(value) {
+  if (Array.isArray(value)) {
+    return value.map(normalizeFrameRect).filter(Boolean);
+  }
+  if (value && typeof value === "object" && Array.isArray(value.frames)) {
+    return value.frames.map(normalizeFrameRect).filter(Boolean);
+  }
+  const one = normalizeFrameRect(value);
+  return one ? [one] : [];
+}
+
+function resolveSpriteFrameForFacing(item, facing, fallbackFrame, settings = {}) {
+  const meta = item && item.meta && typeof item.meta === "object" ? item.meta : {};
+  const normalized = normalizeFacing(
+    facing || meta.spriteFacing || meta.sprite_facing || meta.facing || "south"
+  );
+  const moving = Boolean(settings.playerMoving);
+  const motionKey = moving ? "walk" : "idle";
+  const frameMap =
+    (item && item.sprite_frames && typeof item.sprite_frames === "object" ? item.sprite_frames : null) ||
+    (meta.sprite_frames && typeof meta.sprite_frames === "object" ? meta.sprite_frames : null) ||
+    (meta.spriteFrames && typeof meta.spriteFrames === "object" ? meta.spriteFrames : null);
+  const animationMap =
+    (item && item.sprite_animations && typeof item.sprite_animations === "object" ? item.sprite_animations : null) ||
+    (meta.sprite_animations && typeof meta.sprite_animations === "object" ? meta.sprite_animations : null) ||
+    (meta.spriteAnimations && typeof meta.spriteAnimations === "object" ? meta.spriteAnimations : null);
+  if (animationMap) {
+    const motionNode = animationMap[motionKey] && typeof animationMap[motionKey] === "object" ? animationMap[motionKey] : null;
+    const directionalNode = motionNode && motionNode[normalized] !== undefined ? motionNode[normalized] : null;
+    const seq = normalizeFrameSequence(directionalNode);
+    if (seq.length > 0) {
+      const ms = Number(meta.sprite_anim_ms || meta.spriteAnimMs || settings.spriteAnimMs || 120);
+      const stepMs = Number.isFinite(ms) && ms > 20 ? ms : 120;
+      const clock = Number(settings.animationClock || Date.now());
+      const idx = Math.floor(clock / stepMs) % seq.length;
+      return seq[idx];
+    }
+  }
+  if (frameMap) {
+    const direct = frameMap[normalized];
+    if (direct && typeof direct === "object") {
+      return direct;
+    }
+  }
+  const stripEnabled = Boolean(
+    meta.sprite_direction_strip === true ||
+      meta.spriteDirectionStrip === true ||
+      meta.direction_strip === true
+  );
+  if (stripEnabled && fallbackFrame && typeof fallbackFrame === "object") {
+    const w = Number(fallbackFrame.w || 0);
+    const h = Number(fallbackFrame.h || 0);
+    if (w > 0 && h > 0) {
+      const idxMap = { south: 0, west: 1, east: 2, north: 3 };
+      const idx = idxMap[normalized] ?? 0;
+      return {
+        x: Number(fallbackFrame.x || 0) + idx * w,
+        y: Number(fallbackFrame.y || 0),
+        w,
+        h,
+      };
+    }
+  }
+  const fallback = normalizeFrameRect(fallbackFrame);
+  return fallback;
+}
+
+function normalizeCamera2d(camera) {
+  const source = camera && typeof camera === "object" ? camera : {};
+  const panX = Number.isFinite(Number(source.panX)) ? Number(source.panX) : 0;
+  const panY = Number.isFinite(Number(source.panY)) ? Number(source.panY) : 0;
+  const zoom = Number.isFinite(Number(source.zoom)) ? Number(source.zoom) : 1;
+  return {
+    panX: Math.max(-8000, Math.min(8000, panX)),
+    panY: Math.max(-8000, Math.min(8000, panY)),
+    zoom: Math.max(0.25, Math.min(8, zoom)),
+  };
+}
+
+function resolveInputLodLevel(settings) {
+  const lod = settings && typeof settings === "object" && settings.lod && typeof settings.lod === "object" ? settings.lod : {};
+  const mode = String(lod.mode || "auto_zoom").toLowerCase();
+  if (mode === "manual") {
+    const manual = Number.isFinite(Number(lod.level)) ? Number(lod.level) : 2;
+    return Math.max(0, Math.min(5, Math.round(manual)));
+  }
+  const camera2d = normalizeCamera2d(settings && settings.camera2d);
+  const zoom = Number(camera2d.zoom || 1);
+  if (zoom < 0.55) return 0;
+  if (zoom < 0.9) return 1;
+  if (zoom < 1.4) return 2;
+  if (zoom < 2.2) return 3;
+  if (zoom < 3.2) return 4;
+  return 5;
+}
+
+function lodRuleMatches(rule, lodLevel, zoom) {
+  if (!rule || typeof rule !== "object") {
+    return true;
+  }
+  if (Number.isFinite(Number(rule.min_level)) && lodLevel < Number(rule.min_level)) {
+    return false;
+  }
+  if (Number.isFinite(Number(rule.max_level)) && lodLevel > Number(rule.max_level)) {
+    return false;
+  }
+  if (Number.isFinite(Number(rule.min_zoom)) && zoom < Number(rule.min_zoom)) {
+    return false;
+  }
+  if (Number.isFinite(Number(rule.max_zoom)) && zoom > Number(rule.max_zoom)) {
+    return false;
+  }
+  return true;
+}
+
+function applyInputLod(voxels, settings) {
+  if (!Array.isArray(voxels) || voxels.length === 0) {
+    return [];
+  }
+  const camera2d = normalizeCamera2d(settings && settings.camera2d);
+  const zoom = Number(camera2d.zoom || 1);
+  const lodLevel = resolveInputLodLevel(settings || {});
+  const out = [];
+  voxels.forEach((baseVoxel) => {
+    if (!baseVoxel || typeof baseVoxel !== "object") {
+      return;
+    }
+    const rule = baseVoxel.lod && typeof baseVoxel.lod === "object" ? baseVoxel.lod : {};
+    if (!lodRuleMatches(rule, lodLevel, zoom)) {
+      return;
+    }
+    const variants = Array.isArray(baseVoxel.lodVariants) ? baseVoxel.lodVariants : [];
+    let resolved = baseVoxel;
+    variants.forEach((variantRaw) => {
+      if (!variantRaw || typeof variantRaw !== "object") {
+        return;
+      }
+      const when = variantRaw.when && typeof variantRaw.when === "object" ? variantRaw.when : {};
+      if (!lodRuleMatches(when, lodLevel, zoom)) {
+        return;
+      }
+      const variant = { ...variantRaw };
+      delete variant.when;
+      resolved = {
+        ...resolved,
+        ...variant,
+        meta: {
+          ...(resolved.meta && typeof resolved.meta === "object" ? resolved.meta : {}),
+          ...(variant.meta && typeof variant.meta === "object" ? variant.meta : {}),
+        },
+      };
+    });
+    if (resolved.hidden === true || resolved.hide === true || (resolved.meta && resolved.meta.hidden === true)) {
+      return;
+    }
+    out.push(resolved);
+  });
+  return out;
+}
+
+function isRendererPlayerVoxel(voxel, playerId, semanticLexicon = DEFAULT_SHYGAZUN_RENDER_LEXICON) {
+  if (!voxel || typeof voxel !== "object") {
+    return false;
+  }
+  const target = String(playerId || "player").trim().toLowerCase();
+  const id = String(voxel.id || voxel.entity_id || "").trim().toLowerCase();
+  const type = String(voxel.type || "").trim().toLowerCase();
+  const kind = String(voxel.kind || "").trim().toLowerCase();
+  const role = String(voxel.meta && voxel.meta.role ? voxel.meta.role : "").trim().toLowerCase();
+  const akinenwun = String(voxel.meta && voxel.meta.akinenwun ? voxel.meta.akinenwun : "").trim().toLowerCase();
+  const semanticCanonicalRole = String(
+    voxel.meta && voxel.meta.semantic_canonical && voxel.meta.semantic_canonical.role
+      ? voxel.meta.semantic_canonical.role
+      : ""
+  ).trim().toLowerCase();
+  const semanticRole = String(
+    voxel.meta && voxel.meta.semantic_role
+      ? voxel.meta.semantic_role
+      : voxel.meta && voxel.meta.semanticRole
+        ? voxel.meta.semanticRole
+        : ""
+  ).trim().toLowerCase();
+  const semanticTags = Array.isArray(voxel.meta && voxel.meta.semantic_tags)
+    ? voxel.meta.semantic_tags.map((item) => String(item).trim().toLowerCase())
+    : Array.isArray(voxel.meta && voxel.meta.semanticTags)
+      ? voxel.meta.semanticTags.map((item) => String(item).trim().toLowerCase())
+      : [];
+  const shygazunPlayerMarkers = new Set(
+    Array.isArray(semanticLexicon && semanticLexicon.player_markers)
+      ? semanticLexicon.player_markers.map((item) => String(item).trim().toLowerCase()).filter(Boolean)
+      : DEFAULT_SHYGAZUN_RENDER_LEXICON.player_markers
+  );
+  if (target && (id === target || id === ("entity_" + target))) {
+    return true;
+  }
+  if (type === "player" || kind === "player" || role === "player") {
+    return true;
+  }
+  if (semanticCanonicalRole && shygazunPlayerMarkers.has(semanticCanonicalRole)) {
+    return true;
+  }
+  if (semanticRole && shygazunPlayerMarkers.has(semanticRole)) {
+    return true;
+  }
+  if (akinenwun && shygazunPlayerMarkers.has(akinenwun)) {
+    return true;
+  }
+  return semanticTags.some((tag) => shygazunPlayerMarkers.has(tag));
+}
+
+function applyPlayerMotionToVoxels(
+  voxels,
+  playerId,
+  playerTransform,
+  semanticLexicon = DEFAULT_SHYGAZUN_RENDER_LEXICON,
+  playerFacing = "south"
+) {
+  if (!Array.isArray(voxels)) {
+    return [];
+  }
+  const mode = String(playerTransform && playerTransform.mode ? playerTransform.mode : "offset").toLowerCase();
+  const tx = Number.isFinite(Number(playerTransform && playerTransform.x)) ? Number(playerTransform.x) : 0;
+  const ty = Number.isFinite(Number(playerTransform && playerTransform.y)) ? Number(playerTransform.y) : 0;
+  const tz = Number.isFinite(Number(playerTransform && playerTransform.z)) ? Number(playerTransform.z) : 0;
+  if (mode !== "absolute" && tx === 0 && ty === 0 && tz === 0) {
+    return voxels;
+  }
+  return voxels.map((voxel) => {
+    if (!isRendererPlayerVoxel(voxel, playerId, semanticLexicon)) {
+      return voxel;
+    }
+    if (mode === "absolute") {
+      return {
+        ...voxel,
+        x: tx,
+        y: ty,
+        z: tz,
+        meta: { ...(voxel.meta && typeof voxel.meta === "object" ? voxel.meta : {}), spriteFacing: normalizeFacing(playerFacing) },
+      };
+    }
+    return {
+      ...voxel,
+      x: Number(voxel.x || 0) + tx,
+      y: Number(voxel.y || 0) + ty,
+      z: Number(voxel.z || 0) + tz,
+      meta: { ...(voxel.meta && typeof voxel.meta === "object" ? voxel.meta : {}), spriteFacing: normalizeFacing(playerFacing) },
+    };
+  });
+}
+
+function readPlayerPositionSignal(engineState) {
+  if (!engineState || typeof engineState !== "object") {
+    return null;
+  }
+  const signals = engineState.signals && typeof engineState.signals === "object" ? engineState.signals : {};
+  const pos = signals.player_position && typeof signals.player_position === "object" ? signals.player_position : null;
+  if (!pos) {
+    return null;
+  }
+  if (!Number.isFinite(Number(pos.x)) || !Number.isFinite(Number(pos.y))) {
+    return null;
+  }
+  return {
+    x: Number(pos.x),
+    y: Number(pos.y),
+    z: Number.isFinite(Number(pos.z)) ? Number(pos.z) : 0,
+  };
+}
+
+function computePlayerFollowPan2d(
+  voxels,
+  playerId,
+  tile,
+  zScale,
+  semanticLexicon = DEFAULT_SHYGAZUN_RENDER_LEXICON,
+  projection = "isometric"
+) {
+  if (!Array.isArray(voxels) || voxels.length === 0) {
+    return { panX: 0, panY: 0 };
+  }
+  const player = voxels.find((item) => isRendererPlayerVoxel(item, playerId, semanticLexicon));
+  if (!player) {
+    return { panX: 0, panY: 0 };
+  }
+  const projectionMode = String(projection || "isometric").toLowerCase();
+  if (projectionMode === "cardinal") {
+    const bounds = computeCardinalContentBounds(voxels, tile, zScale);
+    const contentCenterX = (bounds.minX + bounds.maxX) * 0.5;
+    const contentCenterY = (bounds.minY + bounds.maxY) * 0.5;
+    const playerX = Number(player.x || 0) * tile;
+    const playerY = Number(player.y || 0) * tile - Number(player.z || 0) * zScale;
+    return {
+      panX: -(playerX - contentCenterX),
+      panY: -(playerY - contentCenterY),
+    };
+  }
+  const bounds = computeIsoContentBounds(voxels, tile, zScale);
+  const contentCenterX = (bounds.minX + bounds.maxX) * 0.5;
+  const contentCenterY = (bounds.minY + bounds.maxY) * 0.5;
+  const playerIsoX = (Number(player.x || 0) - Number(player.y || 0)) * tile;
+  const playerIsoY = (Number(player.x || 0) + Number(player.y || 0)) * (tile * 0.5) - Number(player.z || 0) * zScale;
+  return {
+    panX: -(playerIsoX - contentCenterX),
+    panY: -(playerIsoY - contentCenterY),
+  };
+}
+
+function computePlayerFollowPan3d(voxels, playerId, tile, zScale, semanticLexicon = DEFAULT_SHYGAZUN_RENDER_LEXICON) {
+  if (!Array.isArray(voxels) || voxels.length === 0) {
+    return { panX: 0, panY: 0 };
+  }
+  const player = voxels.find((item) => isRendererPlayerVoxel(item, playerId, semanticLexicon));
+  if (!player) {
+    return { panX: 0, panY: 0 };
+  }
+  const minX = Math.min(...voxels.map((item) => Number(item.x || 0)));
+  const maxX = Math.max(...voxels.map((item) => Number(item.x || 0)));
+  const minY = Math.min(...voxels.map((item) => Number(item.y || 0)));
+  const maxY = Math.max(...voxels.map((item) => Number(item.y || 0)));
+  const minZ = Math.min(...voxels.map((item) => Number(item.z || 0)));
+  const maxZ = Math.max(...voxels.map((item) => Number(item.z || 0)));
+  const centerX = (minX + maxX) * 0.5;
+  const centerY = (minY + maxY) * 0.5;
+  const centerZ = (minZ + maxZ) * 0.5;
+  const dx = Number(player.x || 0) - centerX;
+  const dy = Number(player.y || 0) - centerY;
+  const dz = Number(player.z || 0) - centerZ;
+  return {
+    panX: -((dx - dy) * tile * 0.45),
+    panY: -((dx + dy) * tile * 0.2 - dz * zScale * 0.75),
+  };
+}
+
+function computeIsoContentBounds(voxels, tile, zScale) {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  voxels.forEach((item) => {
+    const isoX = (Number(item.x || 0) - Number(item.y || 0)) * tile;
+    const isoY = (Number(item.x || 0) + Number(item.y || 0)) * (tile * 0.5) - Number(item.z || 0) * zScale;
+    minX = Math.min(minX, isoX - tile);
+    maxX = Math.max(maxX, isoX + tile);
+    minY = Math.min(minY, isoY);
+    maxY = Math.max(maxY, isoY + tile + zScale);
+  });
+  return { minX, maxX, minY, maxY };
+}
+
+function computeCardinalContentBounds(voxels, tile, zScale) {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  voxels.forEach((item) => {
+    const sx = Number(item.x || 0) * tile;
+    const sy = Number(item.y || 0) * tile - Number(item.z || 0) * zScale;
+    minX = Math.min(minX, sx);
+    maxX = Math.max(maxX, sx + tile + zScale);
+    minY = Math.min(minY, sy);
+    maxY = Math.max(maxY, sy + tile + zScale);
+  });
+  return { minX, maxX, minY, maxY };
+}
+
+function screenToIsoGridPoint2d(screenX, screenY, width, height, voxels, settings, playerZ = 0) {
+  if (!Array.isArray(voxels) || voxels.length === 0) {
+    return null;
+  }
+  const tileBase = Number.isFinite(Number(settings.tile)) ? Number(settings.tile) : 18;
+  const zScaleBase = Number.isFinite(Number(settings.zScale)) ? Number(settings.zScale) : 8;
+  const camera2d = normalizeCamera2d(settings.camera2d);
+  const zoom2d = Number(camera2d.zoom || 1);
+  const tile = tileBase * zoom2d;
+  const zScale = zScaleBase * zoom2d;
+  const cameraPanX = Number.isFinite(Number(camera2d.panX)) ? Number(camera2d.panX) : 0;
+  const cameraPanY = Number.isFinite(Number(camera2d.panY)) ? Number(camera2d.panY) : 0;
+  const projection = String(settings && settings.projection ? settings.projection : "isometric").toLowerCase();
+  const bounds = projection === "cardinal"
+    ? computeCardinalContentBounds(voxels, tile, zScale)
+    : computeIsoContentBounds(voxels, tile, zScale);
+  if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.minY)) {
+    return null;
+  }
+  const pad = 16;
+  const contentWidth = Math.max(1, bounds.maxX - bounds.minX);
+  const contentHeight = Math.max(1, bounds.maxY - bounds.minY);
+  const offsetX = (width - contentWidth) * 0.5 - bounds.minX + cameraPanX;
+  const offsetY = (height - contentHeight) * 0.5 - bounds.minY + pad + cameraPanY;
+  if (projection === "cardinal") {
+    return {
+      x: (screenX - offsetX) / tile,
+      y: (screenY - offsetY + playerZ * zScale) / tile,
+    };
+  }
+  const u = (screenX - offsetX) / tile;
+  const v = (screenY - offsetY + playerZ * zScale) / (tile * 0.5);
+  return {
+    x: (u + v) * 0.5,
+    y: (v - u) * 0.5,
+  };
+}
+
+function buildStepDeltaQueue(dx, dy, dz, step) {
+  const stepSize = Math.max(0.05, Number(step || 1));
+  let remX = Number(dx || 0);
+  let remY = Number(dy || 0);
+  let remZ = Number(dz || 0);
+  const queue = [];
+  let guard = 0;
+  while ((Math.abs(remX) > 1e-6 || Math.abs(remY) > 1e-6 || Math.abs(remZ) > 1e-6) && guard < 8192) {
+    const sx = Math.abs(remX) <= stepSize ? remX : Math.sign(remX) * stepSize;
+    const sy = Math.abs(remY) <= stepSize ? remY : Math.sign(remY) * stepSize;
+    const sz = Math.abs(remZ) <= stepSize ? remZ : Math.sign(remZ) * stepSize;
+    queue.push({ dx: sx, dy: sy, dz: sz });
+    remX -= sx;
+    remY -= sy;
+    remZ -= sz;
+    guard += 1;
+  }
+  return queue;
+}
+
+function normalizeFacing(value) {
+  const facing = String(value || "").trim().toLowerCase();
+  if (facing === "n" || facing === "north" || facing === "up") return "north";
+  if (facing === "s" || facing === "south" || facing === "down") return "south";
+  if (facing === "w" || facing === "west" || facing === "left") return "west";
+  if (facing === "e" || facing === "east" || facing === "right") return "east";
+  return "south";
+}
+
+function facingFromDelta(dx, dy, fallback = "south") {
+  const x = Number(dx || 0);
+  const y = Number(dy || 0);
+  if (Math.abs(x) < 1e-6 && Math.abs(y) < 1e-6) {
+    return normalizeFacing(fallback);
+  }
+  if (Math.abs(x) > Math.abs(y)) {
+    return x > 0 ? "east" : "west";
+  }
+  return y > 0 ? "south" : "north";
+}
+
+const DEFAULT_SHYGAZUN_RENDER_LEXICON = {
+  player_markers: [
+    "taplayer",
+    "player",
+    "protagonist",
+    "avatar",
+    "speaker:player",
+    "role:player",
+    "entity:player",
+  ],
+  aliases: {
+    role: {
+      taplayer: "player",
+      tashamowun: "npc",
+    },
+    type: {
+      shy: "pattern",
+      tashamowun: "npc",
+    },
+    material: {},
+    layer: {},
+  },
+};
+
+function deepMergeObjects(base, extra) {
+  const left = base && typeof base === "object" ? base : {};
+  const right = extra && typeof extra === "object" ? extra : {};
+  const out = { ...left };
+  Object.entries(right).forEach(([key, value]) => {
+    if (value && typeof value === "object" && !Array.isArray(value) && left[key] && typeof left[key] === "object" && !Array.isArray(left[key])) {
+      out[key] = deepMergeObjects(left[key], value);
+    } else {
+      out[key] = value;
+    }
+  });
+  return out;
+}
+
+function buildRendererSemanticLexicon(payload, engineState) {
+  const payloadObj = payload && typeof payload === "object" ? payload : {};
+  const engineObj = engineState && typeof engineState === "object" ? engineState : {};
+  const tables = engineObj.tables && typeof engineObj.tables === "object" ? engineObj.tables : {};
+  const candidates = [
+    payloadObj.shygazun_lexicon,
+    payloadObj.semantic_lexicon,
+    payloadObj.render_constraints && payloadObj.render_constraints.shygazun_lexicon,
+    tables.shygazun_lexicon,
+    engineObj.shygazun_lexicon,
+  ];
+  let merged = deepMergeObjects({}, DEFAULT_SHYGAZUN_RENDER_LEXICON);
+  candidates.forEach((candidate) => {
+    if (candidate && typeof candidate === "object") {
+      merged = deepMergeObjects(merged, candidate);
+    }
+  });
+  const aliases = merged.aliases && typeof merged.aliases === "object" ? merged.aliases : {};
+  return {
+    ...merged,
+    aliases: {
+      role: aliases.role && typeof aliases.role === "object" ? aliases.role : {},
+      type: aliases.type && typeof aliases.type === "object" ? aliases.type : {},
+      material: aliases.material && typeof aliases.material === "object" ? aliases.material : {},
+      layer: aliases.layer && typeof aliases.layer === "object" ? aliases.layer : {},
+    },
+    player_markers: Array.isArray(merged.player_markers) ? merged.player_markers.map((item) => String(item).toLowerCase()) : DEFAULT_SHYGAZUN_RENDER_LEXICON.player_markers,
+  };
+}
+
+function asLowerToken(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function resolveLexiconAlias(domain, value, lexicon) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return raw;
+  }
+  const aliases = lexicon && lexicon.aliases && typeof lexicon.aliases === "object" ? lexicon.aliases : {};
+  const table = aliases[domain] && typeof aliases[domain] === "object" ? aliases[domain] : {};
+  const token = raw.toLowerCase();
+  const mapped = Object.prototype.hasOwnProperty.call(table, token) ? table[token] : null;
+  return mapped ? String(mapped) : raw;
+}
+
+function collectSemanticTokens(entry, meta) {
+  const tokens = [];
+  const add = (value) => {
+    const token = asLowerToken(value);
+    if (token) {
+      tokens.push(token);
+    }
+  };
+  add(entry.type);
+  add(entry.kind);
+  add(entry.role);
+  add(entry.tag);
+  add(meta.role);
+  add(meta.semantic_role);
+  add(meta.semanticRole);
+  add(meta.akinenwun);
+  const arrays = [
+    meta.semantic_tags,
+    meta.semanticTags,
+    entry.tags,
+    entry.semantic_tags,
+    entry.semanticTags,
+  ];
+  arrays.forEach((arr) => {
+    if (Array.isArray(arr)) {
+      arr.forEach((item) => add(item));
+    }
+  });
+  return tokens;
+}
+
+function semanticValueFromTokens(tokens, prefix) {
+  const needle = `${String(prefix).toLowerCase()}:`;
+  for (const token of tokens) {
+    if (token.startsWith(needle) && token.length > needle.length) {
+      return token.slice(needle.length);
+    }
+  }
+  return "";
+}
+
+function normalizeSceneGraphNode(node, index, semanticLexicon = DEFAULT_SHYGAZUN_RENDER_LEXICON) {
   const entry = node && typeof node === "object" ? node : {};
   const meta = entry.metadata && typeof entry.metadata === "object" ? { ...entry.metadata } : {};
   if (typeof entry.layer === "string" && entry.layer) {
@@ -1910,24 +3606,25 @@ function normalizeSceneGraphNode(node, index) {
       type: entry.kind || entry.tag || entry.node_id || entry.id || ("node_" + index),
       meta
     },
-    index
+    index,
+    semanticLexicon
   );
 }
 
-function extractVoxelsFromPayload(payload) {
+function extractVoxelsFromPayload(payload, semanticLexicon = DEFAULT_SHYGAZUN_RENDER_LEXICON) {
   if (Array.isArray(payload)) {
-    return payload.map((item, index) => normalizeVoxelItem(item, index));
+    return payload.map((item, index) => normalizeVoxelItem(item, index, semanticLexicon));
   }
   if (!payload || typeof payload !== "object") {
     return [];
   }
   const graphNodes = payload.graph && Array.isArray(payload.graph.nodes) ? payload.graph.nodes : null;
   if (graphNodes) {
-    return graphNodes.map((node, index) => normalizeSceneGraphNode(node, index));
+    return graphNodes.map((node, index) => normalizeSceneGraphNode(node, index, semanticLexicon));
   }
   const directNodes = Array.isArray(payload.nodes) ? payload.nodes : null;
   if (directNodes && directNodes.length > 0 && typeof directNodes[0] === "object" && "node_id" in directNodes[0]) {
-    return directNodes.map((node, index) => normalizeSceneGraphNode(node, index));
+    return directNodes.map((node, index) => normalizeSceneGraphNode(node, index, semanticLexicon));
   }
   const candidates = Array.isArray(payload.voxels)
     ? payload.voxels
@@ -1938,7 +3635,7 @@ function extractVoxelsFromPayload(payload) {
         : Array.isArray(payload.data)
           ? payload.data
           : [];
-  return candidates.map((item, index) => normalizeVoxelItem(item, index));
+  return candidates.map((item, index) => normalizeVoxelItem(item, index, semanticLexicon));
 }
 
 function applyVoxelMaterials(voxels, materialsMap, layersMap, atlasMap) {
@@ -2010,15 +3707,23 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
   const background = typeof settings.background === "string" ? settings.background : "#0b1426";
   const outline = Boolean(settings.outline);
   const outlineColor = typeof settings.outlineColor === "string" ? settings.outlineColor : "#0f203c";
+  const edgeGlow = Boolean(settings.edgeGlow);
+  const edgeGlowColor = typeof settings.edgeGlowColor === "string" ? settings.edgeGlowColor : outlineColor;
+  const edgeGlowStrength = Math.max(0, Math.min(32, Number(settings.edgeGlowStrength ?? 8)));
+  const renderScale = clampNumber(settings.renderScale, 1, 4, 1);
+  const visualStyle = typeof settings.visualStyle === "string" ? settings.visualStyle : "default";
+  const pixelate = Boolean(settings.pixelate);
   const labelMode = typeof settings.labelMode === "string" ? settings.labelMode : "none";
   const labelColor = typeof settings.labelColor === "string" ? settings.labelColor : "#d9e6ff";
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = (window.devicePixelRatio || 1) * renderScale;
   const width = Math.max(1, canvas.clientWidth);
   const height = Math.max(1, canvas.clientHeight);
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
+  ctx.imageSmoothingEnabled = !pixelate;
+  ctx.imageSmoothingQuality = pixelate ? "low" : "high";
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, width, height);
@@ -2070,6 +3775,11 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
 
   projected.forEach((entry) => {
     const item = entry.item;
+    const edgeGlowLocal = resolveVoxelEdgeGlowConfig(item, {
+      enabled: edgeGlow,
+      color: edgeGlowColor,
+      strength: edgeGlowStrength,
+    });
     const scale = entry.scale;
     const w = Math.max(2, tile * scale);
     const h = Math.max(2, (tile + zScale) * scale);
@@ -2084,9 +3794,85 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
     const x0 = sx - (w * 0.5);
     const y0 = sy - h;
     const baseColor = item.color || "#7aa2ff";
-    const front = baseColor;
-    const side = shadeVoxel(baseColor, -28);
-    const top = shadeVoxel(baseColor, 26);
+    const front = stylizeVoxelColor(baseColor, visualStyle);
+    const side = stylizeVoxelColor(shadeVoxel(baseColor, -28), visualStyle);
+    const top = stylizeVoxelColor(shadeVoxel(baseColor, 26), visualStyle);
+    const highFidelity = isHighFidelityStyle(visualStyle);
+    const spritePlane = isSpritePlaneVoxel(item);
+
+    if (spritePlane) {
+      const spriteTexture = item.texture || item.textureTop || item.textureLeft || item.textureRight || null;
+      const spriteFrame = resolveSpriteFrameForFacing(
+        item,
+        item.meta && item.meta.spriteFacing ? item.meta.spriteFacing : settings.playerFacing,
+        item.frame || item.frameTop || item.frameLeft || item.frameRight || null,
+        settings
+      );
+      const metrics = resolveSpritePlaneMetrics(item, tile);
+      const spriteW = Math.max(6, metrics.w * Math.max(0.35, scale));
+      const spriteH = Math.max(8, metrics.h * Math.max(0.35, scale));
+      const spriteX = sx - spriteW * 0.5;
+      const spriteY = y0 + h - spriteH;
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,0.26)";
+      ctx.beginPath();
+      ctx.ellipse(sx, y0 + h + Math.max(2, tile * 0.18), Math.max(4, spriteW * 0.35), Math.max(2, tile * 0.16), 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      if (spriteTexture) {
+        const img = getTextureImage(spriteTexture);
+        if (img && img.complete && img.naturalWidth > 0) {
+          if (spriteFrame && Number.isFinite(Number(spriteFrame.w)) && Number.isFinite(Number(spriteFrame.h))) {
+            ctx.drawImage(
+              img,
+              Number(spriteFrame.x || 0),
+              Number(spriteFrame.y || 0),
+              Number(spriteFrame.w || img.naturalWidth),
+              Number(spriteFrame.h || img.naturalHeight),
+              spriteX,
+              spriteY,
+              spriteW,
+              spriteH
+            );
+          } else {
+            ctx.drawImage(img, spriteX, spriteY, spriteW, spriteH);
+          }
+        } else {
+          ctx.fillStyle = front;
+          ctx.fillRect(spriteX, spriteY, spriteW, spriteH);
+        }
+      } else {
+        const gradSprite = ctx.createLinearGradient(spriteX, spriteY, spriteX, spriteY + spriteH);
+        gradSprite.addColorStop(0, stylizeVoxelColor(shadeVoxel(baseColor, 20), visualStyle));
+        gradSprite.addColorStop(1, stylizeVoxelColor(shadeVoxel(baseColor, -18), visualStyle));
+        ctx.fillStyle = gradSprite;
+        ctx.fillRect(spriteX, spriteY, spriteW, spriteH);
+      }
+      if (outline) {
+        ctx.strokeStyle = outlineColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(spriteX, spriteY, spriteW, spriteH);
+      }
+      if (labelMode !== "none") {
+        const label = String(item.id || item.type || "");
+        if (label) {
+          ctx.fillStyle = labelColor;
+          ctx.font = "11px monospace";
+          ctx.fillText(label, spriteX, spriteY - 4);
+        }
+      }
+      return;
+    }
+
+    if (highFidelity) {
+      const shadowAlpha = Math.max(0.06, 0.22 - Number(item.z || 0) * 0.03);
+      ctx.save();
+      ctx.fillStyle = `rgba(0,0,0,${shadowAlpha.toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(sx, y0 + h + Math.max(2, tile * 0.18), Math.max(4, w * 0.55), Math.max(2, tile * 0.2), 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     ctx.beginPath();
     ctx.moveTo(x0, y0);
@@ -2094,12 +3880,29 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
     ctx.lineTo(x0 + w, y0 + h);
     ctx.lineTo(x0, y0 + h);
     ctx.closePath();
-    ctx.fillStyle = front;
+    if (highFidelity) {
+      const gradFront = ctx.createLinearGradient(x0, y0, x0, y0 + h);
+      gradFront.addColorStop(0, stylizeVoxelColor(shadeVoxel(baseColor, 14), visualStyle));
+      gradFront.addColorStop(0.58, front);
+      gradFront.addColorStop(1, stylizeVoxelColor(shadeVoxel(baseColor, -18), visualStyle));
+      ctx.fillStyle = gradFront;
+    } else {
+      ctx.fillStyle = front;
+    }
     ctx.fill();
     if (outline) {
       ctx.strokeStyle = outlineColor;
       ctx.lineWidth = 1;
       ctx.stroke();
+    }
+    if (edgeGlowLocal.enabled) {
+      ctx.save();
+      ctx.shadowColor = edgeGlowLocal.color;
+      ctx.shadowBlur = edgeGlowLocal.strength;
+      ctx.strokeStyle = edgeGlowLocal.color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
     }
 
     ctx.beginPath();
@@ -2115,12 +3918,30 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
       ctx.lineTo(x0, y0 + h);
     }
     ctx.closePath();
-    ctx.fillStyle = side;
+    if (highFidelity) {
+      const sideX0 = sinYaw >= 0 ? x0 + w : x0 - skew;
+      const sideX1 = sinYaw >= 0 ? x0 + w + skew : x0;
+      const gradSide = ctx.createLinearGradient(sideX0, y0, sideX1, y0 + h);
+      gradSide.addColorStop(0, stylizeVoxelColor(shadeVoxel(baseColor, -8), visualStyle));
+      gradSide.addColorStop(1, stylizeVoxelColor(shadeVoxel(baseColor, -34), visualStyle));
+      ctx.fillStyle = gradSide;
+    } else {
+      ctx.fillStyle = side;
+    }
     ctx.fill();
     if (outline) {
       ctx.strokeStyle = outlineColor;
       ctx.lineWidth = 1;
       ctx.stroke();
+    }
+    if (edgeGlowLocal.enabled) {
+      ctx.save();
+      ctx.shadowColor = edgeGlowLocal.color;
+      ctx.shadowBlur = edgeGlowLocal.strength;
+      ctx.strokeStyle = edgeGlowLocal.color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
     }
 
     ctx.beginPath();
@@ -2136,12 +3957,28 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
       ctx.lineTo(x0 - skew, y0 - rise);
     }
     ctx.closePath();
-    ctx.fillStyle = top;
+    if (highFidelity) {
+      const gradTop = ctx.createLinearGradient(x0, y0 - rise, x0 + w + skew, y0);
+      gradTop.addColorStop(0, stylizeVoxelColor(shadeVoxel(baseColor, 34), visualStyle));
+      gradTop.addColorStop(1, top);
+      ctx.fillStyle = gradTop;
+    } else {
+      ctx.fillStyle = top;
+    }
     ctx.fill();
     if (outline) {
       ctx.strokeStyle = outlineColor;
       ctx.lineWidth = 1;
       ctx.stroke();
+    }
+    if (edgeGlowLocal.enabled) {
+      ctx.save();
+      ctx.shadowColor = edgeGlowLocal.color;
+      ctx.shadowBlur = edgeGlowLocal.strength;
+      ctx.strokeStyle = edgeGlowLocal.color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
     }
 
     if (labelMode !== "none") {
@@ -2158,6 +3995,260 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
   });
 }
 
+function drawVoxelSceneCardinal(canvas, ctx, voxels, settings, shared) {
+  const {
+    tile,
+    zScale,
+    outline,
+    outlineColor,
+    edgeGlow,
+    edgeGlowColor,
+    edgeGlowStrength,
+    visualStyle,
+    labelMode,
+    labelColor,
+    lightingEnabled,
+    ambient,
+    intensity,
+    nx,
+    ny,
+    nz,
+    width,
+    height,
+    cameraPanX,
+    cameraPanY,
+  } = shared;
+  const sorted = voxels.slice().sort((a, b) => {
+    const ay = Number(a.y || 0);
+    const by = Number(b.y || 0);
+    if (ay !== by) return ay - by;
+    const ax = Number(a.x || 0);
+    const bx = Number(b.x || 0);
+    if (ax !== bx) return ax - bx;
+    return Number(a.z || 0) - Number(b.z || 0);
+  });
+  const bounds = computeCardinalContentBounds(sorted, tile, zScale);
+  if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.minY)) {
+    return;
+  }
+  const pad = 16;
+  const contentWidth = Math.max(1, bounds.maxX - bounds.minX);
+  const contentHeight = Math.max(1, bounds.maxY - bounds.minY);
+  const offsetX = (width - contentWidth) * 0.5 - bounds.minX + cameraPanX;
+  const offsetY = (height - contentHeight) * 0.5 - bounds.minY + pad + cameraPanY;
+  sorted.forEach((item) => {
+    const edgeGlowLocal = resolveVoxelEdgeGlowConfig(item, {
+      enabled: edgeGlow,
+      color: edgeGlowColor,
+      strength: edgeGlowStrength,
+    });
+    const sx = Number(item.x || 0) * tile + offsetX;
+    const sy = Number(item.y || 0) * tile - Number(item.z || 0) * zScale + offsetY;
+    const baseColor = item.color;
+    const topRaw = lightingEnabled ? shadeColor(baseColor, ambient + Math.max(0, nz) * intensity) : baseColor;
+    const southRaw = lightingEnabled ? shadeColor(baseColor, ambient + Math.max(0, -ny) * intensity) : shadeVoxel(baseColor, -24);
+    const eastRaw = lightingEnabled ? shadeColor(baseColor, ambient + Math.max(0, nx) * intensity) : shadeVoxel(baseColor, -16);
+    const top = stylizeVoxelColor(topRaw, visualStyle);
+    const south = stylizeVoxelColor(southRaw, visualStyle);
+    const east = stylizeVoxelColor(eastRaw, visualStyle);
+    const highFidelity = isHighFidelityStyle(visualStyle);
+    const redraw = () => drawVoxelScene(canvas, voxels, settings);
+    const topTexture = item.textureTop || item.texture || null;
+    const southTexture = item.textureLeft || item.texture || null;
+    const eastTexture = item.textureRight || item.texture || null;
+    const topFrame = item.frameTop || item.frame || null;
+    const southFrame = item.frameLeft || item.frame || null;
+    const eastFrame = item.frameRight || item.frame || null;
+    const spritePlane = isSpritePlaneVoxel(item);
+    if (spritePlane) {
+      const spriteTexture = item.texture || item.textureTop || item.textureLeft || item.textureRight || null;
+      const spriteFrame = resolveSpriteFrameForFacing(
+        item,
+        item.meta && item.meta.spriteFacing ? item.meta.spriteFacing : settings.playerFacing,
+        item.frame || item.frameTop || item.frameLeft || item.frameRight || null,
+        settings
+      );
+      const metrics = resolveSpritePlaneMetrics(item, tile);
+      const spriteX = sx + tile * 0.5 - metrics.w * 0.5;
+      const spriteY = sy + tile + zScale - metrics.h - metrics.anchorY * 0.15;
+      const shadowW = Math.max(4, metrics.w * 0.58);
+      const shadowH = Math.max(2, zScale * 0.55);
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,0.22)";
+      ctx.fillRect(sx + tile * 0.5 - shadowW * 0.5, sy + tile + zScale - 1, shadowW, shadowH);
+      ctx.restore();
+      if (spriteTexture) {
+        const img = getTextureImage(spriteTexture, redraw);
+        if (img && img.complete && img.naturalWidth > 0) {
+          if (spriteFrame && Number.isFinite(Number(spriteFrame.w)) && Number.isFinite(Number(spriteFrame.h))) {
+            ctx.drawImage(
+              img,
+              Number(spriteFrame.x || 0),
+              Number(spriteFrame.y || 0),
+              Number(spriteFrame.w || img.naturalWidth),
+              Number(spriteFrame.h || img.naturalHeight),
+              spriteX,
+              spriteY,
+              metrics.w,
+              metrics.h
+            );
+          } else {
+            ctx.drawImage(img, spriteX, spriteY, metrics.w, metrics.h);
+          }
+        } else {
+          ctx.fillStyle = top;
+          ctx.fillRect(spriteX, spriteY, metrics.w, metrics.h);
+        }
+      } else {
+        const gradSprite = ctx.createLinearGradient(spriteX, spriteY, spriteX, spriteY + metrics.h);
+        gradSprite.addColorStop(0, stylizeVoxelColor(shadeVoxel(topRaw, 18), visualStyle));
+        gradSprite.addColorStop(1, stylizeVoxelColor(shadeVoxel(topRaw, -18), visualStyle));
+        ctx.fillStyle = gradSprite;
+        ctx.fillRect(spriteX, spriteY, metrics.w, metrics.h);
+      }
+      if (outline) {
+        ctx.strokeStyle = outlineColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(spriteX, spriteY, metrics.w, metrics.h);
+      }
+      if (labelMode !== "none") {
+        const labelText = String(item.id || item.type || "");
+        if (labelText) {
+          ctx.fillStyle = labelColor;
+          ctx.font = "11px monospace";
+          ctx.fillText(labelText, spriteX, spriteY - 4);
+        }
+      }
+      return;
+    }
+
+    if (highFidelity) {
+      const shadowAlpha = Math.max(0.05, 0.18 - Number(item.z || 0) * 0.02);
+      ctx.save();
+      ctx.fillStyle = `rgba(0,0,0,${shadowAlpha.toFixed(3)})`;
+      ctx.fillRect(sx + tile * 0.08, sy + tile + zScale - 1, tile * 0.84, Math.max(2, zScale * 0.45));
+      ctx.restore();
+      const gradTop = ctx.createLinearGradient(sx, sy, sx, sy + tile);
+      gradTop.addColorStop(0, stylizeVoxelColor(shadeVoxel(topRaw, 18), visualStyle));
+      gradTop.addColorStop(1, top);
+      ctx.fillStyle = gradTop;
+    } else {
+      ctx.fillStyle = top;
+    }
+    ctx.fillRect(sx, sy, tile, tile);
+    if (outline) {
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(sx, sy, tile, tile);
+    }
+    if (edgeGlowLocal.enabled) {
+      ctx.save();
+      ctx.shadowColor = edgeGlowLocal.color;
+      ctx.shadowBlur = edgeGlowLocal.strength;
+      ctx.strokeStyle = edgeGlowLocal.color;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(sx, sy, tile, tile);
+      ctx.restore();
+    }
+    if (topTexture) {
+      const img = getTextureImage(topTexture, redraw);
+      if (img && img.complete && img.naturalWidth > 0) {
+        if (topFrame && Number.isFinite(Number(topFrame.w)) && Number.isFinite(Number(topFrame.h))) {
+          ctx.drawImage(
+            img,
+            Number(topFrame.x || 0),
+            Number(topFrame.y || 0),
+            Number(topFrame.w || img.naturalWidth),
+            Number(topFrame.h || img.naturalHeight),
+            sx,
+            sy,
+            tile,
+            tile
+          );
+        } else {
+          ctx.drawImage(img, sx, sy, tile, tile);
+        }
+      }
+    }
+
+    if (highFidelity) {
+      const gradSouth = ctx.createLinearGradient(sx, sy + tile, sx, sy + tile + zScale);
+      gradSouth.addColorStop(0, stylizeVoxelColor(shadeVoxel(southRaw, 8), visualStyle));
+      gradSouth.addColorStop(1, stylizeVoxelColor(shadeVoxel(southRaw, -16), visualStyle));
+      ctx.fillStyle = gradSouth;
+    } else {
+      ctx.fillStyle = south;
+    }
+    ctx.fillRect(sx, sy + tile, tile, zScale);
+    if (highFidelity) {
+      const gradEast = ctx.createLinearGradient(sx + tile, sy, sx + tile + zScale, sy + tile);
+      gradEast.addColorStop(0, stylizeVoxelColor(shadeVoxel(eastRaw, 6), visualStyle));
+      gradEast.addColorStop(1, stylizeVoxelColor(shadeVoxel(eastRaw, -18), visualStyle));
+      ctx.fillStyle = gradEast;
+    } else {
+      ctx.fillStyle = east;
+    }
+    ctx.fillRect(sx + tile, sy, zScale, tile);
+    if (outline) {
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(sx, sy + tile, tile, zScale);
+      ctx.strokeRect(sx + tile, sy, zScale, tile);
+    }
+    if (southTexture) {
+      const img = getTextureImage(southTexture, redraw);
+      if (img && img.complete && img.naturalWidth > 0) {
+        if (southFrame && Number.isFinite(Number(southFrame.w)) && Number.isFinite(Number(southFrame.h))) {
+          ctx.drawImage(
+            img,
+            Number(southFrame.x || 0),
+            Number(southFrame.y || 0),
+            Number(southFrame.w || img.naturalWidth),
+            Number(southFrame.h || img.naturalHeight),
+            sx,
+            sy + tile,
+            tile,
+            zScale
+          );
+        } else {
+          ctx.drawImage(img, sx, sy + tile, tile, zScale);
+        }
+      }
+    }
+    if (eastTexture) {
+      const img = getTextureImage(eastTexture, redraw);
+      if (img && img.complete && img.naturalWidth > 0) {
+        if (eastFrame && Number.isFinite(Number(eastFrame.w)) && Number.isFinite(Number(eastFrame.h))) {
+          ctx.drawImage(
+            img,
+            Number(eastFrame.x || 0),
+            Number(eastFrame.y || 0),
+            Number(eastFrame.w || img.naturalWidth),
+            Number(eastFrame.h || img.naturalHeight),
+            sx + tile,
+            sy,
+            zScale,
+            tile
+          );
+        } else {
+          ctx.drawImage(img, sx + tile, sy, zScale, tile);
+        }
+      }
+    }
+    if (labelMode !== "none") {
+      let labelText = "";
+      if (labelMode === "type") labelText = String(item.type || "");
+      else if (labelMode === "z") labelText = String(item.z || 0);
+      else if (labelMode === "layer") labelText = String(item.layer || "");
+      if (labelText) {
+        ctx.fillStyle = labelColor;
+        ctx.font = "11px monospace";
+        ctx.fillText(labelText, sx + 2, sy - 4);
+      }
+    }
+  });
+}
+
 function drawVoxelScene(canvas, voxels, settings = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -2168,13 +4259,26 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
     drawVoxelScene3D(canvas, voxels, settings);
     return;
   }
-  const tile = Number.isFinite(Number(settings.tile)) ? Number(settings.tile) : 18;
-  const zScale = Number.isFinite(Number(settings.zScale)) ? Number(settings.zScale) : 8;
+  const tileBase = Number.isFinite(Number(settings.tile)) ? Number(settings.tile) : 18;
+  const zScaleBase = Number.isFinite(Number(settings.zScale)) ? Number(settings.zScale) : 8;
   const background = typeof settings.background === "string" ? settings.background : "#0b1426";
   const outline = Boolean(settings.outline);
   const outlineColor = typeof settings.outlineColor === "string" ? settings.outlineColor : "#0f203c";
+  const edgeGlow = Boolean(settings.edgeGlow);
+  const edgeGlowColor = typeof settings.edgeGlowColor === "string" ? settings.edgeGlowColor : outlineColor;
+  const edgeGlowStrength = Math.max(0, Math.min(32, Number(settings.edgeGlowStrength ?? 8)));
+  const renderScale = clampNumber(settings.renderScale, 1, 4, 1);
+  const visualStyle = typeof settings.visualStyle === "string" ? settings.visualStyle : "default";
+  const pixelate = Boolean(settings.pixelate);
   const labelMode = typeof settings.labelMode === "string" ? settings.labelMode : "none";
   const labelColor = typeof settings.labelColor === "string" ? settings.labelColor : "#d9e6ff";
+  const projection = String(settings.projection || "isometric").toLowerCase();
+  const camera2d = normalizeCamera2d(settings.camera2d);
+  const zoom2d = Number(camera2d.zoom || 1);
+  const tile = tileBase * zoom2d;
+  const zScale = zScaleBase * zoom2d;
+  const cameraPanX = Number.isFinite(Number(camera2d.panX)) ? Number(camera2d.panX) : 0;
+  const cameraPanY = Number.isFinite(Number(camera2d.panY)) ? Number(camera2d.panY) : 0;
   const lighting = settings.lighting || {};
   const rose = settings.rose || {};
   const roseEnabled = Boolean(rose.enabled);
@@ -2221,17 +4325,44 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
       nz = previousNz;
     }
   }
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = (window.devicePixelRatio || 1) * renderScale;
   const width = Math.max(1, canvas.clientWidth);
   const height = Math.max(1, canvas.clientHeight);
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
+  ctx.imageSmoothingEnabled = !pixelate;
+  ctx.imageSmoothingQuality = pixelate ? "low" : "high";
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, width, height);
   if (!voxels || voxels.length == 0) {
+    return;
+  }
+  if (projection === "cardinal") {
+    drawVoxelSceneCardinal(canvas, ctx, voxels, settings, {
+      tile,
+      zScale,
+      outline,
+      outlineColor,
+      edgeGlow,
+      edgeGlowColor,
+      edgeGlowStrength,
+      visualStyle,
+      labelMode,
+      labelColor,
+      lightingEnabled,
+      ambient,
+      intensity,
+      nx,
+      ny,
+      nz,
+      width,
+      height,
+      cameraPanX,
+      cameraPanY,
+    });
     return;
   }
   const sorted = voxels.slice().sort((a, b) => (a.x + a.y + a.z) - (b.x + b.y + b.z));
@@ -2253,15 +4384,24 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
   const pad = 16;
   const contentWidth = Math.max(1, maxX - minX);
   const contentHeight = Math.max(1, maxY - minY);
-  const offsetX = (width - contentWidth) * 0.5 - minX;
-  const offsetY = (height - contentHeight) * 0.5 - minY + pad;
+  const offsetX = (width - contentWidth) * 0.5 - minX + cameraPanX;
+  const offsetY = (height - contentHeight) * 0.5 - minY + pad + cameraPanY;
   sorted.forEach((item) => {
+    const edgeGlowLocal = resolveVoxelEdgeGlowConfig(item, {
+      enabled: edgeGlow,
+      color: edgeGlowColor,
+      strength: edgeGlowStrength,
+    });
     const isoX = (item.x - item.y) * tile + offsetX;
     const isoY = (item.x + item.y) * (tile * 0.5) - item.z * zScale + offsetY;
     const baseColor = item.color;
-    const top = lightingEnabled ? shadeColor(baseColor, ambient + Math.max(0, nz) * intensity) : baseColor;
-    const left = lightingEnabled ? shadeColor(baseColor, ambient + Math.max(0, -nx) * intensity) : shadeVoxel(baseColor, -30);
-    const right = lightingEnabled ? shadeColor(baseColor, ambient + Math.max(0, nx) * intensity) : shadeVoxel(baseColor, 20);
+    const topRaw = lightingEnabled ? shadeColor(baseColor, ambient + Math.max(0, nz) * intensity) : baseColor;
+    const leftRaw = lightingEnabled ? shadeColor(baseColor, ambient + Math.max(0, -nx) * intensity) : shadeVoxel(baseColor, -30);
+    const rightRaw = lightingEnabled ? shadeColor(baseColor, ambient + Math.max(0, nx) * intensity) : shadeVoxel(baseColor, 20);
+    const top = stylizeVoxelColor(topRaw, visualStyle);
+    const left = stylizeVoxelColor(leftRaw, visualStyle);
+    const right = stylizeVoxelColor(rightRaw, visualStyle);
+    const highFidelity = isHighFidelityStyle(visualStyle);
     const redraw = () => drawVoxelScene(canvas, voxels, settings);
     const topTexture = item.textureTop || item.texture || null;
     const leftTexture = item.textureLeft || item.texture || null;
@@ -2269,18 +4409,105 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
     const topFrame = item.frameTop || item.frame || null;
     const leftFrame = item.frameLeft || item.frame || null;
     const rightFrame = item.frameRight || item.frame || null;
+    const spritePlane = isSpritePlaneVoxel(item);
+    if (spritePlane) {
+      const spriteTexture = item.texture || item.textureTop || item.textureLeft || item.textureRight || null;
+      const spriteFrame = resolveSpriteFrameForFacing(
+        item,
+        item.meta && item.meta.spriteFacing ? item.meta.spriteFacing : settings.playerFacing,
+        item.frame || item.frameTop || item.frameLeft || item.frameRight || null,
+        settings
+      );
+      const metrics = resolveSpritePlaneMetrics(item, tile);
+      const spriteX = isoX - metrics.w * 0.5;
+      const spriteY = isoY + tile + zScale * 0.5 - metrics.h;
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,0.24)";
+      ctx.beginPath();
+      ctx.ellipse(isoX, isoY + tile + zScale * 0.6, Math.max(4, metrics.w * 0.33), Math.max(2, tile * 0.18), 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      if (spriteTexture) {
+        const img = getTextureImage(spriteTexture, redraw);
+        if (img && img.complete && img.naturalWidth > 0) {
+          if (spriteFrame && Number.isFinite(Number(spriteFrame.w)) && Number.isFinite(Number(spriteFrame.h))) {
+            ctx.drawImage(
+              img,
+              Number(spriteFrame.x || 0),
+              Number(spriteFrame.y || 0),
+              Number(spriteFrame.w || img.naturalWidth),
+              Number(spriteFrame.h || img.naturalHeight),
+              spriteX,
+              spriteY,
+              metrics.w,
+              metrics.h
+            );
+          } else {
+            ctx.drawImage(img, spriteX, spriteY, metrics.w, metrics.h);
+          }
+        } else {
+          ctx.fillStyle = top;
+          ctx.fillRect(spriteX, spriteY, metrics.w, metrics.h);
+        }
+      } else {
+        const gradSprite = ctx.createLinearGradient(spriteX, spriteY, spriteX, spriteY + metrics.h);
+        gradSprite.addColorStop(0, stylizeVoxelColor(shadeVoxel(topRaw, 16), visualStyle));
+        gradSprite.addColorStop(1, stylizeVoxelColor(shadeVoxel(topRaw, -22), visualStyle));
+        ctx.fillStyle = gradSprite;
+        ctx.fillRect(spriteX, spriteY, metrics.w, metrics.h);
+      }
+      if (outline) {
+        ctx.strokeStyle = outlineColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(spriteX, spriteY, metrics.w, metrics.h);
+      }
+      if (labelMode && labelMode !== "none") {
+        const labelText = String(item.id || item.type || "");
+        if (labelText) {
+          ctx.fillStyle = labelColor;
+          ctx.font = "11px monospace";
+          ctx.fillText(labelText, spriteX, spriteY - 4);
+        }
+      }
+      return;
+    }
+    if (highFidelity) {
+      const shadowAlpha = Math.max(0.05, 0.2 - Number(item.z || 0) * 0.02);
+      ctx.save();
+      ctx.fillStyle = `rgba(0,0,0,${shadowAlpha.toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(isoX, isoY + tile + zScale * 0.55, tile * 0.7, Math.max(2, tile * 0.24), 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
     ctx.beginPath();
     ctx.moveTo(isoX, isoY);
     ctx.lineTo(isoX + tile, isoY + tile * 0.5);
     ctx.lineTo(isoX, isoY + tile);
     ctx.lineTo(isoX - tile, isoY + tile * 0.5);
     ctx.closePath();
-    ctx.fillStyle = top;
+    if (highFidelity) {
+      const gradTop = ctx.createLinearGradient(isoX - tile, isoY, isoX + tile, isoY + tile);
+      gradTop.addColorStop(0, stylizeVoxelColor(shadeVoxel(topRaw, 20), visualStyle));
+      gradTop.addColorStop(1, top);
+      ctx.fillStyle = gradTop;
+    } else {
+      ctx.fillStyle = top;
+    }
     ctx.fill();
     if (outline) {
       ctx.strokeStyle = outlineColor;
       ctx.lineWidth = 1;
       ctx.stroke();
+    }
+    if (edgeGlowLocal.enabled) {
+      ctx.save();
+      ctx.shadowColor = edgeGlowLocal.color;
+      ctx.shadowBlur = edgeGlowLocal.strength;
+      ctx.strokeStyle = edgeGlowLocal.color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
     }
     if (topTexture) {
       const img = getTextureImage(topTexture, redraw);
@@ -2315,12 +4542,28 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
     ctx.lineTo(isoX, isoY + tile + zScale);
     ctx.lineTo(isoX - tile, isoY + tile * 0.5 + zScale);
     ctx.closePath();
-    ctx.fillStyle = left;
+    if (highFidelity) {
+      const gradLeft = ctx.createLinearGradient(isoX - tile, isoY + tile * 0.5, isoX, isoY + tile + zScale);
+      gradLeft.addColorStop(0, stylizeVoxelColor(shadeVoxel(leftRaw, 8), visualStyle));
+      gradLeft.addColorStop(1, stylizeVoxelColor(shadeVoxel(leftRaw, -14), visualStyle));
+      ctx.fillStyle = gradLeft;
+    } else {
+      ctx.fillStyle = left;
+    }
     ctx.fill();
     if (outline) {
       ctx.strokeStyle = outlineColor;
       ctx.lineWidth = 1;
       ctx.stroke();
+    }
+    if (edgeGlowLocal.enabled) {
+      ctx.save();
+      ctx.shadowColor = edgeGlowLocal.color;
+      ctx.shadowBlur = edgeGlowLocal.strength;
+      ctx.strokeStyle = edgeGlowLocal.color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
     }
     if (leftTexture) {
       const img = getTextureImage(leftTexture, redraw);
@@ -2355,12 +4598,28 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
     ctx.lineTo(isoX, isoY + tile + zScale);
     ctx.lineTo(isoX + tile, isoY + tile * 0.5 + zScale);
     ctx.closePath();
-    ctx.fillStyle = right;
+    if (highFidelity) {
+      const gradRight = ctx.createLinearGradient(isoX + tile, isoY + tile * 0.5, isoX, isoY + tile + zScale);
+      gradRight.addColorStop(0, stylizeVoxelColor(shadeVoxel(rightRaw, 10), visualStyle));
+      gradRight.addColorStop(1, stylizeVoxelColor(shadeVoxel(rightRaw, -16), visualStyle));
+      ctx.fillStyle = gradRight;
+    } else {
+      ctx.fillStyle = right;
+    }
     ctx.fill();
     if (outline) {
       ctx.strokeStyle = outlineColor;
       ctx.lineWidth = 1;
       ctx.stroke();
+    }
+    if (edgeGlowLocal.enabled) {
+      ctx.save();
+      ctx.shadowColor = edgeGlowLocal.color;
+      ctx.shadowBlur = edgeGlowLocal.strength;
+      ctx.strokeStyle = edgeGlowLocal.color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
     }
     if (rightTexture) {
       const img = getTextureImage(rightTexture, redraw);
@@ -2416,6 +4675,35 @@ function shadeVoxel(hex, amt) {
   return "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
 }
 
+function resolveVoxelEdgeGlowConfig(item, defaults) {
+  const meta = item && typeof item.meta === "object" ? item.meta : {};
+  let enabled = Boolean(defaults && defaults.enabled);
+  if (typeof item?.edgeGlow === "boolean") {
+    enabled = item.edgeGlow;
+  } else if (typeof meta.edgeGlow === "boolean") {
+    enabled = meta.edgeGlow;
+  } else if (typeof meta.edge_glow === "boolean") {
+    enabled = meta.edge_glow;
+  }
+  let color = typeof defaults?.color === "string" ? defaults.color : "#8fd3ff";
+  if (typeof item?.edgeGlowColor === "string" && item.edgeGlowColor.trim() !== "") {
+    color = item.edgeGlowColor.trim();
+  } else if (typeof meta.edgeGlowColor === "string" && meta.edgeGlowColor.trim() !== "") {
+    color = meta.edgeGlowColor.trim();
+  } else if (typeof meta.edge_glow_color === "string" && meta.edge_glow_color.trim() !== "") {
+    color = meta.edge_glow_color.trim();
+  }
+  let strength = Math.max(0, Math.min(32, Number(defaults?.strength ?? 8)));
+  if (Number.isFinite(Number(item?.edgeGlowStrength))) {
+    strength = Math.max(0, Math.min(32, Number(item.edgeGlowStrength)));
+  } else if (Number.isFinite(Number(meta.edgeGlowStrength))) {
+    strength = Math.max(0, Math.min(32, Number(meta.edgeGlowStrength)));
+  } else if (Number.isFinite(Number(meta.edge_glow_strength))) {
+    strength = Math.max(0, Math.min(32, Number(meta.edge_glow_strength)));
+  }
+  return { enabled, color, strength };
+}
+
 function shadeColor(hex, factor) {
   const raw = String(hex || "#7aa2ff").replace("#", "");
   const num = parseInt(raw.padEnd(6, "0").slice(0, 6), 16);
@@ -2423,6 +4711,43 @@ function shadeColor(hex, factor) {
   const g = Math.min(255, Math.max(0, ((num >> 8) & 255) * factor));
   const b = Math.min(255, Math.max(0, (num & 255) * factor));
   return "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+}
+
+function closeNum(a, b, epsilon = 1e-4) {
+  return Math.abs(Number(a || 0) - Number(b || 0)) <= epsilon;
+}
+
+function closeVec3(a, b, epsilon = 1e-4) {
+  if (!a || !b) {
+    return false;
+  }
+  return closeNum(a.x, b.x, epsilon) && closeNum(a.y, b.y, epsilon) && closeNum(a.z, b.z, epsilon);
+}
+
+function cameraSeedsMatch(mainSettings, fullscreenSettings) {
+  const main = mainSettings && typeof mainSettings === "object" ? mainSettings : {};
+  const full = fullscreenSettings && typeof fullscreenSettings === "object" ? fullscreenSettings : {};
+  const mainMode = String(main.renderMode || "2.5d").toLowerCase();
+  const fullMode = String(full.renderMode || "2.5d").toLowerCase();
+  if (mainMode !== fullMode) {
+    return false;
+  }
+  if (mainMode === "3d") {
+    const m = normalizeCamera3d(main.camera3d);
+    const f = normalizeCamera3d(full.camera3d);
+    return (
+      closeNum(m.yaw, f.yaw) &&
+      closeNum(m.pitch, f.pitch) &&
+      closeNum(m.zoom, f.zoom) &&
+      closeNum(m.panX, f.panX) &&
+      closeNum(m.panY, f.panY)
+    );
+  }
+  const m = normalizeCamera2d(main.camera2d);
+  const f = normalizeCamera2d(full.camera2d);
+  const projMatch =
+    String(main.projection || "isometric").toLowerCase() === String(full.projection || "isometric").toLowerCase();
+  return projMatch && closeNum(m.panX, f.panX) && closeNum(m.panY, f.panY) && closeNum(m.zoom, f.zoom);
 }
 
 function readRendererLocalState() {
@@ -2435,19 +4760,31 @@ function readRendererLocalState() {
       settings: {
         renderMode: "2.5d",
         camera3d: { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
+        camera2d: { panX: 0, panY: 0, zoom: 1 },
         tile: 18,
         zScale: 8,
+        renderScale: 1,
+        visualStyle: "default",
+        pixelate: false,
         background: "#0b1426",
         outline: false,
         outlineColor: "#0f203c",
+        edgeGlow: false,
+        edgeGlowColor: "#8fd3ff",
+        edgeGlowStrength: 8,
         labelMode: "none",
         labelColor: "#d9e6ff",
         lighting: { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
+        lod: { mode: "auto_zoom", level: 2 },
         rose: { enabled: true, strength: 0.35 },
       },
       materials: [],
       layers: [],
-      atlases: []
+      atlases: [],
+      playerId: "player",
+      playerFacing: "south",
+      followPlayer: false,
+      playerOffset: { x: 0, y: 0, z: 0 },
     };
   }
   const source = localStorage.getItem("atelier.renderer.source") || "json";
@@ -2474,30 +4811,48 @@ function readRendererLocalState() {
     : { tables: mergedTables, realm_id: storedRealm };
   let settings = {
     renderMode: "2.5d",
+    projection: "isometric",
     camera3d: { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
+    camera2d: { panX: 0, panY: 0, zoom: 1 },
     tile: 18,
     zScale: 8,
+    renderScale: 1,
+    visualStyle: "default",
+    pixelate: false,
     background: "#0b1426",
     outline: false,
     outlineColor: "#0f203c",
+    edgeGlow: false,
+    edgeGlowColor: "#8fd3ff",
+    edgeGlowStrength: 8,
     labelMode: "none",
     labelColor: "#d9e6ff",
     lighting: { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
+    lod: { mode: "auto_zoom", level: 2 },
     rose: { enabled: true, strength: 0.35 },
   };
   try {
     const parsed = JSON.parse(localStorage.getItem("atelier.renderer.voxel_settings") || "{}");
     settings = {
       renderMode: String(parsed.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
+      projection: String(parsed.projection || "isometric").toLowerCase() === "cardinal" ? "cardinal" : "isometric",
       camera3d: normalizeCamera3d(parsed.camera3d),
+      camera2d: normalizeCamera2d(parsed.camera2d),
       tile: parsed.tile ?? 18,
       zScale: parsed.zScale ?? 8,
+      renderScale: parsed.renderScale ?? 1,
+      visualStyle: parsed.visualStyle ?? "default",
+      pixelate: parsed.pixelate ?? false,
       background: parsed.background ?? "#0b1426",
       outline: parsed.outline ?? false,
       outlineColor: parsed.outlineColor ?? "#0f203c",
+      edgeGlow: parsed.edgeGlow ?? false,
+      edgeGlowColor: parsed.edgeGlowColor ?? "#8fd3ff",
+      edgeGlowStrength: parsed.edgeGlowStrength ?? 8,
       labelMode: parsed.labelMode ?? "none",
       labelColor: parsed.labelColor ?? "#d9e6ff",
       lighting: parsed.lighting ?? { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
+      lod: parsed.lod ?? { mode: "auto_zoom", level: 2 },
       rose: parsed.rose ?? { enabled: true, strength: 0.35 },
     };
   } catch {
@@ -2524,8 +4879,41 @@ function readRendererLocalState() {
   } catch {
     atlases = [];
   }
-  return { source, json, cobra, engine, settings, materials, layers, atlases };
+  const playerId = localStorage.getItem("atelier.renderer.player_id") || "player";
+  const playerFacing = normalizeFacing(localStorage.getItem("atelier.renderer.player_facing") || "south");
+  const followPlayer = localStorage.getItem("atelier.renderer.follow_player") === "1";
+  let playerOffset = { x: 0, y: 0, z: 0 };
+  try {
+    const parsed = JSON.parse(localStorage.getItem("atelier.renderer.player_offset") || "{}");
+    playerOffset = {
+      x: Number.isFinite(Number(parsed.x)) ? Number(parsed.x) : 0,
+      y: Number.isFinite(Number(parsed.y)) ? Number(parsed.y) : 0,
+      z: Number.isFinite(Number(parsed.z)) ? Number(parsed.z) : 0,
+    };
+  } catch {
+    playerOffset = { x: 0, y: 0, z: 0 };
+  }
+  try {
+    const parsed = JSON.parse(localStorage.getItem("atelier.renderer.player_signal") || "{}");
+    if (Number.isFinite(Number(parsed.x)) && Number.isFinite(Number(parsed.y))) {
+      const signals = engine && typeof engine === "object" && engine.signals && typeof engine.signals === "object"
+        ? { ...engine.signals }
+        : {};
+      signals.player_position = {
+        x: Number(parsed.x),
+        y: Number(parsed.y),
+        z: Number.isFinite(Number(parsed.z)) ? Number(parsed.z) : 0,
+        updated_at: typeof parsed.updated_at === "string" ? parsed.updated_at : new Date().toISOString(),
+      };
+      engine = { ...engine, signals };
+    }
+  } catch {
+    // best-effort bootstrap of signal from storage
+  }
+  return { source, json, cobra, engine, settings, materials, layers, atlases, playerId, playerFacing, followPlayer, playerOffset };
 }
+
+const RENDERER_SYNC_CHANNEL = "atelier-renderer-sync-v1";
 
 export function App() {
   const [section, setSection] = useState(() => localStorage.getItem("atelier.section") || "Foyer");
@@ -2571,6 +4959,7 @@ export function App() {
   const [spriteAutoStartY, setSpriteAutoStartY] = useState("0");
   const [spriteAutoStepX, setSpriteAutoStepX] = useState("1");
   const [spriteAutoStepY, setSpriteAutoStepY] = useState("1");
+  const [spriteColor, setSpriteColor] = useState("#7aa2ff");
   const [akinenwunWord, setAkinenwunWord] = useState("TyKoWuVu");
   const [akinenwunMode, setAkinenwunMode] = useState("prose");
   const [akinenwunIngest, setAkinenwunIngest] = useState(true);
@@ -2597,6 +4986,7 @@ export function App() {
   const unifiedRendererCanvasRef = useRef(null);
   const businessRendererCanvasRef = useRef(null);
   const businessLogicRendererCanvasRef = useRef(null);
+  const governorLevelRef = useRef("normal");
   const [businessRendererInputMode, setBusinessRendererInputMode] = useState(
     () => localStorage.getItem("atelier.business_renderer.input_mode") || "json"
   );
@@ -2625,6 +5015,25 @@ export function App() {
   const [shygazunTranslateDirection, setShygazunTranslateDirection] = useState("auto");
   const [shygazunTranslateOutput, setShygazunTranslateOutput] = useState(null);
   const [shygazunCorrectOutput, setShygazunCorrectOutput] = useState(null);
+  const [moduleCatalog, setModuleCatalog] = useState([]);
+  const [moduleSelectedId, setModuleSelectedId] = useState("module.shygazun.interpret");
+  const [moduleSelectedSpec, setModuleSelectedSpec] = useState(null);
+  const [moduleValidateOutput, setModuleValidateOutput] = useState(null);
+  const [moduleRunOverridesText, setModuleRunOverridesText] = useState("{\n  \"kaganue_pressure\": 0.1\n}");
+  const [moduleAutoReconcile, setModuleAutoReconcile] = useState(true);
+  const [moduleReconcileSceneId, setModuleReconcileSceneId] = useState("renderer-lab");
+  const [moduleReconcileApply, setModuleReconcileApply] = useState(true);
+  const [moduleRunOutput, setModuleRunOutput] = useState(null);
+  const [labCoherence, setLabCoherence] = useState({
+    last_check_at: "",
+    runtime_consume_ok: null,
+    module_catalog_ok: null,
+    world_stream_ok: null,
+    main_plan_ok: null,
+    guided_bootstrap_ok: null,
+    gate_a_ok: null,
+    gate_d_ok: null,
+  });
   const [validateBeforeEmit, setValidateBeforeEmit] = useState(() => {
     const saved = localStorage.getItem("atelier.renderer.validate_before_emit");
     return saved !== "0";
@@ -2637,44 +5046,71 @@ export function App() {
         const parsed = JSON.parse(saved);
         return {
           renderMode: String(parsed.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
+          projection: String(parsed.projection || "isometric").toLowerCase() === "cardinal" ? "cardinal" : "isometric",
           camera3d: normalizeCamera3d(parsed.camera3d),
+          camera2d: normalizeCamera2d(parsed.camera2d),
           tile: parsed.tile ?? 18,
           zScale: parsed.zScale ?? 8,
+          renderScale: parsed.renderScale ?? 1,
+          visualStyle: parsed.visualStyle ?? "default",
+          pixelate: parsed.pixelate ?? false,
           background: parsed.background ?? "#0b1426",
           outline: parsed.outline ?? false,
           outlineColor: parsed.outlineColor ?? "#0f203c",
+          edgeGlow: parsed.edgeGlow ?? false,
+          edgeGlowColor: parsed.edgeGlowColor ?? "#8fd3ff",
+          edgeGlowStrength: parsed.edgeGlowStrength ?? 8,
           labelMode: parsed.labelMode ?? "none",
           labelColor: parsed.labelColor ?? "#d9e6ff",
           lighting: parsed.lighting ?? { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
+          lod: parsed.lod ?? { mode: "auto_zoom", level: 2 },
           rose: parsed.rose ?? { enabled: true, strength: 0.35 },
         };
       } catch {
         return {
           renderMode: "2.5d",
+          projection: "isometric",
           camera3d: { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
+          camera2d: { panX: 0, panY: 0, zoom: 1 },
           tile: 18,
           zScale: 8,
+          renderScale: 1,
+          visualStyle: "default",
+          pixelate: false,
           background: "#0b1426",
           outline: false,
           outlineColor: "#0f203c",
+          edgeGlow: false,
+          edgeGlowColor: "#8fd3ff",
+          edgeGlowStrength: 8,
           labelMode: "none",
           labelColor: "#d9e6ff",
           lighting: { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
+          lod: { mode: "auto_zoom", level: 2 },
           rose: { enabled: true, strength: 0.35 },
         };
       }
     }
     return {
       renderMode: "2.5d",
+      projection: "isometric",
       camera3d: { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
+      camera2d: { panX: 0, panY: 0, zoom: 1 },
       tile: 18,
       zScale: 8,
+      renderScale: 1,
+      visualStyle: "default",
+      pixelate: false,
       background: "#0b1426",
       outline: false,
       outlineColor: "#0f203c",
+      edgeGlow: false,
+      edgeGlowColor: "#8fd3ff",
+      edgeGlowStrength: 8,
       labelMode: "none",
       labelColor: "#d9e6ff",
       lighting: { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
+      lod: { mode: "auto_zoom", level: 2 },
       rose: { enabled: true, strength: 0.35 },
     };
   });
@@ -2874,6 +5310,88 @@ export function App() {
     "{\"scene\":{\"name\":\"prototype\"},\"systems\":{\"gravity\":0.0,\"camera\":{\"x\":0,\"y\":0}},\"entities\":[{\"id\":\"hero\",\"kind\":\"player\",\"x\":0,\"y\":0,\"hp\":100},{\"id\":\"orb-1\",\"kind\":\"pickup\",\"x\":4,\"y\":2,\"value\":10}]}"
   );
   const [rendererGameStatus, setRendererGameStatus] = useState("idle");
+  const [rendererParseStatus, setRendererParseStatus] = useState("idle");
+  const [rendererParsedPayload, setRendererParsedPayload] = useState({ source: "json", key: "", payload: {} });
+  const [rendererVoxelPrepStatus, setRendererVoxelPrepStatus] = useState("idle");
+  const [rendererPreparedVoxels, setRendererPreparedVoxels] = useState({ key: "", voxels: [] });
+  const [rendererTestSpecText, setRendererTestSpecText] = useState(() => {
+    const saved = localStorage.getItem("atelier.renderer.test_spec");
+    if (saved) {
+      return saved;
+    }
+    return JSON.stringify(
+      {
+        renderer_json: {
+          scene: { id: "test_scene", name: "Test Scene" },
+          voxels: [{ id: "player", type: "player", x: 0, y: 0, z: 1, color: "#f6c677" }],
+        },
+        settings: { renderMode: "2.5d", projection: "cardinal", tile: 28, zScale: 10, renderScale: 2 },
+        controls: {
+          player_id: "player",
+          follow_player: true,
+          keyboard_motion: true,
+          click_move: true,
+          path_step_ms: 70,
+          player_step: 1,
+          reset_motion: true,
+        },
+        signal: { player_position: { x: 0, y: 0, z: 0 } },
+      },
+      null,
+      2
+    );
+  });
+  const [rendererTestHarnessStatus, setRendererTestHarnessStatus] = useState("idle");
+  const [rendererTestFragmentId, setRendererTestFragmentId] = useState(
+    RENDERER_TEST_SPEC_FRAGMENTS.length > 0 ? RENDERER_TEST_SPEC_FRAGMENTS[0].id : ""
+  );
+  const [rendererTestFragmentMode, setRendererTestFragmentMode] = useState("merge");
+  const [rendererPlayerId, setRendererPlayerId] = useState(
+    () => localStorage.getItem("atelier.renderer.player_id") || "player"
+  );
+  const [rendererPlayerFacing, setRendererPlayerFacing] = useState(
+    () => normalizeFacing(localStorage.getItem("atelier.renderer.player_facing") || "south")
+  );
+  const [rendererAnimationClock, setRendererAnimationClock] = useState(() => Date.now());
+  const [rendererLastMoveAt, setRendererLastMoveAt] = useState(0);
+  const [rendererFollowPlayer, setRendererFollowPlayer] = useState(
+    () => localStorage.getItem("atelier.renderer.follow_player") === "1"
+  );
+  const [rendererKeyboardMotion, setRendererKeyboardMotion] = useState(
+    () => localStorage.getItem("atelier.renderer.keyboard_motion") !== "0"
+  );
+  const [rendererClickMove, setRendererClickMove] = useState(
+    () => localStorage.getItem("atelier.renderer.click_move") !== "0"
+  );
+  const [rendererPathStepMs, setRendererPathStepMs] = useState(
+    () => Number(localStorage.getItem("atelier.renderer.path_step_ms") || "75") || 75
+  );
+  const [rendererMoveQueue, setRendererMoveQueue] = useState([]);
+  const [rendererPlayerStep, setRendererPlayerStep] = useState(
+    () => Number(localStorage.getItem("atelier.renderer.player_step") || "1") || 1
+  );
+  const [rendererGravityEnabled, setRendererGravityEnabled] = useState(
+    () => localStorage.getItem("atelier.renderer.gravity_enabled") !== "0"
+  );
+  const [rendererGravityMs, setRendererGravityMs] = useState(
+    () => Number(localStorage.getItem("atelier.renderer.gravity_ms") || "150") || 150
+  );
+  const [rendererPlayerOffset, setRendererPlayerOffset] = useState(() => {
+    const saved = localStorage.getItem("atelier.renderer.player_offset");
+    if (!saved) {
+      return { x: 0, y: 0, z: 0 };
+    }
+    try {
+      const parsed = JSON.parse(saved);
+      return {
+        x: Number.isFinite(Number(parsed.x)) ? Number(parsed.x) : 0,
+        y: Number.isFinite(Number(parsed.y)) ? Number(parsed.y) : 0,
+        z: Number.isFinite(Number(parsed.z)) ? Number(parsed.z) : 0,
+      };
+    } catch {
+      return { x: 0, y: 0, z: 0 };
+    }
+  });
   const [rendererGraphPreview, setRendererGraphPreview] = useState(null);
   const [rendererAssetDiagnostics, setRendererAssetDiagnostics] = useState(null);
   const [headlessQuestText, setHeadlessQuestText] = useState(
@@ -2901,10 +5419,10 @@ export function App() {
     "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"current_level\":1,\"current_xp\":50,\"gained_xp\":120,\"xp_curve_base\":100,\"xp_curve_scale\":25}"
   );
   const [skillRuleText, setSkillRuleText] = useState(
-    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"skill_id\":\"swordsmanship\",\"current_rank\":1,\"points_available\":2,\"max_rank\":5}"
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"skill_id\":\"melee_weapons\",\"current_rank\":1,\"points_available\":2,\"max_rank\":5}"
   );
   const [perkRuleText, setPerkRuleText] = useState(
-    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"perk_id\":\"steel_focus\",\"unlocked_perks\":[],\"required_level\":2,\"actor_level\":2,\"required_skills\":{\"swordsmanship\":2},\"actor_skills\":{\"swordsmanship\":2}}"
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"perk_id\":\"steel_focus\",\"unlocked_perks\":[],\"required_level\":2,\"actor_level\":2,\"required_skills\":{\"melee_weapons\":2},\"actor_skills\":{\"melee_weapons\":2}}"
   );
   const [alchemyRuleText, setAlchemyRuleText] = useState(
     "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"recipe_id\":\"minor_heal\",\"ingredients\":{\"herb\":2,\"water\":1},\"outputs\":{\"potion_minor_heal\":1},\"inventory\":{\"herb\":5,\"water\":3}}"
@@ -2919,7 +5437,7 @@ export function App() {
   const [assetManifestStatus, setAssetManifestStatus] = useState("idle");
   const [assetManifestSelected, setAssetManifestSelected] = useState("");
   const [rendererTickText, setRendererTickText] = useState(
-    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"dt_ms\":120,\"events\":[{\"kind\":\"levels.apply\",\"payload\":{\"gained_xp\":120}},{\"kind\":\"skills.train\",\"payload\":{\"skill_id\":\"swordsmanship\",\"points_available\":1,\"max_rank\":5}},{\"kind\":\"flags.set\",\"payload\":{\"key\":\"intro_done\",\"value\":true}}]}"
+    "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"dt_ms\":120,\"events\":[{\"kind\":\"levels.apply\",\"payload\":{\"gained_xp\":120}},{\"kind\":\"skills.train\",\"payload\":{\"skill_id\":\"melee_weapons\",\"points_available\":1,\"max_rank\":5}},{\"kind\":\"flags.set\",\"payload\":{\"key\":\"intro_done\",\"value\":true}}]}"
   );
   const [rendererTickOutput, setRendererTickOutput] = useState(null);
   const [marketQuoteText, setMarketQuoteText] = useState(
@@ -2977,8 +5495,19 @@ export function App() {
   const [tileConnectFrom, setTileConnectFrom] = useState(null);
   const [tileSvgShowGrid, setTileSvgShowGrid] = useState(true);
   const [tileSvgShowLinks, setTileSvgShowLinks] = useState(true);
+  const [tilePngDataUrl, setTilePngDataUrl] = useState("");
+  const [tilePngStatus, setTilePngStatus] = useState("idle");
   const [tileProcSeed, setTileProcSeed] = useState("42");
   const [tileProcTemplate, setTileProcTemplate] = useState("ring_bloom");
+  const [tileEditLodLevel, setTileEditLodLevel] = useState("3");
+  const [tileEditLodSnap, setTileEditLodSnap] = useState(true);
+  const [tileBrushRadius, setTileBrushRadius] = useState("0");
+  const [tileBrushShape, setTileBrushShape] = useState("square");
+  const [tileRectSelectMode, setTileRectSelectMode] = useState(false);
+  const [tileRectStart, setTileRectStart] = useState(null);
+  const [tileRectEnd, setTileRectEnd] = useState(null);
+  const [tileRectLodLevel, setTileRectLodLevel] = useState("3");
+  const [tileRectFeatherScaleAware, setTileRectFeatherScaleAware] = useState(true);
   const [tileProcCode, setTileProcCode] = useState(
     [
       "// Return { tiles, links, entities? }",
@@ -3003,6 +5532,15 @@ export function App() {
     ].join("\n")
   );
   const [tileProcStatus, setTileProcStatus] = useState("idle");
+  const [spriteAnimatorTargetId, setSpriteAnimatorTargetId] = useState("sprite_player");
+  const [spriteAnimatorAtlasId, setSpriteAnimatorAtlasId] = useState("tile_network");
+  const [spriteAnimatorFrameW, setSpriteAnimatorFrameW] = useState("48");
+  const [spriteAnimatorFrameH, setSpriteAnimatorFrameH] = useState("72");
+  const [spriteAnimatorStartCol, setSpriteAnimatorStartCol] = useState("0");
+  const [spriteAnimatorIdleRowStart, setSpriteAnimatorIdleRowStart] = useState("0");
+  const [spriteAnimatorWalkRowStart, setSpriteAnimatorWalkRowStart] = useState("4");
+  const [spriteAnimatorIdleFrames, setSpriteAnimatorIdleFrames] = useState("1");
+  const [spriteAnimatorWalkFrames, setSpriteAnimatorWalkFrames] = useState("4");
   const [tilePresetName, setTilePresetName] = useState("asset_batch_01");
   const [tileSavedPresets, setTileSavedPresets] = useState(() => {
     const rawSaved = localStorage.getItem("atelier.tile_presets");
@@ -3016,6 +5554,44 @@ export function App() {
       return [];
     }
   });
+  const [daisySystemId, setDaisySystemId] = useState("daisy.system.alpha");
+  const [daisyArchetype, setDaisyArchetype] = useState("humanoid");
+  const [daisySymmetry, setDaisySymmetry] = useState("bilateral");
+  const [daisySegmentCount, setDaisySegmentCount] = useState("7");
+  const [daisyLimbPairs, setDaisyLimbPairs] = useState("2");
+  const [daisyCoreToken, setDaisyCoreToken] = useState("Ki");
+  const [daisyAccentToken, setDaisyAccentToken] = useState("Fu");
+  const [daisySeed, setDaisySeed] = useState("42");
+  const [daisyUseWholeTongue, setDaisyUseWholeTongue] = useState(true);
+  const [daisySymbolSequence, setDaisySymbolSequence] = useState(DAISY_TONGUE_SYMBOLS.join(", "));
+  const [daisyRoleOverridesText, setDaisyRoleOverridesText] = useState("{}");
+  const [daisyBodyplanText, setDaisyBodyplanText] = useState(
+    JSON.stringify(
+      buildDaisyBodyplanSpec({
+        system_id: "daisy.system.alpha",
+        archetype: "humanoid",
+        symmetry: "bilateral",
+        segment_count: 7,
+        limb_pairs: 2,
+        core_token: "Ki",
+        accent_token: "Fu",
+        seed: 42,
+        use_whole_tongue: true,
+        daisy_symbols: DAISY_TONGUE_SYMBOLS,
+        role_overrides: {},
+      }),
+      null,
+      2
+    )
+  );
+  const daisyRoleInspector = useMemo(() => {
+    const allowedSymbols = daisyUseWholeTongue ? DAISY_TONGUE_SYMBOLS : parseDaisySymbolSequence(daisySymbolSequence);
+    const base = buildDaisyRoleComposition(daisyArchetype, daisySymmetry, allowedSymbols);
+    const rawOverrides = parseObjectJson(daisyRoleOverridesText, {});
+    const overrides = sanitizeDaisyRoleOverrides(rawOverrides, allowedSymbols, base);
+    const effective = { ...base, ...overrides };
+    return { allowedSymbols, base, overrides, effective };
+  }, [daisyUseWholeTongue, daisySymbolSequence, daisyArchetype, daisySymmetry, daisyRoleOverridesText]);
 
   const [publicName, setPublicName] = useState("");
   const [publicEmail, setPublicEmail] = useState("");
@@ -3089,6 +5665,14 @@ export function App() {
   const [studioFsRoot, setStudioFsRoot] = useState(() => localStorage.getItem("atelier.studio_fs_root") || "");
   const [studioFsScripts, setStudioFsScripts] = useState([]);
   const [studioFsSelectedScript, setStudioFsSelectedScript] = useState("");
+  const [studioFsPythonFiles, setStudioFsPythonFiles] = useState([]);
+  const [studioFsSelectedPython, setStudioFsSelectedPython] = useState("");
+  const [studioFsPythonAutoWatch, setStudioFsPythonAutoWatch] = useState(
+    () => localStorage.getItem("atelier.studio_fs_python_auto_watch") === "1"
+  );
+  const [studioFsPythonWatchMs, setStudioFsPythonWatchMs] = useState(
+    () => localStorage.getItem("atelier.studio_fs_python_watch_ms") || "2000"
+  );
   const [studioFsSceneFiles, setStudioFsSceneFiles] = useState([]);
   const [studioFsSpriteFiles, setStudioFsSpriteFiles] = useState([]);
   const [studioFsAudioFiles, setStudioFsAudioFiles] = useState([]);
@@ -3097,6 +5681,30 @@ export function App() {
   const [studioFsSelectedAudio, setStudioFsSelectedAudio] = useState("");
   const [rendererAudioStageLabel, setRendererAudioStageLabel] = useState("");
   const [rendererAudioStages, setRendererAudioStages] = useState([]);
+  const [rendererSandboxPackName, setRendererSandboxPackName] = useState(
+    () => localStorage.getItem("atelier.renderer_sandbox.pack_name") || "render_pack_alpha"
+  );
+  const [rendererSandboxPackNotes, setRendererSandboxPackNotes] = useState(
+    () => localStorage.getItem("atelier.renderer_sandbox.pack_notes") || ""
+  );
+  const [rendererSandboxDraftText, setRendererSandboxDraftText] = useState(
+    () => localStorage.getItem("atelier.renderer_sandbox.draft") || "{}"
+  );
+  const [rendererSandboxPacks, setRendererSandboxPacks] = useState(() => {
+    try {
+      const raw = localStorage.getItem("atelier.renderer_sandbox.packs");
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [rendererSandboxSelectedId, setRendererSandboxSelectedId] = useState(
+    () => localStorage.getItem("atelier.renderer_sandbox.selected_id") || ""
+  );
+  const [rendererSandboxValidation, setRendererSandboxValidation] = useState(null);
+  const [rendererSandboxStatus, setRendererSandboxStatus] = useState("idle");
+  const studioFsPythonWatchLastRef = useRef("");
 
   const caps = useMemo(() => capabilitiesForRole(role).join(","), [role]);
   const datasetSummary = useMemo(
@@ -3117,6 +5725,10 @@ export function App() {
   const studioSelectedFile = useMemo(
     () => studioFiles.find((file) => file.id === studioSelectedFileId) || null,
     [studioFiles, studioSelectedFileId]
+  );
+  const rendererSandboxSelectedPack = useMemo(
+    () => rendererSandboxPacks.find((pack) => pack && pack.pack_id === rendererSandboxSelectedId) || null,
+    [rendererSandboxPacks, rendererSandboxSelectedId]
   );
 
   useEffect(() => localStorage.setItem("atelier.section", section), [section]);
@@ -3141,6 +5753,19 @@ export function App() {
   useEffect(() => localStorage.setItem("atelier.studio_files", JSON.stringify(studioFiles)), [studioFiles]);
   useEffect(() => localStorage.setItem("atelier.studio_selected", studioSelectedFileId), [studioSelectedFileId]);
   useEffect(() => localStorage.setItem("atelier.studio_fs_root", studioFsRoot), [studioFsRoot]);
+  useEffect(() => localStorage.setItem("atelier.renderer_sandbox.pack_name", rendererSandboxPackName), [rendererSandboxPackName]);
+  useEffect(() => localStorage.setItem("atelier.renderer_sandbox.pack_notes", rendererSandboxPackNotes), [rendererSandboxPackNotes]);
+  useEffect(() => localStorage.setItem("atelier.renderer_sandbox.draft", rendererSandboxDraftText), [rendererSandboxDraftText]);
+  useEffect(() => localStorage.setItem("atelier.renderer_sandbox.selected_id", rendererSandboxSelectedId), [rendererSandboxSelectedId]);
+  useEffect(
+    () => localStorage.setItem("atelier.renderer_sandbox.packs", JSON.stringify(rendererSandboxPacks)),
+    [rendererSandboxPacks]
+  );
+  useEffect(
+    () => localStorage.setItem("atelier.studio_fs_python_auto_watch", studioFsPythonAutoWatch ? "1" : "0"),
+    [studioFsPythonAutoWatch]
+  );
+  useEffect(() => localStorage.setItem("atelier.studio_fs_python_watch_ms", studioFsPythonWatchMs), [studioFsPythonWatchMs]);
   useEffect(
     () => localStorage.setItem("atelier.renderer_akinenwun_snapshots", JSON.stringify(rendererAkinenwunSnapshots)),
     [rendererAkinenwunSnapshots]
@@ -3156,6 +5781,72 @@ export function App() {
     }, intervalMs);
     return () => window.clearInterval(timer);
   }, [rendererSimPlaying, rendererSimMs]);
+  useEffect(() => {
+    studioFsPythonWatchLastRef.current = "";
+  }, [studioFsRoot, studioFsSelectedPython]);
+  useEffect(() => {
+    if (!studioFsPythonAutoWatch || !hasDesktopFs() || !studioFsRoot || !studioFsSelectedPython) {
+      return undefined;
+    }
+    const watchMs = Math.max(500, Number.parseInt(studioFsPythonWatchMs || "2000", 10) || 2000);
+    let closed = false;
+    const tick = async () => {
+      try {
+        const result = await window.atelierDesktop.fs.readTextFile(studioFsRoot, studioFsSelectedPython);
+        if (!result || !result.ok || typeof result.content !== "string") {
+          return;
+        }
+        const content = result.content;
+        if (content === studioFsPythonWatchLastRef.current) {
+          return;
+        }
+        studioFsPythonWatchLastRef.current = content;
+        const filename =
+          typeof result.filename === "string" && result.filename.trim()
+            ? result.filename
+            : studioFsSelectedPython;
+        const existing = studioFiles.find((file) => file.folder === "scripts" && file.name === filename);
+        const nextId = existing ? existing.id : makeStudioFileId();
+        if (closed) {
+          return;
+        }
+        setStudioFiles((prev) => {
+          const existingIndex = prev.findIndex((file) => file.folder === "scripts" && file.name === filename);
+          if (existingIndex >= 0) {
+            const next = [...prev];
+            if (next[existingIndex].content === content) {
+              return prev;
+            }
+            next[existingIndex] = { ...next[existingIndex], content };
+            return next;
+          }
+          return [
+            ...prev,
+            {
+              id: nextId,
+              name: filename,
+              folder: "scripts",
+              content,
+            },
+          ];
+        });
+        setStudioSelectedFileId(nextId);
+        setRendererPython(content);
+        setRendererPipeline((prev) => ({ ...prev, pythonFileId: nextId }));
+        setRendererGameStatus(`python_watch:${filename}`);
+      } catch {
+        // watch loop is best-effort; failures are shown by explicit import actions.
+      }
+    };
+    void tick();
+    const timer = window.setInterval(() => {
+      void tick();
+    }, watchMs);
+    return () => {
+      closed = true;
+      window.clearInterval(timer);
+    };
+  }, [studioFsPythonAutoWatch, studioFsPythonWatchMs, studioFsRoot, studioFsSelectedPython, studioFiles]);
   useEffect(() => {
     function stopDrag() {
       setCalendarDragging(false);
@@ -3185,6 +5876,18 @@ export function App() {
       setStudioMoveTargetFolder(studioFolders[0]);
     }
   }, [studioFolders, studioTargetFolder, studioRenameFolderFrom, studioMoveTargetFolder]);
+  useEffect(() => {
+    if (rendererSandboxPacks.length === 0) {
+      if (rendererSandboxSelectedId) {
+        setRendererSandboxSelectedId("");
+      }
+      return;
+    }
+    if (!rendererSandboxPacks.some((pack) => pack && pack.pack_id === rendererSandboxSelectedId)) {
+      const first = rendererSandboxPacks[0];
+      setRendererSandboxSelectedId(first && first.pack_id ? String(first.pack_id) : "");
+    }
+  }, [rendererSandboxPacks, rendererSandboxSelectedId]);
   useEffect(() => {
     setArtisanAccessVerified(false);
     setArtisanAccessInput("");
@@ -3977,6 +6680,7 @@ export function App() {
             x,
             y,
             layer: spriteLayer,
+            color: spriteColor,
           },
         },
         context: { workspace_id: workspaceId, realm_id: rendererRealmId },
@@ -4010,6 +6714,7 @@ export function App() {
               x,
               y,
               layer: spriteLayer,
+              color: spriteColor,
             },
             auto: {
               index: i,
@@ -4128,6 +6833,204 @@ export function App() {
     URL.revokeObjectURL(url);
   }
 
+  function upsertVoxelAtlas(nextAtlas) {
+    if (!nextAtlas || typeof nextAtlas !== "object" || typeof nextAtlas.id !== "string" || !nextAtlas.id.trim()) {
+      return;
+    }
+    const atlasId = nextAtlas.id.trim();
+    setVoxelAtlases((prev) => {
+      const list = Array.isArray(prev) ? prev.slice() : [];
+      const idx = list.findIndex((atlas) => atlas && String(atlas.id || "").trim() === atlasId);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...nextAtlas, id: atlasId };
+      } else {
+        list.push({ ...nextAtlas, id: atlasId });
+      }
+      return list;
+    });
+  }
+
+  async function buildTilePngFromSvg() {
+    const scale = clampInt(tileSvgExportScale, 1, 8, 2);
+    const svg = buildTileSvgMarkup(tileSvgModel, tileSvgShowGrid, tileSvgShowLinks, scale);
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error("tile_png: svg rasterization failed"));
+        el.src = url;
+      });
+      const width = Math.max(1, tileSvgModel.width * scale);
+      const height = Math.max(1, tileSvgModel.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("tile_png: canvas context unavailable");
+      }
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, 0, 0, width, height);
+      const pngDataUrl = canvas.toDataURL("image/png");
+      return { pngDataUrl, width, height, scale };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function downloadTilePng() {
+    setTilePngStatus("building");
+    try {
+      const built = await buildTilePngFromSvg();
+      setTilePngDataUrl(built.pngDataUrl);
+      const link = document.createElement("a");
+      link.href = built.pngDataUrl;
+      link.download = `tilemap-${workspaceId}-${built.width}x${built.height}.png`;
+      link.click();
+      setTilePngStatus(`ready:${built.width}x${built.height}`);
+      setNotice(`tile_png_exported:${built.width}x${built.height}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "tile_png: unknown error";
+      setTilePngStatus(msg);
+      setNotice(msg);
+    }
+  }
+
+  async function consumeTilePngAsAtlas() {
+    setTilePngStatus("building");
+    try {
+      const built = await buildTilePngFromSvg();
+      setTilePngDataUrl(built.pngDataUrl);
+      const atlasId = (spriteAnimatorAtlasId || voxelAtlasDraft.id || "tile_network").trim() || "tile_network";
+      const tileSize = clampInt(tileCellPx, 8, 256, 24);
+      const scale = Math.max(1, built.scale);
+      const cols = clampInt(tileCols, 1, 256, 48);
+      const rows = clampInt(tileRows, 1, 256, 27);
+      const atlas = {
+        id: atlasId,
+        src: built.pngDataUrl,
+        tileSize: tileSize * scale,
+        cols,
+        rows,
+        padding: 0,
+      };
+      setVoxelAtlasDraft(atlas);
+      upsertVoxelAtlas(atlas);
+      setSpriteAnimatorAtlasId(atlasId);
+      setTilePngStatus(`atlas_ready:${atlasId}`);
+      setNotice(`tile_png_atlas_ready:${atlasId}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "tile_png_atlas: unknown error";
+      setTilePngStatus(msg);
+      setNotice(msg);
+    }
+  }
+
+  function buildDirectionalFrameSchema() {
+    const frameW = clampInt(spriteAnimatorFrameW, 1, 2048, 48);
+    const frameH = clampInt(spriteAnimatorFrameH, 1, 2048, 72);
+    const startCol = clampInt(spriteAnimatorStartCol, 0, 2048, 0);
+    const idleRowStart = clampInt(spriteAnimatorIdleRowStart, 0, 2048, 0);
+    const walkRowStart = clampInt(spriteAnimatorWalkRowStart, 0, 2048, 4);
+    const idleFrames = clampInt(spriteAnimatorIdleFrames, 1, 32, 1);
+    const walkFrames = clampInt(spriteAnimatorWalkFrames, 1, 32, 4);
+    const dirs = ["south", "west", "east", "north"];
+    const spriteFrames = {};
+    const spriteAnimations = { idle: {}, walk: {} };
+    dirs.forEach((dir, dirIdx) => {
+      const idleRow = idleRowStart + dirIdx;
+      const walkRow = walkRowStart + dirIdx;
+      spriteFrames[dir] = {
+        x: startCol * frameW,
+        y: idleRow * frameH,
+        w: frameW,
+        h: frameH,
+      };
+      spriteAnimations.idle[dir] = Array.from({ length: idleFrames }, (_, frameIdx) => ({
+        x: (startCol + frameIdx) * frameW,
+        y: idleRow * frameH,
+        w: frameW,
+        h: frameH,
+      }));
+      spriteAnimations.walk[dir] = Array.from({ length: walkFrames }, (_, frameIdx) => ({
+        x: (startCol + frameIdx) * frameW,
+        y: walkRow * frameH,
+        w: frameW,
+        h: frameH,
+      }));
+    });
+    return { frameW, frameH, spriteFrames, spriteAnimations };
+  }
+
+  function applySpriteAnimatorToRendererJson() {
+    const atlasId = String(spriteAnimatorAtlasId || "").trim();
+    if (!atlasId) {
+      setNotice("sprite_animator: atlas id required");
+      return;
+    }
+    let payload = {};
+    try {
+      payload = JSON.parse(rendererJson || "{}");
+    } catch {
+      setNotice("sprite_animator: renderer JSON invalid");
+      return;
+    }
+    const voxels = Array.isArray(payload.voxels)
+      ? payload.voxels
+      : Array.isArray(payload?.scene?.voxels)
+      ? payload.scene.voxels
+      : null;
+    if (!voxels) {
+      setNotice("sprite_animator: expected payload.voxels or payload.scene.voxels");
+      return;
+    }
+    const target = String(spriteAnimatorTargetId || "").trim();
+    if (!target) {
+      setNotice("sprite_animator: target entity id required");
+      return;
+    }
+    const { frameW, frameH, spriteFrames, spriteAnimations } = buildDirectionalFrameSchema();
+    let matched = 0;
+    const patched = voxels.map((entry) => {
+      const item = entry && typeof entry === "object" ? entry : {};
+      const itemId = String(item.id || item.entity_id || item.entityId || "");
+      if (itemId !== target) {
+        return entry;
+      }
+      matched += 1;
+      const meta = item.meta && typeof item.meta === "object" ? item.meta : {};
+      const nextMeta = {
+        ...meta,
+        sprite2d: true,
+        render_mode: "sprite2d",
+        sprite_w: Number(meta.sprite_w || meta.spriteWidth || Math.max(0.6, frameW / 40)),
+        sprite_h: Number(meta.sprite_h || meta.spriteHeight || Math.max(0.9, frameH / 36)),
+        sprite_frames: spriteFrames,
+        sprite_animations: spriteAnimations,
+        sprite_anim_ms: Number(meta.sprite_anim_ms || meta.spriteAnimMs || 120),
+      };
+      return {
+        ...item,
+        texture: `atlas:${atlasId}:0,0`,
+        meta: nextMeta,
+      };
+    });
+    if (!matched) {
+      setNotice(`sprite_animator: target_not_found:${target}`);
+      return;
+    }
+    if (Array.isArray(payload.voxels)) {
+      payload = { ...payload, voxels: patched };
+    } else {
+      payload = { ...payload, scene: { ...(payload.scene || {}), voxels: patched } };
+    }
+    setRendererJson(JSON.stringify(payload, null, 2));
+    setRendererPlayerId(target);
+    setNotice(`sprite_animator_applied:${target}:${matched}`);
+  }
+
   function applyResolutionPreset(preset) {
     if (preset === "SD") {
       setTileCols("32");
@@ -4165,88 +7068,231 @@ export function App() {
     setTileProcStatus("profile_loaded:asset-gen-v1");
   }
 
-  function applyProceduralTiles() {
+  async function runTileProcInWorker({ seed, cols, rows, layer, code, timeoutMs = 2500 }) {
+    if (typeof Worker === "undefined") {
+      throw new Error("worker_unavailable");
+    }
+    const worker = new Worker(new URL("./labComputeWorker.js", import.meta.url), { type: "module" });
+    try {
+      const out = await new Promise((resolve, reject) => {
+        const timer = window.setTimeout(() => reject(new Error("worker_timeout")), Math.max(250, Number(timeoutMs || 2500)));
+        worker.onmessage = (event) => {
+          window.clearTimeout(timer);
+          const data = event && event.data && typeof event.data === "object" ? event.data : {};
+          if (data.type !== "tile_proc_result") {
+            reject(new Error("worker_protocol_error"));
+            return;
+          }
+          if (!data.ok) {
+            reject(new Error(typeof data.error === "string" && data.error ? data.error : "worker_failed"));
+            return;
+          }
+          resolve(data.result);
+        };
+        worker.onerror = (error) => {
+          window.clearTimeout(timer);
+          reject(new Error(error && error.message ? String(error.message) : "worker_error"));
+        };
+        worker.postMessage({
+          type: "run_tile_proc",
+          payload: { seed, cols, rows, layer, code },
+        });
+      });
+      return out;
+    } finally {
+      worker.terminate();
+    }
+  }
+
+  async function runPayloadParseInWorker({ mode, sourceText, timeoutMs = 2200 }) {
+    if (typeof Worker === "undefined") {
+      throw new Error("worker_unavailable");
+    }
+    const worker = new Worker(new URL("./labComputeWorker.js", import.meta.url), { type: "module" });
+    try {
+      const out = await new Promise((resolve, reject) => {
+        const timer = window.setTimeout(() => reject(new Error("worker_timeout")), Math.max(250, Number(timeoutMs || 2200)));
+        worker.onmessage = (event) => {
+          window.clearTimeout(timer);
+          const data = event && event.data && typeof event.data === "object" ? event.data : {};
+          if (data.type !== "payload_parse_result") {
+            reject(new Error("worker_protocol_error"));
+            return;
+          }
+          if (!data.ok) {
+            reject(new Error(typeof data.error === "string" && data.error ? data.error : "worker_failed"));
+            return;
+          }
+          resolve(data.result && typeof data.result === "object" ? data.result : {});
+        };
+        worker.onerror = (error) => {
+          window.clearTimeout(timer);
+          reject(new Error(error && error.message ? String(error.message) : "worker_error"));
+        };
+        worker.postMessage({
+          type: "run_payload_parse",
+          payload: { mode, sourceText },
+        });
+      });
+      return out;
+    } finally {
+      worker.terminate();
+    }
+  }
+
+  async function runVoxelExtractLodInWorker({ payload, settings, timeoutMs = 2200 }) {
+    if (typeof Worker === "undefined") {
+      throw new Error("worker_unavailable");
+    }
+    const worker = new Worker(new URL("./labComputeWorker.js", import.meta.url), { type: "module" });
+    try {
+      const out = await new Promise((resolve, reject) => {
+        const timer = window.setTimeout(() => reject(new Error("worker_timeout")), Math.max(250, Number(timeoutMs || 2200)));
+        worker.onmessage = (event) => {
+          window.clearTimeout(timer);
+          const data = event && event.data && typeof event.data === "object" ? event.data : {};
+          if (data.type !== "voxel_extract_lod_result") {
+            reject(new Error("worker_protocol_error"));
+            return;
+          }
+          if (!data.ok) {
+            reject(new Error(typeof data.error === "string" && data.error ? data.error : "worker_failed"));
+            return;
+          }
+          resolve(Array.isArray(data.result) ? data.result : []);
+        };
+        worker.onerror = (error) => {
+          window.clearTimeout(timer);
+          reject(new Error(error && error.message ? String(error.message) : "worker_error"));
+        };
+        worker.postMessage({
+          type: "run_voxel_extract_lod",
+          payload: { payload, settings },
+        });
+      });
+      return out;
+    } finally {
+      worker.terminate();
+    }
+  }
+
+  function parseRendererPayloadSync(mode, sourceText) {
+    if (mode === "cobra") {
+      return parseCobraShygazunScript(sourceText);
+    }
+    if (mode === "json") {
+      try {
+        const parsed = JSON.parse(sourceText || "{}");
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+
+  function commitProceduralOutput(out, cols, rows) {
+    if (!out || typeof out !== "object" || Array.isArray(out)) {
+      throw new Error("generator must return object");
+    }
+    const tiles = Array.isArray(out.tiles) ? out.tiles : [];
+    const links = Array.isArray(out.links) ? out.links : [];
+    const entities = Array.isArray(out.entities) ? out.entities : [];
+
+    const nextPlacements = {};
+    for (const item of tiles) {
+      if (!item || typeof item !== "object") {
+        continue;
+      }
+      const x = clampInt(item.x, 0, cols - 1, 0);
+      const y = clampInt(item.y, 0, rows - 1, 0);
+      const layer = typeof item.layer === "string" && item.layer ? item.layer : tileActiveLayer;
+      const presence = item.presence_token === "Zo" ? "Zo" : "Ta";
+      if (presence === "Zo") {
+        continue;
+      }
+      const color = typeof item.color_token === "string" ? item.color_token : tileColorToken;
+      const opacity = typeof item.opacity_token === "string" ? item.opacity_token : tileOpacityToken;
+      const meta = item.meta && typeof item.meta === "object" ? item.meta : {};
+      const key = tileKey(x, y, layer);
+      nextPlacements[key] = {
+        id: `tile_${layer}_${x}_${y}`,
+        x,
+        y,
+        layer,
+        presence_token: "Ta",
+        color_token: color,
+        opacity_token: opacity,
+        meta,
+      };
+    }
+    setTilePlacements(nextPlacements);
+
+    const nextLinks = links
+      .map((link, index) => {
+        if (!link || typeof link !== "object") {
+          return null;
+        }
+        const ax = clampInt(link.ax, 0, cols - 1, 0);
+        const ay = clampInt(link.ay, 0, rows - 1, 0);
+        const bx = clampInt(link.bx, 0, cols - 1, 0);
+        const by = clampInt(link.by, 0, rows - 1, 0);
+        const al = typeof link.alayer === "string" && link.alayer ? link.alayer : tileActiveLayer;
+        const bl = typeof link.blayer === "string" && link.blayer ? link.blayer : tileActiveLayer;
+        const from = tileKey(ax, ay, al);
+        const to = tileKey(bx, by, bl);
+        const dist = tileDistance({ x: ax, y: ay }, { x: bx, y: by });
+        const nearThreshold = Math.max(1, Number.parseInt(tileNearThreshold || "2", 10) || 2);
+        const rel = relationTokenForDistance(dist, nearThreshold);
+        return {
+          id: `link_proc_${index}_${from.replace("|", "_").replace(",", "_")}_${to.replace("|", "_").replace(",", "_")}`,
+          from,
+          to,
+          distance: dist,
+          relation_token: rel,
+        };
+      })
+      .filter(Boolean);
+    setTileConnections(nextLinks);
+
+    if (entities.length > 0) {
+      const spec = parseObjectJson(rendererGameSpecText, {});
+      const existing = Array.isArray(spec.entities) ? spec.entities : [];
+      const merged = { ...spec, entities: [...existing, ...entities] };
+      setRendererGameSpecText(JSON.stringify(merged, null, 2));
+    }
+    setTileProcStatus(`generated:${Object.keys(nextPlacements).length}_tiles`);
+    setRendererGameStatus(`procedural:${Object.keys(nextPlacements).length}_tiles`);
+  }
+
+  async function applyProceduralTiles() {
     const seed = clampInt(tileProcSeed, 0, 999999, 42);
     const cols = clampInt(tileCols, 1, 256, 48);
     const rows = clampInt(tileRows, 1, 256, 27);
     try {
-      const fn = new Function(
-        "seed",
-        "cols",
-        "rows",
-        "layer",
-        "\"use strict\";\n" + tileProcCode
-      );
-      const out = fn(seed, cols, rows, tileActiveLayer);
-      if (!out || typeof out !== "object" || Array.isArray(out)) {
-        throw new Error("generator must return object");
+      setTileProcStatus("generating:worker");
+      let out = null;
+      try {
+        out = await runTileProcInWorker({
+          seed,
+          cols,
+          rows,
+          layer: tileActiveLayer,
+          code: tileProcCode,
+          timeoutMs: 2800,
+        });
+      } catch {
+        const fn = new Function(
+          "seed",
+          "cols",
+          "rows",
+          "layer",
+          "\"use strict\";\n" + tileProcCode
+        );
+        out = fn(seed, cols, rows, tileActiveLayer);
+        setTileProcStatus("generated:fallback_main_thread");
       }
-      const tiles = Array.isArray(out.tiles) ? out.tiles : [];
-      const links = Array.isArray(out.links) ? out.links : [];
-      const entities = Array.isArray(out.entities) ? out.entities : [];
-
-      const nextPlacements = {};
-      for (const item of tiles) {
-        if (!item || typeof item !== "object") {
-          continue;
-        }
-        const x = clampInt(item.x, 0, cols - 1, 0);
-        const y = clampInt(item.y, 0, rows - 1, 0);
-        const layer = typeof item.layer === "string" && item.layer ? item.layer : tileActiveLayer;
-        const presence = item.presence_token === "Zo" ? "Zo" : "Ta";
-        if (presence === "Zo") {
-          continue;
-        }
-        const color = typeof item.color_token === "string" ? item.color_token : tileColorToken;
-        const opacity = typeof item.opacity_token === "string" ? item.opacity_token : tileOpacityToken;
-        const key = tileKey(x, y, layer);
-        nextPlacements[key] = {
-          id: `tile_${layer}_${x}_${y}`,
-          x,
-          y,
-          layer,
-          presence_token: "Ta",
-          color_token: color,
-          opacity_token: opacity,
-        };
-      }
-      setTilePlacements(nextPlacements);
-
-      const nextLinks = links
-        .map((link, index) => {
-          if (!link || typeof link !== "object") {
-            return null;
-          }
-          const ax = clampInt(link.ax, 0, cols - 1, 0);
-          const ay = clampInt(link.ay, 0, rows - 1, 0);
-          const bx = clampInt(link.bx, 0, cols - 1, 0);
-          const by = clampInt(link.by, 0, rows - 1, 0);
-          const al = typeof link.alayer === "string" && link.alayer ? link.alayer : tileActiveLayer;
-          const bl = typeof link.blayer === "string" && link.blayer ? link.blayer : tileActiveLayer;
-          const from = tileKey(ax, ay, al);
-          const to = tileKey(bx, by, bl);
-          const dist = tileDistance({ x: ax, y: ay }, { x: bx, y: by });
-          const nearThreshold = Math.max(1, Number.parseInt(tileNearThreshold || "2", 10) || 2);
-          const rel = relationTokenForDistance(dist, nearThreshold);
-          return {
-            id: `link_proc_${index}_${from.replace("|", "_").replace(",", "_")}_${to.replace("|", "_").replace(",", "_")}`,
-            from,
-            to,
-            distance: dist,
-            relation_token: rel,
-          };
-        })
-        .filter(Boolean);
-      setTileConnections(nextLinks);
-
-      if (entities.length > 0) {
-        const spec = parseObjectJson(rendererGameSpecText, {});
-        const existing = Array.isArray(spec.entities) ? spec.entities : [];
-        const merged = { ...spec, entities: [...existing, ...entities] };
-        setRendererGameSpecText(JSON.stringify(merged, null, 2));
-      }
-      setTileProcStatus(`generated:${Object.keys(nextPlacements).length}_tiles`);
-      setRendererGameStatus(`procedural:${Object.keys(nextPlacements).length}_tiles`);
+      commitProceduralOutput(out, cols, rows);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setTileProcStatus(`error:${msg}`);
@@ -4653,6 +7699,11 @@ export function App() {
         setStudioFsScripts(scripts.files);
         setStudioFsSelectedScript(scripts.files.length > 0 ? String(scripts.files[0]) : "");
       }
+      const pythonFiles = await window.atelierDesktop.fs.listAssetsBySuffix(nextRoot, ".py");
+      if (pythonFiles && pythonFiles.ok && Array.isArray(pythonFiles.files)) {
+        setStudioFsPythonFiles(pythonFiles.files);
+        setStudioFsSelectedPython(pythonFiles.files.length > 0 ? String(pythonFiles.files[0]) : "");
+      }
       const scenes = await window.atelierDesktop.fs.listAssetsBySuffix(nextRoot, ".scene.json");
       if (scenes && scenes.ok && Array.isArray(scenes.files)) {
         setStudioFsSceneFiles(scenes.files);
@@ -4686,8 +7737,451 @@ export function App() {
       if (result.files.length > 0) {
         setStudioFsSelectedScript(String(result.files[0]));
       }
-      return result;
+      const pythonFiles = await window.atelierDesktop.fs.listAssetsBySuffix(studioFsRoot, ".py");
+      if (pythonFiles && pythonFiles.ok && Array.isArray(pythonFiles.files)) {
+        setStudioFsPythonFiles(pythonFiles.files);
+        if (pythonFiles.files.length > 0) {
+          setStudioFsSelectedPython(String(pythonFiles.files[0]));
+        }
+      }
+      return {
+        cobra: result,
+        python_files: pythonFiles && pythonFiles.ok && Array.isArray(pythonFiles.files) ? pythonFiles.files.length : 0,
+      };
     });
+  }
+
+  function generateDaisyBodyplan() {
+    const parsedSymbols = parseDaisySymbolSequence(daisySymbolSequence);
+    const symbols = daisyUseWholeTongue ? DAISY_TONGUE_SYMBOLS : parsedSymbols;
+    if (!daisyUseWholeTongue && symbols.length === 0) {
+      setNotice("daisy_bodyplan_generate: no valid daisy symbols selected");
+      return;
+    }
+    const spec = buildDaisyBodyplanSpec({
+      system_id: daisySystemId,
+      archetype: daisyArchetype,
+      symmetry: daisySymmetry,
+      segment_count: toInt(daisySegmentCount, 7),
+      limb_pairs: toInt(daisyLimbPairs, 2),
+      core_token: daisyCoreToken,
+      accent_token: daisyAccentToken,
+      seed: toInt(daisySeed, 42),
+      use_whole_tongue: daisyUseWholeTongue,
+      daisy_symbols: symbols,
+      role_overrides: daisyRoleInspector.overrides,
+    });
+    setDaisyBodyplanText(JSON.stringify(spec, null, 2));
+    setNotice(`daisy_bodyplan_generated:${spec.system_id}:${spec.daisy_tongue.coverage.used}/${spec.daisy_tongue.coverage.total}`);
+  }
+
+  function projectDaisyBodyplanToRenderer() {
+    try {
+      const parsed = JSON.parse(daisyBodyplanText || "{}");
+      const voxels = daisyBodyplanToVoxels(parsed);
+      setRendererJson(JSON.stringify({ voxels }, null, 2));
+      setRendererVisualSource("json");
+      setRendererGameStatus(`daisy_projected:${voxels.length}_voxels`);
+      setNotice(`daisy_projected:${voxels.length}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setNotice(`daisy_project_error:${msg}`);
+    }
+  }
+
+  function createRendererSandboxDraftFromCurrent() {
+    const pack = createRenderPack({
+      name: rendererSandboxPackName,
+      notes: rendererSandboxPackNotes,
+      workspaceId,
+      source: "studio_hub_sandbox",
+      rendererJsonText: rendererJson,
+      voxelSettings,
+    });
+    const validation = validateRenderPack(pack);
+    setRendererSandboxDraftText(JSON.stringify(pack, null, 2));
+    setRendererSandboxValidation(validation);
+    setRendererSandboxStatus(validation.ok ? `draft_ready:${pack.stats.voxel_count}` : "draft_invalid");
+    setNotice(validation.ok ? `sandbox_draft_ready:${pack.pack_id}` : "sandbox_draft_invalid");
+  }
+
+  function publishRendererSandboxDraft() {
+    const parsed = parseObjectJson(rendererSandboxDraftText, null);
+    if (!parsed || typeof parsed !== "object") {
+      setRendererSandboxStatus("publish_failed:invalid_json");
+      setNotice("sandbox_publish_failed: invalid JSON draft");
+      return;
+    }
+    const validation = validateRenderPack(parsed);
+    setRendererSandboxValidation(validation);
+    if (!validation.ok) {
+      setRendererSandboxStatus("publish_failed:validation");
+      setNotice(`sandbox_publish_failed:${validation.errors.join("|")}`);
+      return;
+    }
+    setRendererSandboxPacks((prev) => {
+      const deduped = prev.filter((item) => item && item.pack_id !== parsed.pack_id);
+      return [parsed, ...deduped].slice(0, 80);
+    });
+    setRendererSandboxSelectedId(String(parsed.pack_id));
+    setRendererSandboxStatus(`published:${parsed.pack_id}`);
+    setNotice(`sandbox_published:${parsed.pack_id}`);
+  }
+
+  function applyRendererSandboxSelectedPack() {
+    if (!rendererSandboxSelectedPack) {
+      setNotice("sandbox_apply_failed: no selected pack");
+      return;
+    }
+    const validation = validateRenderPack(rendererSandboxSelectedPack);
+    setRendererSandboxValidation(validation);
+    if (!validation.ok) {
+      setNotice(`sandbox_apply_failed:${validation.errors.join("|")}`);
+      return;
+    }
+    const applied = applyRenderPack(rendererSandboxSelectedPack, voxelSettings);
+    setRendererJson(applied.rendererJsonText);
+    setVoxelSettings(applied.voxelSettings);
+    setRendererVisualSource("json");
+    setRendererGameStatus(`sandbox_applied:${rendererSandboxSelectedPack.pack_id}`);
+    setRendererSandboxStatus(`applied:${rendererSandboxSelectedPack.pack_id}`);
+    setNotice(`sandbox_applied:${rendererSandboxSelectedPack.pack_id}`);
+  }
+
+  function deleteRendererSandboxSelectedPack() {
+    if (!rendererSandboxSelectedPack) {
+      return;
+    }
+    const targetId = String(rendererSandboxSelectedPack.pack_id);
+    setRendererSandboxPacks((prev) => prev.filter((item) => item && item.pack_id !== targetId));
+    setRendererSandboxStatus(`deleted:${targetId}`);
+    setNotice(`sandbox_deleted:${targetId}`);
+  }
+
+  function applyPokemonDsPreset() {
+    setVoxelSettings((prev) => ({
+      ...prev,
+      renderScale: 2,
+      visualStyle: "pokemon_ds",
+      pixelate: true,
+      tile: 16,
+      zScale: 10,
+      outline: true,
+      outlineColor: "#1d2b43",
+      edgeGlow: false,
+      labelMode: "none",
+    }));
+    setNotice("renderer_preset:pokemon_ds");
+  }
+
+  function applyClassicFalloutPreset() {
+    setVoxelSettings((prev) => ({
+      ...prev,
+      renderMode: "2.5d",
+      renderScale: 2,
+      visualStyle: "classic_fallout",
+      pixelate: true,
+      tile: 18,
+      zScale: 9,
+      background: "#1a1e14",
+      outline: true,
+      outlineColor: "#3a4327",
+      edgeGlow: false,
+      labelMode: "type",
+      labelColor: "#c6d68c",
+      lighting: { ...(prev.lighting || {}), enabled: false },
+    }));
+    setNotice("renderer_preset:classic_fallout");
+  }
+
+  function applyPokemonG45Preset() {
+    setVoxelSettings((prev) => ({
+      ...prev,
+      renderMode: "2.5d",
+      projection: "isometric",
+      renderScale: 3,
+      visualStyle: "pokemon_g45",
+      pixelate: false,
+      tile: 24,
+      zScale: 12,
+      background: "#9ec8f2",
+      outline: true,
+      outlineColor: "#203654",
+      edgeGlow: false,
+      labelMode: "none",
+      lighting: { ...(prev.lighting || {}), enabled: true, x: 0.42, y: -0.55, z: 0.75, ambient: 0.42, intensity: 0.95 },
+    }));
+    setNotice("renderer_preset:pokemon_g45");
+  }
+
+  function applyWorldMaterialKit() {
+    setVoxelMaterials((prev) => {
+      const next = Array.isArray(prev) ? [...prev] : [];
+      RENDERER_WORLD_MATERIAL_KIT.forEach((item) => {
+        const idx = next.findIndex((entry) => entry && entry.id === item.id);
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], ...item };
+        } else {
+          next.push({ ...item });
+        }
+      });
+      return next;
+    });
+  }
+
+  function loadLandscapePreset() {
+    applyWorldMaterialKit();
+    const voxels = buildLandscapeVoxels();
+    setRendererVisualSource("json");
+    setRendererJson(JSON.stringify({ voxels }, null, 2));
+    setRendererGameStatus(`landscape_loaded:${voxels.length}`);
+    setNotice("renderer_content:landscape_loaded");
+  }
+
+  function loadStructuresPreset() {
+    applyWorldMaterialKit();
+    const voxels = [
+      ...buildLandscapeVoxels({ width: 24, height: 18, originX: 0, originY: 0 }),
+      ...buildStructureVoxels({ originX: 8, originY: 5 }),
+      ...buildStructureVoxels({ originX: 23, originY: 7 }),
+    ];
+    setRendererVisualSource("json");
+    setRendererJson(JSON.stringify({ voxels }, null, 2));
+    setRendererGameStatus(`structures_loaded:${voxels.length}`);
+    setNotice("renderer_content:structures_loaded");
+  }
+
+  function loadSpritesPreset() {
+    applyWorldMaterialKit();
+    const baseTerrain = buildLandscapeVoxels({ width: 18, height: 14, originX: 0, originY: 0 });
+    const voxels = [
+      ...baseTerrain,
+      ...buildSpriteFigureVoxels({ x: 6, y: 6, baseZ: 2, id: "sprite_player", cloth: "sprite_cloth" }),
+      ...buildSpriteFigureVoxels({ x: 10, y: 8, baseZ: 2, id: "sprite_npc", cloth: "metal" }),
+    ];
+    setRendererVisualSource("json");
+    setRendererJson(JSON.stringify({ voxels }, null, 2));
+    setRendererPlayerId("sprite_player");
+    setRendererPlayerFacing("south");
+    setRendererPlayerOffset({ x: 0, y: 0, z: 0 });
+    setRendererGameStatus(`sprites_loaded:${voxels.length}`);
+    setNotice("renderer_content:sprites_loaded");
+  }
+
+  function loadWorldCompositionPreset() {
+    applyWorldMaterialKit();
+    const voxels = [
+      ...buildLandscapeVoxels({ width: 52, height: 34, originX: -12, originY: -10 }),
+      ...buildStructureVoxels({ originX: 8, originY: 6 }),
+      ...buildStructureVoxels({ originX: 22, originY: 11 }),
+      ...buildStructureVoxels({ originX: -2, originY: 16 }),
+      ...buildSpriteFigureVoxels({ x: 12, y: 12, baseZ: 2, id: "sprite_player", cloth: "sprite_cloth" }),
+      ...buildSpriteFigureVoxels({ x: 16, y: 14, baseZ: 2, id: "sprite_merchant", cloth: "wood" }),
+      ...buildSpriteFigureVoxels({ x: 4, y: 18, baseZ: 2, id: "sprite_guard", cloth: "metal" }),
+    ];
+    setRendererVisualSource("json");
+    setRendererJson(JSON.stringify({ voxels }, null, 2));
+    setRendererPlayerId("sprite_player");
+    setRendererPlayerFacing("south");
+    setRendererPlayerOffset({ x: 0, y: 0, z: 0 });
+    setRendererFollowPlayer(true);
+    setRendererGameStatus(`world_comp_loaded:${voxels.length}`);
+    setNotice("renderer_content:world_composition_loaded");
+  }
+
+  function applyRendererTestSpec() {
+    let parsed = null;
+    try {
+      parsed = JSON.parse(rendererTestSpecText || "{}");
+    } catch (error) {
+      const msg = `invalid_json:${error && error.message ? error.message : "parse_error"}`;
+      setRendererTestHarnessStatus(msg);
+      setRendererGameStatus(`renderer_test:${msg}`);
+      setNotice(`renderer_test_failed:${msg}`);
+      return;
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      setRendererTestHarnessStatus("invalid_spec:root_object_required");
+      setRendererGameStatus("renderer_test:invalid_spec");
+      setNotice("renderer_test_failed:root_object_required");
+      return;
+    }
+    const applied = [];
+    const rendererPayload = isPlainObject(parsed.renderer_json)
+      ? parsed.renderer_json
+      : (() => {
+          const fallback = {};
+          ["scene", "background", "voxels", "meta", "entities", "sprites", "tilemap", "camera"].forEach((key) => {
+            if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+              fallback[key] = parsed[key];
+            }
+          });
+          return Object.keys(fallback).length > 0 ? fallback : null;
+        })();
+    if (rendererPayload) {
+      setRendererVisualSource("json");
+      setRendererJson(JSON.stringify(rendererPayload, null, 2));
+      applied.push("renderer_json");
+    }
+    const settingsPatch = isPlainObject(parsed.settings)
+      ? parsed.settings
+      : isPlainObject(parsed.voxel_settings)
+        ? parsed.voxel_settings
+        : null;
+    if (settingsPatch) {
+      setVoxelSettings((prev) => {
+        const next = { ...prev, ...settingsPatch };
+        if (isPlainObject(settingsPatch.lighting)) {
+          next.lighting = { ...(prev.lighting || {}), ...settingsPatch.lighting };
+        }
+        if (isPlainObject(settingsPatch.rose)) {
+          next.rose = { ...(prev.rose || {}), ...settingsPatch.rose };
+        }
+        if (isPlainObject(settingsPatch.lod)) {
+          next.lod = { ...(prev.lod || {}), ...settingsPatch.lod };
+        }
+        if (isPlainObject(settingsPatch.camera3d)) {
+          next.camera3d = normalizeCamera3d({ ...(prev.camera3d || {}), ...settingsPatch.camera3d });
+        }
+        if (isPlainObject(settingsPatch.camera2d)) {
+          next.camera2d = normalizeCamera2d({ ...(prev.camera2d || {}), ...settingsPatch.camera2d });
+        }
+        return next;
+      });
+      applied.push("settings");
+    }
+    const controls = isPlainObject(parsed.controls) ? parsed.controls : null;
+    if (controls) {
+      if (typeof controls.player_id === "string" && controls.player_id.trim()) {
+        setRendererPlayerId(controls.player_id.trim());
+      }
+      if (typeof controls.player_facing === "string" && controls.player_facing.trim()) {
+        applyActivePlayerFacing(controls.player_facing.trim());
+      }
+      if (typeof controls.follow_player === "boolean") {
+        setRendererFollowPlayer(controls.follow_player);
+      }
+      if (typeof controls.keyboard_motion === "boolean") {
+        setRendererKeyboardMotion(controls.keyboard_motion);
+      }
+      if (typeof controls.click_move === "boolean") {
+        setRendererClickMove(controls.click_move);
+      }
+      if (Number.isFinite(Number(controls.path_step_ms))) {
+        setRendererPathStepMs(Number(controls.path_step_ms));
+      }
+      if (Number.isFinite(Number(controls.player_step))) {
+        setRendererPlayerStep(Number(controls.player_step));
+      }
+      if (typeof controls.gravity_enabled === "boolean") {
+        setRendererGravityEnabled(controls.gravity_enabled);
+      }
+      if (Number.isFinite(Number(controls.gravity_ms))) {
+        setRendererGravityMs(Number(controls.gravity_ms));
+      }
+      if (controls.reset_motion) {
+        setRendererMoveQueue([]);
+      }
+      applied.push("controls");
+    }
+    const signalPos =
+      parsed.signal &&
+      typeof parsed.signal === "object" &&
+      !Array.isArray(parsed.signal) &&
+      parsed.signal.player_position &&
+      typeof parsed.signal.player_position === "object" &&
+      !Array.isArray(parsed.signal.player_position)
+        ? parsed.signal.player_position
+        : controls &&
+            controls.player_position &&
+            typeof controls.player_position === "object" &&
+            !Array.isArray(controls.player_position)
+          ? controls.player_position
+          : null;
+    if (signalPos) {
+      applyActivePlayerOffset(() => ({
+        x: Number(signalPos.x || 0),
+        y: Number(signalPos.y || 0),
+        z: Number(signalPos.z || 0),
+      }));
+      applied.push("player_signal");
+    } else if (controls && controls.reset_motion) {
+      applyActivePlayerOffset(() => ({ x: 0, y: 0, z: 0 }));
+    }
+    const appliedLabel = applied.length > 0 ? applied.join("+") : "no_changes";
+    setRendererTestHarnessStatus(`applied:${appliedLabel}`);
+    setRendererGameStatus(`renderer_test:${appliedLabel}`);
+    setNotice(`renderer_test_applied:${appliedLabel}`);
+  }
+
+  function captureRendererTestSpecFromCurrent() {
+    let rendererPayload = {};
+    try {
+      const parsed = JSON.parse(rendererJson || "{}");
+      rendererPayload = isPlainObject(parsed) ? parsed : {};
+    } catch {
+      rendererPayload = {};
+    }
+    const snapshot = {
+      renderer_json: rendererPayload,
+      settings: voxelSettings,
+      controls: {
+        player_id: rendererPlayerId,
+        player_facing: rendererPlayerFacing,
+        follow_player: rendererFollowPlayer,
+        keyboard_motion: rendererKeyboardMotion,
+        click_move: rendererClickMove,
+        path_step_ms: rendererPathStepMs,
+        player_step: rendererPlayerStep,
+        gravity_enabled: rendererGravityEnabled,
+        gravity_ms: rendererGravityMs,
+      },
+      signal: {
+        player_position: {
+          x: Number(rendererPlayerOffset.x || 0),
+          y: Number(rendererPlayerOffset.y || 0),
+          z: Number(rendererPlayerOffset.z || 0),
+        },
+      },
+    };
+    setRendererTestSpecText(JSON.stringify(snapshot, null, 2));
+    setRendererTestHarnessStatus("captured");
+    setNotice("renderer_test_captured");
+  }
+
+  function insertRendererTestSpecFragment() {
+    const fragment = RENDERER_TEST_SPEC_FRAGMENTS.find((item) => item.id === rendererTestFragmentId);
+    if (!fragment || !isPlainObject(fragment.spec)) {
+      setRendererTestHarnessStatus("fragment_not_found");
+      setNotice("renderer_fragment_failed:not_found");
+      return;
+    }
+    let current = {};
+    try {
+      const parsed = JSON.parse(rendererTestSpecText || "{}");
+      current = isPlainObject(parsed) ? parsed : {};
+    } catch {
+      current = {};
+    }
+    const mode = String(rendererTestFragmentMode || "merge");
+    let next = {};
+    if (mode === "replace") {
+      next = fragment.spec;
+    } else if (mode === "append_voxels") {
+      const currentRendererJson = isPlainObject(current.renderer_json) ? current.renderer_json : {};
+      const fragmentRendererJson = isPlainObject(fragment.spec.renderer_json) ? fragment.spec.renderer_json : {};
+      const currentVoxels = Array.isArray(currentRendererJson.voxels) ? currentRendererJson.voxels : [];
+      const fragmentVoxels = Array.isArray(fragmentRendererJson.voxels) ? fragmentRendererJson.voxels : [];
+      const mergedRendererJson = deepMergeObjects(currentRendererJson, fragmentRendererJson);
+      mergedRendererJson.voxels = currentVoxels.concat(fragmentVoxels);
+      next = deepMergeObjects(current, fragment.spec);
+      next.renderer_json = mergedRendererJson;
+    } else {
+      next = deepMergeObjects(current, fragment.spec);
+    }
+    setRendererTestSpecText(JSON.stringify(next, null, 2));
+    setRendererTestHarnessStatus(`fragment_inserted:${fragment.id}:${mode}`);
+    setNotice(`renderer_fragment_inserted:${fragment.id}`);
   }
 
   async function refreshStudioFsAssets() {
@@ -4698,14 +8192,20 @@ export function App() {
       if (!studioFsRoot) {
         throw new Error("studio_fs root not set");
       }
+      const pythonFiles = await window.atelierDesktop.fs.listAssetsBySuffix(studioFsRoot, ".py");
       const scenes = await window.atelierDesktop.fs.listAssetsBySuffix(studioFsRoot, ".scene.json");
       const sprites = await window.atelierDesktop.fs.listAssetsBySuffix(studioFsRoot, ".sprite.json");
       const audioFiles = await listStudioAudioFiles(studioFsRoot);
+      const pyFiles = pythonFiles && pythonFiles.ok && Array.isArray(pythonFiles.files) ? pythonFiles.files : [];
       const sceneFiles = scenes && scenes.ok && Array.isArray(scenes.files) ? scenes.files : [];
       const spriteFiles = sprites && sprites.ok && Array.isArray(sprites.files) ? sprites.files : [];
+      setStudioFsPythonFiles(pyFiles);
       setStudioFsSceneFiles(sceneFiles);
       setStudioFsSpriteFiles(spriteFiles);
       setStudioFsAudioFiles(audioFiles);
+      if (pyFiles.length > 0) {
+        setStudioFsSelectedPython(String(pyFiles[0]));
+      }
       if (sceneFiles.length > 0) {
         setStudioFsSelectedScene(String(sceneFiles[0]));
       }
@@ -4715,7 +8215,7 @@ export function App() {
       if (audioFiles.length > 0) {
         setStudioFsSelectedAudio(String(audioFiles[0]));
       }
-      return { scene_count: sceneFiles.length, sprite_count: spriteFiles.length, audio_count: audioFiles.length };
+      return { python_count: pyFiles.length, scene_count: sceneFiles.length, sprite_count: spriteFiles.length, audio_count: audioFiles.length };
     });
   }
 
@@ -4916,6 +8416,53 @@ export function App() {
     });
   }
 
+  async function importSelectedFsPythonToRenderer() {
+    await runAction("studio_fs_import_python_renderer", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      if (!studioFsSelectedPython) {
+        throw new Error("studio_fs no python selected");
+      }
+      const result = await window.atelierDesktop.fs.readTextFile(studioFsRoot, studioFsSelectedPython);
+      if (!result || !result.ok || typeof result.content !== "string") {
+        throw new Error("studio_fs_read_python failed");
+      }
+      const filename =
+        typeof result.filename === "string" && result.filename.trim()
+          ? result.filename
+          : studioFsSelectedPython;
+      const existing = studioFiles.find((file) => file.folder === "scripts" && file.name === filename);
+      const nextId = existing ? existing.id : makeStudioFileId();
+      setStudioFiles((prev) => {
+        const existingIndex = prev.findIndex((file) => file.folder === "scripts" && file.name === filename);
+        if (existingIndex >= 0) {
+          const next = [...prev];
+          next[existingIndex] = { ...next[existingIndex], content: result.content };
+          return next;
+        }
+        return [
+          ...prev,
+          {
+            id: nextId,
+            name: filename,
+            folder: "scripts",
+            content: result.content,
+          },
+        ];
+      });
+      setStudioSelectedFileId(nextId);
+      setRendererPython(result.content);
+      setRendererPipeline((prev) => ({ ...prev, pythonFileId: nextId }));
+      setSection("Renderer Lab");
+      setRendererGameStatus(`python_loaded:${filename}`);
+      return { imported: studioFsSelectedPython, studio_file_id: nextId };
+    });
+  }
+
   async function exportAllCobraScriptsToFs() {
     await runAction("studio_fs_export_all_cobra", async () => {
       if (!hasDesktopFs()) {
@@ -5019,6 +8566,15 @@ export function App() {
     }
   }
 
+  useEffect(() => {
+    const fullscreen = new URLSearchParams(window.location.search).get("view") === "renderer-full";
+    if (!fullscreen && section !== "Renderer Lab") {
+      return undefined;
+    }
+    const timer = window.setInterval(() => setRendererAnimationClock(Date.now()), 80);
+    return () => window.clearInterval(timer);
+  }, [section]);
+
   const filtered = (items, text, keys) =>
     items.filter((it) => (text ? keys.map((k) => String(it[k] || "")).join(" ").toLowerCase().includes(text.toLowerCase()) : true));
 
@@ -5077,19 +8633,61 @@ export function App() {
     () => buildRendererFrameHtml("json", rendererJson, rendererEffectiveEngineState),
     [rendererJson, rendererEffectiveEngineState]
   );
-  const unifiedRendererPayload = useMemo(() => {
-    if (rendererVisualSource === "cobra") {
-      return parseCobraShygazunScript(rendererCobra);
+  useEffect(() => {
+    if (rendererVisualSource !== "engine") {
+      return;
     }
+    setRendererParsedPayload({ source: "engine", key: "engine", payload: rendererEffectiveEngineState });
+    setRendererParseStatus("direct:engine");
+  }, [rendererVisualSource, rendererEffectiveEngineState]);
+
+  useEffect(() => {
+    if (rendererVisualSource === "engine") {
+      return undefined;
+    }
+    const mode = rendererVisualSource === "cobra" ? "cobra" : "json";
+    const sourceText = mode === "cobra" ? rendererCobra : rendererJson;
+    const parseKey = `${mode}:${sourceText.length}:${localStringHash(sourceText)}`;
+    const useWorker = sourceText.length >= 4000;
+    let cancelled = false;
+
+    if (!useWorker) {
+      const parsed = parseRendererPayloadSync(mode, sourceText);
+      setRendererParsedPayload({ source: mode, key: parseKey, payload: parsed });
+      setRendererParseStatus(`main:${mode}`);
+      return undefined;
+    }
+
+    setRendererParseStatus(`worker:${mode}:running`);
+    runPayloadParseInWorker({ mode, sourceText, timeoutMs: 2200 })
+      .then((parsed) => {
+        if (cancelled) {
+          return;
+        }
+        setRendererParsedPayload({ source: mode, key: parseKey, payload: parsed });
+        setRendererParseStatus(`worker:${mode}:ok`);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        const parsed = parseRendererPayloadSync(mode, sourceText);
+        setRendererParsedPayload({ source: mode, key: parseKey, payload: parsed });
+        setRendererParseStatus(`fallback_main:${mode}`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rendererVisualSource, rendererCobra, rendererJson]);
+  const unifiedRendererPayload = useMemo(() => {
     if (rendererVisualSource === "engine") {
       return rendererEffectiveEngineState;
     }
-    try {
-      return JSON.parse(rendererJson || "{}");
-    } catch {
-      return {};
-    }
-  }, [rendererVisualSource, rendererCobra, rendererJson, rendererEffectiveEngineState]);
+    return rendererParsedPayload && typeof rendererParsedPayload.payload === "object" && rendererParsedPayload.payload
+      ? rendererParsedPayload.payload
+      : {};
+  }, [rendererVisualSource, rendererEffectiveEngineState, rendererParsedPayload]);
   const voxelMaterialsMap = useMemo(() => {
     const map = {};
     voxelMaterials.forEach((mat) => {
@@ -5117,18 +8715,83 @@ export function App() {
     });
     return map;
   }, [voxelLayers]);
+  const rendererSemanticLexicon = useMemo(
+    () => buildRendererSemanticLexicon(unifiedRendererPayload, rendererEffectiveEngineState),
+    [unifiedRendererPayload, rendererEffectiveEngineState]
+  );
+  const rendererSignalPlayerPosition = useMemo(
+    () => readPlayerPositionSignal(rendererEffectiveEngineState),
+    [rendererEffectiveEngineState]
+  );
+  const unifiedRendererRawVoxels = useMemo(
+    () => extractVoxelsFromPayload(unifiedRendererPayload, rendererSemanticLexicon),
+    [unifiedRendererPayload, rendererSemanticLexicon]
+  );
+  useEffect(() => {
+    const lodLevel = resolveInputLodLevel(voxelSettings || {});
+    const zoom = Number(normalizeCamera2d(voxelSettings && voxelSettings.camera2d).zoom || 1);
+    const key = `${unifiedRendererRawVoxels.length}:${lodLevel}:${zoom.toFixed(3)}`;
+    const shouldWorker = unifiedRendererRawVoxels.length >= 5000;
+    let cancelled = false;
+
+    if (!shouldWorker) {
+      const lodResolved = applyInputLod(unifiedRendererRawVoxels, voxelSettings);
+      setRendererPreparedVoxels({ key, voxels: lodResolved });
+      setRendererVoxelPrepStatus("main");
+      return undefined;
+    }
+
+    setRendererVoxelPrepStatus("worker:running");
+    runVoxelExtractLodInWorker({
+      payload: { voxels: unifiedRendererRawVoxels },
+      settings: voxelSettings,
+      timeoutMs: 2200,
+    })
+      .then((lodResolved) => {
+        if (cancelled) {
+          return;
+        }
+        setRendererPreparedVoxels({ key, voxels: lodResolved });
+        setRendererVoxelPrepStatus("worker:ok");
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        const lodResolved = applyInputLod(unifiedRendererRawVoxels, voxelSettings);
+        setRendererPreparedVoxels({ key, voxels: lodResolved });
+        setRendererVoxelPrepStatus("fallback_main");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [unifiedRendererRawVoxels, voxelSettings]);
   const unifiedRendererVoxels = useMemo(() => {
-    const raw = extractVoxelsFromPayload(unifiedRendererPayload);
-    return applyVoxelMaterials(raw, voxelMaterialsMap, voxelLayersMap, voxelAtlasMap);
-  }, [unifiedRendererPayload, voxelMaterialsMap, voxelLayersMap, voxelAtlasMap]);
+    const lodResolved = Array.isArray(rendererPreparedVoxels.voxels) ? rendererPreparedVoxels.voxels : [];
+    return applyVoxelMaterials(lodResolved, voxelMaterialsMap, voxelLayersMap, voxelAtlasMap);
+  }, [rendererPreparedVoxels, voxelMaterialsMap, voxelLayersMap, voxelAtlasMap]);
+  const rendererMotionVoxels = useMemo(
+    () =>
+      applyPlayerMotionToVoxels(
+        unifiedRendererVoxels,
+        rendererPlayerId,
+        rendererSignalPlayerPosition
+          ? { mode: "absolute", ...rendererSignalPlayerPosition }
+          : { mode: "offset", ...rendererPlayerOffset },
+        rendererSemanticLexicon,
+        rendererPlayerFacing
+      ),
+    [unifiedRendererVoxels, rendererPlayerId, rendererPlayerOffset, rendererSemanticLexicon, rendererSignalPlayerPosition, rendererPlayerFacing]
+  );
+  const rendererPlayerMoving = useMemo(
+    () => rendererMoveQueue.length > 0 || rendererAnimationClock - Number(rendererLastMoveAt || 0) < 180,
+    [rendererMoveQueue.length, rendererAnimationClock, rendererLastMoveAt]
+  );
   const rendererRoseVector = useMemo(
     () => resolveRoseVector(unifiedRendererPayload, rendererEffectiveEngineState),
     [unifiedRendererPayload, rendererEffectiveEngineState]
   );
-  const effectiveVoxelSettings = useMemo(() => {
-    const rose = voxelSettings && typeof voxelSettings.rose === "object" ? voxelSettings.rose : {};
-    return { ...voxelSettings, rose: { ...rose, data: rendererRoseVector } };
-  }, [voxelSettings, rendererRoseVector]);
   const isFullscreenRenderer = useMemo(
     () => new URLSearchParams(window.location.search).get("view") === "renderer-full",
     []
@@ -5147,7 +8810,8 @@ export function App() {
     }
   }, [fullscreenState]);
   const fullscreenVoxels = useMemo(() => {
-    const raw = extractVoxelsFromPayload(fullscreenPayload);
+    const fullscreenSemanticLexicon = buildRendererSemanticLexicon(fullscreenPayload, fullscreenState.engine);
+    const raw = extractVoxelsFromPayload(fullscreenPayload, fullscreenSemanticLexicon);
     const materialsMap = {};
     const layersMap = {};
     if (fullscreenState.materials && Array.isArray(fullscreenState.materials)) {
@@ -5172,8 +8836,122 @@ export function App() {
         }
       });
     }
-    return applyVoxelMaterials(raw, materialsMap, layersMap, atlasMap);
+    const lodResolved = applyInputLod(raw, fullscreenState.settings || {});
+    return applyVoxelMaterials(lodResolved, materialsMap, layersMap, atlasMap);
   }, [fullscreenPayload, fullscreenState]);
+  const labGovernor = useMemo(() => {
+    const tileCount = Object.keys(tilePlacements || {}).length;
+    const mainVoxelCount = Array.isArray(unifiedRendererVoxels) ? unifiedRendererVoxels.length : 0;
+    const fullVoxelCount = Array.isArray(fullscreenVoxels) ? fullscreenVoxels.length : 0;
+    const fullscreen = new URLSearchParams(window.location.search).get("view") === "renderer-full";
+    const active = fullscreen || section === "Renderer Lab";
+    let level = "normal";
+    if (tileCount > 60000 || mainVoxelCount > 18000 || fullVoxelCount > 18000) {
+      level = "critical";
+    } else if (tileCount > 35000 || mainVoxelCount > 12000 || fullVoxelCount > 12000) {
+      level = "high";
+    } else if (tileCount > 18000 || mainVoxelCount > 7000 || fullVoxelCount > 7000) {
+      level = "elevated";
+    }
+    const downgrade = active && (level === "high" || level === "critical");
+    return {
+      level,
+      active,
+      downgrade,
+      tileCount,
+      mainVoxelCount,
+      fullVoxelCount,
+      mainPatch: downgrade
+        ? {
+            edgeGlow: false,
+            outline: false,
+            lighting: { ...(voxelSettings?.lighting || {}), enabled: false },
+            rose: { ...(voxelSettings?.rose || {}), enabled: false, strength: 0 },
+            renderScale: Math.max(0.5, Math.min(Number(voxelSettings?.renderScale || 1), 0.85)),
+          }
+        : {},
+      fullPatch: downgrade
+        ? {
+            edgeGlow: false,
+            outline: false,
+            lighting: { ...(fullscreenState?.settings?.lighting || {}), enabled: false },
+            rose: { ...(fullscreenState?.settings?.rose || {}), enabled: false, strength: 0 },
+            renderScale: Math.max(0.5, Math.min(Number(fullscreenState?.settings?.renderScale || 1), 0.85)),
+          }
+        : {},
+    };
+  }, [tilePlacements, unifiedRendererVoxels, fullscreenVoxels, section, voxelSettings, fullscreenState]);
+  const effectiveVoxelSettings = useMemo(() => {
+    const rose = voxelSettings && typeof voxelSettings.rose === "object" ? voxelSettings.rose : {};
+    const baseRaw = {
+      ...voxelSettings,
+      rose: { ...rose, data: rendererRoseVector },
+      playerFacing: normalizeFacing(rendererPlayerFacing),
+      playerMoving: rendererPlayerMoving,
+      animationClock: rendererAnimationClock,
+      spriteAnimMs: 120,
+    };
+    const base = labGovernor.downgrade ? { ...baseRaw, ...labGovernor.mainPatch } : baseRaw;
+    if (!rendererFollowPlayer) {
+      return base;
+    }
+    const renderMode = String(base.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d";
+    if (renderMode === "3d") {
+      const pan3d = computePlayerFollowPan3d(
+        rendererMotionVoxels,
+        rendererPlayerId,
+        Number(base.tile || 18),
+        Number(base.zScale || 8),
+        rendererSemanticLexicon
+      );
+      return {
+        ...base,
+        camera3d: normalizeCamera3d({ ...(base.camera3d || {}), panX: pan3d.panX, panY: pan3d.panY }),
+      };
+    }
+    const baseCamera2d = normalizeCamera2d(base.camera2d);
+    const pan2d = computePlayerFollowPan2d(
+      rendererMotionVoxels,
+      rendererPlayerId,
+      Number(base.tile || 18) * Number(baseCamera2d.zoom || 1),
+      Number(base.zScale || 8) * Number(baseCamera2d.zoom || 1),
+      rendererSemanticLexicon,
+      String(base.projection || "isometric")
+    );
+    return {
+      ...base,
+      camera2d: normalizeCamera2d({
+        ...baseCamera2d,
+        panX: Number(baseCamera2d.panX || 0) + Number(pan2d.panX || 0),
+        panY: Number(baseCamera2d.panY || 0) + Number(pan2d.panY || 0),
+      }),
+    };
+  }, [voxelSettings, rendererRoseVector, rendererFollowPlayer, rendererMotionVoxels, rendererPlayerId, rendererSemanticLexicon, rendererPlayerFacing, rendererPlayerMoving, rendererAnimationClock, labGovernor]);
+  const fullscreenSemanticLexicon = useMemo(
+    () => buildRendererSemanticLexicon(fullscreenPayload, fullscreenState.engine),
+    [fullscreenPayload, fullscreenState.engine]
+  );
+  const fullscreenSignalPlayerPosition = useMemo(
+    () => readPlayerPositionSignal(fullscreenState.engine),
+    [fullscreenState.engine]
+  );
+  const fullscreenMotionVoxels = useMemo(
+    () =>
+      applyPlayerMotionToVoxels(
+        fullscreenVoxels,
+        fullscreenState.playerId || "player",
+        fullscreenSignalPlayerPosition
+          ? { mode: "absolute", ...fullscreenSignalPlayerPosition }
+          : { mode: "offset", ...(fullscreenState.playerOffset || { x: 0, y: 0, z: 0 }) },
+        fullscreenSemanticLexicon,
+        fullscreenState.playerFacing || "south"
+      ),
+    [fullscreenVoxels, fullscreenState.playerId, fullscreenState.playerOffset, fullscreenState.playerFacing, fullscreenSemanticLexicon, fullscreenSignalPlayerPosition]
+  );
+  const fullscreenPlayerMoving = useMemo(
+    () => rendererMoveQueue.length > 0 || rendererAnimationClock - Number(rendererLastMoveAt || 0) < 180,
+    [rendererMoveQueue.length, rendererAnimationClock, rendererLastMoveAt]
+  );
   const fullscreenRoseVector = useMemo(
     () => resolveRoseVector(fullscreenPayload, fullscreenState.engine),
     [fullscreenPayload, fullscreenState.engine]
@@ -5181,14 +8959,64 @@ export function App() {
   const fullscreenEffectiveSettings = useMemo(() => {
     const base = fullscreenState.settings && typeof fullscreenState.settings === "object" ? fullscreenState.settings : {};
     const rose = base.rose && typeof base.rose === "object" ? base.rose : {};
-    return { ...base, rose: { ...rose, data: fullscreenRoseVector } };
-  }, [fullscreenState.settings, fullscreenRoseVector]);
+    const withRoseRaw = {
+      ...base,
+      rose: { ...rose, data: fullscreenRoseVector },
+      playerFacing: normalizeFacing(fullscreenState.playerFacing || "south"),
+      playerMoving: fullscreenPlayerMoving,
+      animationClock: rendererAnimationClock,
+      spriteAnimMs: 120,
+    };
+    const withRose = labGovernor.downgrade ? { ...withRoseRaw, ...labGovernor.fullPatch } : withRoseRaw;
+    if (!fullscreenState.followPlayer) {
+      return withRose;
+    }
+    const renderMode = String(withRose.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d";
+    if (renderMode === "3d") {
+      const pan3d = computePlayerFollowPan3d(
+        fullscreenMotionVoxels,
+        fullscreenState.playerId || "player",
+        Number(withRose.tile || 18),
+        Number(withRose.zScale || 8),
+        fullscreenSemanticLexicon
+      );
+      return {
+        ...withRose,
+        camera3d: normalizeCamera3d({ ...(withRose.camera3d || {}), panX: pan3d.panX, panY: pan3d.panY }),
+      };
+    }
+    const baseCamera2d = normalizeCamera2d(withRose.camera2d);
+    const pan2d = computePlayerFollowPan2d(
+      fullscreenMotionVoxels,
+      fullscreenState.playerId || "player",
+      Number(withRose.tile || 18) * Number(baseCamera2d.zoom || 1),
+      Number(withRose.zScale || 8) * Number(baseCamera2d.zoom || 1),
+      fullscreenSemanticLexicon,
+      String(withRose.projection || "isometric")
+    );
+    return {
+      ...withRose,
+      camera2d: normalizeCamera2d({
+        ...baseCamera2d,
+        panX: Number(baseCamera2d.panX || 0) + Number(pan2d.panX || 0),
+        panY: Number(baseCamera2d.panY || 0) + Number(pan2d.panY || 0),
+      }),
+    };
+  }, [fullscreenState.settings, fullscreenState.playerFacing, fullscreenRoseVector, fullscreenState.followPlayer, fullscreenState.playerId, fullscreenMotionVoxels, fullscreenSemanticLexicon, fullscreenPlayerMoving, rendererAnimationClock, labGovernor]);
 
   const updateMainCamera3d = (mutate) => {
     setVoxelSettings((prev) => {
       const currentCamera = normalizeCamera3d(prev.camera3d);
       const nextCamera = normalizeCamera3d(mutate(currentCamera));
       return { ...prev, camera3d: nextCamera };
+    });
+  };
+
+  const updateMainCamera2d = (mutate) => {
+    setVoxelSettings((prev) => {
+      const currentCamera = normalizeCamera2d(prev.camera2d);
+      const nextCamera = normalizeCamera2d(mutate(currentCamera));
+      return { ...prev, camera2d: nextCamera };
     });
   };
 
@@ -5203,11 +9031,25 @@ export function App() {
     });
   };
 
+  const updateFullscreenCamera2d = (mutate) => {
+    setFullscreenState((prev) => {
+      const baseSettings = prev.settings && typeof prev.settings === "object" ? prev.settings : {};
+      const currentCamera = normalizeCamera2d(baseSettings.camera2d);
+      const nextCamera = normalizeCamera2d(mutate(currentCamera));
+      const nextSettings = { ...baseSettings, camera2d: nextCamera };
+      localStorage.setItem("atelier.renderer.voxel_settings", JSON.stringify(nextSettings));
+      return { ...prev, settings: nextSettings };
+    });
+  };
+
   const handleRendererPointerDown = (event, target) => {
     const mode = target === "fullscreen"
       ? String(fullscreenEffectiveSettings.renderMode || "2.5d").toLowerCase()
       : String(voxelSettings.renderMode || "2.5d").toLowerCase();
-    if (mode !== "3d") {
+    const projection = target === "fullscreen"
+      ? String(fullscreenEffectiveSettings.projection || "isometric").toLowerCase()
+      : String(voxelSettings.projection || "isometric").toLowerCase();
+    if (mode !== "3d" && !(mode === "2.5d" && projection === "isometric")) {
       return;
     }
     const dragRef = target === "fullscreen" ? fullscreenCameraDragRef : unifiedCameraDragRef;
@@ -5216,12 +9058,14 @@ export function App() {
       pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
-      mode: panMode ? "pan" : "orbit",
+      mode: mode === "3d" ? (panMode ? "pan" : "orbit") : "pan2d",
     };
     if (event.currentTarget && typeof event.currentTarget.setPointerCapture === "function") {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-    event.preventDefault();
+    if (event.cancelable) {
+      event.preventDefault();
+    }
   };
 
   const handleRendererPointerMove = (event, target) => {
@@ -5234,13 +9078,20 @@ export function App() {
     const dy = event.clientY - drag.y;
     drag.x = event.clientX;
     drag.y = event.clientY;
-    const update = target === "fullscreen" ? updateFullscreenCamera3d : updateMainCamera3d;
-    if (drag.mode === "pan") {
-      update((camera) => ({ ...camera, panX: camera.panX + dx, panY: camera.panY + dy }));
+    if (drag.mode === "pan2d") {
+      const update2d = target === "fullscreen" ? updateFullscreenCamera2d : updateMainCamera2d;
+      update2d((camera) => ({ ...camera, panX: camera.panX + dx, panY: camera.panY + dy }));
     } else {
-      update((camera) => ({ ...camera, yaw: camera.yaw + dx * 0.35, pitch: camera.pitch - dy * 0.25 }));
+      const update = target === "fullscreen" ? updateFullscreenCamera3d : updateMainCamera3d;
+      if (drag.mode === "pan") {
+        update((camera) => ({ ...camera, panX: camera.panX + dx, panY: camera.panY + dy }));
+      } else {
+        update((camera) => ({ ...camera, yaw: camera.yaw + dx * 0.35, pitch: camera.pitch - dy * 0.25 }));
+      }
     }
-    event.preventDefault();
+    if (event.cancelable) {
+      event.preventDefault();
+    }
   };
 
   const handleRendererPointerUp = (event, target) => {
@@ -5253,33 +9104,226 @@ export function App() {
     if (event.currentTarget && typeof event.currentTarget.releasePointerCapture === "function") {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    event.preventDefault();
+    if (event.cancelable) {
+      event.preventDefault();
+    }
   };
 
   const handleRendererWheel = (event, target) => {
     const mode = target === "fullscreen"
       ? String(fullscreenEffectiveSettings.renderMode || "2.5d").toLowerCase()
       : String(voxelSettings.renderMode || "2.5d").toLowerCase();
-    if (mode !== "3d") {
+    if (mode === "3d") {
+      const update = target === "fullscreen" ? updateFullscreenCamera3d : updateMainCamera3d;
+      const direction = Math.sign(event.deltaY);
+      const factor = direction > 0 ? 0.92 : 1.08;
+      update((camera) => ({ ...camera, zoom: camera.zoom * factor }));
+      if (event.cancelable) {
+        event.preventDefault();
+      }
       return;
     }
-    const update = target === "fullscreen" ? updateFullscreenCamera3d : updateMainCamera3d;
-    const direction = Math.sign(event.deltaY);
-    const factor = direction > 0 ? 0.92 : 1.08;
-    update((camera) => ({ ...camera, zoom: camera.zoom * factor }));
-    event.preventDefault();
+    const projection = target === "fullscreen"
+      ? String(fullscreenEffectiveSettings.projection || "isometric").toLowerCase()
+      : String(voxelSettings.projection || "isometric").toLowerCase();
+    if (mode === "2.5d" && projection === "isometric") {
+      const update2d = target === "fullscreen" ? updateFullscreenCamera2d : updateMainCamera2d;
+      const direction = Math.sign(event.deltaY);
+      const factor = direction > 0 ? 0.92 : 1.08;
+      update2d((camera) => ({ ...camera, zoom: camera.zoom * factor }));
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+    }
+  };
+
+  const mergePlayerSignalIntoEngineText = (engineText, playerPosition) => {
+    const stateObj = parseObjectJson(engineText || "{}", {});
+    const signals = stateObj.signals && typeof stateObj.signals === "object" ? { ...stateObj.signals } : {};
+    signals.player_position = {
+      x: Number(playerPosition && playerPosition.x || 0),
+      y: Number(playerPosition && playerPosition.y || 0),
+      z: Number(playerPosition && playerPosition.z || 0),
+      updated_at: new Date().toISOString(),
+    };
+    return JSON.stringify({ ...stateObj, signals }, null, 2);
+  };
+
+  const publishPlayerPositionSignal = (playerPosition) => {
+    const next = {
+      x: Number(playerPosition && playerPosition.x || 0),
+      y: Number(playerPosition && playerPosition.y || 0),
+      z: Number(playerPosition && playerPosition.z || 0),
+    };
+    localStorage.setItem("atelier.renderer.player_offset", JSON.stringify(next));
+    localStorage.setItem(
+      "atelier.renderer.player_signal",
+      JSON.stringify({ ...next, updated_at: new Date().toISOString() })
+    );
+    localStorage.setItem("atelier.renderer.sync_nonce", `${Date.now()}_${Math.random().toString(16).slice(2)}`);
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        const channel = new BroadcastChannel(RENDERER_SYNC_CHANNEL);
+        channel.postMessage({ type: "renderer_sync", at: Date.now(), player_position: next });
+        channel.close();
+      } catch {
+        // best-effort
+      }
+    }
+    if (isFullscreenRenderer) {
+      setFullscreenState((prev) => {
+        const engineObj = prev.engine && typeof prev.engine === "object" ? prev.engine : {};
+        const signals = engineObj.signals && typeof engineObj.signals === "object" ? { ...engineObj.signals } : {};
+        signals.player_position = { ...next, updated_at: new Date().toISOString() };
+        return { ...prev, engine: { ...engineObj, signals } };
+      });
+    } else {
+      setRendererEngineStateText((prevText) => mergePlayerSignalIntoEngineText(prevText, next));
+    }
+  };
+
+  const applyActivePlayerFacing = (facingValue) => {
+    const nextFacing = normalizeFacing(facingValue);
+    localStorage.setItem("atelier.renderer.player_facing", nextFacing);
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        const channel = new BroadcastChannel(RENDERER_SYNC_CHANNEL);
+        channel.postMessage({ type: "renderer_sync", at: Date.now(), player_facing: nextFacing });
+        channel.close();
+      } catch {
+        // best-effort
+      }
+    }
+    if (isFullscreenRenderer) {
+      setFullscreenState((prev) => ({ ...prev, playerFacing: nextFacing }));
+    } else {
+      setRendererPlayerFacing(nextFacing);
+    }
+  };
+
+  const applyActivePlayerOffset = (mutate) => {
+    if (isFullscreenRenderer) {
+      setFullscreenState((prev) => {
+        const current = prev && prev.playerOffset && typeof prev.playerOffset === "object"
+          ? prev.playerOffset
+          : { x: 0, y: 0, z: 0 };
+        const nextRaw = mutate({
+          x: Number(current.x || 0),
+          y: Number(current.y || 0),
+          z: Number(current.z || 0),
+        });
+        const next = {
+          x: Number(nextRaw && nextRaw.x || 0),
+          y: Number(nextRaw && nextRaw.y || 0),
+          z: Number(nextRaw && nextRaw.z || 0),
+        };
+        publishPlayerPositionSignal(next);
+        return { ...prev, playerOffset: next };
+      });
+      return;
+    }
+    setRendererPlayerOffset((prev) => {
+      const current = prev && typeof prev === "object" ? prev : { x: 0, y: 0, z: 0 };
+      const nextRaw = mutate({
+        x: Number(current.x || 0),
+        y: Number(current.y || 0),
+        z: Number(current.z || 0),
+      });
+      const next = {
+        x: Number(nextRaw && nextRaw.x || 0),
+        y: Number(nextRaw && nextRaw.y || 0),
+        z: Number(nextRaw && nextRaw.z || 0),
+      };
+      publishPlayerPositionSignal(next);
+      return next;
+    });
+  };
+
+  const handleRendererClickMove = (event, target) => {
+    if (target !== "main" || !rendererClickMove) {
+      return;
+    }
+    const renderMode = String(effectiveVoxelSettings.renderMode || "2.5d").toLowerCase();
+    if (renderMode === "3d") {
+      setRendererGameStatus("click_move:3d_not_supported_yet");
+      return;
+    }
+    const canvas = unifiedRendererCanvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const player = rendererMotionVoxels.find((item) => isRendererPlayerVoxel(item, rendererPlayerId, rendererSemanticLexicon));
+    if (!player) {
+      setRendererGameStatus("click_move:player_not_found");
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const localX = event.clientX - rect.left;
+    const localY = event.clientY - rect.top;
+    const targetPoint = screenToIsoGridPoint2d(
+      localX,
+      localY,
+      Math.max(1, canvas.clientWidth),
+      Math.max(1, canvas.clientHeight),
+      rendererMotionVoxels,
+      effectiveVoxelSettings,
+      Number(player.z || 0)
+    );
+    if (!targetPoint) {
+      return;
+    }
+    const step = Math.max(0.1, Number(rendererPlayerStep || 1));
+    const targetX = Math.round(targetPoint.x / step) * step;
+    const targetY = Math.round(targetPoint.y / step) * step;
+    const dx = targetX - Number(player.x || 0);
+    const dy = targetY - Number(player.y || 0);
+    if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+      return;
+    }
+    const queue = buildStepDeltaQueue(dx, dy, 0, Math.max(0.1, Number(rendererPlayerStep || 1))).map((step) => ({
+      ...step,
+      facing: facingFromDelta(step.dx, step.dy, rendererPlayerFacing),
+    }));
+    if (queue.length === 0) {
+      return;
+    }
+    setRendererMoveQueue(queue);
+    setRendererGameStatus(`click_move_path:${targetX},${targetY},steps=${queue.length}`);
   };
 
   useEffect(() => {
+    if (governorLevelRef.current === labGovernor.level) {
+      return;
+    }
+    governorLevelRef.current = labGovernor.level;
+    setNotice(
+      `lab_governor:${labGovernor.level}:tiles=${labGovernor.tileCount}:voxels=${labGovernor.mainVoxelCount}`
+    );
+  }, [labGovernor]);
+
+  useEffect(() => {
+    if (!rendererSimPlaying) {
+      return;
+    }
+    if (labGovernor.level === "critical") {
+      setRendererSimPlaying(false);
+      setRendererGameStatus("playtest_paused_by_governor");
+    }
+  }, [labGovernor.level, rendererSimPlaying]);
+
+  useEffect(() => {
+    if (section !== "Renderer Lab") {
+      return undefined;
+    }
     const canvas = unifiedRendererCanvasRef.current;
     if (!canvas) {
       return undefined;
     }
-    drawVoxelScene(canvas, unifiedRendererVoxels, effectiveVoxelSettings);
-    const handleResize = () => drawVoxelScene(canvas, unifiedRendererVoxels, effectiveVoxelSettings);
+    drawVoxelScene(canvas, rendererMotionVoxels, effectiveVoxelSettings);
+    const handleResize = () => drawVoxelScene(canvas, rendererMotionVoxels, effectiveVoxelSettings);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [unifiedRendererVoxels, effectiveVoxelSettings]);
+  }, [rendererMotionVoxels, effectiveVoxelSettings, section]);
 
   const derivedBusinessArchitectureSpec = useMemo(
     () => deriveBusinessArchitectureSpec(rendererTables, rendererPipeline, studioFiles),
@@ -5406,6 +9450,109 @@ export function App() {
   }, [contentValidateSceneId, rendererRealmId]);
 
   useEffect(() => {
+    if (!rendererKeyboardMotion) {
+      return undefined;
+    }
+    const handleKeyDown = (event) => {
+      const active = document.activeElement;
+      const tag = active && active.tagName ? String(active.tagName).toLowerCase() : "";
+      const isEditing =
+        Boolean(active && active.isContentEditable) ||
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select";
+      if (isEditing) {
+        return;
+      }
+      const step = Math.max(0.1, Number(rendererPlayerStep || 1));
+      let dx = 0;
+      let dy = 0;
+      let dz = 0;
+      if (event.key === "ArrowUp") {
+        dy = -step;
+      } else if (event.key === "ArrowDown") {
+        dy = step;
+      } else if (event.key === "ArrowLeft") {
+        dx = -step;
+      } else if (event.key === "ArrowRight") {
+        dx = step;
+      } else if (event.key === "PageUp") {
+        dz = step;
+      } else if (event.key === "PageDown") {
+        dz = -step;
+      } else if (event.key === " " || event.code === "Space") {
+        dz = 1;
+      } else {
+        return;
+      }
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
+        applyActivePlayerFacing(facingFromDelta(dx, dy, isFullscreenRenderer ? fullscreenState.playerFacing : rendererPlayerFacing));
+        setRendererLastMoveAt(Date.now());
+      }
+      applyActivePlayerOffset((prev) => ({
+        x: Number(prev.x || 0) + dx,
+        y: Number(prev.y || 0) + dy,
+        z: Number(prev.z || 0) + dz,
+      }));
+      setRendererGameStatus(`player_offset:${dx},${dy},${dz}`);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [rendererKeyboardMotion, rendererPlayerStep, isFullscreenRenderer, rendererPlayerFacing, fullscreenState.playerFacing]);
+
+  useEffect(() => {
+    if (!Array.isArray(rendererMoveQueue) || rendererMoveQueue.length === 0) {
+      return undefined;
+    }
+    const intervalMs = Math.max(16, Number(rendererPathStepMs || 75));
+    const timer = window.setInterval(() => {
+      let delta = null;
+      setRendererMoveQueue((prev) => {
+        if (!Array.isArray(prev) || prev.length === 0) {
+          return [];
+        }
+        delta = prev[0];
+        return prev.slice(1);
+      });
+      if (delta) {
+        if (Math.abs(Number(delta.dx || 0)) > 0 || Math.abs(Number(delta.dy || 0)) > 0) {
+          applyActivePlayerFacing(delta.facing || facingFromDelta(delta.dx, delta.dy, rendererPlayerFacing));
+          setRendererLastMoveAt(Date.now());
+        }
+        applyActivePlayerOffset((prev) => ({
+          x: Number(prev.x || 0) + Number(delta.dx || 0),
+          y: Number(prev.y || 0) + Number(delta.dy || 0),
+          z: Number(prev.z || 0) + Number(delta.dz || 0),
+        }));
+      }
+    }, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [rendererMoveQueue, rendererPathStepMs, isFullscreenRenderer, rendererPlayerFacing]);
+
+  useEffect(() => {
+    if (!rendererGravityEnabled) {
+      return undefined;
+    }
+    const intervalMs = Math.max(40, Number(rendererGravityMs || 150));
+    const timer = window.setInterval(() => {
+      applyActivePlayerOffset((prev) => {
+        const currentZ = Number(prev.z || 0);
+        if (currentZ <= 0) {
+          return prev;
+        }
+        return { ...prev, z: Math.max(0, currentZ - 1) };
+      });
+    }, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [rendererGravityEnabled, rendererGravityMs, isFullscreenRenderer]);
+
+  useEffect(() => {
+    if (isFullscreenRenderer) {
+      return;
+    }
     localStorage.setItem("atelier.renderer.source", rendererVisualSource);
     localStorage.setItem("atelier.renderer.json", rendererJson);
     localStorage.setItem("atelier.renderer.cobra", rendererCobra);
@@ -5420,6 +9567,27 @@ export function App() {
     localStorage.setItem("atelier.renderer.tables_meta", JSON.stringify(rendererTablesMeta));
     localStorage.setItem("atelier.renderer.tables_precedence", rendererTablesPrecedence);
     localStorage.setItem("atelier.renderer.state_commit_mode", rendererStateCommitMode);
+    localStorage.setItem("atelier.renderer.player_id", rendererPlayerId);
+    localStorage.setItem("atelier.renderer.player_facing", rendererPlayerFacing);
+    localStorage.setItem("atelier.renderer.follow_player", rendererFollowPlayer ? "1" : "0");
+    localStorage.setItem("atelier.renderer.keyboard_motion", rendererKeyboardMotion ? "1" : "0");
+    localStorage.setItem("atelier.renderer.click_move", rendererClickMove ? "1" : "0");
+    localStorage.setItem("atelier.renderer.path_step_ms", String(rendererPathStepMs));
+    localStorage.setItem("atelier.renderer.player_step", String(rendererPlayerStep));
+    localStorage.setItem("atelier.renderer.gravity_enabled", rendererGravityEnabled ? "1" : "0");
+    localStorage.setItem("atelier.renderer.gravity_ms", String(rendererGravityMs));
+    localStorage.setItem("atelier.renderer.player_offset", JSON.stringify(rendererPlayerOffset));
+    localStorage.setItem("atelier.renderer.test_spec", rendererTestSpecText);
+    localStorage.setItem("atelier.renderer.sync_nonce", `${Date.now()}_${Math.random().toString(16).slice(2)}`);
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        const channel = new BroadcastChannel(RENDERER_SYNC_CHANNEL);
+        channel.postMessage({ type: "renderer_sync", at: Date.now() });
+        channel.close();
+      } catch {
+        // best-effort cross-window sync
+      }
+    }
     localStorage.setItem("atelier.business_renderer.input_mode", businessRendererInputMode);
     localStorage.setItem("atelier.business_renderer.input_text", businessRendererInputText);
     localStorage.setItem("atelier.business_renderer.use_derived", businessRendererUseDerived ? "1" : "0");
@@ -5440,6 +9608,17 @@ export function App() {
     rendererTablesMeta,
     rendererTablesPrecedence,
     rendererStateCommitMode,
+    rendererPlayerId,
+    rendererPlayerFacing,
+    rendererFollowPlayer,
+    rendererKeyboardMotion,
+    rendererClickMove,
+    rendererPathStepMs,
+    rendererPlayerStep,
+    rendererGravityEnabled,
+    rendererGravityMs,
+    rendererPlayerOffset,
+    rendererTestSpecText,
     businessRendererInputMode,
     businessRendererInputText,
     businessRendererUseDerived,
@@ -5449,10 +9628,74 @@ export function App() {
     rendererRealmId,
     validateBeforeEmit,
     lessonActorId,
+    isFullscreenRenderer,
   ]);
   useEffect(() => {
     localStorage.setItem("atelier.renderer.pipeline", JSON.stringify(rendererPipeline));
   }, [rendererPipeline]);
+
+  useEffect(() => {
+    if (section !== "Business Logic") {
+      return;
+    }
+    if (moduleCatalog.length > 0) {
+      return;
+    }
+    void listModuleCatalog();
+  }, [section, moduleCatalog.length]);
+
+  useEffect(() => {
+    if (section !== "Business Logic") {
+      return;
+    }
+    if (!moduleSelectedId) {
+      setModuleSelectedSpec(null);
+      return;
+    }
+    void fetchSelectedModuleSpec();
+  }, [section, moduleSelectedId]);
+
+  useEffect(() => {
+    if (isFullscreenRenderer) {
+      return undefined;
+    }
+    const syncFromShared = () => {
+      const shared = readRendererLocalState();
+      const sharedOffset = shared && shared.playerOffset && typeof shared.playerOffset === "object"
+        ? shared.playerOffset
+        : { x: 0, y: 0, z: 0 };
+      setRendererPlayerOffset((prev) => (closeVec3(prev, sharedOffset) ? prev : sharedOffset));
+      const sharedFacing = normalizeFacing(shared && shared.playerFacing ? shared.playerFacing : "south");
+      setRendererPlayerFacing((prev) => (normalizeFacing(prev) === sharedFacing ? prev : sharedFacing));
+      const sharedSignal = readPlayerPositionSignal(shared.engine);
+      if (sharedSignal) {
+        setRendererEngineStateText((prevText) => mergePlayerSignalIntoEngineText(prevText, sharedSignal));
+      }
+    };
+    syncFromShared();
+    const handleStorage = (event) => {
+      if (!event.key || !event.key.startsWith("atelier.renderer.")) {
+        return;
+      }
+      syncFromShared();
+    };
+    window.addEventListener("storage", handleStorage);
+    let channel = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        channel = new BroadcastChannel(RENDERER_SYNC_CHANNEL);
+        channel.onmessage = () => syncFromShared();
+      } catch {
+        channel = null;
+      }
+    }
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      if (channel) {
+        channel.close();
+      }
+    };
+  }, [isFullscreenRenderer]);
 
   useEffect(() => {
     if (!isFullscreenRenderer) {
@@ -5467,7 +9710,23 @@ export function App() {
       sync();
     };
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    let channel = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        channel = new BroadcastChannel(RENDERER_SYNC_CHANNEL);
+        channel.onmessage = () => sync();
+      } catch {
+        channel = null;
+      }
+    }
+    const timer = window.setInterval(sync, 600);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.clearInterval(timer);
+      if (channel) {
+        channel.close();
+      }
+    };
   }, [isFullscreenRenderer]);
 
   useEffect(() => {
@@ -5478,11 +9737,11 @@ export function App() {
     if (!canvas) {
       return undefined;
     }
-    drawVoxelScene(canvas, fullscreenVoxels, fullscreenEffectiveSettings);
-    const handleResize = () => drawVoxelScene(canvas, fullscreenVoxels, fullscreenEffectiveSettings);
+    drawVoxelScene(canvas, fullscreenMotionVoxels, fullscreenEffectiveSettings);
+    const handleResize = () => drawVoxelScene(canvas, fullscreenMotionVoxels, fullscreenEffectiveSettings);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [isFullscreenRenderer, fullscreenVoxels, fullscreenEffectiveSettings]);
+  }, [isFullscreenRenderer, fullscreenMotionVoxels, fullscreenEffectiveSettings]);
 
   const workshopFrontierGraph = useMemo(
     () => buildFrontierGraph(akinenwunFrontier && akinenwunFrontier.frontier ? akinenwunFrontier.frontier : null),
@@ -5550,6 +9809,15 @@ export function App() {
   const tileSvgMarkup = useMemo(() => {
     return buildTileSvgMarkup(tileSvgModel, tileSvgShowGrid, tileSvgShowLinks, 1);
   }, [tileSvgModel, tileSvgShowGrid, tileSvgShowLinks]);
+  const tileLodCounts = useMemo(() => {
+    const counts = { "0": 0, "1": 0, "2": 0, "3": 0 };
+    Object.values(tilePlacements).forEach((placement) => {
+      const meta = placement && typeof placement.meta === "object" ? placement.meta : {};
+      const lod = clampInt(meta.lod, 0, 3, 3);
+      counts[String(lod)] = Number(counts[String(lod)] || 0) + 1;
+    });
+    return counts;
+  }, [tilePlacements]);
   const graphMakerFrontierResult = useMemo(() => {
     if (graphMakerSource === "workshop") {
       return {
@@ -5739,28 +10007,179 @@ export function App() {
     setRendererGameStatus(`entity_added:${nextEntity.id}`);
   }
 
+  function tileLodSpan(levelRaw) {
+    const lod = clampInt(levelRaw, 0, 3, 3);
+    return Math.max(1, Math.pow(2, 3 - lod));
+  }
+
+  function retagAllTilesLod(levelRaw) {
+    const lod = clampInt(levelRaw, 0, 3, 3);
+    setTilePlacements((prev) => {
+      const next = {};
+      for (const [key, placement] of Object.entries(prev)) {
+        const meta = placement && typeof placement.meta === "object" ? placement.meta : {};
+        next[key] = { ...placement, meta: { ...meta, lod } };
+      }
+      return next;
+    });
+    setRendererGameStatus(`lod_retag_all:${lod}`);
+  }
+
+  function normalizeTileRect(start, end) {
+    if (!start || !end) {
+      return null;
+    }
+    const minX = Math.min(start.x, end.x);
+    const maxX = Math.max(start.x, end.x);
+    const minY = Math.min(start.y, end.y);
+    const maxY = Math.max(start.y, end.y);
+    return { minX, maxX, minY, maxY };
+  }
+
+  function tilePointInRect(x, y, rect) {
+    if (!rect) {
+      return false;
+    }
+    return x >= rect.minX && x <= rect.maxX && y >= rect.minY && y <= rect.maxY;
+  }
+
+  function collectBrushCenters(cx, cy, cols, rows) {
+    const radius = clampInt(tileBrushRadius, 0, 16, 0);
+    const shape = String(tileBrushShape || "square");
+    const points = [];
+    for (let dy = -radius; dy <= radius; dy += 1) {
+      for (let dx = -radius; dx <= radius; dx += 1) {
+        if (shape === "circle" && dx * dx + dy * dy > radius * radius) {
+          continue;
+        }
+        const x = cx + dx;
+        const y = cy + dy;
+        if (x < 0 || y < 0 || x >= cols || y >= rows) {
+          continue;
+        }
+        points.push({ x, y });
+      }
+    }
+    if (points.length === 0) {
+      points.push({ x: cx, y: cy });
+    }
+    return points;
+  }
+
+  function applyRectLod(levelRaw, options = {}) {
+    const rect = normalizeTileRect(tileRectStart, tileRectEnd);
+    if (!rect) {
+      setNotice("rect_lod: select rectangle first");
+      return;
+    }
+    const lod = clampInt(levelRaw, 0, 3, 3);
+    const feather = Boolean(options.feather);
+    const scale = clampInt(tileSvgExportScale, 1, 8, 2);
+    const featherBands = Math.max(1, scale);
+    const maxDrop = Math.min(2, lod);
+    setTilePlacements((prev) => {
+      const next = {};
+      for (const [key, placement] of Object.entries(prev)) {
+        if (!placement || typeof placement !== "object") {
+          continue;
+        }
+        if (String(placement.layer || "base") !== tileActiveLayer) {
+          next[key] = placement;
+          continue;
+        }
+        const x = clampInt(placement.x, 0, 100000, 0);
+        const y = clampInt(placement.y, 0, 100000, 0);
+        if (!tilePointInRect(x, y, rect)) {
+          next[key] = placement;
+          continue;
+        }
+        let appliedLod = lod;
+        if (feather) {
+          const distToEdge = Math.min(
+            x - rect.minX,
+            rect.maxX - x,
+            y - rect.minY,
+            rect.maxY - y
+          );
+          const band = Math.max(0, Math.min(featherBands, distToEdge));
+          const ratio = featherBands <= 0 ? 1 : band / featherBands;
+          const drop = Math.round((1 - ratio) * maxDrop);
+          appliedLod = clampInt(lod - drop, 0, 3, lod);
+        }
+        const meta = placement.meta && typeof placement.meta === "object" ? placement.meta : {};
+        next[key] = { ...placement, meta: { ...meta, lod: appliedLod } };
+      }
+      return next;
+    });
+    setRendererGameStatus(
+      feather
+        ? `lod_rect_feather:${lod}:scale${scale}:${rect.minX},${rect.minY}-${rect.maxX},${rect.maxY}`
+        : `lod_rect:${lod}:${rect.minX},${rect.minY}-${rect.maxX},${rect.maxY}`
+    );
+  }
+
   function paintTile(x, y) {
-    const key = tileKey(x, y, tileActiveLayer);
+    const lod = clampInt(tileEditLodLevel, 0, 3, 3);
+    const span = tileEditLodSnap ? tileLodSpan(lod) : 1;
+    const cols = clampInt(tileCols, 1, 256, 48);
+    const rows = clampInt(tileRows, 1, 256, 27);
+    const brushCenters = collectBrushCenters(x, y, cols, rows).map((point) => ({
+      x: tileEditLodSnap ? Math.floor(point.x / span) * span : point.x,
+      y: tileEditLodSnap ? Math.floor(point.y / span) * span : point.y,
+    }));
     if (tilePresenceToken === "Zo") {
       setTilePlacements((prev) => {
         const next = { ...prev };
-        delete next[key];
+        for (const center of brushCenters) {
+          for (let dy = 0; dy < span; dy += 1) {
+            for (let dx = 0; dx < span; dx += 1) {
+              const px = center.x + dx;
+              const py = center.y + dy;
+              if (px < 0 || py < 0 || px >= cols || py >= rows) {
+                continue;
+              }
+              delete next[tileKey(px, py, tileActiveLayer)];
+            }
+          }
+        }
         return next;
       });
-      setRendererGameStatus(`tile_removed:${key}`);
+      setRendererGameStatus(`tile_removed:lod${lod}:span${span}:brush${tileBrushRadius}`);
       return;
     }
-    const placement = {
-      id: `tile_${tileActiveLayer}_${x}_${y}`,
-      x,
-      y,
-      layer: tileActiveLayer,
-      presence_token: "Ta",
-      color_token: tileColorToken,
-      opacity_token: tileOpacityToken,
-    };
-    setTilePlacements((prev) => ({ ...prev, [key]: placement }));
-    setRendererGameStatus(`tile_painted:${key}`);
+    setTilePlacements((prev) => {
+      const next = { ...prev };
+      for (const center of brushCenters) {
+        for (let dy = 0; dy < span; dy += 1) {
+          for (let dx = 0; dx < span; dx += 1) {
+            const px = center.x + dx;
+            const py = center.y + dy;
+            if (px < 0 || py < 0 || px >= cols || py >= rows) {
+              continue;
+            }
+            const key = tileKey(px, py, tileActiveLayer);
+            const existing = next[key];
+            const existingMeta = existing && typeof existing.meta === "object" ? existing.meta : {};
+            next[key] = {
+              id: `tile_${tileActiveLayer}_${px}_${py}`,
+              x: px,
+              y: py,
+              layer: tileActiveLayer,
+              presence_token: "Ta",
+              color_token: tileColorToken,
+              opacity_token: tileOpacityToken,
+              meta: {
+                ...existingMeta,
+                lod,
+                walkable: tileColorToken !== "Ga",
+              },
+            };
+          }
+        }
+      }
+      return next;
+    });
+    setRendererGameStatus(`tile_painted:lod${lod}:span${span}:brush${tileBrushRadius}`);
   }
 
   function connectTile(aKey, bKey) {
@@ -5789,6 +10208,15 @@ export function App() {
 
   function handleTileClick(x, y) {
     const key = tileKey(x, y, tileActiveLayer);
+    if (tileRectSelectMode) {
+      if (!tileRectStart || (tileRectStart && tileRectEnd)) {
+        setTileRectStart({ x, y });
+        setTileRectEnd(null);
+      } else {
+        setTileRectEnd({ x, y });
+      }
+      return;
+    }
     if (tileConnectMode) {
       if (!tileConnectFrom) {
         setTileConnectFrom(key);
@@ -5865,6 +10293,385 @@ export function App() {
   const runtimeRegionActorId = String(rendererTablesActorId || "player").trim() || "player";
   const runtimeRegionSceneId =
     `${worldRegionPipelineRealmId}/renderer-lab`;
+
+  const buildCanonicalMainPlanPayload = () => {
+    const scenes = [
+      { scene_id: "lapidus/home_morning", clock_advance: 15 },
+      { scene_id: "lapidus/street_commute", clock_advance: 20 },
+      { scene_id: "lapidus/market_midday", clock_advance: 40 },
+      { scene_id: "lapidus/castle_evening", clock_advance: 45 },
+      { scene_id: "lapidus/night_return", clock_advance: 20 },
+    ];
+    const overlaysByScene = {
+      all: [
+        {
+          action_id: "day_{{DAY}}_scene_{{SCENE_SLUG}}_heartbeat",
+          kind: "world.stream.status",
+          payload: {},
+        },
+      ],
+      "lapidus/market_midday": [
+        {
+          action_id: "day_{{DAY}}_scene_{{SCENE_SLUG}}_lapidus_shift",
+          kind: "world.market.stock.adjust",
+          payload: { realm_id: "lapidus", item_id: "iron_ingot", delta: 1 },
+        },
+        {
+          action_id: "day_{{DAY}}_scene_{{SCENE_SLUG}}_mercurie_supply",
+          kind: "world.market.stock.adjust",
+          payload: { realm_id: "mercurie", item_id: "moon_salt", delta: 2 },
+        },
+      ],
+      "lapidus/night_return": [
+        {
+          action_id: "day_{{DAY}}_scene_{{SCENE_SLUG}}_sulphera_flux",
+          kind: "world.market.stock.adjust",
+          payload: { realm_id: "sulphera", item_id: "infernal_ash", delta: 1 },
+        },
+      ],
+    };
+    const handQuestActions = [
+      {
+        action_id: "bootstrap_fate_knocks",
+        kind: "quest.fate_knocks.bootstrap",
+        payload: {
+          player_name: "Kael",
+          player_gender: "nonbinary",
+          month: "Shyalz",
+          deadline_hour_local: 19,
+          quiz_points_budget: 28,
+          quiz_answers: [4, 4, 4, 4, 4, 4, 4],
+        },
+      },
+      { action_id: "hour_08_check", kind: "quest.fate_knocks.deadline_check", payload: { current_hour_local: 8 } },
+      { action_id: "hour_12_check", kind: "quest.fate_knocks.deadline_check", payload: { current_hour_local: 12 } },
+      { action_id: "hour_18_check", kind: "quest.fate_knocks.deadline_check", payload: { current_hour_local: 18 } },
+      { action_id: "hour_20_check", kind: "quest.fate_knocks.deadline_check", payload: { current_hour_local: 20 } },
+    ];
+    const day = 1;
+    const dayTag = String(day).padStart(2, "0");
+    const sceneActions = [];
+    sceneActions.push({
+      action_id: `day_${dayTag}_stream_status_open`,
+      kind: "world.stream.status",
+      payload: {},
+    });
+    scenes.forEach((scene, index) => {
+      const sceneIndex = index + 1;
+      const sceneTag = String(sceneIndex).padStart(2, "0");
+      const sceneId = String(scene.scene_id || "");
+      const sceneSlug = sceneId.replace(/[\/\s]+/g, "_");
+      const realmId = sceneId.includes("/") ? sceneId.split("/", 1)[0] : "lapidus";
+      const scenePayload = { realm_id: realmId, scene_id: sceneId, nodes: [] };
+      sceneActions.push({
+        action_id: `day_${dayTag}_scene_${sceneTag}_${sceneSlug}_load`,
+        kind: "render.scene.load",
+        payload: {
+          realm_id: realmId,
+          scene_id: sceneId,
+          scene_content: scenePayload,
+        },
+      });
+      sceneActions.push({
+        action_id: `day_${dayTag}_scene_${sceneTag}_${sceneSlug}_clock`,
+        kind: "render.scene.tick",
+        payload: {
+          dt: Number(scene.clock_advance || 0),
+          updates: [],
+          enqueue_pygame: false,
+          day_index: day,
+          scene_index: sceneIndex,
+          scene_id: sceneId,
+          clock_advance: Number(scene.clock_advance || 0),
+        },
+      });
+      const overlays = [
+        ...(Array.isArray(overlaysByScene.all) ? overlaysByScene.all : []),
+        ...(Array.isArray(overlaysByScene[sceneId]) ? overlaysByScene[sceneId] : []),
+      ];
+      overlays.forEach((overlay, overlayIndex) => {
+        const overlayIdRaw = String(overlay.action_id || "").trim();
+        const overlayId =
+          overlayIdRaw.replaceAll("{{DAY}}", dayTag).replaceAll("{{SCENE_SLUG}}", sceneSlug) ||
+          `day_${dayTag}_scene_${sceneTag}_overlay_${String(overlayIndex + 1).padStart(2, "0")}`;
+        sceneActions.push({
+          action_id: overlayId,
+          kind: String(overlay.kind || ""),
+          payload: {
+            ...(overlay.payload && typeof overlay.payload === "object" ? overlay.payload : {}),
+            day_index: day,
+            scene_index: sceneIndex,
+            scene_id: sceneId,
+          },
+        });
+      });
+      sceneActions.push({
+        action_id: `day_${dayTag}_scene_${sceneTag}_${sceneSlug}_reconcile`,
+        kind: "render.scene.reconcile",
+        payload: {
+          apply: true,
+          realm_id: realmId,
+          scene_id: sceneId,
+          scene_content: scenePayload,
+        },
+      });
+    });
+    sceneActions.push({
+      action_id: `day_${dayTag}_markets_close`,
+      kind: "world.markets.list",
+      payload: {},
+    });
+    return {
+      workspace_id: workspaceId,
+      actor_id: runtimeRegionActorId,
+      plan_id: `day_scene_plan_main_ui_${Date.now()}`,
+      meta: {
+        profile: "main",
+        source: "renderer_lab_ui",
+        day_progression_metric: "scene",
+        days: 1,
+      },
+      actions: [
+        { action_id: "seed_byte_table", kind: "content.pack.load_byte_table", payload: {} },
+        { action_id: "seed_canon_pack", kind: "content.pack.load_canon", payload: { apply_to_db: true } },
+        ...sceneActions,
+        ...handQuestActions,
+      ],
+    };
+  };
+
+  const runCanonicalMainPlanFromUi = async () => {
+    await runAction("runtime_plan_main_ui", async () => {
+      const payload = buildCanonicalMainPlanPayload();
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", payload);
+      const results = Array.isArray(consumed?.results) ? consumed.results : [];
+      const failures = results.filter((item) => !item || !item.ok);
+      setModuleRunOutput({
+        runtime_plan: "day_scene_plan_main",
+        source: "renderer_lab_ui",
+        consumed,
+      });
+      if (failures.length > 0) {
+        setRendererGameStatus(`plan_main_failed:${failures.length}/${results.length}`);
+        setLabCoherence((prev) => ({
+          ...prev,
+          last_check_at: new Date().toISOString(),
+          runtime_consume_ok: true,
+          main_plan_ok: false,
+        }));
+      } else {
+        setRendererGameStatus(`plan_main_ok:${results.length}`);
+        setLabCoherence((prev) => ({
+          ...prev,
+          last_check_at: new Date().toISOString(),
+          runtime_consume_ok: true,
+          main_plan_ok: true,
+        }));
+      }
+      return consumed;
+    });
+  };
+
+  const runStudioHealthCheck = async () => {
+    await runAction("studio_health_check", async () => {
+      const checks = [];
+      const safeCheck = async (id, fn) => {
+        try {
+          const result = await fn();
+          checks.push({ id, ok: true, result });
+        } catch (error) {
+          checks.push({ id, ok: false, error: error instanceof Error ? error.message : String(error) });
+        }
+      };
+      await safeCheck("runtime_consume_smoke", async () =>
+        apiCall("/v1/game/runtime/consume", "POST", {
+          workspace_id: workspaceId,
+          actor_id: runtimeRegionActorId,
+          plan_id: `studio_health_${Date.now()}`,
+          actions: [{ action_id: "stream_status", kind: "world.stream.status", payload: {} }],
+        })
+      );
+      await safeCheck("module_catalog", async () => apiCall("/v1/game/modules", "GET", null));
+      await safeCheck("world_stream_status", async () => requestWorldStreamStatus());
+      const report = {
+        at: new Date().toISOString(),
+        workspace_id: workspaceId,
+        checks,
+      };
+      const byId = {};
+      checks.forEach((check) => {
+        byId[String(check.id || "")] = Boolean(check.ok);
+      });
+      setLabCoherence((prev) => ({
+        ...prev,
+        last_check_at: report.at,
+        runtime_consume_ok: byId.runtime_consume_smoke === true,
+        module_catalog_ok: byId.module_catalog === true,
+        world_stream_ok: byId.world_stream_status === true,
+      }));
+      setModuleRunOutput({ studio_health: report });
+      const failed = checks.filter((item) => !item.ok).length;
+      setRendererGameStatus(failed > 0 ? `studio_health_failed:${failed}/${checks.length}` : `studio_health_ok:${checks.length}`);
+      return report;
+    });
+  };
+
+  const runRendererGateASmoke = async () => {
+    await runAction("renderer_gate_a_smoke", async () => {
+      const fullscreenMaterials = Array.isArray(fullscreenState.materials) ? fullscreenState.materials : [];
+      const result = {
+        gate: "A",
+        scene_coherence: {
+          main_voxel_count: rendererMotionVoxels.length,
+          fullscreen_voxel_count: fullscreenMotionVoxels.length,
+          voxel_count_match: rendererMotionVoxels.length === fullscreenMotionVoxels.length,
+          main_material_count: voxelMaterials.length,
+          fullscreen_material_count: fullscreenMaterials.length,
+          material_count_match: voxelMaterials.length === fullscreenMaterials.length,
+          camera_seed_match: cameraSeedsMatch(voxelSettings, fullscreenState.settings),
+        },
+      };
+      const ok =
+        result.scene_coherence.voxel_count_match &&
+        result.scene_coherence.material_count_match &&
+        result.scene_coherence.camera_seed_match;
+      setLabCoherence((prev) => ({
+        ...prev,
+        last_check_at: new Date().toISOString(),
+        gate_a_ok: ok,
+      }));
+      setModuleRunOutput({ renderer_gate_a: { ok, ...result } });
+      setRendererGameStatus(ok ? "gate_a_pass" : "gate_a_fail");
+      return { ok, ...result };
+    });
+  };
+
+  const runRendererGateDSmoke = async () => {
+    await runAction("renderer_gate_d_smoke", async () => {
+      const activeOffset = isFullscreenRenderer
+        ? (fullscreenState.playerOffset && typeof fullscreenState.playerOffset === "object" ? fullscreenState.playerOffset : { x: 0, y: 0, z: 0 })
+        : rendererPlayerOffset;
+      const shared = readRendererLocalState();
+      const sharedOffset = shared && shared.playerOffset && typeof shared.playerOffset === "object"
+        ? shared.playerOffset
+        : { x: 0, y: 0, z: 0 };
+      const mainSignal = readPlayerPositionSignal(rendererEngineState);
+      const sharedSignal = readPlayerPositionSignal(shared.engine);
+      const result = {
+        gate: "D",
+        motion_integrity: {
+          active_offset: activeOffset,
+          shared_offset: sharedOffset,
+          offset_match: closeVec3(activeOffset, sharedOffset),
+          main_signal_present: Boolean(mainSignal),
+          shared_signal_present: Boolean(sharedSignal),
+          signal_offset_match: mainSignal ? closeVec3(mainSignal, sharedOffset) : false,
+        },
+      };
+      const ok =
+        result.motion_integrity.offset_match &&
+        result.motion_integrity.shared_signal_present &&
+        (result.motion_integrity.main_signal_present ? result.motion_integrity.signal_offset_match : true);
+      setLabCoherence((prev) => ({
+        ...prev,
+        last_check_at: new Date().toISOString(),
+        gate_d_ok: ok,
+      }));
+      setModuleRunOutput({ renderer_gate_d: { ok, ...result } });
+      setRendererGameStatus(ok ? "gate_d_pass" : "gate_d_fail");
+      return { ok, ...result };
+    });
+  };
+
+  const runGuidedLabBootstrap = async () => {
+    await runAction("lab_guided_bootstrap", async () => {
+      const health = await (async () => {
+        const checks = [];
+        const safeCheck = async (id, fn) => {
+          try {
+            await fn();
+            checks.push({ id, ok: true });
+          } catch (error) {
+            checks.push({ id, ok: false, error: error instanceof Error ? error.message : String(error) });
+          }
+        };
+        await safeCheck("runtime_consume_smoke", async () =>
+          apiCall("/v1/game/runtime/consume", "POST", {
+            workspace_id: workspaceId,
+            actor_id: runtimeRegionActorId,
+            plan_id: `studio_health_${Date.now()}`,
+            actions: [{ action_id: "stream_status", kind: "world.stream.status", payload: {} }],
+          })
+        );
+        await safeCheck("module_catalog", async () => apiCall("/v1/game/modules", "GET", null));
+        await safeCheck("world_stream_status", async () => requestWorldStreamStatus());
+        return checks;
+      })();
+      const failed = health.filter((item) => !item.ok).length;
+      if (failed > 0) {
+        setLabCoherence((prev) => ({
+          ...prev,
+          last_check_at: new Date().toISOString(),
+          runtime_consume_ok: health.some((it) => it.id === "runtime_consume_smoke" && it.ok),
+          module_catalog_ok: health.some((it) => it.id === "module_catalog" && it.ok),
+          world_stream_ok: health.some((it) => it.id === "world_stream_status" && it.ok),
+          guided_bootstrap_ok: false,
+        }));
+        setModuleRunOutput({ lab_bootstrap: { ok: false, stage: "health", checks: health } });
+        throw new Error(`health_checks_failed:${failed}`);
+      }
+
+      const payload = buildCanonicalMainPlanPayload();
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", payload);
+      const results = Array.isArray(consumed?.results) ? consumed.results : [];
+      const planFailed = results.some((item) => !item || !item.ok);
+      if (planFailed) {
+        setLabCoherence((prev) => ({
+          ...prev,
+          last_check_at: new Date().toISOString(),
+          runtime_consume_ok: true,
+          main_plan_ok: false,
+          guided_bootstrap_ok: false,
+        }));
+        setModuleRunOutput({ lab_bootstrap: { ok: false, stage: "main_plan", consumed } });
+        throw new Error("main_plan_failed");
+      }
+
+      const graph = await apiCall("/v1/game/renderer/render-graph", "POST", {
+        workspace_id: workspaceId,
+        realm_id: rendererRealmId,
+        scene_id: `${rendererRealmId}/renderer-lab`,
+        render_mode: String(voxelSettings.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
+        include_unloaded_regions: true,
+        include_material_constraints: true,
+      });
+      setRendererGraphPreview(
+        graph && Array.isArray(graph.nodes)
+          ? { nodes: graph.nodes, edges: [] }
+          : graph && typeof graph.graph === "object"
+            ? graph.graph
+            : graph
+      );
+      setLabCoherence((prev) => ({
+        ...prev,
+        last_check_at: new Date().toISOString(),
+        runtime_consume_ok: true,
+        module_catalog_ok: true,
+        world_stream_ok: true,
+        main_plan_ok: true,
+        guided_bootstrap_ok: true,
+      }));
+      setModuleRunOutput({
+        lab_bootstrap: {
+          ok: true,
+          consumed_action_count: results.length,
+          renderer_graph_ready: true,
+        },
+      });
+      setRendererGameStatus(`bootstrap_ok:${results.length}`);
+      return { consumed, graph };
+    });
+  };
 
   const mergeLoadedWorldRegionIntoEngineText = (engineText, region) => {
     const stateObj = parseObjectJson(engineText || "{}", {});
@@ -6101,6 +10908,118 @@ export function App() {
     });
   };
 
+  const listModuleCatalog = async () => {
+    await runAction("modules_list", async () => {
+      const data = await apiCall("/v1/game/modules", "GET", null);
+      const modules = Array.isArray(data?.modules) ? data.modules : [];
+      setModuleCatalog(modules);
+      if (modules.length > 0) {
+        const current = String(moduleSelectedId || "").trim();
+        const hasCurrent = modules.some((item) => item && String(item.module_id || "") === current);
+        if (!hasCurrent) {
+          setModuleSelectedId(String(modules[0].module_id || ""));
+        }
+      }
+      return data;
+    });
+  };
+
+  const fetchSelectedModuleSpec = async () => {
+    await runAction("module_get", async () => {
+      const moduleId = String(moduleSelectedId || "").trim();
+      if (!moduleId) {
+        throw new Error("module_id_required");
+      }
+      const data = await apiCall(`/v1/game/modules/${encodeURIComponent(moduleId)}`, "GET", null);
+      setModuleSelectedSpec(data && typeof data === "object" ? data : null);
+      return data;
+    });
+  };
+
+  const validateSelectedModuleSpec = async () => {
+    await runAction("module_validate", async () => {
+      const moduleId = String(moduleSelectedId || "").trim();
+      if (!moduleId) {
+        throw new Error("module_id_required");
+      }
+      const data = await apiCall("/v1/game/modules/validate", "POST", { module_id: moduleId });
+      setModuleValidateOutput(data && typeof data === "object" ? data : null);
+      return data;
+    });
+  };
+
+  const runSelectedModuleSpec = async () => {
+    await runAction("module_run", async () => {
+      const moduleId = String(moduleSelectedId || "").trim();
+      if (!moduleId) {
+        throw new Error("module_id_required");
+      }
+      const actorId = String(rendererTablesActorId || "player").trim() || "player";
+      const reconcileSceneRaw = String(moduleReconcileSceneId || "").trim();
+      const reconcileSceneId = reconcileSceneRaw.includes("/")
+        ? reconcileSceneRaw
+        : `${rendererRealmId}/${reconcileSceneRaw || "renderer-lab"}`;
+      let payloadOverrides = {};
+      try {
+        const parsed = JSON.parse(moduleRunOverridesText || "{}");
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          payloadOverrides = parsed;
+        }
+      } catch {
+        throw new Error("module_payload_overrides_invalid_json");
+      }
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
+        workspace_id: workspaceId,
+        actor_id: actorId,
+        plan_id: `module_run_${Date.now()}`,
+        actions: [
+          {
+            action_id: "module_run",
+            kind: "module.run",
+            payload: {
+              module_id: moduleId,
+              payload_overrides: payloadOverrides,
+            },
+          },
+          ...(moduleAutoReconcile
+            ? [
+                {
+                  action_id: "module_reconcile",
+                  kind: "render.scene.reconcile",
+                  payload: {
+                    realm_id: rendererRealmId,
+                    scene_id: reconcileSceneId,
+                    apply: Boolean(moduleReconcileApply),
+                    scene_content: resolveRuntimeSceneContent(),
+                  },
+                },
+              ]
+            : []),
+        ],
+      });
+      const actionResult = Array.isArray(consumed?.results)
+        ? consumed.results.find((item) => item && item.action_id === "module_run")
+        : null;
+      if (!actionResult || !actionResult.ok) {
+        throw new Error(
+          actionResult && typeof actionResult.error === "string"
+            ? actionResult.error
+            : "module_run_failed"
+        );
+      }
+      const runtimeResult = actionResult.result || {};
+      const reconcileResult = Array.isArray(consumed?.results)
+        ? consumed.results.find((item) => item && item.action_id === "module_reconcile")
+        : null;
+      const out = {
+        module: runtimeResult,
+        reconcile: reconcileResult ? (reconcileResult.ok ? reconcileResult.result || {} : { error: reconcileResult.error || "reconcile_failed" }) : null,
+      };
+      setModuleRunOutput(out);
+      return out;
+    });
+  };
+
   const runBackendAudioCue = async (kind, payload) => {
     await runAction(`audio_${String(kind).replace(".", "_")}`, async () => {
       const actorId = String(rendererTablesActorId || "player").trim() || "player";
@@ -6296,6 +11215,38 @@ export function App() {
   };
   const removeVoxelAtlas = (index) => {
     setVoxelAtlases((prev) => prev.filter((_, idx) => idx !== index));
+  };
+  const applyRepresentativeAtlasMaterialSet = () => {
+    const atlasId =
+      (typeof voxelAtlasDraft.id === "string" && voxelAtlasDraft.id.trim()) ||
+      (Array.isArray(voxelAtlases) && voxelAtlases[0] && typeof voxelAtlases[0].id === "string" ? voxelAtlases[0].id.trim() : "");
+    if (!atlasId) {
+      setNotice("atlas_material_set: add/select an atlas id first");
+      return;
+    }
+    const presets = [
+      { id: "ground", color: "#7a7e6c", textureTop: `atlas:${atlasId}:0,0`, textureLeft: `atlas:${atlasId}:0,1`, textureRight: `atlas:${atlasId}:1,1` },
+      { id: "road", color: "#716a62", textureTop: `atlas:${atlasId}:2,0`, textureLeft: `atlas:${atlasId}:2,1`, textureRight: `atlas:${atlasId}:3,1` },
+      { id: "wall", color: "#8a7b6a", textureTop: `atlas:${atlasId}:4,0`, textureLeft: `atlas:${atlasId}:4,1`, textureRight: `atlas:${atlasId}:5,1` },
+      { id: "roof", color: "#7f4f46", textureTop: `atlas:${atlasId}:6,0`, textureLeft: `atlas:${atlasId}:6,1`, textureRight: `atlas:${atlasId}:7,1` },
+      { id: "wood", color: "#946a40", textureTop: `atlas:${atlasId}:0,2`, textureLeft: `atlas:${atlasId}:0,3`, textureRight: `atlas:${atlasId}:1,3` },
+      { id: "water", color: "#4a799d", textureTop: `atlas:${atlasId}:2,2`, textureLeft: `atlas:${atlasId}:2,3`, textureRight: `atlas:${atlasId}:3,3` },
+      { id: "foliage", color: "#4f7f4f", textureTop: `atlas:${atlasId}:4,2`, textureLeft: `atlas:${atlasId}:4,3`, textureRight: `atlas:${atlasId}:5,3` },
+      { id: "player", color: "#f6c677", textureTop: `atlas:${atlasId}:6,2`, textureLeft: `atlas:${atlasId}:6,3`, textureRight: `atlas:${atlasId}:7,3` },
+    ];
+    setVoxelMaterials((prev) => {
+      const next = Array.isArray(prev) ? prev.slice() : [];
+      presets.forEach((preset) => {
+        const idx = next.findIndex((item) => item && item.id === preset.id);
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], ...preset };
+        } else {
+          next.push(preset);
+        }
+      });
+      return next;
+    });
+    setNotice(`atlas_material_set_applied:${atlasId}`);
   };
 
   function renderSectionTools() {
@@ -6537,6 +11488,13 @@ export function App() {
                   <input value={spriteId} onChange={(e) => setSpriteId(e.target.value)} placeholder="sprite id" />
                   <input value={spriteKind} onChange={(e) => setSpriteKind(e.target.value)} placeholder="sprite kind" />
                   <input value={spriteLayer} onChange={(e) => setSpriteLayer(e.target.value)} placeholder="layer" />
+                  <input value={spriteColor} onChange={(e) => setSpriteColor(e.target.value)} placeholder="sprite color (#rrggbb)" />
+                  <input
+                    type="color"
+                    value={parseHexColor(spriteColor) ? spriteColor : "#7aa2ff"}
+                    onChange={(e) => setSpriteColor(e.target.value)}
+                    title="sprite color picker"
+                  />
                 </div>
                 <div className="row">
                   <input value={spriteX} onChange={(e) => setSpriteX(e.target.value)} placeholder="x" />
@@ -6970,6 +11928,64 @@ export function App() {
             <pre>{JSON.stringify(saveExport || {}, null, 2)}</pre>
           </section>
           <section className="panel">
+            <h2>Module Browser</h2>
+            <p>Discover, validate, inspect, and execute runtime modules from <code>gameplay/modules</code>.</p>
+            <div className="row">
+              <button className="action" onClick={listModuleCatalog}>Refresh Modules</button>
+              <select value={moduleSelectedId} onChange={(e) => setModuleSelectedId(e.target.value)}>
+                <option value="">select module</option>
+                {moduleCatalog.map((mod) => {
+                  const id = String(mod && mod.module_id ? mod.module_id : "");
+                  return (
+                    <option key={`module-opt-${id}`} value={id}>
+                      {id}
+                    </option>
+                  );
+                })}
+              </select>
+              <button className="action" onClick={fetchSelectedModuleSpec}>Load Spec</button>
+              <button className="action" onClick={validateSelectedModuleSpec}>Validate</button>
+              <button className="action" onClick={runSelectedModuleSpec}>Run via module.run</button>
+              <span className="badge">{`Modules: ${moduleCatalog.length}`}</span>
+            </div>
+            <div className="row">
+              <label className="inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={moduleAutoReconcile}
+                  onChange={(e) => setModuleAutoReconcile(e.target.checked)}
+                />
+                Auto-Reconcile Scene
+              </label>
+              <input
+                value={moduleReconcileSceneId}
+                onChange={(e) => setModuleReconcileSceneId(e.target.value)}
+                placeholder="scene id (realm/scene or scene)"
+              />
+              <label className="inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={moduleReconcileApply}
+                  onChange={(e) => setModuleReconcileApply(e.target.checked)}
+                />
+                Reconcile Apply
+              </label>
+            </div>
+            <h3>Payload Overrides (JSON)</h3>
+            <textarea
+              className="editor editor-mono renderer-editor"
+              value={moduleRunOverridesText}
+              onChange={(e) => setModuleRunOverridesText(e.target.value)}
+              placeholder='{"key":"value"}'
+            />
+            <h3>Selected Spec</h3>
+            <pre>{JSON.stringify(moduleSelectedSpec || {}, null, 2)}</pre>
+            <h3>Validation Result</h3>
+            <pre>{JSON.stringify(moduleValidateOutput || {}, null, 2)}</pre>
+            <h3>Run Result</h3>
+            <pre>{JSON.stringify(moduleRunOutput || {}, null, 2)}</pre>
+          </section>
+          <section className="panel">
             <h2>RPG Rule Engine</h2>
             <p>Deterministic rule payload execution to API, engine inbox, or repo-backed action stream.</p>
             <div className="row">
@@ -7021,6 +12037,46 @@ export function App() {
     if (section === "Renderer Lab") {
       return (
         <>
+          <section className="panel">
+            <h2>Runtime Launcher (No CLI)</h2>
+            <p>Canonical flow: health check {"->"} main plan {"->"} scene graph. No terminal commands required.</p>
+            <div className="row">
+              <button className="action" onClick={runGuidedLabBootstrap}>Run Guided Bootstrap</button>
+              <button className="action" onClick={runCanonicalMainPlanFromUi}>Run Canonical Main Plan</button>
+              <button className="action" onClick={runStudioHealthCheck}>Run Studio Health Check</button>
+              <button className="action" onClick={runRendererGateASmoke}>Run Gate A Smoke</button>
+              <button className="action" onClick={runRendererGateDSmoke}>Run Gate D Smoke</button>
+              <button className="action" onClick={listModuleCatalog}>Refresh Module Catalog</button>
+              <button className="action" onClick={fetchWorldStreamStatus}>Refresh World Stream</button>
+              <span className="badge">{`Status: ${rendererGameStatus || "idle"}`}</span>
+              <span className="badge">{`Modules: ${moduleCatalog.length}`}</span>
+            </div>
+            <div className="row">
+              <span className={`badge ${labCoherence.runtime_consume_ok === true ? "ok" : labCoherence.runtime_consume_ok === false ? "err" : ""}`}>
+                {`Runtime Consume: ${labCoherence.runtime_consume_ok === null ? "unknown" : labCoherence.runtime_consume_ok ? "ok" : "fail"}`}
+              </span>
+              <span className={`badge ${labCoherence.module_catalog_ok === true ? "ok" : labCoherence.module_catalog_ok === false ? "err" : ""}`}>
+                {`Module Catalog: ${labCoherence.module_catalog_ok === null ? "unknown" : labCoherence.module_catalog_ok ? "ok" : "fail"}`}
+              </span>
+              <span className={`badge ${labCoherence.world_stream_ok === true ? "ok" : labCoherence.world_stream_ok === false ? "err" : ""}`}>
+                {`World Stream: ${labCoherence.world_stream_ok === null ? "unknown" : labCoherence.world_stream_ok ? "ok" : "fail"}`}
+              </span>
+              <span className={`badge ${labCoherence.main_plan_ok === true ? "ok" : labCoherence.main_plan_ok === false ? "err" : ""}`}>
+                {`Main Plan: ${labCoherence.main_plan_ok === null ? "unknown" : labCoherence.main_plan_ok ? "ok" : "fail"}`}
+              </span>
+              <span className={`badge ${labCoherence.guided_bootstrap_ok === true ? "ok" : labCoherence.guided_bootstrap_ok === false ? "err" : ""}`}>
+                {`Bootstrap: ${labCoherence.guided_bootstrap_ok === null ? "unknown" : labCoherence.guided_bootstrap_ok ? "ok" : "fail"}`}
+              </span>
+              <span className={`badge ${labCoherence.gate_a_ok === true ? "ok" : labCoherence.gate_a_ok === false ? "err" : ""}`}>
+                {`Gate A: ${labCoherence.gate_a_ok === null ? "unknown" : labCoherence.gate_a_ok ? "pass" : "fail"}`}
+              </span>
+              <span className={`badge ${labCoherence.gate_d_ok === true ? "ok" : labCoherence.gate_d_ok === false ? "err" : ""}`}>
+                {`Gate D: ${labCoherence.gate_d_ok === null ? "unknown" : labCoherence.gate_d_ok ? "pass" : "fail"}`}
+              </span>
+              <span className="badge">{`Last Check: ${labCoherence.last_check_at || "n/a"}`}</span>
+            </div>
+            <pre>{JSON.stringify(moduleRunOutput || {}, null, 2)}</pre>
+          </section>
           <section className="panel">
             <h2>Multi-Frame Renderer</h2>
             <p>Programmable structural renderer with independent Python, Cobra, JavaScript, and JSON frames.</p>
@@ -7104,9 +12160,80 @@ export function App() {
                 >
                   {`Validate: ${validationSummary.errors} err / ${validationSummary.warnings} warn`}
                 </span>
-                <span className="badge">{`Voxels: ${unifiedRendererVoxels.length}`}</span>
+                <span className="badge">{`Voxels: ${rendererMotionVoxels.length}`}</span>
+                <span className="badge">{`Parse: ${rendererParseStatus}`}</span>
+                <span className="badge">{`Prep: ${rendererVoxelPrepStatus}`}</span>
                 <button className="action" onClick={runRendererAssetDiagnostics}>Asset Diagnostics</button>
                 <button className="action" onClick={openFullscreenRenderer}>Open Fullscreen</button>
+              </div>
+              <div className="row">
+                <input
+                  value={rendererPlayerId}
+                  onChange={(e) => setRendererPlayerId(e.target.value)}
+                  placeholder="player id"
+                />
+                <label className="inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={rendererFollowPlayer}
+                    onChange={(e) => setRendererFollowPlayer(e.target.checked)}
+                  />
+                  Follow Player
+                </label>
+                <label className="inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={rendererKeyboardMotion}
+                    onChange={(e) => setRendererKeyboardMotion(e.target.checked)}
+                  />
+                  Arrow-Key Motion
+                </label>
+                <label className="inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={rendererClickMove}
+                    onChange={(e) => setRendererClickMove(e.target.checked)}
+                  />
+                  Click-to-Move
+                </label>
+                <input
+                  value={rendererPlayerStep}
+                  onChange={(e) => setRendererPlayerStep(Number(e.target.value || 1))}
+                  placeholder="step"
+                />
+                <input
+                  value={rendererPathStepMs}
+                  onChange={(e) => setRendererPathStepMs(Number(e.target.value || 75))}
+                  placeholder="path ms"
+                />
+                <label className="inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={rendererGravityEnabled}
+                    onChange={(e) => setRendererGravityEnabled(e.target.checked)}
+                  />
+                  Gravity
+                </label>
+                <input
+                  value={rendererGravityMs}
+                  onChange={(e) => setRendererGravityMs(Number(e.target.value || 150))}
+                  placeholder="gravity ms"
+                />
+                <button
+                  className="action"
+                  onClick={() => {
+                    setRendererMoveQueue([]);
+                    applyActivePlayerOffset(() => ({ x: 0, y: 0, z: 0 }));
+                  }}
+                >
+                  Reset Motion
+                </button>
+                <span className="badge">
+                  {`Offset: ${Number(rendererPlayerOffset.x || 0)},${Number(rendererPlayerOffset.y || 0)},${Number(rendererPlayerOffset.z || 0)}`}
+                </span>
+                <span className="badge">{`Facing: ${normalizeFacing(rendererPlayerFacing)}`}</span>
+                <span className="badge">{`Queued: ${rendererMoveQueue.length}`}</span>
+                <span className="badge">Arrows move, click path-walks, Space jumps (+1Z)</span>
               </div>
               <canvas
                 ref={unifiedRendererCanvasRef}
@@ -7117,6 +12244,7 @@ export function App() {
                 onPointerUp={(e) => handleRendererPointerUp(e, "main")}
                 onPointerCancel={(e) => handleRendererPointerUp(e, "main")}
                 onWheel={(e) => handleRendererWheel(e, "main")}
+                onClick={(e) => handleRendererClickMove(e, "main")}
                 onContextMenu={(e) => {
                   if (String(voxelSettings.renderMode || "2.5d").toLowerCase() === "3d") {
                     e.preventDefault();
@@ -7136,6 +12264,18 @@ export function App() {
                   <option value="2.5d">Render 2.5D</option>
                   <option value="3d">Render 3D</option>
                 </select>
+                <select
+                  value={voxelSettings.projection || "isometric"}
+                  onChange={(e) =>
+                    setVoxelSettings((prev) => ({
+                      ...prev,
+                      projection: e.target.value === "cardinal" ? "cardinal" : "isometric",
+                    }))
+                  }
+                >
+                  <option value="isometric">Projection: Isometric</option>
+                  <option value="cardinal">Projection: Cardinal</option>
+                </select>
                 <input
                   value={voxelSettings.tile}
                   onChange={(e) => setVoxelSettings((prev) => ({ ...prev, tile: Number(e.target.value || 0) }))}
@@ -7146,11 +12286,44 @@ export function App() {
                   onChange={(e) => setVoxelSettings((prev) => ({ ...prev, zScale: Number(e.target.value || 0) }))}
                   placeholder="height"
                 />
+                <select
+                  value={String(voxelSettings.renderScale ?? 1)}
+                  onChange={(e) => setVoxelSettings((prev) => ({ ...prev, renderScale: Number(e.target.value || 1) }))}
+                >
+                  <option value="1">Quality: 1x</option>
+                  <option value="1.5">Quality: 1.5x</option>
+                  <option value="2">Quality: 2x (HD)</option>
+                  <option value="3">Quality: 3x (Ultra)</option>
+                </select>
+                <select
+                  value={voxelSettings.visualStyle || "default"}
+                  onChange={(e) => setVoxelSettings((prev) => ({ ...prev, visualStyle: e.target.value }))}
+                >
+                  <option value="default">Style: Default</option>
+                  <option value="pokemon_ds">Style: Pokemon DS</option>
+                  <option value="pokemon_g45">Style: Pokemon G4/G5</option>
+                  <option value="classic_fallout">Style: Classic Fallout</option>
+                </select>
+                <label className="inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(voxelSettings.pixelate)}
+                    onChange={(e) => setVoxelSettings((prev) => ({ ...prev, pixelate: e.target.checked }))}
+                  />
+                  Pixelate
+                </label>
                 <input
                   value={voxelSettings.background}
                   onChange={(e) => setVoxelSettings((prev) => ({ ...prev, background: e.target.value }))}
                   placeholder="background"
                 />
+                <button className="action" onClick={applyPokemonDsPreset}>Pokemon DS Preset</button>
+                <button className="action" onClick={applyPokemonG45Preset}>Pokemon G4/G5 Preset</button>
+                <button className="action" onClick={applyClassicFalloutPreset}>Classic Fallout Preset</button>
+                <button className="action" onClick={loadSpritesPreset}>Load Sprites Demo</button>
+                <button className="action" onClick={loadStructuresPreset}>Load Structures Demo</button>
+                <button className="action" onClick={loadLandscapePreset}>Load Landscape Demo</button>
+                <button className="action" onClick={loadWorldCompositionPreset}>Load Full Composition</button>
                 <label className="inline-toggle">
                   <input
                     type="checkbox"
@@ -7159,10 +12332,30 @@ export function App() {
                   />
                   Outline
                 </label>
+                <label className="inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(voxelSettings.edgeGlow)}
+                    onChange={(e) => setVoxelSettings((prev) => ({ ...prev, edgeGlow: e.target.checked }))}
+                  />
+                  Edge Glow
+                </label>
                 <input
                   value={voxelSettings.outlineColor}
                   onChange={(e) => setVoxelSettings((prev) => ({ ...prev, outlineColor: e.target.value }))}
                   placeholder="outline color"
+                />
+                <input
+                  value={voxelSettings.edgeGlowColor ?? "#8fd3ff"}
+                  onChange={(e) => setVoxelSettings((prev) => ({ ...prev, edgeGlowColor: e.target.value }))}
+                  placeholder="glow color"
+                />
+                <input
+                  value={voxelSettings.edgeGlowStrength ?? 8}
+                  onChange={(e) =>
+                    setVoxelSettings((prev) => ({ ...prev, edgeGlowStrength: Number(e.target.value || 0) }))
+                  }
+                  placeholder="glow strength"
                 />
                 <select
                   value={voxelSettings.labelMode}
@@ -7178,7 +12371,65 @@ export function App() {
                   onChange={(e) => setVoxelSettings((prev) => ({ ...prev, labelColor: e.target.value }))}
                   placeholder="label color"
                 />
+                <select
+                  value={String((voxelSettings.lod && voxelSettings.lod.mode) || "auto_zoom")}
+                  onChange={(e) =>
+                    setVoxelSettings((prev) => ({
+                      ...prev,
+                      lod: { ...(prev.lod && typeof prev.lod === "object" ? prev.lod : {}), mode: e.target.value },
+                    }))
+                  }
+                >
+                  <option value="auto_zoom">LOD: Auto Zoom</option>
+                  <option value="manual">LOD: Manual</option>
+                </select>
+                <input
+                  value={Number((voxelSettings.lod && voxelSettings.lod.level) ?? 2)}
+                  onChange={(e) =>
+                    setVoxelSettings((prev) => ({
+                      ...prev,
+                      lod: {
+                        ...(prev.lod && typeof prev.lod === "object" ? prev.lod : {}),
+                        level: Number(e.target.value || 2),
+                      },
+                    }))
+                  }
+                  placeholder="lod level"
+                />
+                <span className="badge">{`LOD active: ${resolveInputLodLevel(voxelSettings)}`}</span>
               </div>
+              <div className="row">
+                <button className="action" onClick={applyRendererTestSpec}>Apply Test Spec</button>
+                <button className="action" onClick={captureRendererTestSpecFromCurrent}>Capture Current</button>
+                <span className="badge">{`Harness: ${rendererTestHarnessStatus}`}</span>
+                <span className="badge">Code-first test runner</span>
+              </div>
+              <div className="row">
+                <select value={rendererTestFragmentId} onChange={(e) => setRendererTestFragmentId(e.target.value)}>
+                  {RENDERER_TEST_SPEC_FRAGMENTS.map((fragment) => (
+                    <option key={fragment.id} value={fragment.id}>
+                      {fragment.label}
+                    </option>
+                  ))}
+                </select>
+                <select value={rendererTestFragmentMode} onChange={(e) => setRendererTestFragmentMode(e.target.value)}>
+                  <option value="merge">Insert: Merge</option>
+                  <option value="append_voxels">Insert: Append Voxels</option>
+                  <option value="replace">Insert: Replace Spec</option>
+                </select>
+                <button className="action" onClick={insertRendererTestSpecFragment}>Insert Fragment</button>
+                <span className="badge">{`Fragments: ${RENDERER_TEST_SPEC_FRAGMENTS.length}`}</span>
+              </div>
+              <textarea
+                className="editor editor-mono renderer-editor"
+                value={rendererTestSpecText}
+                onChange={(e) => setRendererTestSpecText(e.target.value)}
+                placeholder="Renderer test spec JSON"
+              />
+              <p>
+                Input LOD schema: set per voxel <code>lod</code> (e.g. min/max level or zoom) and optional
+                <code>lod_variants</code> with <code>when</code> conditions.
+              </p>
               {String(voxelSettings.renderMode || "2.5d").toLowerCase() === "3d" ? (
                 <div className="row">
                   <input
@@ -7243,6 +12494,51 @@ export function App() {
                     Reset Camera
                   </button>
                   <span className="badge">Drag orbit, Shift/Right drag pan, wheel zoom</span>
+                </div>
+              ) : String(voxelSettings.projection || "isometric").toLowerCase() === "isometric" ? (
+                <div className="row">
+                  <input
+                    value={normalizeCamera2d(voxelSettings.camera2d).zoom}
+                    onChange={(e) =>
+                      setVoxelSettings((prev) => ({
+                        ...prev,
+                        camera2d: normalizeCamera2d({ ...(prev.camera2d || {}), zoom: Number(e.target.value || 1) }),
+                      }))
+                    }
+                    placeholder="iso zoom"
+                  />
+                  <input
+                    value={normalizeCamera2d(voxelSettings.camera2d).panX}
+                    onChange={(e) =>
+                      setVoxelSettings((prev) => ({
+                        ...prev,
+                        camera2d: normalizeCamera2d({ ...(prev.camera2d || {}), panX: Number(e.target.value || 0) }),
+                      }))
+                    }
+                    placeholder="iso pan x"
+                  />
+                  <input
+                    value={normalizeCamera2d(voxelSettings.camera2d).panY}
+                    onChange={(e) =>
+                      setVoxelSettings((prev) => ({
+                        ...prev,
+                        camera2d: normalizeCamera2d({ ...(prev.camera2d || {}), panY: Number(e.target.value || 0) }),
+                      }))
+                    }
+                    placeholder="iso pan y"
+                  />
+                  <button
+                    className="action"
+                    onClick={() =>
+                      setVoxelSettings((prev) => ({
+                        ...prev,
+                        camera2d: normalizeCamera2d({ panX: 0, panY: 0, zoom: 1 }),
+                      }))
+                    }
+                  >
+                    Reset Iso Camera
+                  </button>
+                  <span className="badge">Drag pan + wheel zoom in isometric 2.5D</span>
                 </div>
               ) : null}
               {rendererAssetDiagnostics ? (
@@ -7394,6 +12690,7 @@ export function App() {
                       placeholder="pad"
                     />
                     <button className="action" onClick={addVoxelAtlas}>Add Atlas</button>
+                    <button className="action" onClick={applyRepresentativeAtlasMaterialSet}>Build Material Set</button>
                   </div>
                   {voxelAtlases.length === 0 ? (
                     <p>No atlases yet.</p>
@@ -7411,6 +12708,73 @@ export function App() {
                     ))
                   )}
                   <p>Use textures like <code>atlas:atlasId:0</code> or <code>atlas:atlasId:2,1</code>.</p>
+                </div>
+                <div className="renderer-subpanel">
+                  <h4>Sprite Animator</h4>
+                  <p>Apply directional idle/walk frame maps to one sprite entity in renderer JSON.</p>
+                  <div className="row">
+                    <input
+                      value={spriteAnimatorTargetId}
+                      onChange={(e) => setSpriteAnimatorTargetId(e.target.value)}
+                      placeholder="target entity id"
+                    />
+                    <input
+                      value={spriteAnimatorAtlasId}
+                      onChange={(e) => setSpriteAnimatorAtlasId(e.target.value)}
+                      placeholder="atlas id"
+                    />
+                    <button className="action" onClick={() => void consumeTilePngAsAtlas()}>Use Tile PNG</button>
+                    <button className="action" onClick={applySpriteAnimatorToRendererJson}>Apply Animator</button>
+                  </div>
+                  <div className="row">
+                    <input
+                      value={spriteAnimatorFrameW}
+                      onChange={(e) => setSpriteAnimatorFrameW(e.target.value)}
+                      placeholder="frame w"
+                    />
+                    <input
+                      value={spriteAnimatorFrameH}
+                      onChange={(e) => setSpriteAnimatorFrameH(e.target.value)}
+                      placeholder="frame h"
+                    />
+                    <input
+                      value={spriteAnimatorStartCol}
+                      onChange={(e) => setSpriteAnimatorStartCol(e.target.value)}
+                      placeholder="start col"
+                    />
+                    <input
+                      value={spriteAnimatorIdleRowStart}
+                      onChange={(e) => setSpriteAnimatorIdleRowStart(e.target.value)}
+                      placeholder="idle row start"
+                    />
+                    <input
+                      value={spriteAnimatorWalkRowStart}
+                      onChange={(e) => setSpriteAnimatorWalkRowStart(e.target.value)}
+                      placeholder="walk row start"
+                    />
+                    <input
+                      value={spriteAnimatorIdleFrames}
+                      onChange={(e) => setSpriteAnimatorIdleFrames(e.target.value)}
+                      placeholder="idle frames"
+                    />
+                    <input
+                      value={spriteAnimatorWalkFrames}
+                      onChange={(e) => setSpriteAnimatorWalkFrames(e.target.value)}
+                      placeholder="walk frames"
+                    />
+                  </div>
+                  {tilePngDataUrl ? (
+                    <div className="row">
+                      <img
+                        src={tilePngDataUrl}
+                        alt="tile png atlas preview"
+                        style={{ maxWidth: "220px", maxHeight: "120px", border: "1px solid rgba(255,255,255,0.2)" }}
+                      />
+                      <span className="badge">Tile PNG ready</span>
+                    </div>
+                  ) : (
+                    <p>No tile PNG staged yet. Click <code>Use Tile PNG</code> or <code>Export PNG</code> in Tile Placement Network.</p>
+                  )}
                 </div>
                 <div className="renderer-subpanel">
                   <h4>Voxel Materials</h4>
@@ -7731,6 +13095,30 @@ export function App() {
             <div className="renderer-grid">
               <div className="renderer-cell">
                 <h3>Python Layer</h3>
+                <div className="row">
+                  <select value={studioFsSelectedPython} onChange={(e) => setStudioFsSelectedPython(e.target.value)}>
+                    <option value="">select .py from folder</option>
+                    {studioFsPythonFiles.map((name) => (
+                      <option key={`renderer-py-fs-${name}`} value={name}>{name}</option>
+                    ))}
+                  </select>
+                  <button className="action" onClick={importSelectedFsPythonToRenderer}>Import from FS</button>
+                  <button className="action" onClick={refreshStudioFsAssets}>Refresh FS Index</button>
+                  <label className="inline-toggle">
+                    <input
+                      type="checkbox"
+                      checked={studioFsPythonAutoWatch}
+                      onChange={(e) => setStudioFsPythonAutoWatch(e.target.checked)}
+                    />
+                    Auto-watch
+                  </label>
+                  <input
+                    value={studioFsPythonWatchMs}
+                    onChange={(e) => setStudioFsPythonWatchMs(e.target.value)}
+                    placeholder="watch ms"
+                  />
+                  <span className="badge">{`.py files: ${studioFsPythonFiles.length}`}</span>
+                </div>
                 <textarea className="editor editor-mono renderer-editor" value={rendererPython} onChange={(e) => setRendererPython(e.target.value)} />
                 <iframe className="renderer-frame" sandbox="allow-scripts" srcDoc={pythonFrameDoc} title="python-renderer" />
               </div>
@@ -8056,6 +13444,17 @@ export function App() {
                       <option key={tok} value={tok}>{tok}</option>
                     ))}
                   </select>
+                  <input
+                    value={tokenColor(tileColorToken)}
+                    onChange={(e) => setTileColorToken(nearestTokenForColor(e.target.value))}
+                    placeholder="tile color hex (#rrggbb)"
+                  />
+                  <input
+                    type="color"
+                    value={tokenColor(tileColorToken)}
+                    onChange={(e) => setTileColorToken(nearestTokenForColor(e.target.value))}
+                    title="renderer lab tile placement color picker"
+                  />
                   <select value={tileOpacityToken} onChange={(e) => setTileOpacityToken(e.target.value)}>
                     {["Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
                       <option key={tok} value={tok}>{tok}</option>
@@ -8064,12 +13463,58 @@ export function App() {
                   <input value={tileNearThreshold} onChange={(e) => setTileNearThreshold(e.target.value)} placeholder="near threshold" />
                 </div>
                 <div className="row">
+                  <select value={tileEditLodLevel} onChange={(e) => setTileEditLodLevel(e.target.value)}>
+                    <option value="0">LOD 0 (coarsest)</option>
+                    <option value="1">LOD 1</option>
+                    <option value="2">LOD 2</option>
+                    <option value="3">LOD 3 (finest)</option>
+                  </select>
+                  <input value={tileBrushRadius} onChange={(e) => setTileBrushRadius(e.target.value)} placeholder="brush radius" />
+                  <select value={tileBrushShape} onChange={(e) => setTileBrushShape(e.target.value)}>
+                    <option value="square">Brush: Square</option>
+                    <option value="circle">Brush: Circle</option>
+                  </select>
+                  <label className="inline-toggle">
+                    <input type="checkbox" checked={tileEditLodSnap} onChange={(e) => setTileEditLodSnap(e.target.checked)} />
+                    LOD Snap/Block Fill
+                  </label>
+                  <button className="action" onClick={() => retagAllTilesLod(tileEditLodLevel)}>Retag All to LOD</button>
+                </div>
+                <div className="row">
+                  <button className="action" onClick={() => {
+                    setTileRectSelectMode((prev) => !prev);
+                    setTileRectStart(null);
+                    setTileRectEnd(null);
+                  }}>
+                    {tileRectSelectMode ? "Rect Paint Mode" : "Rect Select Mode"}
+                  </button>
+                  <select value={tileRectLodLevel} onChange={(e) => setTileRectLodLevel(e.target.value)}>
+                    <option value="0">Rect LOD 0</option>
+                    <option value="1">Rect LOD 1</option>
+                    <option value="2">Rect LOD 2</option>
+                    <option value="3">Rect LOD 3</option>
+                  </select>
+                  <label className="inline-toggle">
+                    <input
+                      type="checkbox"
+                      checked={tileRectFeatherScaleAware}
+                      onChange={(e) => setTileRectFeatherScaleAware(e.target.checked)}
+                    />
+                    Scale-Aware Feather
+                  </label>
+                  <button className="action" onClick={() => applyRectLod(tileRectLodLevel, { feather: tileRectFeatherScaleAware })}>Apply Rect LOD</button>
+                  <button className="action" onClick={() => applyRectLod("3", { feather: tileRectFeatherScaleAware })}>Refine Rect to Finest</button>
+                  <button className="action" onClick={() => { setTileRectStart(null); setTileRectEnd(null); }}>Clear Rect</button>
+                </div>
+                <div className="row">
                   <button className="action" onClick={() => setTileConnectMode((prev) => !prev)}>
                     {tileConnectMode ? "Paint Mode" : "Connect Mode"}
                   </button>
                   <label><input type="checkbox" checked={tileSvgShowGrid} onChange={(e) => setTileSvgShowGrid(e.target.checked)} /> SVG grid</label>
                   <label><input type="checkbox" checked={tileSvgShowLinks} onChange={(e) => setTileSvgShowLinks(e.target.checked)} /> SVG links</label>
                   <button className="action" onClick={downloadTileSvg}>Export SVG</button>
+                  <button className="action" onClick={() => void downloadTilePng()}>Export PNG</button>
+                  <button className="action" onClick={() => void consumeTilePngAsAtlas()}>Use PNG as Atlas</button>
                   <button className="action" onClick={exportAssetManifest}>Export Manifest</button>
                   <button className="action" onClick={() => setTileConnections([])}>Clear Links</button>
                   <button className="action" onClick={() => setTilePlacements({})}>Clear Tiles</button>
@@ -8082,6 +13527,11 @@ export function App() {
                   <span className="badge">{`Resolution: ${tileSvgModel.width}x${tileSvgModel.height}`}</span>
                   <span className="badge">{`Connect from: ${tileConnectFrom || "none"}`}</span>
                   <span className="badge">{`Procedural: ${tileProcStatus}`}</span>
+                  <span className="badge">{`PNG: ${tilePngStatus}`}</span>
+                  <span className="badge">{`LOD0:${tileLodCounts["0"]} LOD1:${tileLodCounts["1"]} LOD2:${tileLodCounts["2"]} LOD3:${tileLodCounts["3"]}`}</span>
+                  <span className="badge">{`Brush r=${tileBrushRadius} ${tileBrushShape}`}</span>
+                  <span className="badge">{`Rect: ${tileRectStart ? `${tileRectStart.x},${tileRectStart.y}` : "-"} -> ${tileRectEnd ? `${tileRectEnd.x},${tileRectEnd.y}` : "-"}`}</span>
+                  <span className="badge">{`Feather Scale: ${tileRectFeatherScaleAware ? `on (x${clampInt(tileSvgExportScale, 1, 8, 2)})` : "off"}`}</span>
                 </div>
                 <div className="row">
                   <input value={tileProcSeed} onChange={(e) => setTileProcSeed(e.target.value)} placeholder="proc seed" />
@@ -8091,6 +13541,10 @@ export function App() {
                     <option value="island_chain">Island Chain</option>
                     <option value="corridor_grid">Corridor Grid</option>
                     <option value="noise_caves">Noise Caves</option>
+                    <option value="humanoid_curve">Humanoid Curve (LOD Demo)</option>
+                    <option value="grilled_cheese">Grilled Cheese (Pixel Test)</option>
+                    <option value="navigable_town">Navigable Town</option>
+                    <option value="navigable_wilds">Navigable Wilds</option>
                   </select>
                   <button className="action" onClick={() => loadProceduralTemplate(tileProcTemplate)}>Load Template</button>
                   <button className="action" onClick={() => setTileProcCode(TILE_PROC_FORM_LIBRARY.ring_bloom)}>Reset Code</button>
@@ -8120,6 +13574,8 @@ export function App() {
                 >
                   {tileGridCells.map((cell) => {
                     const token = cell.placement ? cell.placement.color_token : "";
+                    const rect = normalizeTileRect(tileRectStart, tileRectEnd);
+                    const inRect = tilePointInRect(cell.x, cell.y, rect);
                     return (
                       <button
                         key={cell.key}
@@ -8127,6 +13583,7 @@ export function App() {
                         style={{
                           background: cell.placement ? tokenColor(token) : "#faf5eb",
                           color: token === "Ha" || token === "El" || token === "Wu" ? "#111" : "#fff",
+                          outline: inRect ? "2px solid #3a84ff" : "1px solid rgba(0,0,0,0.08)",
                           width: `${tilePreviewCellPx}px`,
                           minHeight: `${tilePreviewCellPx}px`,
                         }}
@@ -8142,6 +13599,137 @@ export function App() {
                 <pre>{JSON.stringify({ tiles: tilePlacements, links: tileConnections }, null, 2)}</pre>
               </div>
             </div>
+          </section>
+          <section className="panel">
+            <h2>Module Browser (Renderer Lab)</h2>
+            <p>Run modules while watching renderer/runtime outputs update in the same workspace.</p>
+            <div className="row">
+              <button className="action" onClick={listModuleCatalog}>Refresh Modules</button>
+              <select value={moduleSelectedId} onChange={(e) => setModuleSelectedId(e.target.value)}>
+                <option value="">select module</option>
+                {moduleCatalog.map((mod) => {
+                  const id = String(mod && mod.module_id ? mod.module_id : "");
+                  return (
+                    <option key={`renderer-module-opt-${id}`} value={id}>
+                      {id}
+                    </option>
+                  );
+                })}
+              </select>
+              <button className="action" onClick={fetchSelectedModuleSpec}>Load Spec</button>
+              <button className="action" onClick={validateSelectedModuleSpec}>Validate</button>
+              <button className="action" onClick={runSelectedModuleSpec}>Run Module</button>
+              <span className="badge">{`Modules: ${moduleCatalog.length}`}</span>
+              <span className="badge">{`Selected: ${moduleSelectedId || "none"}`}</span>
+              <span className="badge">Plan: scene+quest+overlay+sync</span>
+            </div>
+            <div className="row">
+              <label className="inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={moduleAutoReconcile}
+                  onChange={(e) => setModuleAutoReconcile(e.target.checked)}
+                />
+                Auto-Reconcile Scene
+              </label>
+              <input
+                value={moduleReconcileSceneId}
+                onChange={(e) => setModuleReconcileSceneId(e.target.value)}
+                placeholder="scene id (realm/scene or scene)"
+              />
+              <label className="inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={moduleReconcileApply}
+                  onChange={(e) => setModuleReconcileApply(e.target.checked)}
+                />
+                Reconcile Apply
+              </label>
+            </div>
+            <textarea
+              className="editor editor-mono renderer-editor"
+              value={moduleRunOverridesText}
+              onChange={(e) => setModuleRunOverridesText(e.target.value)}
+              placeholder='{"key":"value"}'
+            />
+            <h3>Module Run Result</h3>
+            <pre>{JSON.stringify(moduleRunOutput || {}, null, 2)}</pre>
+          </section>
+          <section className="panel">
+            <h2>Daisy Tongue Bodyplan Maker</h2>
+            <p>Define a Daisy system/bodyplan using canonical Daisy symbols (full tongue by default) and project to renderer voxels.</p>
+            <div className="row">
+              <input value={daisySystemId} onChange={(e) => setDaisySystemId(e.target.value)} placeholder="system id" />
+              <select value={daisyArchetype} onChange={(e) => setDaisyArchetype(e.target.value)}>
+                <option value="humanoid">humanoid</option>
+                <option value="beast">beast</option>
+                <option value="serpentine">serpentine</option>
+                <option value="avian">avian</option>
+              </select>
+              <select value={daisySymmetry} onChange={(e) => setDaisySymmetry(e.target.value)}>
+                <option value="bilateral">bilateral</option>
+                <option value="radial">radial</option>
+              </select>
+              <input value={daisySegmentCount} onChange={(e) => setDaisySegmentCount(e.target.value)} placeholder="segments" />
+              <input value={daisyLimbPairs} onChange={(e) => setDaisyLimbPairs(e.target.value)} placeholder="limb pairs" />
+              <input value={daisySeed} onChange={(e) => setDaisySeed(e.target.value)} placeholder="seed" />
+              <label className="inline-toggle">
+                <input type="checkbox" checked={daisyUseWholeTongue} onChange={(e) => setDaisyUseWholeTongue(e.target.checked)} />
+                Use whole Daisy tongue
+              </label>
+            </div>
+            <div className="row">
+              <select value={daisyCoreToken} onChange={(e) => setDaisyCoreToken(e.target.value)}>
+                {["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
+                  <option key={`daisy-core-${tok}`} value={tok}>{`core ${tok}`}</option>
+                ))}
+              </select>
+              <input
+                type="color"
+                value={tokenColor(daisyCoreToken)}
+                onChange={(e) => setDaisyCoreToken(nearestTokenForColor(e.target.value))}
+                title="daisy core color"
+              />
+              <select value={daisyAccentToken} onChange={(e) => setDaisyAccentToken(e.target.value)}>
+                {["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
+                  <option key={`daisy-accent-${tok}`} value={tok}>{`accent ${tok}`}</option>
+                ))}
+              </select>
+              <input
+                type="color"
+                value={tokenColor(daisyAccentToken)}
+                onChange={(e) => setDaisyAccentToken(nearestTokenForColor(e.target.value))}
+                title="daisy accent color"
+              />
+              <button className="action" onClick={generateDaisyBodyplan}>Generate Bodyplan</button>
+              <button className="action" onClick={projectDaisyBodyplanToRenderer}>Project to Renderer</button>
+            </div>
+            <div className="row">
+              <input
+                value={daisySymbolSequence}
+                onChange={(e) => setDaisySymbolSequence(e.target.value)}
+                placeholder="daisy symbol sequence (comma/space separated)"
+                disabled={daisyUseWholeTongue}
+              />
+              <button className="action" onClick={() => setDaisySymbolSequence(DAISY_TONGUE_SYMBOLS.join(", "))}>Load Full Symbol Sequence</button>
+              <span className="badge">{`Allowed symbols: ${daisyUseWholeTongue ? DAISY_TONGUE_SYMBOLS.length : parseDaisySymbolSequence(daisySymbolSequence).length}/${DAISY_TONGUE_SYMBOLS.length}`}</span>
+              <span className="badge">Semantic composition mode</span>
+            </div>
+            <h3>Daisy Role Inspector</h3>
+            <p>Override role-to-symbol mapping with JSON (keys from composition, values as Daisy symbols).</p>
+            <textarea
+              className="editor editor-mono renderer-editor"
+              value={daisyRoleOverridesText}
+              onChange={(e) => setDaisyRoleOverridesText(e.target.value)}
+              placeholder='{"framework":"To","network":"Ne","actuator_primary":"Nz"}'
+            />
+            <pre>{JSON.stringify(daisyRoleInspector.effective, null, 2)}</pre>
+            <textarea
+              className="editor editor-mono renderer-editor"
+              value={daisyBodyplanText}
+              onChange={(e) => setDaisyBodyplanText(e.target.value)}
+              placeholder='{"schema":"qqva.daisy.bodyplan.v1", ...}'
+            />
           </section>
           <GraphBars
             title="Game Design Metrics"
@@ -8308,7 +13896,7 @@ export function App() {
               <input value={studioFsRoot} onChange={(e) => setStudioFsRoot(e.target.value)} placeholder="cobra scripts folder path" />
               <button className="action" onClick={chooseStudioFsFolder}>Choose Folder</button>
               <button className="action" onClick={refreshStudioFsScripts}>List .cobra</button>
-              <button className="action" onClick={refreshStudioFsAssets}>List scene/sprite</button>
+              <button className="action" onClick={refreshStudioFsAssets}>List scene/sprite/python/audio</button>
               <button className="action" onClick={importSelectedFsScriptToStudio}>Import Selected</button>
               <button className="action" onClick={saveSelectedStudioFileToFs}>Save Selected</button>
               <button className="action" onClick={exportAllCobraScriptsToFs}>Export All .cobra</button>
@@ -8320,8 +13908,29 @@ export function App() {
                   <option key={`studio-fs-${scriptName}`} value={scriptName}>{scriptName}</option>
                 ))}
               </select>
+              <select value={studioFsSelectedPython} onChange={(e) => setStudioFsSelectedPython(e.target.value)}>
+                <option value="">select .py from folder</option>
+                {studioFsPythonFiles.map((name) => (
+                  <option key={`studio-fs-py-${name}`} value={name}>{name}</option>
+                ))}
+              </select>
+              <button className="action" onClick={importSelectedFsPythonToRenderer}>Import .py to Renderer</button>
+              <label className="inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={studioFsPythonAutoWatch}
+                  onChange={(e) => setStudioFsPythonAutoWatch(e.target.checked)}
+                />
+                Auto-watch .py
+              </label>
+              <input
+                value={studioFsPythonWatchMs}
+                onChange={(e) => setStudioFsPythonWatchMs(e.target.value)}
+                placeholder="watch ms"
+              />
               <span className="badge">{`Desktop FS: ${hasDesktopFs() ? "available" : "web-only"}`}</span>
               <span className="badge">{`.cobra files: ${studioFsScripts.length}`}</span>
+              <span className="badge">{`.py files: ${studioFsPythonFiles.length}`}</span>
               <span className="badge">{`scene files: ${studioFsSceneFiles.length}`}</span>
               <span className="badge">{`sprite files: ${studioFsSpriteFiles.length}`}</span>
             </div>
@@ -8440,6 +14049,64 @@ export function App() {
             </div>
           </section>
           <section className="panel">
+            <h2>Graphics Sandbox (Renderer Core)</h2>
+            <p>Isolated graphics publish boundary. Build, validate, and apply immutable render packs without mutating gameplay schemas.</p>
+            <div className="row">
+              <input
+                value={rendererSandboxPackName}
+                onChange={(e) => setRendererSandboxPackName(e.target.value)}
+                placeholder="pack name"
+              />
+              <input
+                value={rendererSandboxPackNotes}
+                onChange={(e) => setRendererSandboxPackNotes(e.target.value)}
+                placeholder="pack notes"
+              />
+              <button className="action" onClick={createRendererSandboxDraftFromCurrent}>Build Draft From Current Renderer</button>
+              <button className="action" onClick={publishRendererSandboxDraft}>Publish Pack</button>
+              <button className="action" onClick={applyRendererSandboxSelectedPack}>Apply Selected Pack</button>
+              <button className="action" onClick={deleteRendererSandboxSelectedPack}>Delete Selected Pack</button>
+              <button
+                className="action"
+                onClick={() =>
+                  rendererSandboxSelectedPack
+                    ? downloadJson(`renderer-pack-${rendererSandboxSelectedPack.pack_id}.json`, rendererSandboxSelectedPack)
+                    : setNotice("sandbox_export_failed: no selected pack")
+                }
+              >
+                Export Selected Pack
+              </button>
+            </div>
+            <div className="row">
+              <select value={rendererSandboxSelectedId} onChange={(e) => setRendererSandboxSelectedId(e.target.value)}>
+                <option value="">select renderer pack</option>
+                {rendererSandboxPacks.map((pack) => (
+                  <option key={`sandbox-pack-${pack.pack_id}`} value={pack.pack_id}>
+                    {`${pack.name || pack.pack_id} (${pack.stats?.voxel_count ?? 0} voxels)`}
+                  </option>
+                ))}
+              </select>
+              <span className="badge">{`Sandbox packs: ${rendererSandboxPacks.length}`}</span>
+              <span className="badge">{`Sandbox status: ${rendererSandboxStatus}`}</span>
+              <span className="badge">
+                {`Validation: ${
+                  rendererSandboxValidation
+                    ? rendererSandboxValidation.ok
+                      ? "ok"
+                      : `${rendererSandboxValidation.errors.length} error(s)`
+                    : "n/a"
+                }`}
+              </span>
+            </div>
+            <textarea
+              className="editor editor-mono renderer-editor"
+              value={rendererSandboxDraftText}
+              onChange={(e) => setRendererSandboxDraftText(e.target.value)}
+              placeholder='{"schema":"atelier.renderer.pack.v1", ...}'
+            />
+            <pre>{JSON.stringify({ validation: rendererSandboxValidation, selected: rendererSandboxSelectedPack }, null, 2)}</pre>
+          </section>
+          <section className="panel">
             <h2>Studio Operations</h2>
             <div className="row">
               <button className="action" onClick={observe}>Sync Kernel State</button>
@@ -8508,6 +14175,7 @@ export function App() {
           <strong>Unified Renderer</strong>
           <span className="badge">{`Source: ${fullscreenState.source}`}</span>
           <span className="badge">{`Render: ${(fullscreenEffectiveSettings.renderMode || "2.5d") === "3d" ? "3D" : "2.5D"}`}</span>
+          <span className="badge">{`Facing: ${normalizeFacing(fullscreenState.playerFacing || "south")}`}</span>
           <span className="badge">{`Voxels: ${fullscreenVoxels.length}`}</span>
           <button className="action" onClick={() => window.close()}>Dismiss</button>
         </header>
@@ -8545,10 +14213,13 @@ export function App() {
             <span className="badge">Workspace: {workspaceId}</span>
             <span className="badge">Admin Gate: {adminVerified ? "verified" : "locked"}</span>
             <span className="badge">Artisan Access: {artisanAccessVerified ? "verified" : "locked"}</span>
+            <span className="badge">{`Governor: ${labGovernor.level}`}</span>
             <span className="badge">{busyAction ? `Running: ${busyAction}` : notice}</span>
           </div>
         </div>
-        <div className="tools-grid">{renderSectionTools()}</div>
+        <div className="tools-grid">
+          <PanelErrorBoundary panelKey={section}>{renderSectionTools()}</PanelErrorBoundary>
+        </div>
         {section === "Workshop" ? (
           <section className="panel">
             <h2>API Output</h2>

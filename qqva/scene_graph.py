@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
 
+from .aster_colors import resolve_aster_color
 from .shygazun_compiler import SymbolInventory, compile_akinenwun_to_ir, default_symbol_inventory
 from .validators import validate_scene_realm
 
@@ -81,7 +82,7 @@ def _parse_cobra_entities(source: str) -> List[CobraEntity]:
             continue
         if indent > 0 and current is not None:
             colon = line.find(":")
-            if colon > 0:
+            if colon > 0 and " " not in line[:colon]:
                 key = line[:colon].strip()
                 value = line[colon + 1 :].strip()
             else:
@@ -125,6 +126,35 @@ def _z_for_entity(entity: CobraEntity, layer: str) -> int:
     return base
 
 
+def _normalize_aster_metadata(meta: Dict[str, Any]) -> None:
+    source = ""
+    aster_colors_obj = meta.get("aster_colors")
+    if isinstance(aster_colors_obj, list):
+        parts = [str(item).strip() for item in aster_colors_obj if str(item).strip() != ""]
+        if parts:
+            source = "+".join(parts)
+    elif isinstance(aster_colors_obj, str) and aster_colors_obj.strip() != "":
+        source = aster_colors_obj.strip()
+
+    if source == "":
+        explicit_aster = str(meta.get("aster_color") or "").strip()
+        if explicit_aster != "":
+            source = explicit_aster
+        else:
+            color_text = str(meta.get("color") or "").strip()
+            if color_text.lower().startswith("aster:"):
+                source = color_text.split(":", 1)[1].strip()
+
+    if source == "":
+        return
+    resolved = resolve_aster_color(source)
+    meta["aster_color"] = resolved["canonical"]
+    meta["rgb"] = resolved["rgb"]
+    meta["color"] = resolved["rgb"]
+    meta["aster_palette_spot"] = resolved["palette_spot"]
+    meta["aster_components"] = list(resolved["components"])
+
+
 def build_scene_graph_from_cobra(
     source: str,
     *,
@@ -147,6 +177,8 @@ def build_scene_graph_from_cobra(
             canonical = ir["canonical_compound"]
         layer = _layer_for_entity(entity)
         z = _z_for_entity(entity, layer)
+        normalized_meta = dict(entity["meta"])
+        _normalize_aster_metadata(normalized_meta)
         nodes.append(
             {
                 "id": str(entity["id"]),
@@ -157,7 +189,7 @@ def build_scene_graph_from_cobra(
                 "z": z,
                 "layer": layer,
                 "akinenwun": canonical,
-                "metadata": dict(entity["meta"]),
+                "metadata": normalized_meta,
             }
         )
 

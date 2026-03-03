@@ -1,0 +1,46 @@
+{
+  "workspace_id": "main",
+  "actor_id": "system",
+  "plan_id": "day_scene_ai_overlay.market",
+  "actions": [],
+  "actions_by_scene": {
+    "all": [
+      {
+        "action_id": "day_{{DAY}}_scene_{{SCENE_SLUG}}_heartbeat",
+        "kind": "world.stream.status",
+        "payload": {}
+      }
+    ],
+    "lapidus/market_midday": [
+      {
+        "action_id": "day_{{DAY}}_scene_{{SCENE_SLUG}}_lapidus_shift",
+        "kind": "world.market.stock.adjust",
+        "payload": {
+          "realm_id": "lapidus",
+          "item_id": "iron_ingot",
+          "delta": 1
+        }
+      },
+      {
+        "action_id": "day_{{DAY}}_scene_{{SCENE_SLUG}}_mercurie_supply",
+        "kind": "world.market.stock.adjust",
+        "payload": {
+          "realm_id": "mercurie",
+          "item_id": "moon_salt",
+          "delta": 2
+        }
+      }
+    ],
+    "lapidus/night_return": [
+      {
+        "action_id": "day_{{DAY}}_scene_{{SCENE_SLUG}}_sulphera_flux",
+        "kind": "world.market.stock.adjust",
+        "payload": {
+          "realm_id": "sulphera",
+          "item_id": "infernal_ash",
+          "delta": 1
+        }
+      }
+    ]
+  }
+}

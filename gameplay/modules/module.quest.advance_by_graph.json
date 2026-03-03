@@ -1,0 +1,39 @@
+{
+  "module_id": "module.quest.advance_by_graph",
+  "module_version": "v1",
+  "purpose": "Advance a quest using quest graph transitions in deterministic runtime flow",
+  "inputs": {
+    "payload": {
+      "quest_id": "main_story",
+      "from_step_id": "intro",
+      "dry_run": false
+    },
+    "required_refs": [
+      "L8:quest.path"
+    ],
+    "optional_refs": [
+      "L9:dialogue.state"
+    ]
+  },
+  "execution": {
+    "runtime_action_kind": "quest.advance_by_graph",
+    "deterministic": true,
+    "nonlinear_safe": true,
+    "collapse_policy": "no_auto_collapse"
+  },
+  "outputs": {
+    "result_payload_path": "result",
+    "expected_ref_keys": [],
+    "store_function": false
+  },
+  "commit": {
+    "requires_attestation": true,
+    "attestation_kind": "lotus",
+    "on_missing_attestation": "leave_frontier_open"
+  },
+  "replay_contract": {
+    "hash_inputs": true,
+    "hash_outputs": true,
+    "require_same_hash_on_replay": true
+  }
+}

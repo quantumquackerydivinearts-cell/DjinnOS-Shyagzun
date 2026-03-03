@@ -1,0 +1,77 @@
+{
+  "id": "production_go_no_go.metrics.v1",
+  "budgets_id": "production_budgets.v1",
+  "go": true,
+  "checks": [
+    {
+      "name": "renderer_bundle_budget",
+      "ok": true,
+      "detail": {
+        "main_bundle": "apps\\atelier-desktop\\dist\\assets\\index-Bg1p_Fj4.js",
+        "main_bundle_bytes": 475795,
+        "main_bundle_gzip_bytes": 130589,
+        "worker_bundle": "apps\\atelier-desktop\\dist\\assets\\labComputeWorker-CYz6SRMp.js",
+        "worker_bundle_bytes": 4377,
+        "budget": {
+          "max_main_bundle_bytes": 550000,
+          "max_main_bundle_gzip_bytes": 160000,
+          "max_worker_bundle_bytes": 20000
+        }
+      }
+    },
+    {
+      "name": "runtime_plan_budget",
+      "ok": true,
+      "detail": {
+        "plan_count": 14,
+        "max_actions": 32,
+        "max_actions_plan": "gameplay\\runtime_plans\\day_scene_plan.main.generated.json",
+        "budget": {
+          "max_runtime_plan_actions": 500,
+          "max_runtime_plan_count": 200
+        }
+      }
+    },
+    {
+      "name": "renderer_gate_stamp",
+      "ok": true,
+      "detail": {
+        "output_tail": "renderer_gate_stamp_ok:C:\\DjinnOS\\gameplay\\contracts\\renderer_acceptance_checklist.v1.json"
+      }
+    },
+    {
+      "name": "content_pack_validation",
+      "ok": true,
+      "detail": {
+        "output_tail": "content_pack_validation_ok"
+      }
+    },
+    {
+      "name": "python_compile_qqva",
+      "ok": true,
+      "detail": {
+        "output_tail": "Listing 'qqva'...\nListing 'qqva\\\\qqva'..."
+      }
+    },
+    {
+      "name": "determinism_replay_contract",
+      "ok": true,
+      "detail": {
+        "output_tail": "determinism: PASS (5 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.v1.json]\ndeterminism: PASS (6 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.content_surfaces.v1.json]\ndeterminism: PASS (4 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.quest_states.v1.json]\ndeterminism: PASS (2 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.render_payloads.v1.json]\ndeterminism: PASS (5 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.runtime_plans.v1.json]\ndeterminism: PASS TOTAL (22 cases across 5 corpus files)"
+      }
+    },
+    {
+      "name": "renderer_acceptance_gates",
+      "ok": true,
+      "detail": {
+        "missing": [],
+        "mismatch": []
+      }
+    }
+  ],
+  "summary": {
+    "check_count": 7,
+    "failed_count": 0,
+    "go": true
+  }
+}

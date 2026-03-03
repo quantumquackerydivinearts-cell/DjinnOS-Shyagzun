@@ -1,0 +1,34 @@
+{
+  "id": "determinism_corpus.render_payloads.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "algorithm": "sha256(canonical_json_sorted_keys)",
+  "cases": [
+    {
+      "id": "module_render_scene_reconcile",
+      "path": "gameplay/modules/module.render.scene.reconcile.json",
+      "type": "module_contract",
+      "required_fields": [
+        "module_id",
+        "purpose",
+        "inputs.payload",
+        "execution.runtime_action_kind",
+        "replay_contract.require_same_hash_on_replay"
+      ],
+      "expected_hash": "a70cf8dddb372ce12a70c0835a4afab4cfd11e4812d82081191df9eed40d5290"
+    },
+    {
+      "id": "module_audio_cue_play_policy",
+      "path": "gameplay/modules/module.audio.cue.play_policy.json",
+      "type": "module_contract",
+      "required_fields": [
+        "module_id",
+        "purpose",
+        "inputs.payload",
+        "execution.runtime_action_kind",
+        "replay_contract.require_same_hash_on_replay"
+      ],
+      "expected_hash": "46c684a0ffb083d7fa9a22ce4c0ec108ecee85ee2d6e231f86e5a78a75b9f34b"
+    }
+  ]
+}

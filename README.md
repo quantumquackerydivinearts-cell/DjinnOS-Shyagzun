@@ -1,6 +1,16 @@
 # Quantum Quackery Virtual Atelier
 
-Hybrid app scaffold with strict kernel boundaries.
+Production workspace with strict kernel boundaries.
+
+## Active Production
+
+This repo is now dedicated to holding productions for:
+
+**Ko's Labyrnth, An Alchemist's Labor of Love**
+
+Canonical production root:
+
+- `productions/kos-labyrnth/`
 
 ## Layout
 
@@ -8,6 +18,7 @@ Hybrid app scaffold with strict kernel boundaries.
 - `apps/atelier-desktop`: Electron + React shell
 - `services/kernel-gateway`: optional kernel-facing adapter service
 - `qqva/`: shared structural shim/projection primitives
+- `productions/kos-labyrnth/`: game production assets, plans, and deliverables
 
 ## Boundary Rules
 

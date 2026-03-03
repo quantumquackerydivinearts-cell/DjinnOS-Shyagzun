@@ -1,0 +1,135 @@
+{
+  "id": "renderer_acceptance_checklist.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "contract": "docs/RENDERER_QUALITY_CONTRACT.md",
+  "gates": [
+    {
+      "id": "gate_a_scene_coherence",
+      "title": "Scene coherence between panel and fullscreen",
+      "status": "done",
+      "evidence": [
+        "Renderer Lab includes `Run Gate A Smoke` action and Gate A status badge in `apps/atelier-desktop/src/App.jsx`.",
+        "Smoke check validates voxel count, material count, and camera seed parity between in-panel and fullscreen state.",
+        "auto-stamp:2026-03-03T13:30:44Z:PASS",
+        "check:gate_a_smoke_action",
+        "check:gate_a_badge",
+        "check:gate_a_status_key",
+        "check:fullscreen_open"
+      ],
+      "criteria": [
+        "Entity counts match between panel and fullscreen",
+        "Material bindings match",
+        "Camera seed matches"
+      ]
+    },
+    {
+      "id": "gate_b_input_parity",
+      "title": "Input parity across JSON/Cobra/Engine",
+      "status": "done",
+      "evidence": [
+        "auto-stamp:2026-03-03T13:30:44Z:PASS",
+        "check:source_json",
+        "check:source_cobra",
+        "check:source_engine",
+        "check:payload_branch_cobra",
+        "check:payload_branch_engine"
+      ],
+      "criteria": [
+        "Equivalent layout intent for canonical test scene",
+        "No missing entities on any input path"
+      ]
+    },
+    {
+      "id": "gate_c_lod_fidelity",
+      "title": "LOD fidelity across zoom range",
+      "status": "done",
+      "evidence": [
+        "auto-stamp:2026-03-03T13:30:44Z:PASS",
+        "check:lod_function",
+        "check:lod_controls",
+        "check:lod_brush",
+        "check:lod_status"
+      ],
+      "criteria": [
+        "Object identity preserved from min to max zoom",
+        "Interaction affordances remain visible"
+      ]
+    },
+    {
+      "id": "gate_d_motion_integrity",
+      "title": "Motion integrity without snapback",
+      "status": "done",
+      "evidence": [
+        "Main renderer now subscribes to cross-window renderer sync channel and storage updates to keep player offset aligned.",
+        "Renderer Lab includes `Run Gate D Smoke` action and Gate D status badge in `apps/atelier-desktop/src/App.jsx`.",
+        "auto-stamp:2026-03-03T13:30:44Z:PASS",
+        "check:gate_d_smoke_action",
+        "check:gate_d_badge",
+        "check:click_move",
+        "check:path_step_queue",
+        "check:player_signal"
+      ],
+      "criteria": [
+        "Click-to-move updates persistent player state",
+        "Arrow key movement updates persistent player state",
+        "Path-stepped movement remains stable"
+      ]
+    },
+    {
+      "id": "gate_e_atlas_texturing",
+      "title": "Atlas/texturing consistency",
+      "status": "done",
+      "evidence": [
+        "auto-stamp:2026-03-03T13:30:44Z:PASS",
+        "check:texture_atlas_panel",
+        "check:atlas_material_set",
+        "check:tile_png_atlas",
+        "check:sprite_animator"
+      ],
+      "criteria": [
+        "Building textured",
+        "Humanoid sprite textured",
+        "Background textured"
+      ]
+    },
+    {
+      "id": "gate_f_performance_envelope",
+      "title": "Performance envelope on dev hardware",
+      "status": "done",
+      "evidence": [
+        "auto-stamp:2026-03-03T13:30:44Z:PASS",
+        "check:governor",
+        "check:governor_badge",
+        "check:worker_parse",
+        "check:worker_prep",
+        "check:prep_badge",
+        "check:panel_error_boundary"
+      ],
+      "criteria": [
+        "Stable frame pacing on canonical test scene",
+        "No memory growth during repeated reload and movement loop"
+      ]
+    }
+  ],
+  "canonical_test_scene": {
+    "required_assets": [
+      "building",
+      "humanoid_sprite",
+      "background",
+      "navigable_map_segment",
+      "dynamic_palette_shift"
+    ]
+  },
+  "runbook": {
+    "steps": [
+      "Load canonical scene in Renderer Lab",
+      "Run in-panel render and record evidence",
+      "Open fullscreen render and verify parity",
+      "Validate movement and persistence",
+      "Validate LOD transitions",
+      "Validate atlas/material bindings",
+      "Record pass/fail for each gate"
+    ]
+  }
+}

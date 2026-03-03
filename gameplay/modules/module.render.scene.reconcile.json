@@ -1,0 +1,39 @@
+{
+  "module_id": "module.render.scene.reconcile",
+  "module_version": "v1",
+  "purpose": "Reconcile loaded scene entities against canonical scenegraph",
+  "inputs": {
+    "payload": {
+      "realm_id": "lapidus",
+      "scene_id": "lapidus/player_home",
+      "apply": true
+    },
+    "required_refs": [
+      "L10:scene.entities"
+    ],
+    "optional_refs": [
+      "L11:render.constraints"
+    ]
+  },
+  "execution": {
+    "runtime_action_kind": "render.scene.reconcile",
+    "deterministic": true,
+    "nonlinear_safe": true,
+    "collapse_policy": "no_auto_collapse"
+  },
+  "outputs": {
+    "result_payload_path": "result",
+    "expected_ref_keys": [],
+    "store_function": false
+  },
+  "commit": {
+    "requires_attestation": true,
+    "attestation_kind": "lotus",
+    "on_missing_attestation": "leave_frontier_open"
+  },
+  "replay_contract": {
+    "hash_inputs": true,
+    "hash_outputs": true,
+    "require_same_hash_on_replay": true
+  }
+}

@@ -72,6 +72,8 @@ class IsometricDrawableOut(BaseModel):
     depth_key: float
     sprite: str
     material: str
+    aster_color: str | None = None
+    rgb: str | None = None
     metadata: dict[str, object] = Field(default_factory=dict)
 
 
@@ -114,6 +116,8 @@ class RenderGraphNodeOut(BaseModel):
     transform: dict[str, object] = Field(default_factory=dict)
     material: str
     sprite: str
+    aster_color: str | None = None
+    rgb: str | None = None
     metadata: dict[str, object] = Field(default_factory=dict)
 
 

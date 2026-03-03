@@ -1,0 +1,51 @@
+{
+  "id": "determinism_corpus.quest_states.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "algorithm": "sha256(canonical_json_sorted_keys)",
+  "cases": [
+    {
+      "id": "quest_actions_fate_knocks_day1",
+      "path": "gameplay/runtime_plans/quest_actions_fate_knocks_day1.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "6197d6c162a16d1416f30e0c335926fab2b0f3b980992ea3fdbc963a007db1e5"
+    },
+    {
+      "id": "canon_quests",
+      "path": "gameplay/content_packs/canon/quests.json",
+      "type": "quest_content",
+      "required_fields": [
+        "quests"
+      ],
+      "expected_hash": "bc0c79dbc7c726473d29d1139b5a463c04bc8f4646816b25ed9315474e7562d3"
+    },
+    {
+      "id": "canon_start_sequence",
+      "path": "gameplay/content_packs/canon/start_sequence.json",
+      "type": "quest_content",
+      "required_fields": [
+        "schema_version",
+        "quest_id",
+        "events"
+      ],
+      "expected_hash": "830fc89aa9aa0dbe75026956f2f8c13f0df43a3a88cad440af6785a2104595b8"
+    },
+    {
+      "id": "canon_fate_knocks_quiz",
+      "path": "gameplay/content_packs/canon/fate_knocks_quiz.json",
+      "type": "quest_content",
+      "required_fields": [
+        "schema_version",
+        "quiz.question_count",
+        "questions"
+      ],
+      "expected_hash": "365898e6eb2b2b6fd2c5fe4ac5cf0cb25c039b56dc4a97b75c0b8c210bac9071"
+    }
+  ]
+}

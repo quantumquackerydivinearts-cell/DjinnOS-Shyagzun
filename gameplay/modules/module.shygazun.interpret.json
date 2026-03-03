@@ -1,0 +1,49 @@
+{
+  "module_id": "module.shygazun.interpret",
+  "module_version": "v1",
+  "purpose": "Interpret Shygazun utterance into deterministic semantic payload and lineage refs",
+  "inputs": {
+    "payload": {
+      "utterance": "entity hearth 4 2 furnace lex TyKoWuVu",
+      "deity": "jabiru",
+      "mode": "explicit",
+      "explain_mode": "compound",
+      "lore_overlay": "anecdotal",
+      "mutate_tokens": true,
+      "kaganue_pressure": 0.25
+    },
+    "required_refs": [],
+    "optional_refs": [
+      "L9:dialogue.state",
+      "L10:entity.names"
+    ]
+  },
+  "execution": {
+    "runtime_action_kind": "shygazun.interpret",
+    "deterministic": true,
+    "nonlinear_safe": true,
+    "collapse_policy": "no_auto_collapse"
+  },
+  "outputs": {
+    "result_payload_path": "result",
+    "expected_ref_keys": [
+      "L1:shygazun.interpret.byte_basis",
+      "L7:shygazun.interpret.causal_chunk",
+      "L8:shygazun.interpret.path",
+      "L9:shygazun.interpret.dialogue",
+      "L11:shygazun.interpret.render_constraints",
+      "L12:function.shygazun.interpret.compute"
+    ],
+    "store_function": true
+  },
+  "commit": {
+    "requires_attestation": true,
+    "attestation_kind": "lotus",
+    "on_missing_attestation": "leave_frontier_open"
+  },
+  "replay_contract": {
+    "hash_inputs": true,
+    "hash_outputs": true,
+    "require_same_hash_on_replay": true
+  }
+}

@@ -5,6 +5,28 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+CANONICAL_GAME_SKILLS: tuple[str, ...] = (
+    "barter",
+    "energy_weapons",
+    "explosives",
+    "guns",
+    "lockpick",
+    "medicine",
+    "melee_weapons",
+    "repair",
+    "alchemy",
+    "sneak",
+    "hack",
+    "speech",
+    "survival",
+    "unarmed",
+    "meditation",
+    "magic",
+    "blacksmithing",
+    "silversmithing",
+    "goldsmithing",
+)
+
 
 class ContactCreate(BaseModel):
     workspace_id: str
@@ -389,6 +411,10 @@ class SkillTrainOut(BaseModel):
     rank_after: int
     points_remaining: int
     trained: bool
+
+
+class SkillCatalogOut(BaseModel):
+    skills: list[str]
 
 
 class PerkUnlockInput(BaseModel):
@@ -810,9 +836,14 @@ RuntimeActionKind = Literal[
     "faction.loyalty.adjust",
     "underworld.access.evaluate",
     "affiliation.assign",
+    "quest.advance_by_graph",
+    "quest.fate_knocks.bootstrap",
+    "quest.fate_knocks.deadline_check",
     "shygazun.interpret",
     "shygazun.translate",
     "shygazun.correct",
+    "math.numeral_3d",
+    "math.fibonacci_ordering",
     "audio.cue.stage",
     "audio.cue.play",
     "audio.cue.stop",
@@ -820,6 +851,12 @@ RuntimeActionKind = Literal[
     "render.scene.tick",
     "render.scene.unload",
     "render.scene.reconcile",
+    "pygame.worker.enqueue",
+    "pygame.worker.status",
+    "pygame.worker.dequeue",
+    "content.pack.load_canon",
+    "content.pack.load_byte_table",
+    "module.run",
 ]
 
 
@@ -931,12 +968,82 @@ class RuntimeActionCatalogOut(BaseModel):
     actions: list[RuntimeActionCatalogItemOut] = Field(default_factory=list)
 
 
+class ModuleSpecOut(BaseModel):
+    module_id: str
+    module_version: str
+    purpose: str = ""
+    runtime_action_kind: str
+    required_refs: list[str] = Field(default_factory=list)
+    optional_refs: list[str] = Field(default_factory=list)
+    expected_ref_keys: list[str] = Field(default_factory=list)
+    payload: dict[str, object] = Field(default_factory=dict)
+
+
+class ModuleCatalogOut(BaseModel):
+    module_count: int
+    modules: list[ModuleSpecOut] = Field(default_factory=list)
+
+
+class ModuleValidateInput(BaseModel):
+    module_id: str | None = None
+    spec: dict[str, object] | None = None
+
+
+class ModuleValidateOut(BaseModel):
+    ok: bool
+    module_id: str = ""
+    module_version: str = ""
+    runtime_action_kind: str = ""
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class ShygazunTranslateInput(BaseModel):
+    workspace_id: str = "main"
+    actor_id: str = "system"
     source_text: str
     direction: Literal["auto", "english_to_shygazun", "shygazun_to_english"] = "auto"
 
 
+class ShygazunInterpretInput(BaseModel):
+    workspace_id: str = "main"
+    actor_id: str = "system"
+    utterance: str
+    deity: str = "jabiru"
+    mode: str = "explicit"
+    explain_mode: str = "none"
+    lore_overlay: str = "none"
+    mutate_tokens: bool = True
+    kaganue_pressure: float = 0.0
+
+
+class ShygazunInterpretOut(BaseModel):
+    workspace_id: str = "main"
+    actor_id: str = "system"
+    deity: str
+    demon: str
+    mode: str
+    explain_mode: str
+    lore_overlay: str
+    utterance: str
+    canonical_tokens: list[str] = Field(default_factory=list)
+    interpreted_tokens: list[str] = Field(default_factory=list)
+    kaganue_pressure: float = 0.0
+    confusion_index: float = 0.0
+    mutated_count: int = 0
+    semantic_payload: dict[str, object] = Field(default_factory=dict)
+    compound_trace: list[dict[str, object]] = Field(default_factory=list)
+    lineage_node_ids: list[str] = Field(default_factory=list)
+    lineage_edge_ids: list[str] = Field(default_factory=list)
+    lineage_node_refs: dict[str, str] = Field(default_factory=dict)
+    lineage_nodes_by_layer: dict[int, list[str]] = Field(default_factory=dict)
+    function_store_id: str | None = None
+    function_hash: str | None = None
+
+
 class ShygazunTranslateOut(BaseModel):
+    workspace_id: str = "main"
+    actor_id: str = "system"
     direction: str
     source_text: str
     target_text: str
@@ -947,13 +1054,23 @@ class ShygazunTranslateOut(BaseModel):
     mappings: list[dict[str, object]] = Field(default_factory=list)
     round_trip_preview: str = ""
     lexicon_version: str = "phase1.v1"
+    lineage_node_ids: list[str] = Field(default_factory=list)
+    lineage_edge_ids: list[str] = Field(default_factory=list)
+    lineage_node_refs: dict[str, str] = Field(default_factory=dict)
+    lineage_nodes_by_layer: dict[int, list[str]] = Field(default_factory=dict)
+    function_store_id: str | None = None
+    function_hash: str | None = None
 
 
 class ShygazunCorrectInput(BaseModel):
+    workspace_id: str = "main"
+    actor_id: str = "system"
     source_text: str
 
 
 class ShygazunCorrectOut(BaseModel):
+    workspace_id: str = "main"
+    actor_id: str = "system"
     source_text: str
     corrected_text: str
     token_count: int
@@ -962,6 +1079,12 @@ class ShygazunCorrectOut(BaseModel):
     confidence: float
     corrections: list[dict[str, object]] = Field(default_factory=list)
     mode: str
+    lineage_node_ids: list[str] = Field(default_factory=list)
+    lineage_edge_ids: list[str] = Field(default_factory=list)
+    lineage_node_refs: dict[str, str] = Field(default_factory=dict)
+    lineage_nodes_by_layer: dict[int, list[str]] = Field(default_factory=dict)
+    function_store_id: str | None = None
+    function_hash: str | None = None
 
 
 class GateStateInput(BaseModel):
@@ -1588,3 +1711,53 @@ class RealmMarketOut(BaseModel):
     spread_bp: int
     fee_bp: int
     stock: dict[str, int]
+
+
+class Numeral3DInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    x: int
+    y: int
+    z: int
+    ring_base: int = 12
+
+
+class Numeral3DOut(BaseModel):
+    workspace_id: str
+    actor_id: str
+    ring_base: int
+    vector: dict[str, int]
+    digits: dict[str, int]
+    scalar_index: int
+    octant: str
+    magnitude: float
+    lineage_node_ids: list[str] = Field(default_factory=list)
+    lineage_edge_ids: list[str] = Field(default_factory=list)
+    lineage_node_refs: dict[str, str] = Field(default_factory=dict)
+    lineage_nodes_by_layer: dict[int, list[str]] = Field(default_factory=dict)
+    function_store_id: str | None = None
+    function_hash: str | None = None
+
+
+class FibonacciOrderingInput(BaseModel):
+    workspace_id: str
+    actor_id: str
+    item_ids: list[str] = Field(default_factory=list)
+    ring_base: int = 12
+    prioritize_primes: bool = False
+
+
+class FibonacciOrderingOut(BaseModel):
+    workspace_id: str
+    actor_id: str
+    ring_base: int
+    item_ids: list[str]
+    ordered_item_ids: list[str]
+    fibonacci_weights: list[int]
+    rank_map: dict[str, int]
+    lineage_node_ids: list[str] = Field(default_factory=list)
+    lineage_edge_ids: list[str] = Field(default_factory=list)
+    lineage_node_refs: dict[str, str] = Field(default_factory=dict)
+    lineage_nodes_by_layer: dict[int, list[str]] = Field(default_factory=dict)
+    function_store_id: str | None = None
+    function_hash: str | None = None

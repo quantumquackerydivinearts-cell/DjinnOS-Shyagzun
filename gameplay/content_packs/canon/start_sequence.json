@@ -1,0 +1,47 @@
+{
+  "schema_version": "v1",
+  "pack_id": "canon.start_sequence.fate_knocks",
+  "quest_id": "0001_KLST",
+  "quest_name": "Fate Knocks",
+  "day_index": 1,
+  "world": {
+    "city": "Azonithia",
+    "street": "Wiltoll Street",
+    "planet_name": "Aeralune",
+    "legacy_planet_name": "Kepler 452B",
+    "month": "Shyalz",
+    "weather": "storm_morning"
+  },
+  "events": [
+    {
+      "event_id": "day1_wakeup",
+      "kind": "wake",
+      "scene_id": "lapidus/player_home",
+      "description": "Player wakes during a stormy morning."
+    },
+    {
+      "event_id": "day1_knock",
+      "kind": "courier_knock",
+      "courier_service": "Royal Courier Service",
+      "description": "Knock at door on Wiltoll Street residence."
+    },
+    {
+      "event_id": "day1_letter",
+      "kind": "letter_delivery",
+      "sender_character_id": "0000_0451",
+      "sender_name": "Alexandria Hypatia",
+      "contains_quiz": true,
+      "stipend_notice": true
+    },
+    {
+      "event_id": "day1_report_order",
+      "kind": "deadline_notice",
+      "destination": "Castle Azoth",
+      "deadline_hour_local": 19,
+      "penalty_if_missed": "royal_stipend_revoked",
+      "lottery_selected": true,
+      "apprenticeship_role": "high_alchemist_apprentice"
+    }
+  ]
+}
+

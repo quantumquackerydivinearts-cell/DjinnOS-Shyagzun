@@ -4,6 +4,25 @@
   "plan_id": "full_feature_plan",
   "actions": [
     {
+      "action_id": "bootstrap_fate_knocks",
+      "kind": "quest.fate_knocks.bootstrap",
+      "payload": {
+        "player_name": "Kael",
+        "player_gender": "nonbinary",
+        "month": "Shyalz",
+        "deadline_hour_local": 19,
+        "quiz_points_budget": 28,
+        "quiz_answers": [4, 4, 4, 4, 4, 4, 4]
+      }
+    },
+    {
+      "action_id": "fate_deadline_hour_20",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 20
+      }
+    },
+    {
       "action_id": "level_01",
       "kind": "levels.apply",
       "payload": {

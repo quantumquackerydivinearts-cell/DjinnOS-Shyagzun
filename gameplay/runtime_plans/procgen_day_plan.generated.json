@@ -1,0 +1,131 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "procgen_day_plan",
+  "meta": {
+    "generator": "build_procgen_day_plan.py",
+    "seed": 77,
+    "days": 1,
+    "ticks_per_day": 24,
+    "quest_actions_file": "gameplay\\runtime_plans\\quest_actions_fate_knocks_day1.json",
+    "quest_position": "after_days",
+    "quests_hand_coded": true,
+    "days_procedural": true
+  },
+  "actions": [
+    {
+      "action_id": "seed_byte_table",
+      "kind": "content.pack.load_byte_table",
+      "payload": {}
+    },
+    {
+      "action_id": "seed_canon_pack",
+      "kind": "content.pack.load_canon",
+      "payload": {
+        "apply_to_db": true
+      }
+    },
+    {
+      "action_id": "day_01_stream_status_open",
+      "kind": "world.stream.status",
+      "payload": {}
+    },
+    {
+      "action_id": "day_01_dawn_tick",
+      "kind": "render.scene.tick",
+      "payload": {
+        "dt": 5,
+        "updates": [],
+        "enqueue_pygame": false,
+        "phase": "dawn",
+        "day_index": 1
+      }
+    },
+    {
+      "action_id": "day_01_day_tick",
+      "kind": "render.scene.tick",
+      "payload": {
+        "dt": 10,
+        "updates": [],
+        "enqueue_pygame": false,
+        "phase": "day",
+        "day_index": 1
+      }
+    },
+    {
+      "action_id": "day_01_dusk_tick",
+      "kind": "render.scene.tick",
+      "payload": {
+        "dt": 5,
+        "updates": [],
+        "enqueue_pygame": false,
+        "phase": "dusk",
+        "day_index": 1
+      }
+    },
+    {
+      "action_id": "day_01_night_tick",
+      "kind": "render.scene.tick",
+      "payload": {
+        "dt": 4,
+        "updates": [],
+        "enqueue_pygame": false,
+        "phase": "night",
+        "day_index": 1
+      }
+    },
+    {
+      "action_id": "day_01_markets_close",
+      "kind": "world.markets.list",
+      "payload": {}
+    },
+    {
+      "action_id": "bootstrap_fate_knocks",
+      "kind": "quest.fate_knocks.bootstrap",
+      "payload": {
+        "player_name": "Kael",
+        "player_gender": "nonbinary",
+        "month": "Shyalz",
+        "deadline_hour_local": 19,
+        "quiz_points_budget": 28,
+        "quiz_answers": [
+          4,
+          4,
+          4,
+          4,
+          4,
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "action_id": "hour_08_check",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 8
+      }
+    },
+    {
+      "action_id": "hour_12_check",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 12
+      }
+    },
+    {
+      "action_id": "hour_18_check",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 18
+      }
+    },
+    {
+      "action_id": "hour_20_check",
+      "kind": "quest.fate_knocks.deadline_check",
+      "payload": {
+        "current_hour_local": 20
+      }
+    }
+  ]
+}

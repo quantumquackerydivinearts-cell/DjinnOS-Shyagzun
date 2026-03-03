@@ -1,0 +1,76 @@
+{
+  "id": "determinism_corpus.content_surfaces.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "algorithm": "sha256(canonical_json_sorted_keys)",
+  "cases": [
+    {
+      "id": "canon_manifest",
+      "path": "gameplay/content_packs/canon/manifest.json",
+      "type": "content_pack",
+      "required_fields": [
+        "schema_version",
+        "pack_id",
+        "files"
+      ],
+      "expected_hash": "921c249a4934db6b1ac1524c9b15527ea2f461bdd1b03983b8abb5b79ac80788"
+    },
+    {
+      "id": "canon_characters",
+      "path": "gameplay/content_packs/canon/characters.json",
+      "type": "content_pack",
+      "required_fields": [
+        "characters"
+      ],
+      "expected_hash": "bac55497a2ec9b6669d36ea400328a87bb59c9b111a34046ecb3609cecd5854a"
+    },
+    {
+      "id": "canon_items",
+      "path": "gameplay/content_packs/canon/items.json",
+      "type": "content_pack",
+      "required_fields": [
+        "items"
+      ],
+      "expected_hash": "92336d55162f7be8ed4d3c2f74cf204e0f704f0344c73dab29e2d26976b36667"
+    },
+    {
+      "id": "module_shygazun_interpret",
+      "path": "gameplay/modules/module.shygazun.interpret.json",
+      "type": "language_surface",
+      "required_fields": [
+        "module_id",
+        "purpose",
+        "inputs.payload",
+        "execution.runtime_action_kind",
+        "replay_contract.require_same_hash_on_replay"
+      ],
+      "expected_hash": "4e707eea127b1661515c7a325ec8e611fb85aebc4ac0a62b5c078f96cbc84f4c"
+    },
+    {
+      "id": "module_quest_advance_by_graph",
+      "path": "gameplay/modules/module.quest.advance_by_graph.json",
+      "type": "content_contract",
+      "required_fields": [
+        "module_id",
+        "purpose",
+        "inputs.payload",
+        "execution.runtime_action_kind",
+        "replay_contract.require_same_hash_on_replay"
+      ],
+      "expected_hash": "7b3db17829e3dc5debcaa82ca3b21ce2b0e06228948c1e5ed3eaac31c9ff0f44"
+    },
+    {
+      "id": "module_market_trade_realm_policy",
+      "path": "gameplay/modules/module.market.trade.realm_policy.json",
+      "type": "content_contract",
+      "required_fields": [
+        "module_id",
+        "purpose",
+        "inputs.payload",
+        "execution.runtime_action_kind",
+        "replay_contract.require_same_hash_on_replay"
+      ],
+      "expected_hash": "ce6f6523c63dbdfa493501a2b637eabc0c3638c5554c1fe6a946009c928e0ff4"
+    }
+  ]
+}

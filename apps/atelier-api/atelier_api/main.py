@@ -45,6 +45,7 @@ from .business_schemas import (
     LevelApplyOut,
     SkillTrainInput,
     SkillTrainOut,
+    SkillCatalogOut,
     PerkUnlockInput,
     PerkUnlockOut,
     AlchemyCraftInput,
@@ -84,6 +85,10 @@ from .business_schemas import (
     WorldStreamStatusOut,
     RealmCoinOut,
     RealmMarketOut,
+    Numeral3DInput,
+    Numeral3DOut,
+    FibonacciOrderingInput,
+    FibonacciOrderingOut,
     GateEvaluateInput,
     GateEvaluateOut,
     RuntimeConsumeInput,
@@ -92,6 +97,12 @@ from .business_schemas import (
     RuntimeReplayOut,
     RuntimePlanRunOut,
     RuntimeActionCatalogOut,
+    ModuleCatalogOut,
+    ModuleSpecOut,
+    ModuleValidateInput,
+    ModuleValidateOut,
+    ShygazunInterpretInput,
+    ShygazunInterpretOut,
     ShygazunTranslateInput,
     ShygazunTranslateOut,
     ShygazunCorrectInput,
@@ -1620,6 +1631,17 @@ def train_skill_rule(
     return svc.train_skill(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
 
 
+@app.get("/v1/game/rules/skills/catalog")
+def skill_catalog(
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> SkillCatalogOut:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_skill_catalog()
+
+
 @app.post("/v1/game/rules/perks/unlock")
 def unlock_perk_rule(
     payload: PerkUnlockInput,
@@ -2213,6 +2235,40 @@ def list_breath_ko(
     return svc.list_breath_ko(workspace_id=workspace_id, actor_id=actor_id)
 
 
+@app.post("/v1/game/math/numeral-3d")
+def compute_numeral_3d(
+    payload: Numeral3DInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Numeral3DOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _ = workshop
+    return svc.compute_numeral_3d(
+        payload=payload,
+        actor_id=ctx.actor_id,
+    )
+
+
+@app.post("/v1/game/math/fibonacci-ordering")
+def compute_fibonacci_ordering(
+    payload: FibonacciOrderingInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> FibonacciOrderingOut:
+    _enforce(ctx, "kernel.place")
+    _enforce_role(role, "kernel.place")
+    _ = workshop
+    return svc.compute_fibonacci_ordering(
+        payload=payload,
+        actor_id=ctx.actor_id,
+    )
+
+
 @app.post("/v1/game/vitriol/apply-ruler-influence")
 def apply_vitriol_ruler_influence(
     payload: VitriolApplyRulerInfluenceInput,
@@ -2404,6 +2460,53 @@ def runtime_action_catalog(
     return svc.runtime_action_catalog()
 
 
+@app.get("/v1/game/modules")
+def list_game_modules(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> ModuleCatalogOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    _ = workshop
+    return svc.list_module_specs()
+
+
+@app.get("/v1/game/modules/{module_id}")
+def get_game_module(
+    module_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> ModuleSpecOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    _ = workshop
+    try:
+        return svc.get_module_spec(module_id=module_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/modules/validate")
+def validate_game_module(
+    payload: ModuleValidateInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> ModuleValidateOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    _ = workshop
+    try:
+        return svc.validate_module_spec(payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.post("/v1/game/shygazun/translate")
 def translate_shygazun(
     payload: ShygazunTranslateInput,
@@ -2417,6 +2520,23 @@ def translate_shygazun(
     _ = workshop
     try:
         return svc.translate_shygazun(payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/game/shygazun/interpret")
+def interpret_shygazun(
+    payload: ShygazunInterpretInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> ShygazunInterpretOut:
+    _enforce(ctx, "kernel.observe")
+    _enforce_role(role, "kernel.observe")
+    _ = workshop
+    try:
+        return svc.interpret_shygazun(payload=payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

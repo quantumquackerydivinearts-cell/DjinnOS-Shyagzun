@@ -1,0 +1,22 @@
+{
+  "schema_version": "v1",
+  "pack_id": "canon.bootstrap.sheet_import",
+  "description": "Canonical bootstrap content packs parsed from user-provided spreadsheet (best effort).",
+  "files": [
+    "flags.json",
+    "characters.json",
+    "quests.json",
+    "items.json",
+    "tools.json",
+    "start_sequence.json",
+    "fate_knocks_quiz.json"
+  ],
+  "conventions": {
+    "material_var_prefix": "()",
+    "material_var_mapping": {
+      "item_template": "name after () prefix",
+      "material_var": true,
+      "material_binding": null
+    }
+  }
+}
