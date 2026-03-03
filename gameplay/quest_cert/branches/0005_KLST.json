@@ -1,0 +1,88 @@
+{
+  "id": "quest_branch_contract.0005_KLST.v1",
+  "quest_id": "0005_KLST",
+  "quest_name": "Darker Secrets",
+  "sequence_index": 5,
+  "branches": [
+    {
+      "branch_id": "0005_KLST.main_progress",
+      "branch_type": "main_progress",
+      "preconditions": {
+        "required_flags": [],
+        "required_quest_states": [
+          "0005_KLST:active"
+        ],
+        "min_hour": 0,
+        "max_hour": 23
+      },
+      "action": {
+        "kind": "quest.advance_by_graph",
+        "payload": {
+          "quest_id": "0005_KLST",
+          "from_step_id": "intro",
+          "dry_run": false
+        }
+      },
+      "expected_flags": [
+        "quest.0005_KLST.progress"
+      ],
+      "forbidden_flags": [
+        "quest.0005_KLST.hard_lock"
+      ]
+    },
+    {
+      "branch_id": "0005_KLST.soft_fail",
+      "branch_type": "soft_fail",
+      "preconditions": {
+        "required_flags": [],
+        "required_quest_states": [
+          "0005_KLST:active"
+        ],
+        "min_hour": 0,
+        "max_hour": 23
+      },
+      "action": {
+        "kind": "quest.advance_by_graph",
+        "payload": {
+          "quest_id": "0005_KLST",
+          "from_step_id": "intro",
+          "dry_run": true
+        }
+      },
+      "expected_flags": [
+        "quest.0005_KLST.soft_fail"
+      ],
+      "forbidden_flags": [
+        "quest.0005_KLST.hard_lock"
+      ]
+    },
+    {
+      "branch_id": "0005_KLST.hard_lock",
+      "branch_type": "hard_lock",
+      "preconditions": {
+        "required_flags": [
+          "quest.0005_KLST.revoked"
+        ],
+        "required_quest_states": [
+          "0005_KLST:failed"
+        ],
+        "min_hour": 0,
+        "max_hour": 23
+      },
+      "action": {
+        "kind": "quest.advance_by_graph",
+        "payload": {
+          "quest_id": "0005_KLST",
+          "from_step_id": "locked",
+          "dry_run": false
+        }
+      },
+      "expected_flags": [
+        "quest.0005_KLST.hard_lock"
+      ],
+      "forbidden_flags": [
+        "quest.0005_KLST.progress"
+      ]
+    }
+  ]
+}

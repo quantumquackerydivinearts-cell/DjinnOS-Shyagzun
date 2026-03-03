@@ -1,0 +1,24 @@
+{
+  "id": "quest_branch_contract.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "description": "Tier-1 branch contract schema for quest progression/failure/lock conditions.",
+  "required_fields": [
+    "quest_id",
+    "quest_name",
+    "branches"
+  ],
+  "branch_required_fields": [
+    "branch_id",
+    "branch_type",
+    "preconditions",
+    "action",
+    "expected_flags",
+    "forbidden_flags"
+  ],
+  "branch_types": [
+    "main_progress",
+    "soft_fail",
+    "hard_lock"
+  ]
+}

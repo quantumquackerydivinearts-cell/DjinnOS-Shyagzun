@@ -185,6 +185,10 @@ def main() -> int:
         ok, output = _run_command([sys.executable, "scripts/validate_quest_cert.py"], cwd=ROOT)
         add_check("quest_cert_validation", ok, {"output_tail": output[-1000:]})
 
+    if bool(commands.get("quest_branch_validation", True)):
+        ok, output = _run_command([sys.executable, "scripts/validate_quest_branches.py"], cwd=ROOT)
+        add_check("quest_branch_validation", ok, {"output_tail": output[-1000:]})
+
     if bool(commands.get("determinism_check", True)):
         ok, output = _run_command([sys.executable, "scripts/verify_determinism.py", "--all-corpora"], cwd=ROOT)
         add_check("determinism_replay_contract", ok, {"output_tail": output[-1000:]})

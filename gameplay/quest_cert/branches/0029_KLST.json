@@ -1,0 +1,88 @@
+{
+  "id": "quest_branch_contract.0029_KLST.v1",
+  "quest_id": "0029_KLST",
+  "quest_name": "Doom and Gloom",
+  "sequence_index": 28,
+  "branches": [
+    {
+      "branch_id": "0029_KLST.main_progress",
+      "branch_type": "main_progress",
+      "preconditions": {
+        "required_flags": [],
+        "required_quest_states": [
+          "0029_KLST:active"
+        ],
+        "min_hour": 0,
+        "max_hour": 23
+      },
+      "action": {
+        "kind": "quest.advance_by_graph",
+        "payload": {
+          "quest_id": "0029_KLST",
+          "from_step_id": "intro",
+          "dry_run": false
+        }
+      },
+      "expected_flags": [
+        "quest.0029_KLST.progress"
+      ],
+      "forbidden_flags": [
+        "quest.0029_KLST.hard_lock"
+      ]
+    },
+    {
+      "branch_id": "0029_KLST.soft_fail",
+      "branch_type": "soft_fail",
+      "preconditions": {
+        "required_flags": [],
+        "required_quest_states": [
+          "0029_KLST:active"
+        ],
+        "min_hour": 0,
+        "max_hour": 23
+      },
+      "action": {
+        "kind": "quest.advance_by_graph",
+        "payload": {
+          "quest_id": "0029_KLST",
+          "from_step_id": "intro",
+          "dry_run": true
+        }
+      },
+      "expected_flags": [
+        "quest.0029_KLST.soft_fail"
+      ],
+      "forbidden_flags": [
+        "quest.0029_KLST.hard_lock"
+      ]
+    },
+    {
+      "branch_id": "0029_KLST.hard_lock",
+      "branch_type": "hard_lock",
+      "preconditions": {
+        "required_flags": [
+          "quest.0029_KLST.revoked"
+        ],
+        "required_quest_states": [
+          "0029_KLST:failed"
+        ],
+        "min_hour": 0,
+        "max_hour": 23
+      },
+      "action": {
+        "kind": "quest.advance_by_graph",
+        "payload": {
+          "quest_id": "0029_KLST",
+          "from_step_id": "locked",
+          "dry_run": false
+        }
+      },
+      "expected_flags": [
+        "quest.0029_KLST.hard_lock"
+      ],
+      "forbidden_flags": [
+        "quest.0029_KLST.progress"
+      ]
+    }
+  ]
+}

@@ -25,6 +25,7 @@
     "content_pack_validation": true,
     "python_compile": true,
     "determinism_check": true,
-    "quest_cert_validation": true
+    "quest_cert_validation": true,
+    "quest_branch_validation": true
   }
 }

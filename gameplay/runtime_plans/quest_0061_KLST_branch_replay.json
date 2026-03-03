@@ -1,0 +1,32 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "quest_0061_klst_branch_replay",
+  "actions": [
+    {
+      "action_id": "seed_canon_pack",
+      "kind": "content.pack.load_canon",
+      "payload": {
+        "apply_to_db": true
+      }
+    },
+    {
+      "action_id": "main_progress",
+      "kind": "quest.advance_by_graph",
+      "payload": {
+        "quest_id": "0061_KLST",
+        "from_step_id": "intro",
+        "dry_run": false
+      }
+    },
+    {
+      "action_id": "soft_fail_probe",
+      "kind": "quest.advance_by_graph",
+      "payload": {
+        "quest_id": "0061_KLST",
+        "from_step_id": "intro",
+        "dry_run": true
+      }
+    }
+  ]
+}

@@ -95,6 +95,32 @@
         "tiers.tier3_campaign_replay.status"
       ],
       "expected_hash": "cf0d09ad25e3224cc3d8723098848db8fadb87ea015c03e770e90832d3b698d9"
+    },
+    {
+      "id": "quest_branch_contract_schema",
+      "path": "gameplay/contracts/quest_branch_contract.v1.json",
+      "type": "quest_branch_contract",
+      "required_fields": [
+        "id",
+        "version",
+        "required_fields",
+        "branch_required_fields",
+        "branch_types"
+      ],
+      "expected_hash": "c627c9631ed6f43317b8b7b81b938e78eaa2d0e32ede050ea15e03d4339ed0aa"
+    },
+    {
+      "id": "quest_branch_contract_first",
+      "path": "gameplay/quest_cert/branches/0001_KLST.json",
+      "type": "quest_branch_contract",
+      "required_fields": [
+        "quest_id",
+        "quest_name",
+        "branches",
+        "branches.0.branch_id",
+        "branches.0.branch_type"
+      ],
+      "expected_hash": "2f3389f56f852f9adeec81adf6b8aa8858dcb38d860a3184b8d2f78d716be6d6"
     }
   ]
 }
