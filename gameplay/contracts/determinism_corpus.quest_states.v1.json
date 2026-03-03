@@ -1645,6 +1645,45 @@
         "actions.1.kind"
       ],
       "expected_hash": "40ea0ee5399fef38ae54a90423fc2d28b18f400fa8635d025d6bcb80272d6711"
+    },
+    {
+      "id": "campaign_replay_balanced_path",
+      "path": "gameplay/runtime_plans/campaign_replay_balanced_path.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.1.kind"
+      ],
+      "expected_hash": "2fe7b60e050ec098b5635247ff1d8e0febfeb7aa1394fefe846eed12226a8cf4"
+    },
+    {
+      "id": "campaign_replay_soft_fail_recovery",
+      "path": "gameplay/runtime_plans/campaign_replay_soft_fail_recovery.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.1.kind"
+      ],
+      "expected_hash": "87cd5ee10099eafc721b5f0f12fd6c746a522b13279ffdc8af76b6c6e188f577"
+    },
+    {
+      "id": "campaign_replay_high_chaos_path",
+      "path": "gameplay/runtime_plans/campaign_replay_high_chaos_path.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.1.kind"
+      ],
+      "expected_hash": "6f97173c35e107bca8a3ba9e44b7f2ab666a845b18fa79197ddcc4aaab81f376"
     }
   ]
 }

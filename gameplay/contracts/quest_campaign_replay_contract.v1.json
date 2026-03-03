@@ -1,0 +1,24 @@
+{
+  "id": "quest_campaign_replay_contract.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "description": "Tier-3 campaign replay contract for representative full-run traces.",
+  "required_fields": [
+    "replay_id",
+    "archetype",
+    "quest_path",
+    "entry_conditions",
+    "expected_outcomes"
+  ],
+  "allowed_archetypes": [
+    "balanced_path",
+    "soft_fail_recovery",
+    "high_chaos_path"
+  ],
+  "required_expected_outcomes": [
+    "terminal_state",
+    "quest_flags",
+    "market_state",
+    "chaos_order_state"
+  ]
+}

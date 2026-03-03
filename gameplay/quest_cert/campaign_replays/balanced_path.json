@@ -1,0 +1,26 @@
+{
+  "id": "campaign_replay.balanced_path.v1",
+  "replay_id": "balanced_path",
+  "archetype": "balanced_path",
+  "quest_path": [
+    "0001_KLST",
+    "0002_KLST",
+    "0003_KLST",
+    "0010_KLST",
+    "0020_KLST",
+    "0030_KLST"
+  ],
+  "entry_conditions": {
+    "workspace_id": "main",
+    "actor_id": "player",
+    "seed_canon_pack": true
+  },
+  "expected_outcomes": {
+    "terminal_state": "open_world",
+    "quest_flags": [
+      "campaign.balanced_path.completed"
+    ],
+    "market_state": "stable",
+    "chaos_order_state": "tracked"
+  }
+}

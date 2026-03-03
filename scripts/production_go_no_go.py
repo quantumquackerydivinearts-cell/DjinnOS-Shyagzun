@@ -193,6 +193,10 @@ def main() -> int:
         ok, output = _run_command([sys.executable, "scripts/validate_quest_invariants.py"], cwd=ROOT)
         add_check("quest_invariant_validation", ok, {"output_tail": output[-1000:]})
 
+    if bool(commands.get("campaign_replay_validation", True)):
+        ok, output = _run_command([sys.executable, "scripts/validate_campaign_replays.py"], cwd=ROOT)
+        add_check("campaign_replay_validation", ok, {"output_tail": output[-1000:]})
+
     if bool(commands.get("determinism_check", True)):
         ok, output = _run_command([sys.executable, "scripts/verify_determinism.py", "--all-corpora"], cwd=ROOT)
         add_check("determinism_replay_contract", ok, {"output_tail": output[-1000:]})

@@ -1,0 +1,77 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "campaign_replay_soft_fail_recovery",
+  "actions": [
+    {
+      "action_id": "seed_canon_pack",
+      "kind": "content.pack.load_canon",
+      "payload": {
+        "apply_to_db": true
+      }
+    },
+    {
+      "action_id": "advance_01_0001_klst",
+      "kind": "quest.advance_by_graph",
+      "payload": {
+        "quest_id": "0001_KLST",
+        "from_step_id": "intro",
+        "dry_run": false
+      }
+    },
+    {
+      "action_id": "advance_02_0006_klst",
+      "kind": "quest.advance_by_graph",
+      "payload": {
+        "quest_id": "0006_KLST",
+        "from_step_id": "intro",
+        "dry_run": false
+      }
+    },
+    {
+      "action_id": "advance_03_0011_klst",
+      "kind": "quest.advance_by_graph",
+      "payload": {
+        "quest_id": "0011_KLST",
+        "from_step_id": "intro",
+        "dry_run": false
+      }
+    },
+    {
+      "action_id": "advance_04_0018_klst",
+      "kind": "quest.advance_by_graph",
+      "payload": {
+        "quest_id": "0018_KLST",
+        "from_step_id": "intro",
+        "dry_run": false
+      }
+    },
+    {
+      "action_id": "advance_05_0035_klst",
+      "kind": "quest.advance_by_graph",
+      "payload": {
+        "quest_id": "0035_KLST",
+        "from_step_id": "intro",
+        "dry_run": false
+      }
+    },
+    {
+      "action_id": "advance_06_0050_klst",
+      "kind": "quest.advance_by_graph",
+      "payload": {
+        "quest_id": "0050_KLST",
+        "from_step_id": "intro",
+        "dry_run": false
+      }
+    },
+    {
+      "action_id": "campaign_finalize",
+      "kind": "module.run",
+      "payload": {
+        "module_id": "module.quest.advance_by_graph",
+        "mode": "campaign_finalize",
+        "archetype": "soft_fail_recovery"
+      }
+    }
+  ]
+}

@@ -23,7 +23,7 @@
       "name": "runtime_plan_budget",
       "ok": true,
       "detail": {
-        "plan_count": 137,
+        "plan_count": 140,
         "max_actions": 32,
         "max_actions_plan": "gameplay\\runtime_plans\\day_scene_plan.main.generated.json",
         "budget": {
@@ -75,10 +75,17 @@
       }
     },
     {
+      "name": "campaign_replay_validation",
+      "ok": true,
+      "detail": {
+        "output_tail": "campaign_replay_validation_ok:3"
+      }
+    },
+    {
       "name": "determinism_replay_contract",
       "ok": true,
       "detail": {
-        "output_tail": "determinism: PASS (5 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.v1.json]\ndeterminism: PASS (12 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.content_surfaces.v1.json]\ndeterminism: PASS (127 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.quest_states.v1.json]\ndeterminism: PASS (2 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.render_payloads.v1.json]\ndeterminism: PASS (5 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.runtime_plans.v1.json]\ndeterminism: PASS TOTAL (151 cases across 5 corpus files)"
+        "output_tail": "determinism: PASS (5 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.v1.json]\ndeterminism: PASS (16 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.content_surfaces.v1.json]\ndeterminism: PASS (130 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.quest_states.v1.json]\ndeterminism: PASS (2 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.render_payloads.v1.json]\ndeterminism: PASS (5 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.runtime_plans.v1.json]\ndeterminism: PASS TOTAL (158 cases across 5 corpus files)"
       }
     },
     {
@@ -91,7 +98,7 @@
     }
   ],
   "summary": {
-    "check_count": 10,
+    "check_count": 11,
     "failed_count": 0,
     "go": true
   }

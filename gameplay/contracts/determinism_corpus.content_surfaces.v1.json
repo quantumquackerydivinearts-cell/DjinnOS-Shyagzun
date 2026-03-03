@@ -146,6 +146,55 @@
         "invariants.0.invariant_id"
       ],
       "expected_hash": "f82065f2d5855866811fafe364e6b4a28377dec408e06723686d279eb8221e26"
+    },
+    {
+      "id": "quest_campaign_replay_contract_schema",
+      "path": "gameplay/contracts/quest_campaign_replay_contract.v1.json",
+      "type": "quest_campaign_replay_contract",
+      "required_fields": [
+        "id",
+        "version",
+        "required_fields",
+        "allowed_archetypes",
+        "required_expected_outcomes"
+      ],
+      "expected_hash": "767d26d0a97b59b40e25a64d26b0abade2cc8bfa346bbb92e35d1b5b797448d8"
+    },
+    {
+      "id": "quest_campaign_replay_balanced",
+      "path": "gameplay/quest_cert/campaign_replays/balanced_path.json",
+      "type": "quest_campaign_replay",
+      "required_fields": [
+        "replay_id",
+        "archetype",
+        "quest_path",
+        "expected_outcomes.terminal_state"
+      ],
+      "expected_hash": "34fce64dda3c6847520e0fa0d9f0ea2492c3fe8a837b23daa90eb262b0f0bcc3"
+    },
+    {
+      "id": "quest_campaign_replay_soft_fail",
+      "path": "gameplay/quest_cert/campaign_replays/soft_fail_recovery.json",
+      "type": "quest_campaign_replay",
+      "required_fields": [
+        "replay_id",
+        "archetype",
+        "quest_path",
+        "expected_outcomes.terminal_state"
+      ],
+      "expected_hash": "1485489b3fc377b4e9dc93317aff00d63f83e807179e934ca69bfe49db590c1d"
+    },
+    {
+      "id": "quest_campaign_replay_high_chaos",
+      "path": "gameplay/quest_cert/campaign_replays/high_chaos_path.json",
+      "type": "quest_campaign_replay",
+      "required_fields": [
+        "replay_id",
+        "archetype",
+        "quest_path",
+        "expected_outcomes.terminal_state"
+      ],
+      "expected_hash": "c035f870846502c453f9c68edf307983e4cd5aff7b5348471760b75f5ff6f219"
     }
   ]
 }

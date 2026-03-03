@@ -1,0 +1,26 @@
+{
+  "id": "campaign_replay.high_chaos_path.v1",
+  "replay_id": "high_chaos_path",
+  "archetype": "high_chaos_path",
+  "quest_path": [
+    "0001_KLST",
+    "0015_KLST",
+    "0025_KLST",
+    "0038_KLST",
+    "0047_KLST",
+    "0061_KLST"
+  ],
+  "entry_conditions": {
+    "workspace_id": "main",
+    "actor_id": "player",
+    "seed_canon_pack": true
+  },
+  "expected_outcomes": {
+    "terminal_state": "open_world",
+    "quest_flags": [
+      "campaign.high_chaos_path.completed"
+    ],
+    "market_state": "stable",
+    "chaos_order_state": "tracked"
+  }
+}
