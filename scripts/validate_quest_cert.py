@@ -80,6 +80,29 @@ def main() -> int:
                 if tier not in tiers:
                     errors.append(f"stub:{qid}:missing_{tier}")
 
+            tier0 = tiers.get("tier0_schema_determinism", {}) if isinstance(tiers, dict) else {}
+            if not isinstance(tier0, dict):
+                errors.append(f"stub:{qid}:tier0_not_object")
+                continue
+            det_cases = tier0.get("determinism_cases", [])
+            if not isinstance(det_cases, list) or not det_cases:
+                errors.append(f"stub:{qid}:tier0_missing_determinism_cases")
+                continue
+            for i, case in enumerate(det_cases):
+                if not isinstance(case, dict):
+                    errors.append(f"stub:{qid}:tier0_case_{i}_not_object")
+                    continue
+                case_id = str(case.get("case_id", "")).strip()
+                plan_path = str(case.get("plan_path", "")).strip()
+                if not case_id:
+                    errors.append(f"stub:{qid}:tier0_case_{i}_missing_case_id")
+                if not plan_path:
+                    errors.append(f"stub:{qid}:tier0_case_{i}_missing_plan_path")
+                    continue
+                resolved = ROOT / plan_path
+                if not resolved.exists():
+                    errors.append(f"stub:{qid}:tier0_case_{i}_missing_plan_file:{plan_path}")
+
     if errors:
         print("quest_cert_validation_failed")
         for item in errors:

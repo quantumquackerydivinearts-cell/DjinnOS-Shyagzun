@@ -46,6 +46,799 @@
         "questions"
       ],
       "expected_hash": "365898e6eb2b2b6fd2c5fe4ac5cf0cb25c039b56dc4a97b75c0b8c210bac9071"
+    },
+    {
+      "id": "quest_bootstrap_0001_klst",
+      "path": "gameplay/runtime_plans/quest_0001_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "f77104bb5379d0ed76b4705929293d03c137957998c3ebbad2bfea154bddedb8"
+    },
+    {
+      "id": "quest_bootstrap_0002_klst",
+      "path": "gameplay/runtime_plans/quest_0002_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "909acb84e4a5a4733bdd0af6cef8f96e734d4547f9f2a972305e2b696204078c"
+    },
+    {
+      "id": "quest_bootstrap_0003_klst",
+      "path": "gameplay/runtime_plans/quest_0003_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "a82d647d1a60b65baabd6eac1d60f7dbeadf1ce9d933c73aa55e0c2437056ec3"
+    },
+    {
+      "id": "quest_bootstrap_0004_klst",
+      "path": "gameplay/runtime_plans/quest_0004_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "2b60242bd1b28c0c62285d913e1185811cf918f6b6130572dedbb2156bacf4a5"
+    },
+    {
+      "id": "quest_bootstrap_0005_klst",
+      "path": "gameplay/runtime_plans/quest_0005_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "0dee53bf13b204b6ad8b5aad1f9fdecd7c17559d9b19636c12969afad5922f87"
+    },
+    {
+      "id": "quest_bootstrap_0006_klst",
+      "path": "gameplay/runtime_plans/quest_0006_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "2e8c492f67243a07b8efed2dc6b31b9bf81f00bf8ba7d5a5ece9d7668926dfa6"
+    },
+    {
+      "id": "quest_bootstrap_0008_klst",
+      "path": "gameplay/runtime_plans/quest_0008_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "09361a5a25e647f425ebdae0087aff3a4f9beaa8a8de1fde9b1725174dd6b8b2"
+    },
+    {
+      "id": "quest_bootstrap_0009_klst",
+      "path": "gameplay/runtime_plans/quest_0009_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "8903d51808b32078dfc4d881afb393fcf69326145e902ec53a89671c787314e6"
+    },
+    {
+      "id": "quest_bootstrap_0010_klst",
+      "path": "gameplay/runtime_plans/quest_0010_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "e15449892edf813cf5ed7301edf0c4f54f78f5d6ba9e8ba0133c858ba684126e"
+    },
+    {
+      "id": "quest_bootstrap_0011_klst",
+      "path": "gameplay/runtime_plans/quest_0011_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "1f79c4569a1d8526760395edfcfe0d316ccd44b93aea27af5533c554cc2c32c5"
+    },
+    {
+      "id": "quest_bootstrap_0012_klst",
+      "path": "gameplay/runtime_plans/quest_0012_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "89b1fa1669347f32c0e837d17ef437b85ab3ac149e874870f070607ad1281975"
+    },
+    {
+      "id": "quest_bootstrap_0013_klst",
+      "path": "gameplay/runtime_plans/quest_0013_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "0d11a44973dabc8edb37515334ec6018865e47525443467d8bbd38193ee6918d"
+    },
+    {
+      "id": "quest_bootstrap_0014_klst",
+      "path": "gameplay/runtime_plans/quest_0014_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "94c56f0d18110992feb3a83093b796f2f4b305fdfc1f1b2fb2e6e5db81a1e8f8"
+    },
+    {
+      "id": "quest_bootstrap_0015_klst",
+      "path": "gameplay/runtime_plans/quest_0015_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "7f6eb232c4aab9bf82511201730865707e38fa8df1296019563cf533b13c52fe"
+    },
+    {
+      "id": "quest_bootstrap_0016_klst",
+      "path": "gameplay/runtime_plans/quest_0016_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "4e2eaf84b8f543a99fbab11350556cfcd1112551bcabee751dacad32c1be3e4b"
+    },
+    {
+      "id": "quest_bootstrap_0017_klst",
+      "path": "gameplay/runtime_plans/quest_0017_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "ac1c50294df720a85555882b16ab0826e8519f8b0d759fd409d497e71f624219"
+    },
+    {
+      "id": "quest_bootstrap_0018_klst",
+      "path": "gameplay/runtime_plans/quest_0018_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "edaa8e46a898d29492e4d862d18fea330b65c2ddf547b588508db09f389d48db"
+    },
+    {
+      "id": "quest_bootstrap_0019_klst",
+      "path": "gameplay/runtime_plans/quest_0019_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "785a58f3e5aeaafea9a25e5d712f8cf827a01d56d44423c7b86b19455a09c181"
+    },
+    {
+      "id": "quest_bootstrap_0020_klst",
+      "path": "gameplay/runtime_plans/quest_0020_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "97dd34368b7e1939b3d579e1b453a429b3669c1671a032e986be343737f41acb"
+    },
+    {
+      "id": "quest_bootstrap_0021_klst",
+      "path": "gameplay/runtime_plans/quest_0021_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "d8c44e2ee113bedfa739894f6ecfa37ff25d222dfb4d48a41768d5ae395e9745"
+    },
+    {
+      "id": "quest_bootstrap_0022_klst",
+      "path": "gameplay/runtime_plans/quest_0022_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "1d6485fc5da174e90151909a8d1afd9d9a865ebefc8120055aa6fc7a768296ed"
+    },
+    {
+      "id": "quest_bootstrap_0023_klst",
+      "path": "gameplay/runtime_plans/quest_0023_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "6eb24371279a501f074499049b65dbec564c03129a88fbef1c7030a9b94add2d"
+    },
+    {
+      "id": "quest_bootstrap_0024_klst",
+      "path": "gameplay/runtime_plans/quest_0024_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "a96d9e280613a248453e3b819159ac04b8a80fca2000a652d5dc39e0c8ab18de"
+    },
+    {
+      "id": "quest_bootstrap_0025_klst",
+      "path": "gameplay/runtime_plans/quest_0025_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "5d3b3eb238fff7608548698d77aff35961464c390da73b37dd2fb2b9788d417d"
+    },
+    {
+      "id": "quest_bootstrap_0026_klst",
+      "path": "gameplay/runtime_plans/quest_0026_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "e6d2767cfb2553784f694bf1bdb99ee73d4611fcfe4faa1eeb0c028e7d346680"
+    },
+    {
+      "id": "quest_bootstrap_0027_klst",
+      "path": "gameplay/runtime_plans/quest_0027_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "63d14c21fcef44601873c93ae2a9a78bafe5adaf0d197314202a6891c82f77f9"
+    },
+    {
+      "id": "quest_bootstrap_0028_klst",
+      "path": "gameplay/runtime_plans/quest_0028_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "1c9a36f078c25be94ee74d9cc4e265c218b6468b97408aeb4a1cda59ce0c7729"
+    },
+    {
+      "id": "quest_bootstrap_0029_klst",
+      "path": "gameplay/runtime_plans/quest_0029_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "86fa10eaf16f0b0549f730e1f69f2644066912a257ef43dc570ca23ed466caa9"
+    },
+    {
+      "id": "quest_bootstrap_0030_klst",
+      "path": "gameplay/runtime_plans/quest_0030_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "97a01ebc89e5f911b3cf470f1b38accfedfcdb150ddd29afafcb24df9eaebf0e"
+    },
+    {
+      "id": "quest_bootstrap_0031_klst",
+      "path": "gameplay/runtime_plans/quest_0031_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "c1a378c50c49b0a8989d7a51bab344040575bb5f5634bb7919fd4e13212cd0e1"
+    },
+    {
+      "id": "quest_bootstrap_0032_klst",
+      "path": "gameplay/runtime_plans/quest_0032_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "9586e80ed3723308fc4317f7f5730d64286856ac80b7d989f99876bf4dfd2117"
+    },
+    {
+      "id": "quest_bootstrap_0033_klst",
+      "path": "gameplay/runtime_plans/quest_0033_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "367472760732fec347393810f81adebd8790bc49175fa959f8124edf7ab06dcb"
+    },
+    {
+      "id": "quest_bootstrap_0034_klst",
+      "path": "gameplay/runtime_plans/quest_0034_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "561d6515e289f31865bb88d57dbf7e81ccee9db9e8eb1dabf7d0a50f89f9d6af"
+    },
+    {
+      "id": "quest_bootstrap_0035_klst",
+      "path": "gameplay/runtime_plans/quest_0035_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "cabbe7992fe78742489ac9c7777fc56cba88533d32fe66c76eecaa2eeb97b4e2"
+    },
+    {
+      "id": "quest_bootstrap_0036_klst",
+      "path": "gameplay/runtime_plans/quest_0036_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "c022dc0e3bf98c6cef2bd9e7ed04a7f2d74ad83638e943d86cfe2c56bbac5c4c"
+    },
+    {
+      "id": "quest_bootstrap_0037_klst",
+      "path": "gameplay/runtime_plans/quest_0037_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "a837318f63051a5687171fa89a604f3841d783d4c5b3e70d66b3abb5a8095d5e"
+    },
+    {
+      "id": "quest_bootstrap_0038_klst",
+      "path": "gameplay/runtime_plans/quest_0038_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "4c05c754193889e8e7c2269c3021b0b795ff2f80852decacc1f9ccdb5b225c08"
+    },
+    {
+      "id": "quest_bootstrap_0039_klst",
+      "path": "gameplay/runtime_plans/quest_0039_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "fef50842cf68573886187e49a9fc60178424ab870f4f62ea462df6ca39448e53"
+    },
+    {
+      "id": "quest_bootstrap_0040_klst",
+      "path": "gameplay/runtime_plans/quest_0040_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "6add734892838ad765ffd297eafffb72cb2d2cc1184b39241a1d8ae3c9cc560a"
+    },
+    {
+      "id": "quest_bootstrap_0041_klst",
+      "path": "gameplay/runtime_plans/quest_0041_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "e89781cadd39621d43da95d4b223ee0c30c054729653f16abf20e622c199d2a0"
+    },
+    {
+      "id": "quest_bootstrap_0042_klst",
+      "path": "gameplay/runtime_plans/quest_0042_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "bd94f9b9794cdbaf9265a395dc53887a203639edf1996594b9da201351489e3c"
+    },
+    {
+      "id": "quest_bootstrap_0043_klst",
+      "path": "gameplay/runtime_plans/quest_0043_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "679300a3ee9623f16a25972795c7f47ef8b3662f98ab91483ce31844105a0d98"
+    },
+    {
+      "id": "quest_bootstrap_0044_klst",
+      "path": "gameplay/runtime_plans/quest_0044_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "0fd43973342c38e405905b957f7ddc17f7f92894e298f18a76a8cb2edcd37cf9"
+    },
+    {
+      "id": "quest_bootstrap_0045_klst",
+      "path": "gameplay/runtime_plans/quest_0045_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "50d2cb6de1ec952ded0da65880fdf6242f8071555d8782c7ca0b4b431303fab4"
+    },
+    {
+      "id": "quest_bootstrap_0046_klst",
+      "path": "gameplay/runtime_plans/quest_0046_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "0cb28d2f6b21f9f0d43c2a5088b196590cbf8623c0fa57d61f60e06defaefcc5"
+    },
+    {
+      "id": "quest_bootstrap_0047_klst",
+      "path": "gameplay/runtime_plans/quest_0047_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "c077395f87383af1deaec1d1df76edcb6bec88e81f1f79f2a10a975e957a37d0"
+    },
+    {
+      "id": "quest_bootstrap_0048_klst",
+      "path": "gameplay/runtime_plans/quest_0048_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "84332b53847c22479cb534a81f6920893cbcbdc40a9a2fc3616f8e2b038196d3"
+    },
+    {
+      "id": "quest_bootstrap_0049_klst",
+      "path": "gameplay/runtime_plans/quest_0049_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "e4100efe6c9e8b5abbf4bef765f88727b1452577170b4f59dabb1bdfb266ee94"
+    },
+    {
+      "id": "quest_bootstrap_0050_klst",
+      "path": "gameplay/runtime_plans/quest_0050_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "7e2358971303d2bea31837373a8fc258878f659b65cc109b8a13d94da6331e9c"
+    },
+    {
+      "id": "quest_bootstrap_0051_klst",
+      "path": "gameplay/runtime_plans/quest_0051_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "d3106e1a1a7723093217138fb51bed41f44acf171b81a1f6b270a60ff6fc8b96"
+    },
+    {
+      "id": "quest_bootstrap_0052_klst",
+      "path": "gameplay/runtime_plans/quest_0052_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "2e359379fb45dd438a74ffd14a96d8736ea5c3ac39e8e956ee09b1927f21b49e"
+    },
+    {
+      "id": "quest_bootstrap_0053_klst",
+      "path": "gameplay/runtime_plans/quest_0053_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "81785f41c4bad314138329e8f0330ffc5b5e3c6b491178136d18c3b3ee8185e0"
+    },
+    {
+      "id": "quest_bootstrap_0054_klst",
+      "path": "gameplay/runtime_plans/quest_0054_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "622e5c3ed6e2a97ef38be8858616c8212380de9c060798a62b13ded281ced8eb"
+    },
+    {
+      "id": "quest_bootstrap_0055_klst",
+      "path": "gameplay/runtime_plans/quest_0055_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "061af8c6b565b79d2a307ca9e2ed041043fdca316b8d6d4853a18dbf50d128f1"
+    },
+    {
+      "id": "quest_bootstrap_0056_klst",
+      "path": "gameplay/runtime_plans/quest_0056_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "564a5d23e0828bccd7145afc5854e9ba63194b905883b93fedc358f235711896"
+    },
+    {
+      "id": "quest_bootstrap_0057_klst",
+      "path": "gameplay/runtime_plans/quest_0057_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "545871b6050e37b0e500bd5971fe42d5036dceff43c3927f3027a115fea13423"
+    },
+    {
+      "id": "quest_bootstrap_0058_klst",
+      "path": "gameplay/runtime_plans/quest_0058_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "5d7dde9c4170e39d73cfd84c93a906df3135e4acdf559f79333b1e93176ada74"
+    },
+    {
+      "id": "quest_bootstrap_0059_klst",
+      "path": "gameplay/runtime_plans/quest_0059_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "a236da18172d616e7e13da3aa4985bee9ec5bd998bdfe204d7037ce175b2118f"
+    },
+    {
+      "id": "quest_bootstrap_0060_klst",
+      "path": "gameplay/runtime_plans/quest_0060_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "e1efafba4b32177e958ef48091f6294bd5c5268ceb44daa7496c528a2553e3ee"
+    },
+    {
+      "id": "quest_bootstrap_0061_klst",
+      "path": "gameplay/runtime_plans/quest_0061_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "c15b698b9583753376d625048448622d0202c9fb4c775f0ecec0e140651710ef"
+    },
+    {
+      "id": "quest_bootstrap_0007_klst",
+      "path": "gameplay/runtime_plans/quest_0007_KLST_bootstrap.json",
+      "type": "quest_runtime_plan",
+      "required_fields": [
+        "workspace_id",
+        "actor_id",
+        "plan_id",
+        "actions",
+        "actions.0.kind"
+      ],
+      "expected_hash": "e1fc519e80da63ce27ba655cc16b8cdb38e8092624649dfd294b654287124931"
     }
   ]
 }

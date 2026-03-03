@@ -5,8 +5,20 @@
   "sequence_index": 28,
   "tiers": {
     "tier0_schema_determinism": {
-      "status": "planned",
-      "determinism_cases": [],
+      "status": "scaffolded",
+      "determinism_cases": [
+        {
+          "case_id": "quest_bootstrap_0029_klst",
+          "plan_path": "gameplay/runtime_plans/quest_0029_KLST_bootstrap.json",
+          "required_fields": [
+            "workspace_id",
+            "actor_id",
+            "plan_id",
+            "actions",
+            "actions.0.kind"
+          ]
+        }
+      ],
       "required_fields": [
         "quest_id",
         "quest_name"

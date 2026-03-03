@@ -1,0 +1,29 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "quest_0010_klst_bootstrap",
+  "actions": [
+    {
+      "action_id": "seed_byte_table",
+      "kind": "content.pack.load_byte_table",
+      "payload": {}
+    },
+    {
+      "action_id": "seed_canon_pack",
+      "kind": "content.pack.load_canon",
+      "payload": {
+        "apply_to_db": true
+      }
+    },
+    {
+      "action_id": "quest_bootstrap",
+      "kind": "module.run",
+      "payload": {
+        "module_id": "module.quest.advance_by_graph",
+        "quest_id": "0010_KLST",
+        "quest_name": "Perfect Circles",
+        "sequence_index": 9
+      }
+    }
+  ]
+}
