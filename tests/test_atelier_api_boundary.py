@@ -3091,6 +3091,8 @@ def test_game_runtime_consume_supports_renderer_scene_lifecycle_actions() -> Non
                 "kind": "render.scene.tick",
                 "payload": {
                     "dt": 3,
+                    "scene_id": "lapidus/player_home",
+                    "clock_advance": 3,
                     "updates": [
                         {"scene_id": "lapidus/player_home", "entity_id": "desk", "x": 5, "y": 3},
                     ],
@@ -3130,6 +3132,66 @@ def test_game_runtime_consume_supports_renderer_scene_lifecycle_actions() -> Non
     assert results["reconcile_scene"]["result"]["renderer_state"]["entity_count"] == 1
     assert results["unload_scene"]["result"]["unloaded"] is True
     assert results["unload_scene"]["result"]["renderer_state"]["entity_count"] == 0
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_consume_enforces_scene_clock_mutation_policy() -> None:
+    fake = FakeKernelClient()
+    kernel = KernelIntegrationService(fake)
+    app.dependency_overrides[_kernel_only_service] = lambda: AtelierService(
+        repo=None,
+        kernel=kernel,
+        world_stream=WorldStreamController(max_loaded_regions=4),
+    )
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "scene_clock_policy_plan",
+        "actions": [
+            {
+                "action_id": "bad_market_clock",
+                "kind": "world.markets.list",
+                "payload": {"clock_advance": 5},
+            },
+            {
+                "action_id": "bad_scene_tick_missing_fields",
+                "kind": "render.scene.tick",
+                "payload": {"dt": 2, "updates": []},
+            },
+            {
+                "action_id": "good_scene_tick",
+                "kind": "render.scene.tick",
+                "payload": {
+                    "scene_id": "lapidus/player_home",
+                    "clock_advance": 2,
+                    "dt": 2,
+                    "updates": [],
+                },
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["applied_count"] == 1
+    assert out["failed_count"] == 2
+    results = {item["action_id"]: item for item in out["results"]}
+    assert results["bad_market_clock"]["ok"] is False
+    assert results["bad_market_clock"]["error"].startswith("scene_clock_mutation_disallowed:")
+    assert results["bad_scene_tick_missing_fields"]["ok"] is False
+    assert results["bad_scene_tick_missing_fields"]["error"] in {
+        "scene_id_required_for_scene_tick",
+        "clock_advance_required_for_scene_tick",
+    }
+    assert results["good_scene_tick"]["ok"] is True
+    scene_tick_result = results["good_scene_tick"]["result"]
+    assert scene_tick_result["scene_id"] == "lapidus/player_home"
+    assert scene_tick_result["clock_advance"] == 2
+    assert scene_tick_result["scene_clock_state"]["scene_minutes_total"] == 2
+    assert scene_tick_result["scene_clock_state"]["scene_advances_count"] == 1
     app.dependency_overrides.clear()
 
 

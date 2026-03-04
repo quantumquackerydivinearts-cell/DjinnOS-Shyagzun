@@ -35,6 +35,8 @@
       "kind": "render.scene.tick",
       "payload": {
         "dt": 5,
+        "scene_id": "lapidus/day_dawn",
+        "clock_advance": 5,
         "updates": [],
         "enqueue_pygame": false,
         "phase": "dawn",
@@ -46,6 +48,8 @@
       "kind": "render.scene.tick",
       "payload": {
         "dt": 10,
+        "scene_id": "lapidus/day_midday",
+        "clock_advance": 10,
         "updates": [],
         "enqueue_pygame": false,
         "phase": "day",
@@ -57,6 +61,8 @@
       "kind": "render.scene.tick",
       "payload": {
         "dt": 5,
+        "scene_id": "lapidus/day_dusk",
+        "clock_advance": 5,
         "updates": [],
         "enqueue_pygame": false,
         "phase": "dusk",
@@ -68,6 +74,8 @@
       "kind": "render.scene.tick",
       "payload": {
         "dt": 4,
+        "scene_id": "lapidus/day_night",
+        "clock_advance": 4,
         "updates": [],
         "enqueue_pygame": false,
         "phase": "night",

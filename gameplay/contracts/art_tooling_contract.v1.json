@@ -1,0 +1,20 @@
+{
+  "id": "art_tooling_contract.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "description": "Art tooling contract for atlas/sprite/tile asset packaging.",
+  "required_paths": [
+    "productions/kos-labyrnth/art",
+    "productions/kos-labyrnth/art/atlas",
+    "productions/kos-labyrnth/art/sprites",
+    "productions/kos-labyrnth/art/tiles",
+    "productions/kos-labyrnth/art/backgrounds"
+  ],
+  "manifest_path": "productions/kos-labyrnth/art/atlas/manifest.v1.json",
+  "required_manifest_fields": [
+    "id",
+    "version",
+    "generated_at",
+    "assets"
+  ]
+}

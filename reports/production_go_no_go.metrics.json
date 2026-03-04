@@ -82,10 +82,24 @@
       }
     },
     {
+      "name": "editor_parity_validation",
+      "ok": true,
+      "detail": {
+        "output_tail": "editor_parity_validation_ok"
+      }
+    },
+    {
+      "name": "art_tooling_validation",
+      "ok": true,
+      "detail": {
+        "output_tail": "art_tooling_validation_ok"
+      }
+    },
+    {
       "name": "determinism_replay_contract",
       "ok": true,
       "detail": {
-        "output_tail": "determinism: PASS (5 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.v1.json]\ndeterminism: PASS (16 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.content_surfaces.v1.json]\ndeterminism: PASS (130 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.quest_states.v1.json]\ndeterminism: PASS (2 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.render_payloads.v1.json]\ndeterminism: PASS (5 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.runtime_plans.v1.json]\ndeterminism: PASS TOTAL (158 cases across 5 corpus files)"
+        "output_tail": "determinism: PASS (5 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.v1.json]\ndeterminism: PASS (19 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.content_surfaces.v1.json]\ndeterminism: PASS (130 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.quest_states.v1.json]\ndeterminism: PASS (2 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.render_payloads.v1.json]\ndeterminism: PASS (5 cases) [C:\\DjinnOS\\gameplay\\contracts\\determinism_corpus.runtime_plans.v1.json]\ndeterminism: PASS TOTAL (161 cases across 5 corpus files)"
       }
     },
     {
@@ -98,7 +112,7 @@
     }
   ],
   "summary": {
-    "check_count": 11,
+    "check_count": 13,
     "failed_count": 0,
     "go": true
   }

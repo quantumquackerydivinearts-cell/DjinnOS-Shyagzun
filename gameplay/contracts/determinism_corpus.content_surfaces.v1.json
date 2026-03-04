@@ -195,6 +195,44 @@
         "expected_outcomes.terminal_state"
       ],
       "expected_hash": "c035f870846502c453f9c68edf307983e4cd5aff7b5348471760b75f5ff6f219"
+    },
+    {
+      "id": "editor_parity_contract",
+      "path": "gameplay/contracts/editor_parity_contract.v1.json",
+      "type": "editor_contract",
+      "required_fields": [
+        "id",
+        "version",
+        "required_files",
+        "required_runtime_sources",
+        "required_cert_layers"
+      ],
+      "expected_hash": "9e73ccca15b28ecdec5e21ef2d4dce43c034d4e38f5d044cec5c42e6d0882804"
+    },
+    {
+      "id": "art_tooling_contract",
+      "path": "gameplay/contracts/art_tooling_contract.v1.json",
+      "type": "art_contract",
+      "required_fields": [
+        "id",
+        "version",
+        "required_paths",
+        "manifest_path",
+        "required_manifest_fields"
+      ],
+      "expected_hash": "5d230a027a1f03c866384c609cd8251c090188762a26e6370bb7cf5390a1a0c0"
+    },
+    {
+      "id": "art_pack_manifest",
+      "path": "productions/kos-labyrnth/art/atlas/manifest.v1.json",
+      "type": "art_manifest",
+      "required_fields": [
+        "id",
+        "version",
+        "generated_at",
+        "assets"
+      ],
+      "expected_hash": "d8923ad05e1a0d374207433c1ecb59d3403b1f393dc80d35c890a2a56574f692"
     }
   ]
 }

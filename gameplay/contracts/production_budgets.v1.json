@@ -28,6 +28,8 @@
     "quest_cert_validation": true,
     "quest_branch_validation": true,
     "quest_invariant_validation": true,
-    "campaign_replay_validation": true
+    "campaign_replay_validation": true,
+    "editor_parity_validation": true,
+    "art_tooling_validation": true
   }
 }

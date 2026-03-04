@@ -1,0 +1,25 @@
+{
+  "id": "editor_parity_contract.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-03",
+  "description": "Required parity surface between production editor workflows and runtime/gameplay backends.",
+  "required_files": [
+    "apps/atelier-desktop/src/App.jsx",
+    "apps/atelier-desktop/src/rendererCore.js",
+    "apps/atelier-desktop/src/labComputeWorker.js",
+    "apps/atelier-desktop/src/engineInbox.js",
+    "scripts/production_go_no_go.py",
+    "scripts/verify_determinism.py"
+  ],
+  "required_runtime_sources": [
+    "gameplay/runtime_plans",
+    "gameplay/modules",
+    "gameplay/content_packs"
+  ],
+  "required_cert_layers": [
+    "tier0_schema_determinism",
+    "tier1_branch_contracts",
+    "tier2_cross_quest_invariants",
+    "tier3_campaign_replay"
+  ]
+}

@@ -6214,6 +6214,12 @@ class AtelierService:
             "entities": {},
             "placement_index": {},
         }
+        runtime_scene_clock_state: dict[str, object] = {
+            "scene_minutes_total": 0,
+            "scene_advances_count": 0,
+            "last_scene_id": "",
+            "last_clock_advance": 0,
+        }
         runtime_audio_state: dict[str, object] = {
             "tick": 0,
             "commands_emitted": 0,
@@ -6255,6 +6261,30 @@ class AtelierService:
                 "entity_count": len(entities),
                 "placement_count": len(placement),
             }
+
+        def _scene_clock_summary() -> dict[str, object]:
+            return {
+                "scene_minutes_total": self._int_from_table(runtime_scene_clock_state.get("scene_minutes_total"), 0),
+                "scene_advances_count": self._int_from_table(runtime_scene_clock_state.get("scene_advances_count"), 0),
+                "last_scene_id": str(runtime_scene_clock_state.get("last_scene_id", "")),
+                "last_clock_advance": self._int_from_table(runtime_scene_clock_state.get("last_clock_advance"), 0),
+            }
+
+        def _enforce_scene_clock_policy(action_kind: str, action_payload: Mapping[str, object]) -> None:
+            guarded_fields = ("clock_advance", "game_clock", "advance_minutes", "advance_hours", "dt_ms")
+            if action_kind != "render.scene.tick":
+                violating = sorted([field for field in guarded_fields if field in action_payload])
+                if len(violating) > 0:
+                    raise ValueError(f"scene_clock_mutation_disallowed:{','.join(violating)}")
+                return
+            scene_id = str(action_payload.get("scene_id", "")).strip()
+            if scene_id == "":
+                raise ValueError("scene_id_required_for_scene_tick")
+            if "clock_advance" not in action_payload:
+                raise ValueError("clock_advance_required_for_scene_tick")
+            clock_advance = self._int_from_table(action_payload.get("clock_advance"), -1)
+            if clock_advance < 0:
+                raise ValueError("clock_advance_must_be_non_negative")
 
         def _audio_maps() -> tuple[dict[str, dict[str, object]], int, int]:
             staged_obj = runtime_audio_state.get("staged_cues")
@@ -6420,9 +6450,23 @@ class AtelierService:
             action_id: str,
         ) -> dict[str, object]:
             loaded_scenes, entities, placement_index, tick_val = _render_state_maps()
-            dt = max(0, self._int_from_table(action_payload.get("dt"), 1))
+            scene_id = str(action_payload.get("scene_id", "")).strip()
+            if scene_id == "":
+                raise ValueError("scene_id_required_for_scene_tick")
+            if "clock_advance" not in action_payload:
+                raise ValueError("clock_advance_required_for_scene_tick")
+            clock_advance = max(0, self._int_from_table(action_payload.get("clock_advance"), 0))
+            dt = max(0, self._int_from_table(action_payload.get("dt"), clock_advance))
             next_tick = tick_val + dt
             runtime_render_state["tick"] = next_tick
+            runtime_scene_clock_state["scene_minutes_total"] = (
+                self._int_from_table(runtime_scene_clock_state.get("scene_minutes_total"), 0) + clock_advance
+            )
+            runtime_scene_clock_state["scene_advances_count"] = (
+                self._int_from_table(runtime_scene_clock_state.get("scene_advances_count"), 0) + 1
+            )
+            runtime_scene_clock_state["last_scene_id"] = scene_id
+            runtime_scene_clock_state["last_clock_advance"] = clock_advance
             updates_obj = action_payload.get("updates")
             updates = updates_obj if isinstance(updates_obj, list) else []
             normalized_updates = [item for item in updates if isinstance(item, dict)]
@@ -6525,6 +6569,8 @@ class AtelierService:
                 )
             return {
                 "workspace_id": payload.workspace_id,
+                "scene_id": scene_id,
+                "clock_advance": clock_advance,
                 "tick_before": tick_val,
                 "tick_after": next_tick,
                 "applied_updates": applied,
@@ -6532,6 +6578,7 @@ class AtelierService:
                 "pygame_delta_ops": pygame_ops,
                 "pygame_enqueue": pygame_enqueue,
                 "renderer_state": _render_summary(),
+                "scene_clock_state": _scene_clock_summary(),
             }
 
         def _render_scene_unload(action_payload: Mapping[str, object]) -> dict[str, object]:
@@ -6804,6 +6851,7 @@ class AtelierService:
             action_payload.setdefault("workspace_id", payload.workspace_id)
             action_payload.setdefault("actor_id", payload.actor_id)
             try:
+                _enforce_scene_clock_policy(action.kind, action_payload)
                 if action.kind == "levels.apply":
                     result = self.apply_level_progress(
                         payload=LevelApplyInput(**action_payload),
