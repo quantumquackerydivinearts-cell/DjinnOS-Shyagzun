@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://djinnos.local/schemas/share_token.schema.json",
+  "title": "ShareToken",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "token_id",
+    "workspace_id",
+    "actor_id",
+    "recipe_id",
+    "share_ref",
+    "claim_id",
+    "unlock_path",
+    "issued_at",
+    "expires_at",
+    "nonce",
+    "jti",
+    "key_version",
+    "sig_alg",
+    "sig"
+  ],
+  "properties": {
+    "token_id": {
+      "type": "string",
+      "pattern": "^sht_[a-z0-9]{20,}$"
+    },
+    "workspace_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]{1,64}$"
+    },
+    "actor_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]{1,64}$"
+    },
+    "recipe_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]{1,128}$"
+    },
+    "share_ref": {
+      "type": "string",
+      "pattern": "^share_[0-9]+_of_[0-9]+$"
+    },
+    "claim_id": {
+      "type": "string",
+      "pattern": "^clm_[a-z0-9]{20,}$"
+    },
+    "unlock_path": {
+      "type": "string",
+      "enum": [
+        "dungeon_clear",
+        "pacifist_bonus",
+        "wildcard_credit"
+      ]
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^n_[A-Za-z0-9_\\-]{12,128}$"
+    },
+    "jti": {
+      "type": "string",
+      "pattern": "^jti_[a-z0-9]{20,}$"
+    },
+    "key_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.\\-]{1,64}$"
+    },
+    "sig_alg": {
+      "type": "string",
+      "enum": [
+        "Ed25519"
+      ]
+    },
+    "sig": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_\\-]{32,2048}$"
+    }
+  }
+}

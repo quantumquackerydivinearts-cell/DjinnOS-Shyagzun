@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://djinnos.local/schemas/forge_permit.schema.json",
+  "title": "ForgePermit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "permit_id",
+    "workspace_id",
+    "actor_id",
+    "recipe_id",
+    "effective_k",
+    "shares_used",
+    "issued_at",
+    "expires_at",
+    "nonce",
+    "jti",
+    "key_version",
+    "sig_alg",
+    "sig"
+  ],
+  "properties": {
+    "permit_id": {
+      "type": "string",
+      "pattern": "^fgp_[a-z0-9]{20,}$"
+    },
+    "workspace_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]{1,64}$"
+    },
+    "actor_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]{1,64}$"
+    },
+    "recipe_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]{1,128}$"
+    },
+    "effective_k": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "shares_used": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^share_[0-9]+_of_[0-9]+$"
+      }
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^n_[A-Za-z0-9_\\-]{12,128}$"
+    },
+    "jti": {
+      "type": "string",
+      "pattern": "^jti_[a-z0-9]{20,}$"
+    },
+    "key_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.\\-]{1,64}$"
+    },
+    "sig_alg": {
+      "type": "string",
+      "enum": [
+        "Ed25519"
+      ]
+    },
+    "sig": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_\\-]{32,2048}$"
+    }
+  }
+}

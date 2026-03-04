@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://djinnos.local/schemas/completion_claim.schema.json",
+  "title": "CompletionClaim",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "claim_id",
+    "workspace_id",
+    "actor_id",
+    "run_id",
+    "dungeon_id",
+    "difficulty_tier",
+    "combat_kills",
+    "alerts_triggered",
+    "civilian_harm",
+    "completion_mode",
+    "pacifism_score",
+    "issued_at",
+    "expires_at",
+    "nonce",
+    "key_version",
+    "sig_alg",
+    "sig"
+  ],
+  "properties": {
+    "claim_id": {
+      "type": "string",
+      "pattern": "^clm_[a-z0-9]{20,}$"
+    },
+    "workspace_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]{1,64}$"
+    },
+    "actor_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]{1,64}$"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "dungeon_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]+/[a-z0-9_\\-]+$"
+    },
+    "difficulty_tier": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20
+    },
+    "combat_kills": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "alerts_triggered": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "civilian_harm": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "completion_mode": {
+      "type": "string",
+      "enum": [
+        "violent",
+        "mixed",
+        "pacifist"
+      ]
+    },
+    "pacifism_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^n_[A-Za-z0-9_\\-]{12,128}$"
+    },
+    "key_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.\\-]{1,64}$"
+    },
+    "sig_alg": {
+      "type": "string",
+      "enum": [
+        "Ed25519"
+      ]
+    },
+    "sig": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_\\-]{32,2048}$"
+    }
+  }
+}

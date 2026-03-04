@@ -23,11 +23,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r apps/atelier-api/requirements.txt
           python -m pip install pytest
+          python -m pip install jsonschema
 
       - name: Validate content packs
         run: |
           python scripts/ci_validate_content_packs.py
           python scripts/compile_quest_templates.py --output gameplay/quest_graph_templates/compiled_bundle.ci.json
+          python scripts/validate_shygazun_crypto_schemas.py
 
       - name: Determinism checks
         env:
