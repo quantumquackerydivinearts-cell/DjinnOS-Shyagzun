@@ -53,11 +53,18 @@
       "main": "electron/main.js"
     },
     "win": {
+      "icon": "public/icon.ico",
       "target": [
         "portable",
         "nsis"
       ],
       "artifactName": "atelier-desktop-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "icon": "public/icon.png"
+    },
+    "mac": {
+      "icon": "public/icon.png"
     }
   }
 }

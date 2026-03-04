@@ -5,6 +5,7 @@ const path = require("path");
 const isDev = !app.isPackaged;
 const STUDIO_FILE_LIMIT = 1024 * 1024;
 const STUDIO_BINARY_FILE_LIMIT = 25 * 1024 * 1024;
+const APP_ICON_PATH = path.join(__dirname, "..", "public", "icon.png");
 
 function assertWithinRoot(rootDir, targetPath) {
   const normalizedRoot = path.resolve(rootDir);
@@ -55,6 +56,44 @@ function registerIpcHandlers() {
       .map((entry) => entry.name)
       .sort((a, b) => a.localeCompare(b));
     return { ok: true, files };
+  });
+
+  ipcMain.handle("studio:list-runtime-plans", async (_event, rootDir) => {
+    if (typeof rootDir !== "string" || rootDir.trim() === "") {
+      throw new Error("studio_fs_root_required");
+    }
+    const normalizedRoot = path.resolve(rootDir);
+    const runtimePlansRoot = assertWithinRoot(normalizedRoot, path.join(normalizedRoot, "gameplay", "runtime_plans"));
+    let rootStat;
+    try {
+      rootStat = await fs.stat(runtimePlansRoot);
+    } catch {
+      return { ok: true, files: [] };
+    }
+    if (!rootStat.isDirectory()) {
+      return { ok: true, files: [] };
+    }
+    const out = [];
+    const stack = [{ absDir: runtimePlansRoot, relDir: "gameplay/runtime_plans" }];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      const entries = await fs.readdir(current.absDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          stack.push({
+            absDir: assertWithinRoot(normalizedRoot, path.join(current.absDir, entry.name)),
+            relDir: `${current.relDir}/${entry.name}`.replaceAll("\\", "/"),
+          });
+          continue;
+        }
+        if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".json")) {
+          continue;
+        }
+        out.push(`${current.relDir}/${entry.name}`.replaceAll("\\", "/"));
+      }
+    }
+    out.sort((a, b) => a.localeCompare(b));
+    return { ok: true, files: out };
   });
 
   ipcMain.handle("studio:read-cobra-script", async (_event, rootDir, filename) => {
@@ -163,6 +202,7 @@ function registerIpcHandlers() {
       height: 720,
       fullscreen: true,
       autoHideMenuBar: true,
+      icon: APP_ICON_PATH,
       webPreferences: {
         contextIsolation: true,
         sandbox: true,
@@ -183,6 +223,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1320,
     height: 860,
+    icon: APP_ICON_PATH,
     webPreferences: {
       contextIsolation: true,
       sandbox: true,
