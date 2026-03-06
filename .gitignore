@@ -155,3 +155,5 @@ releases/
 secrets/
 *.jks
 atelier-api-bundle.zip
+tmp_atelier_install/
+tmp_atelier_install_localbundle/
