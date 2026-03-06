@@ -6,7 +6,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
 
 from .aster_colors import resolve_aster_color
-from .shygazun_compiler import SymbolInventory, compile_akinenwun_to_ir, default_symbol_inventory
+from .shygazun_compiler import (
+    SymbolInventory,
+    ShygazunIR,
+    compile_akinenwun_to_ir,
+    default_symbol_inventory,
+    derive_djinn_layer_references,
+)
 from .validators import validate_scene_realm
 
 
@@ -172,13 +178,15 @@ def build_scene_graph_from_cobra(
     for entity in entities:
         akinenwun = str(entity.get("akinenwun") or "").strip()
         canonical = ""
+        ir_obj: Optional[ShygazunIR] = None
         if akinenwun:
-            ir = compile_akinenwun_to_ir(akinenwun, inventory=symbol_inventory)
-            canonical = ir["canonical_compound"]
+            ir_obj = compile_akinenwun_to_ir(akinenwun, inventory=symbol_inventory)
+            canonical = ir_obj["canonical_compound"]
         layer = _layer_for_entity(entity)
         z = _z_for_entity(entity, layer)
         normalized_meta = dict(entity["meta"])
         _normalize_aster_metadata(normalized_meta)
+        normalized_meta["djinn_layer_references"] = derive_djinn_layer_references(meta=normalized_meta, ir=ir_obj)
         nodes.append(
             {
                 "id": str(entity["id"]),

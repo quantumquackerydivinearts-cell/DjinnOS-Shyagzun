@@ -1,62 +1,162 @@
 {
-  "schema_version": "v1",
-  "pack_id": "canon.quiz.fate_knocks.vitriol",
+  "schema_version": "v3",
+  "pack_id": "canon.quiz.fate_knocks.vitriol.v3",
   "quest_id": "0001_KLST",
   "quiz": {
-    "question_count": 7,
-    "answer_type": "integer",
-    "points_budget": 28,
-    "axes": [
-      "vitality",
-      "introspection",
-      "tactility",
-      "reflectivity",
-      "ingenuity",
-      "ostentation",
-      "levity"
+    "quiz_id": "fate_knocks_apprentice_exam",
+    "title": "High Alchemist Aptitude Survey",
+    "question_count": 15,
+    "total_question_count": 15,
+    "vitriol_question_count": 7,
+    "non_vitriol_question_count": 8,
+    "canonical_scene_id": "lapidus/home_morning",
+    "sender_character_id": "0000_0451",
+    "sender_name": "Alexandria Hypatia",
+    "vitriol_budget": {
+      "points_budget": 28,
+      "min_per_answer": 1,
+      "max_per_answer": 10,
+      "axes": [
+        "vitality",
+        "introspection",
+        "tactility",
+        "reflectivity",
+        "ingenuity",
+        "ostentation",
+        "levity"
+      ],
+      "rules": [
+        "Exactly 7 integer answers for VITRIOL.",
+        "VITRIOL answers sum must equal points_budget.",
+        "Each VITRIOL answer must be in [min_per_answer, max_per_answer]."
+      ]
+    },
+    "non_vitriol_rules": [
+      "Perk, skill aptitude, power, and finance answers are string/categorical.",
+      "Non-VITRIOL answers do not consume VITRIOL budget points."
     ],
-    "rules": [
-      "Exactly 7 integer answers.",
-      "Sum of all answers must equal points_budget.",
-      "Axis order is fixed and positional."
+    "unlock_on_valid_submission": {
+      "quest_id": "0002_KLST",
+      "quest_name": "Destiny Calls"
+    },
+    "starter_perks": [
+      {
+        "perk_id": "iron_skin",
+        "name": "Iron Skin",
+        "effect_short": "+3DT/DR"
+      },
+      {
+        "perk_id": "flashbulb_memory",
+        "name": "Flashbulb Memory",
+        "effect_short": "Unique dialogue with Elders"
+      }
     ]
   },
-  "questions": [
-    {
-      "question_id": "q1_vitality",
-      "axis": "vitality",
-      "prompt": "How much effort do you commit before certainty?"
-    },
-    {
-      "question_id": "q2_introspection",
-      "axis": "introspection",
-      "prompt": "How long do you reflect before action?"
-    },
-    {
-      "question_id": "q3_tactility",
-      "axis": "tactility",
-      "prompt": "How strongly do you rely on hands-on process?"
-    },
-    {
-      "question_id": "q4_reflectivity",
-      "axis": "reflectivity",
-      "prompt": "How often do you revise after outcomes?"
-    },
-    {
-      "question_id": "q5_ingenuity",
-      "axis": "ingenuity",
-      "prompt": "How often do you attempt novel synthesis?"
-    },
-    {
-      "question_id": "q6_ostentation",
-      "axis": "ostentation",
-      "prompt": "How visible should your mastery be?"
-    },
-    {
-      "question_id": "q7_levity",
-      "axis": "levity",
-      "prompt": "How much ease and humor do you keep under pressure?"
+  "questions": {
+    "vitriol": [
+      {
+        "question_id": "q1_vitality",
+        "axis": "vitality",
+        "answer_type": "integer",
+        "prompt": "How much effort do you commit before certainty?"
+      },
+      {
+        "question_id": "q2_introspection",
+        "axis": "introspection",
+        "answer_type": "integer",
+        "prompt": "How long do you reflect before action?"
+      },
+      {
+        "question_id": "q3_tactility",
+        "axis": "tactility",
+        "answer_type": "integer",
+        "prompt": "How strongly do you rely on hands-on process?"
+      },
+      {
+        "question_id": "q4_reflectivity",
+        "axis": "reflectivity",
+        "answer_type": "integer",
+        "prompt": "How often do you revise after outcomes?"
+      },
+      {
+        "question_id": "q5_ingenuity",
+        "axis": "ingenuity",
+        "answer_type": "integer",
+        "prompt": "How often do you attempt novel synthesis?"
+      },
+      {
+        "question_id": "q6_ostentation",
+        "axis": "ostentation",
+        "answer_type": "integer",
+        "prompt": "How visible should your mastery be?"
+      },
+      {
+        "question_id": "q7_levity",
+        "axis": "levity",
+        "answer_type": "integer",
+        "prompt": "How much ease and humor do you keep under pressure?"
+      }
+    ],
+    "perk": [
+      {
+        "question_id": "q8_perk_primary",
+        "answer_type": "string",
+        "prompt": "Choose your primary perk inclination.",
+        "choices": ["Iron Skin", "Flashbulb Memory", "None"]
+      },
+      {
+        "question_id": "q9_perk_secondary",
+        "answer_type": "string",
+        "prompt": "Choose your secondary perk inclination.",
+        "choices": ["Iron Skin", "Flashbulb Memory", "None"]
+      },
+      {
+        "question_id": "q10_perk_focus",
+        "answer_type": "string",
+        "prompt": "Which perk identity resonates most?",
+        "choices": ["Iron Skin", "Flashbulb Memory", "Balanced"]
+      }
+    ],
+    "skill_aptitude": [
+      {
+        "question_id": "q11_skill_aptitude_1",
+        "answer_type": "string",
+        "prompt": "How would you describe your first technical aptitude?"
+      },
+      {
+        "question_id": "q12_skill_aptitude_2",
+        "answer_type": "string",
+        "prompt": "How would you describe your second technical aptitude?"
+      },
+      {
+        "question_id": "q13_skill_aptitude_3",
+        "answer_type": "string",
+        "prompt": "How would you describe your third technical aptitude?"
+      }
+    ],
+    "worldview": [
+      {
+        "question_id": "q14_power_relation",
+        "answer_type": "string",
+        "prompt": "What is your relationship to power?"
+      },
+      {
+        "question_id": "q15_finance_relation",
+        "answer_type": "string",
+        "prompt": "What is your relationship to finance?"
+      }
+    ]
+  },
+  "example_submission_v3": {
+    "vitriol_answers": [4, 4, 4, 4, 4, 4, 4],
+    "non_vitriol_answers": {
+      "perk_answers": ["Iron Skin", "Flashbulb Memory", "Balanced"],
+      "skill_aptitude_answers": ["focused", "disciplined", "novice"],
+      "power_answer": "service before dominion",
+      "finance_answer": "redistribution with stable trade"
     }
-  ]
+  },
+  "legacy_submission_v1_supported": {
+    "quiz_answers": [4, 4, 4, 4, 4, 4, 4]
+  }
 }
-

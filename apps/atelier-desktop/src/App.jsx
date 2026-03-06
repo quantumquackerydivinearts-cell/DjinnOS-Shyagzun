@@ -3713,7 +3713,12 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
   const renderScale = clampNumber(settings.renderScale, 1, 4, 1);
   const visualStyle = typeof settings.visualStyle === "string" ? settings.visualStyle : "default";
   const pixelate = Boolean(settings.pixelate);
-  const labelMode = typeof settings.labelMode === "string" ? settings.labelMode : "none";
+  const labelModeRaw = typeof settings.labelMode === "string" ? settings.labelMode : "none";
+  const classicFalloutShowLabels = Boolean(settings.classicFalloutShowLabels);
+  const labelMode =
+    String(visualStyle || "").toLowerCase() === "classic_fallout" && !classicFalloutShowLabels
+      ? "none"
+      : labelModeRaw;
   const labelColor = typeof settings.labelColor === "string" ? settings.labelColor : "#d9e6ff";
   const dpr = (window.devicePixelRatio || 1) * renderScale;
   const width = Math.max(1, canvas.clientWidth);
@@ -4270,7 +4275,12 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
   const renderScale = clampNumber(settings.renderScale, 1, 4, 1);
   const visualStyle = typeof settings.visualStyle === "string" ? settings.visualStyle : "default";
   const pixelate = Boolean(settings.pixelate);
-  const labelMode = typeof settings.labelMode === "string" ? settings.labelMode : "none";
+  const labelModeRaw = typeof settings.labelMode === "string" ? settings.labelMode : "none";
+  const classicFalloutShowLabels = Boolean(settings.classicFalloutShowLabels);
+  const labelMode =
+    String(visualStyle || "").toLowerCase() === "classic_fallout" && !classicFalloutShowLabels
+      ? "none"
+      : labelModeRaw;
   const labelColor = typeof settings.labelColor === "string" ? settings.labelColor : "#d9e6ff";
   const projection = String(settings.projection || "isometric").toLowerCase();
   const camera2d = normalizeCamera2d(settings.camera2d);
@@ -4772,6 +4782,7 @@ function readRendererLocalState() {
         edgeGlow: false,
         edgeGlowColor: "#8fd3ff",
         edgeGlowStrength: 8,
+        classicFalloutShowLabels: false,
         labelMode: "none",
         labelColor: "#d9e6ff",
         lighting: { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
@@ -4825,6 +4836,7 @@ function readRendererLocalState() {
     edgeGlow: false,
     edgeGlowColor: "#8fd3ff",
     edgeGlowStrength: 8,
+    classicFalloutShowLabels: false,
     labelMode: "none",
     labelColor: "#d9e6ff",
     lighting: { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
@@ -4849,6 +4861,7 @@ function readRendererLocalState() {
       edgeGlow: parsed.edgeGlow ?? false,
       edgeGlowColor: parsed.edgeGlowColor ?? "#8fd3ff",
       edgeGlowStrength: parsed.edgeGlowStrength ?? 8,
+      classicFalloutShowLabels: parsed.classicFalloutShowLabels ?? false,
       labelMode: parsed.labelMode ?? "none",
       labelColor: parsed.labelColor ?? "#d9e6ff",
       lighting: parsed.lighting ?? { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
@@ -5060,6 +5073,7 @@ export function App() {
           edgeGlow: parsed.edgeGlow ?? false,
           edgeGlowColor: parsed.edgeGlowColor ?? "#8fd3ff",
           edgeGlowStrength: parsed.edgeGlowStrength ?? 8,
+          classicFalloutShowLabels: parsed.classicFalloutShowLabels ?? false,
           labelMode: parsed.labelMode ?? "none",
           labelColor: parsed.labelColor ?? "#d9e6ff",
           lighting: parsed.lighting ?? { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
@@ -5083,6 +5097,7 @@ export function App() {
           edgeGlow: false,
           edgeGlowColor: "#8fd3ff",
           edgeGlowStrength: 8,
+          classicFalloutShowLabels: false,
           labelMode: "none",
           labelColor: "#d9e6ff",
           lighting: { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
@@ -5107,6 +5122,7 @@ export function App() {
       edgeGlow: false,
       edgeGlowColor: "#8fd3ff",
       edgeGlowStrength: 8,
+      classicFalloutShowLabels: false,
       labelMode: "none",
       labelColor: "#d9e6ff",
       lighting: { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
@@ -5679,6 +5695,10 @@ export function App() {
   const [studioFsSelectedScene, setStudioFsSelectedScene] = useState("");
   const [studioFsSelectedSprite, setStudioFsSelectedSprite] = useState("");
   const [studioFsSelectedAudio, setStudioFsSelectedAudio] = useState("");
+  const [studioFsRuntimePlanFiles, setStudioFsRuntimePlanFiles] = useState([]);
+  const [studioFsRuntimePlanPath, setStudioFsRuntimePlanPath] = useState(
+    () => localStorage.getItem("atelier.studio_fs_runtime_plan_path") || "gameplay/runtime_plans/dungeon_campaign_seed.template.json"
+  );
   const [rendererAudioStageLabel, setRendererAudioStageLabel] = useState("");
   const [rendererAudioStages, setRendererAudioStages] = useState([]);
   const [rendererSandboxPackName, setRendererSandboxPackName] = useState(
@@ -5753,6 +5773,7 @@ export function App() {
   useEffect(() => localStorage.setItem("atelier.studio_files", JSON.stringify(studioFiles)), [studioFiles]);
   useEffect(() => localStorage.setItem("atelier.studio_selected", studioSelectedFileId), [studioSelectedFileId]);
   useEffect(() => localStorage.setItem("atelier.studio_fs_root", studioFsRoot), [studioFsRoot]);
+  useEffect(() => localStorage.setItem("atelier.studio_fs_runtime_plan_path", studioFsRuntimePlanPath), [studioFsRuntimePlanPath]);
   useEffect(() => localStorage.setItem("atelier.renderer_sandbox.pack_name", rendererSandboxPackName), [rendererSandboxPackName]);
   useEffect(() => localStorage.setItem("atelier.renderer_sandbox.pack_notes", rendererSandboxPackNotes), [rendererSandboxPackNotes]);
   useEffect(() => localStorage.setItem("atelier.renderer_sandbox.draft", rendererSandboxDraftText), [rendererSandboxDraftText]);
@@ -7683,6 +7704,17 @@ export function App() {
     return Array.from(new Set(merged)).sort((a, b) => String(a).localeCompare(String(b)));
   }
 
+  async function listStudioRuntimePlanFiles(rootDir) {
+    if (!window.atelierDesktop || !window.atelierDesktop.fs || typeof window.atelierDesktop.fs.listRuntimePlans !== "function") {
+      return [];
+    }
+    const result = await window.atelierDesktop.fs.listRuntimePlans(rootDir);
+    if (!result || !result.ok || !Array.isArray(result.files)) {
+      return [];
+    }
+    return result.files.map((item) => String(item)).filter((item) => item.trim() !== "");
+  }
+
   async function chooseStudioFsFolder() {
     await runAction("studio_fs_choose", async () => {
       if (!hasDesktopFs()) {
@@ -7715,8 +7747,13 @@ export function App() {
         setStudioFsSelectedSprite(sprites.files.length > 0 ? String(sprites.files[0]) : "");
       }
       const audioFiles = await listStudioAudioFiles(nextRoot);
+      const runtimePlans = await listStudioRuntimePlanFiles(nextRoot);
       setStudioFsAudioFiles(audioFiles);
       setStudioFsSelectedAudio(audioFiles.length > 0 ? String(audioFiles[0]) : "");
+      setStudioFsRuntimePlanFiles(runtimePlans);
+      if (runtimePlans.length > 0 && !runtimePlans.includes(String(studioFsRuntimePlanPath || ""))) {
+        setStudioFsRuntimePlanPath(String(runtimePlans[0]));
+      }
       return result;
     });
   }
@@ -7744,10 +7781,174 @@ export function App() {
           setStudioFsSelectedPython(String(pythonFiles.files[0]));
         }
       }
+      const runtimePlans = await listStudioRuntimePlanFiles(studioFsRoot);
+      setStudioFsRuntimePlanFiles(runtimePlans);
+      if (runtimePlans.length > 0 && !runtimePlans.includes(String(studioFsRuntimePlanPath || ""))) {
+        setStudioFsRuntimePlanPath(String(runtimePlans[0]));
+      }
       return {
         cobra: result,
         python_files: pythonFiles && pythonFiles.ok && Array.isArray(pythonFiles.files) ? pythonFiles.files.length : 0,
+        runtime_plan_files: runtimePlans.length,
       };
+    });
+  }
+
+  async function runRuntimePlanFromFs() {
+    await runAction("studio_runtime_plan_run", async () => {
+      if (!hasDesktopFs()) {
+        throw new Error("studio_fs unavailable outside desktop shell");
+      }
+      if (!studioFsRoot) {
+        throw new Error("studio_fs root not set");
+      }
+      const planPath = String(studioFsRuntimePlanPath || "").trim();
+      if (!planPath) {
+        throw new Error("runtime_plan_path_required");
+      }
+      const readResult = await window.atelierDesktop.fs.readTextFile(studioFsRoot, planPath);
+      if (!readResult || !readResult.ok || typeof readResult.content !== "string") {
+        throw new Error("runtime_plan_read_failed");
+      }
+      const parsed = parseObjectJson(readResult.content, null);
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("runtime_plan_invalid_json");
+      }
+      const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
+      const payload = {
+        ...parsed,
+        workspace_id: workspaceId,
+        actor_id: runtimeRegionActorId,
+        actions,
+        plan_id: String(parsed.plan_id || `studio_fs_runtime_plan_${Date.now()}`),
+      };
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", payload);
+      const results = Array.isArray(consumed?.results) ? consumed.results : [];
+      const failed = results.filter((item) => !item || !item.ok).length;
+      setModuleRunOutput({
+        runtime_plan_from_fs: {
+          path: planPath,
+          consumed,
+        },
+      });
+      setRendererGameStatus(failed > 0 ? `runtime_plan_failed:${failed}/${results.length}` : `runtime_plan_ok:${results.length}`);
+      return {
+        path: planPath,
+        results: results.length,
+        failed,
+        hash: consumed && consumed.hash ? consumed.hash : "",
+      };
+    });
+  }
+
+  async function runDungeonSweepFromApi() {
+    await runAction("dungeon_sweep", async () => {
+      const sulphera = ["pride", "greed", "envy", "gluttony", "sloth", "wrath", "lust"].map((ring) => `sulphera/${ring}`);
+      const mercurie = [
+        "mercurie/zone_tideglass",
+        "mercurie/zone_cindergrove",
+        "mercurie/zone_rootbloom",
+        "mercurie/zone_thornveil",
+        "mercurie/zone_dewspire",
+      ];
+      const lapidus = ["lapidus/lapidus_mines_mt_hieronymus"];
+      const dungeonIds = [...sulphera, ...mercurie, ...lapidus];
+      const profiles = [
+        { id: "p01", player_level: 1, quest_progress: 0 },
+        { id: "p02", player_level: 6, quest_progress: 14 },
+        { id: "p03", player_level: 12, quest_progress: 40 },
+      ];
+      const actions = [];
+      dungeonIds.forEach((dungeonId) => {
+        profiles.forEach((profile) => {
+          actions.push({
+            action_id: `sweep_${profile.id}_${dungeonId.replaceAll("/", "_")}`,
+            kind: "dungeon.generate",
+            payload: {
+              dungeon_id: dungeonId,
+              player_level: profile.player_level,
+              quest_progress: profile.quest_progress,
+              entry_ordinal: 1,
+            },
+          });
+        });
+      });
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
+        workspace_id: workspaceId,
+        actor_id: runtimeRegionActorId,
+        plan_id: `dungeon_sweep_${Date.now()}`,
+        actions,
+      });
+      const results = Array.isArray(consumed?.results) ? consumed.results : [];
+      const failures = results.filter((item) => !item || !item.ok);
+      const rows = results
+        .filter((item) => item && item.ok && item.result && typeof item.result === "object")
+        .map((item) => item.result);
+      const realmAgg = {
+        sulphera: { runs: 0, difficulty_sum: 0, hostile_count: 0, shard_sum: 0, enemy_sum: 0 },
+        mercurie: { runs: 0, difficulty_sum: 0, hostile_count: 0, shard_sum: 0, enemy_sum: 0 },
+        lapidus: { runs: 0, difficulty_sum: 0, hostile_count: 0, shard_sum: 0, enemy_sum: 0 },
+      };
+      const invariantErrors = [];
+      rows.forEach((row) => {
+        const realmId = String(row.realm_id || "");
+        if (!realmAgg[realmId]) {
+          return;
+        }
+        const hostile = Boolean(row.hostile);
+        const shards = Array.isArray(row.cypher_shards) ? row.cypher_shards.length : 0;
+        const population = row.population && typeof row.population === "object" ? row.population : {};
+        const hostileEntities = Array.isArray(population.hostile_entities) ? population.hostile_entities : [];
+        realmAgg[realmId].runs += 1;
+        realmAgg[realmId].difficulty_sum += Number(row.difficulty_tier || 0);
+        realmAgg[realmId].hostile_count += hostile ? 1 : 0;
+        realmAgg[realmId].shard_sum += shards;
+        realmAgg[realmId].enemy_sum += hostileEntities.length;
+        if (realmId === "sulphera") {
+          if (Number(row.time_scale_to_lapidus || 0) !== 24) invariantErrors.push(`sulphera_time_scale:${row.dungeon_id}`);
+          if (!hostile) invariantErrors.push(`sulphera_hostile:${row.dungeon_id}`);
+        }
+        if (realmId === "mercurie") {
+          if (Number(row.time_scale_to_lapidus || 0) !== 3) invariantErrors.push(`mercurie_time_scale:${row.dungeon_id}`);
+          if (!hostile) invariantErrors.push(`mercurie_hostile:${row.dungeon_id}`);
+        }
+        if (realmId === "lapidus") {
+          const neutral = Array.isArray(population.neutral_entities) ? population.neutral_entities.map((v) => String(v)) : [];
+          if (Number(row.time_scale_to_lapidus || 0) !== 1) invariantErrors.push(`lapidus_time_scale:${row.dungeon_id}`);
+          if (hostile) invariantErrors.push(`lapidus_non_hostile:${row.dungeon_id}`);
+          if (!neutral.includes("gnome_miners")) invariantErrors.push(`lapidus_missing_gnomes:${row.dungeon_id}`);
+          if (!neutral.includes("child_laborers")) invariantErrors.push(`lapidus_missing_children:${row.dungeon_id}`);
+        }
+      });
+      const summary = {};
+      Object.entries(realmAgg).forEach(([realmId, agg]) => {
+        const runs = Number(agg.runs || 0);
+        summary[realmId] = {
+          runs,
+          avg_difficulty: runs > 0 ? Number((agg.difficulty_sum / runs).toFixed(2)) : 0,
+          avg_shards: runs > 0 ? Number((agg.shard_sum / runs).toFixed(2)) : 0,
+          avg_hostile_entities: runs > 0 ? Number((agg.enemy_sum / runs).toFixed(2)) : 0,
+          hostile_rate: runs > 0 ? Number((agg.hostile_count / runs).toFixed(2)) : 0,
+        };
+      });
+      const expectedRuns = dungeonIds.length * profiles.length;
+      const ok = failures.length === 0 && invariantErrors.length === 0 && rows.length === expectedRuns;
+      const report = {
+        ok,
+        expected_runs: expectedRuns,
+        actual_runs: rows.length,
+        failure_count: failures.length,
+        invariant_error_count: invariantErrors.length,
+        invariant_errors: invariantErrors,
+        summary,
+        hash: consumed && consumed.hash ? consumed.hash : "",
+      };
+      setModuleRunOutput({
+        dungeon_sweep: report,
+        dungeon_sweep_consume: consumed,
+      });
+      setRendererGameStatus(ok ? `dungeon_sweep_ok:${rows.length}` : `dungeon_sweep_fail:${failures.length}:${invariantErrors.length}`);
+      return report;
     });
   }
 
@@ -7888,6 +8089,7 @@ export function App() {
       outlineColor: "#3a4327",
       edgeGlow: false,
       labelMode: "type",
+      classicFalloutShowLabels: false,
       labelColor: "#c6d68c",
       lighting: { ...(prev.lighting || {}), enabled: false },
     }));
@@ -8196,6 +8398,7 @@ export function App() {
       const scenes = await window.atelierDesktop.fs.listAssetsBySuffix(studioFsRoot, ".scene.json");
       const sprites = await window.atelierDesktop.fs.listAssetsBySuffix(studioFsRoot, ".sprite.json");
       const audioFiles = await listStudioAudioFiles(studioFsRoot);
+      const runtimePlans = await listStudioRuntimePlanFiles(studioFsRoot);
       const pyFiles = pythonFiles && pythonFiles.ok && Array.isArray(pythonFiles.files) ? pythonFiles.files : [];
       const sceneFiles = scenes && scenes.ok && Array.isArray(scenes.files) ? scenes.files : [];
       const spriteFiles = sprites && sprites.ok && Array.isArray(sprites.files) ? sprites.files : [];
@@ -8203,6 +8406,7 @@ export function App() {
       setStudioFsSceneFiles(sceneFiles);
       setStudioFsSpriteFiles(spriteFiles);
       setStudioFsAudioFiles(audioFiles);
+      setStudioFsRuntimePlanFiles(runtimePlans);
       if (pyFiles.length > 0) {
         setStudioFsSelectedPython(String(pyFiles[0]));
       }
@@ -8215,7 +8419,16 @@ export function App() {
       if (audioFiles.length > 0) {
         setStudioFsSelectedAudio(String(audioFiles[0]));
       }
-      return { python_count: pyFiles.length, scene_count: sceneFiles.length, sprite_count: spriteFiles.length, audio_count: audioFiles.length };
+      if (runtimePlans.length > 0 && !runtimePlans.includes(String(studioFsRuntimePlanPath || ""))) {
+        setStudioFsRuntimePlanPath(String(runtimePlans[0]));
+      }
+      return {
+        python_count: pyFiles.length,
+        scene_count: sceneFiles.length,
+        sprite_count: spriteFiles.length,
+        audio_count: audioFiles.length,
+        runtime_plan_count: runtimePlans.length,
+      };
     });
   }
 
@@ -12371,6 +12584,18 @@ export function App() {
                   onChange={(e) => setVoxelSettings((prev) => ({ ...prev, labelColor: e.target.value }))}
                   placeholder="label color"
                 />
+                {String(voxelSettings.visualStyle || "").toLowerCase() === "classic_fallout" ? (
+                  <label className="inline-toggle">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(voxelSettings.classicFalloutShowLabels)}
+                      onChange={(e) =>
+                        setVoxelSettings((prev) => ({ ...prev, classicFalloutShowLabels: e.target.checked }))
+                      }
+                    />
+                    Classic Fallout: Show Labels
+                  </label>
+                ) : null}
                 <select
                   value={String((voxelSettings.lod && voxelSettings.lod.mode) || "auto_zoom")}
                   onChange={(e) =>
@@ -13955,6 +14180,23 @@ export function App() {
               <button className="action" onClick={exportRendererSpriteToFs}>Export Current Sprite</button>
             </div>
             <div className="row">
+              <select value={studioFsRuntimePlanPath} onChange={(e) => setStudioFsRuntimePlanPath(e.target.value)}>
+                <option value="">select runtime plan from gameplay/runtime_plans</option>
+                {studioFsRuntimePlanFiles.map((name) => (
+                  <option key={`studio-fs-runtime-plan-${name}`} value={name}>{name}</option>
+                ))}
+              </select>
+              <input
+                value={studioFsRuntimePlanPath}
+                onChange={(e) => setStudioFsRuntimePlanPath(e.target.value)}
+                placeholder="runtime plan path (relative to Studio FS root)"
+              />
+              <button className="action" onClick={refreshStudioFsAssets}>Refresh Runtime Plans</button>
+              <button className="action" onClick={runRuntimePlanFromFs}>Run Runtime Plan File</button>
+              <button className="action" onClick={runDungeonSweepFromApi}>Run Dungeon Sweep</button>
+              <span className="badge">{`runtime plans: ${studioFsRuntimePlanFiles.length}`}</span>
+            </div>
+            <div className="row">
               <input value={studioNewFolder} onChange={(e) => setStudioNewFolder(e.target.value)} placeholder="new folder name" />
               <button className="action" onClick={createStudioFolder}>Add Folder</button>
             </div>
@@ -14102,7 +14344,7 @@ export function App() {
               className="editor editor-mono renderer-editor"
               value={rendererSandboxDraftText}
               onChange={(e) => setRendererSandboxDraftText(e.target.value)}
-              placeholder='{"schema":"atelier.renderer.pack.v1", ...}'
+              placeholder='{"schema":"atelier.renderer.pack.v2", ...}'
             />
             <pre>{JSON.stringify({ validation: rendererSandboxValidation, selected: rendererSandboxSelectedPack }, null, 2)}</pre>
           </section>

@@ -1,0 +1,30 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "dungeon_sulphera_ring_run_template",
+  "actions": [
+    {
+      "action_id": "enter_ring",
+      "kind": "dungeon.enter",
+      "payload": {
+        "dungeon_id": "sulphera/pride",
+        "player_level": 6,
+        "quest_progress": 12
+      }
+    },
+    {
+      "action_id": "decode_midrun",
+      "kind": "dungeon.decode",
+      "payload": {
+        "dungeon_id": "sulphera/pride"
+      }
+    },
+    {
+      "action_id": "complete_ring",
+      "kind": "dungeon.complete",
+      "payload": {
+        "dungeon_id": "sulphera/pride"
+      }
+    }
+  ]
+}

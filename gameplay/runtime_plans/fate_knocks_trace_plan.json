@@ -49,6 +49,15 @@
       }
     },
     {
+      "action_id": "report_to_hypatia_19",
+      "kind": "quest.fate_knocks.report_to_castle",
+      "payload": {
+        "scene_id": "lapidus/castle_evening",
+        "met_hypatia": true,
+        "current_hour_local": 19
+      }
+    },
+    {
       "action_id": "deadline_check_20",
       "kind": "quest.fate_knocks.deadline_check",
       "payload": {
@@ -64,4 +73,3 @@
     }
   ]
 }
-

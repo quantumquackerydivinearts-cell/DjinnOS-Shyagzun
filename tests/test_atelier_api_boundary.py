@@ -2068,6 +2068,268 @@ def test_game_runtime_consume_reports_per_action_failure() -> None:
     app.dependency_overrides.clear()
 
 
+def test_game_runtime_fate_knocks_bootstrap_and_castle_report_flow_unlocks_destiny_calls() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    place_headers = _headers("kernel.place", role="steward", token=token)
+
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "fate_knocks_story_flow",
+        "actions": [
+            {
+                "action_id": "bootstrap_fate_knocks",
+                "kind": "quest.fate_knocks.bootstrap",
+                "payload": {
+                    "player_name": "Kael",
+                    "player_gender": "nonbinary",
+                    "month": "Shyalz",
+                    "deadline_hour_local": 19,
+                    "quiz_points_budget": 28,
+                    "quiz_answers": [4, 4, 4, 4, 4, 4, 4],
+                },
+            },
+            {
+                "action_id": "report_to_hypatia",
+                "kind": "quest.fate_knocks.report_to_castle",
+                "payload": {
+                    "scene_id": "lapidus/castle_evening",
+                    "met_hypatia": True,
+                    "current_hour_local": 19,
+                },
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=place_headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    results = {item["action_id"]: item for item in out["results"]}
+
+    boot = results["bootstrap_fate_knocks"]["result"]
+    assert boot["quiz_completed"] is True
+    assert boot["destiny_calls_unlocked"] is True
+    assert boot["destiny_calls_quest_id"] == "0002_KLST"
+    assert boot["travel_target_scene_id"] == "lapidus/castle_evening"
+
+    report = results["report_to_hypatia"]["result"]
+    assert report["reported_to_castle"] is True
+    assert report["met_hypatia"] is True
+    assert report["fate_knocks_resolved"] is True
+    assert report["destiny_calls_unlocked"] is True
+    assert report["destiny_calls_quest_id"] == "0002_KLST"
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_fate_knocks_bootstrap_accepts_v3_split_answers_and_string_non_budget_fields() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    place_headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "fate_knocks_v3_split",
+        "actions": [
+            {
+                "action_id": "bootstrap_fate_knocks_v3",
+                "kind": "quest.fate_knocks.bootstrap",
+                "payload": {
+                    "player_name": "Kael",
+                    "player_gender": "nonbinary",
+                    "month": "Shyalz",
+                    "deadline_hour_local": 19,
+                    "quiz_points_budget": 28,
+                    "quiz_min_per_answer": 1,
+                    "quiz_max_per_answer": 10,
+                    "vitriol_answers": [4, 4, 4, 4, 4, 4, 4],
+                    "non_vitriol_answers": {
+                        "perk_answers": ["Iron Skin", "Flashbulb Memory", "Balanced"],
+                        "skill_aptitude_answers": ["focused", "disciplined", "novice"],
+                        "power_answer": "service before dominion",
+                        "finance_answer": "redistribution with stable trade",
+                    },
+                },
+            }
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=place_headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    result = out["results"][0]["result"]
+    assert result["quiz_version"] == "v3"
+    assert result["quiz_completed"] is True
+    assert result["quiz_valid"] is True
+    assert result["vitriol_answers"] == [4, 4, 4, 4, 4, 4, 4]
+    assert result["non_vitriol_answers"]["perk_answers"][0] == "Iron Skin"
+    assert result["power_finance_profile"]["power"] == "service before dominion"
+    assert result["destiny_calls_unlocked"] is True
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_dungeon_generate_is_deterministic_per_entry_and_lapidus_mine_is_non_hostile() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "dungeon_generate_det",
+        "actions": [
+            {
+                "action_id": "g1",
+                "kind": "dungeon.generate",
+                "payload": {
+                    "dungeon_id": "lapidus/lapidus_mines_mt_hieronymus",
+                    "player_level": 4,
+                    "quest_progress": 6,
+                    "entry_ordinal": 1,
+                },
+            }
+        ],
+    }
+    first = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    second = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    out1 = first.json()
+    out2 = second.json()
+    assert out1["failed_count"] == 0
+    assert out2["failed_count"] == 0
+    res1 = out1["results"][0]["result"]
+    res2 = out2["results"][0]["result"]
+    assert res1["seed_hash"] == res2["seed_hash"]
+    assert res1["run_id"] == res2["run_id"]
+    assert res1["hostile"] is False
+    assert res1["realm_id"] == "lapidus"
+    assert res1["population"]["hostile_entities"] == []
+    assert "gnome_miners" in res1["population"]["neutral_entities"]
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_dungeon_enter_complete_and_fail_support_meta_progression() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "dungeon_progression",
+        "actions": [
+            {
+                "action_id": "enter_1",
+                "kind": "dungeon.enter",
+                "payload": {"dungeon_id": "sulphera/pride", "player_level": 5, "quest_progress": 10},
+            },
+            {
+                "action_id": "decode_1",
+                "kind": "dungeon.decode",
+                "payload": {"dungeon_id": "sulphera/pride"},
+            },
+            {
+                "action_id": "complete_1",
+                "kind": "dungeon.complete",
+                "payload": {"dungeon_id": "sulphera/pride"},
+            },
+            {
+                "action_id": "enter_2",
+                "kind": "dungeon.enter",
+                "payload": {"dungeon_id": "sulphera/pride", "player_level": 5, "quest_progress": 10},
+            },
+            {
+                "action_id": "fail_2",
+                "kind": "dungeon.fail",
+                "payload": {"dungeon_id": "sulphera/pride", "retention_ratio_bp": 3000},
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    by_id = {item["action_id"]: item for item in out["results"]}
+    assert by_id["enter_1"]["result"]["entry_ordinal"] == 1
+    decoded = by_id["decode_1"]["result"]["decoded"]
+    assert decoded["text_key"] != ""
+    assert isinstance(decoded["shygazun_byte_sequence"], list)
+    complete = by_id["complete_1"]["result"]
+    assert complete["status"] == "completed"
+    assert complete["decoded"]["decode_hash"] != ""
+    assert complete["meta_progression"]["completed"]["sulphera/pride"] == 1
+    assert by_id["enter_2"]["result"]["entry_ordinal"] == 2
+    failed = by_id["fail_2"]["result"]
+    assert failed["status"] == "failed"
+    assert failed["retained_shard_count"] >= 0
+    assert failed["meta_progression"]["failed"]["sulphera/pride"] == 1
+    app.dependency_overrides.clear()
+
+
+def test_game_runtime_dungeon_generate_clamps_shard_counts_by_difficulty_tier_band() -> None:
+    fake = FakeKernelClient()
+    app.dependency_overrides[_kernel_client] = lambda: fake
+    client = TestClient(app)
+    token = _admin_gate_token("tester", "workshop-1")
+    headers = _headers("kernel.place", role="steward", token=token)
+    payload = {
+        "workspace_id": "main",
+        "actor_id": "player",
+        "plan_id": "dungeon_shard_clamp_bands",
+        "actions": [
+            {
+                "action_id": "low_band",
+                "kind": "dungeon.generate",
+                "payload": {
+                    "dungeon_id": "sulphera/pride",
+                    "player_level": 1,
+                    "quest_progress": 0,
+                    "entry_ordinal": 1,
+                },
+            },
+            {
+                "action_id": "mid_band",
+                "kind": "dungeon.generate",
+                "payload": {
+                    "dungeon_id": "sulphera/pride",
+                    "player_level": 6,
+                    "quest_progress": 14,
+                    "entry_ordinal": 1,
+                },
+            },
+            {
+                "action_id": "high_band",
+                "kind": "dungeon.generate",
+                "payload": {
+                    "dungeon_id": "sulphera/pride",
+                    "player_level": 12,
+                    "quest_progress": 40,
+                    "entry_ordinal": 1,
+                },
+            },
+        ],
+    }
+    res = client.post("/v1/game/runtime/consume", json=payload, headers=headers)
+    assert res.status_code == 200
+    out = res.json()
+    assert out["failed_count"] == 0
+    by_id = {item["action_id"]: item["result"] for item in out["results"]}
+    low_shards = len(by_id["low_band"]["cypher_shards"])
+    mid_shards = len(by_id["mid_band"]["cypher_shards"])
+    high_shards = len(by_id["high_band"]["cypher_shards"])
+    assert 4 <= low_shards <= 6
+    assert 6 <= mid_shards <= 7
+    assert 7 <= high_shards <= 8
+    app.dependency_overrides.clear()
+
+
 def test_game_runtime_replay_reexecutes_stored_plan_and_verifies_hash() -> None:
     fake = FakeKernelClient()
     kernel = KernelIntegrationService(fake)

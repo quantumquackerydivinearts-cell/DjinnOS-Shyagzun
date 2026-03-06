@@ -4,12 +4,20 @@
   "go": true,
   "checks": [
     {
+      "name": "renderer_build",
+      "ok": true,
+      "detail": {
+        "command": "npm -C apps/atelier-desktop run build",
+        "output_tail": "> atelier-desktop@0.1.0 build\n> vite build\n\n\u001b[36mvite v5.4.21 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u00e2\u0153\u201c\u001b[39m 34 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/\u001b[22m\u001b[32mindex.html                           \u001b[39m\u001b[1m\u001b[2m  0.43 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u00e2\u201d\u201a gzip:   0.29 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/labComputeWorker-CYz6SRMp.js  \u001b[39m\u001b[1m\u001b[2m  4.38 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[35massets/index-BBtHqgJk.css            \u001b[39m\u001b[1m\u001b[2m  9.45 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u00e2\u201d\u201a gzip:   2.46 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/index-D_E-lxl9.js             \u001b[39m\u001b[1m\u001b[2m485.27 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u00e2\u201d\u201a gzip: 133.44 kB\u001b[22m\n\u001b[32m\u00e2\u0153\u201c built in 1.95s\u001b[39m\n\n\u001b[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.\u001b[39m"
+      }
+    },
+    {
       "name": "renderer_bundle_budget",
       "ok": true,
       "detail": {
-        "main_bundle": "apps\\atelier-desktop\\dist\\assets\\index-Bg1p_Fj4.js",
-        "main_bundle_bytes": 475795,
-        "main_bundle_gzip_bytes": 130589,
+        "main_bundle": "apps\\atelier-desktop\\dist\\assets\\index-D_E-lxl9.js",
+        "main_bundle_bytes": 485269,
+        "main_bundle_gzip_bytes": 133335,
         "worker_bundle": "apps\\atelier-desktop\\dist\\assets\\labComputeWorker-CYz6SRMp.js",
         "worker_bundle_bytes": 4377,
         "budget": {
@@ -23,7 +31,7 @@
       "name": "runtime_plan_budget",
       "ok": true,
       "detail": {
-        "plan_count": 140,
+        "plan_count": 145,
         "max_actions": 32,
         "max_actions_plan": "gameplay\\runtime_plans\\day_scene_plan.main.generated.json",
         "budget": {
@@ -112,7 +120,7 @@
     }
   ],
   "summary": {
-    "check_count": 13,
+    "check_count": 14,
     "failed_count": 0,
     "go": true
   }

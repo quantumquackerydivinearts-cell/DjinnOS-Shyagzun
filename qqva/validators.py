@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import re
 from typing import Dict, List, Optional
 
 from .shygazun_compiler import compile_akinenwun_to_ir, default_symbol_inventory, split_akinenwun
@@ -81,6 +82,19 @@ def validate_cobra_content(
     entities = _parse_cobra_entities(source)
     unresolved_total: List[str] = []
     for entity in entities:
+        entity_id = str(entity.get("id", "entity"))
+        meta_obj = entity.get("meta")
+        meta = meta_obj if isinstance(meta_obj, dict) else {}
+        for coeff_key in ("reference_coeff_bp", "recursion_coeff_bp", "djinn_reference_coeff_bp", "djinn_recursion_coeff_bp"):
+            raw = str(meta.get(coeff_key, "")).strip()
+            if raw == "":
+                continue
+            if not re.fullmatch(r"-?\d+", raw):
+                warnings.append(f"invalid_coeff_format:{entity_id}:{coeff_key}")
+                continue
+            parsed = int(raw)
+            if parsed < 0 or parsed > 10000:
+                warnings.append(f"coeff_out_of_range:{entity_id}:{coeff_key}:{parsed}")
         akinenwun = str(entity.get("akinenwun") or "").strip()
         if not akinenwun:
             continue

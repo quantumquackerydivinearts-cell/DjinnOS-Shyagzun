@@ -1,0 +1,77 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "dungeon_campaign_seed_template",
+  "actions": [
+    {
+      "action_id": "sulphera_enter_pride",
+      "kind": "dungeon.enter",
+      "payload": {
+        "dungeon_id": "sulphera/pride",
+        "player_level": 6,
+        "quest_progress": 14
+      }
+    },
+    {
+      "action_id": "sulphera_decode_pride",
+      "kind": "dungeon.decode",
+      "payload": {
+        "dungeon_id": "sulphera/pride"
+      }
+    },
+    {
+      "action_id": "sulphera_complete_pride",
+      "kind": "dungeon.complete",
+      "payload": {
+        "dungeon_id": "sulphera/pride"
+      }
+    },
+    {
+      "action_id": "mercurie_enter_tideglass",
+      "kind": "dungeon.enter",
+      "payload": {
+        "dungeon_id": "mercurie/zone_tideglass",
+        "player_level": 6,
+        "quest_progress": 14
+      }
+    },
+    {
+      "action_id": "mercurie_decode_tideglass",
+      "kind": "dungeon.decode",
+      "payload": {
+        "dungeon_id": "mercurie/zone_tideglass"
+      }
+    },
+    {
+      "action_id": "mercurie_fail_tideglass",
+      "kind": "dungeon.fail",
+      "payload": {
+        "dungeon_id": "mercurie/zone_tideglass",
+        "retention_ratio_bp": 3000
+      }
+    },
+    {
+      "action_id": "lapidus_enter_mines",
+      "kind": "dungeon.enter",
+      "payload": {
+        "dungeon_id": "lapidus/lapidus_mines_mt_hieronymus",
+        "player_level": 6,
+        "quest_progress": 14
+      }
+    },
+    {
+      "action_id": "lapidus_decode_mines",
+      "kind": "dungeon.decode",
+      "payload": {
+        "dungeon_id": "lapidus/lapidus_mines_mt_hieronymus"
+      }
+    },
+    {
+      "action_id": "lapidus_complete_mines",
+      "kind": "dungeon.complete",
+      "payload": {
+        "dungeon_id": "lapidus/lapidus_mines_mt_hieronymus"
+      }
+    }
+  ]
+}

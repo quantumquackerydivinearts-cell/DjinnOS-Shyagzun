@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://djinnos.local/schemas/renderer/renderer_pack.v2.schema.json",
+  "title": "RendererPackV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "pack_id",
+    "name",
+    "workspace_id",
+    "source",
+    "compile",
+    "hashes",
+    "render_settings",
+    "compiled_scene",
+    "manifest"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "atelier.renderer.pack.v2"
+    },
+    "pack_id": {
+      "type": "string",
+      "pattern": "^rpackv2_[a-f0-9]{16}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "workspace_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]{1,64}$"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "compile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compiler_id",
+        "compile_hash",
+        "source_hash"
+      ],
+      "properties": {
+        "compiler_id": {
+          "type": "string",
+          "const": "renderer_pack_compiler.v2"
+        },
+        "compile_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "source_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scene_sha256",
+        "materials_sha256",
+        "atlases_sha256",
+        "layers_sha256",
+        "settings_sha256",
+        "pack_sha256"
+      ],
+      "properties": {
+        "scene_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "materials_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "atlases_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "layers_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "settings_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "pack_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "render_settings": {
+      "type": "object"
+    },
+    "compiled_scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "voxels",
+        "materials",
+        "atlases",
+        "layers"
+      ],
+      "properties": {
+        "voxels": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "materials": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "atlases": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stats",
+        "dependencies"
+      ],
+      "properties": {
+        "stats": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "voxel_count",
+            "material_count",
+            "atlas_count",
+            "layer_count"
+          ],
+          "properties": {
+            "voxel_count": { "type": "integer", "minimum": 0 },
+            "material_count": { "type": "integer", "minimum": 0 },
+            "atlas_count": { "type": "integer", "minimum": 0 },
+            "layer_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "dependencies": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "atlas_ids",
+            "texture_paths"
+          ],
+          "properties": {
+            "atlas_ids": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            },
+            "texture_paths": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

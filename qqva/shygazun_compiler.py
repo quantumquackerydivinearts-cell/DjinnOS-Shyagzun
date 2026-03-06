@@ -73,6 +73,17 @@ class PlacementIdentity(TypedDict):
     akinenwun: str
 
 
+class DjinnLayerReferences(TypedDict):
+    function_id: str
+    function_version: str
+    layer_projection_report: str
+    reference_coeff_bp: int
+    recursion_coeff_bp: int
+    recursion_enabled: bool
+    behavior_words: List[str]
+    model: str
+
+
 @dataclass(frozen=True)
 class SymbolInventory:
     by_symbol: Mapping[str, Sequence[ByteEntry]]
@@ -593,6 +604,106 @@ def _normalize_aster_metadata(meta: Dict[str, Any]) -> None:
     meta["aster_components"] = list(resolved["components"])
 
 
+def _first_meta_value(meta: Mapping[str, Any], keys: Sequence[str]) -> str:
+    for key in keys:
+        value = meta.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text != "":
+            return text
+    return ""
+
+
+def _parse_bp(value: str, default_value: int) -> int:
+    text = str(value or "").strip()
+    if text == "":
+        return default_value
+    if not re.fullmatch(r"-?\d+", text):
+        return default_value
+    parsed = int(text)
+    if parsed < 0:
+        return 0
+    if parsed > 10000:
+        return 10000
+    return parsed
+
+
+def derive_djinn_layer_references(
+    *,
+    meta: Mapping[str, Any],
+    ir: Optional[ShygazunIR] = None,
+) -> DjinnLayerReferences:
+    behavior_set: set[str] = set()
+    if ir is not None:
+        for atom in ir.get("symbols", []):
+            symbol = str(atom.get("symbol") or "").strip()
+            if symbol != "":
+                behavior_set.add(symbol)
+    behavior_words = sorted(behavior_set)
+
+    function_id = _first_meta_value(
+        meta,
+        (
+            "djinn_function",
+            "djinn.function",
+            "function_id",
+            "layer_function_id",
+        ),
+    )
+    function_version = _first_meta_value(
+        meta,
+        (
+            "djinn_function_version",
+            "djinn.function.version",
+            "function_version",
+            "layer_function_version",
+        ),
+    )
+    if function_version == "":
+        function_version = "v1"
+
+    projection_report = _first_meta_value(
+        meta,
+        (
+            "layer_projection_report",
+            "renderer_layer_projection_report",
+            "djinn_layer_projection",
+        ),
+    )
+
+    reference_coeff_default = 7000
+    recursion_coeff_default = 3000
+    if "Na" in behavior_set:
+        reference_coeff_default = 5000
+        recursion_coeff_default = 5000
+    if "Kysael" in behavior_set:
+        reference_coeff_default = 8000
+        recursion_coeff_default = 2000
+
+    reference_coeff_bp = _parse_bp(
+        _first_meta_value(meta, ("reference_coeff_bp", "djinn_reference_coeff_bp")),
+        reference_coeff_default,
+    )
+    recursion_coeff_bp = _parse_bp(
+        _first_meta_value(meta, ("recursion_coeff_bp", "djinn_recursion_coeff_bp")),
+        recursion_coeff_default,
+    )
+    recursion_enabled = "Wu" in behavior_set or recursion_coeff_bp > 0
+    model = "labyr_nth.linear_recurrence.v1" if recursion_enabled else "labyr_nth.reference_only.v1"
+
+    return {
+        "function_id": function_id,
+        "function_version": function_version,
+        "layer_projection_report": projection_report,
+        "reference_coeff_bp": reference_coeff_bp,
+        "recursion_coeff_bp": recursion_coeff_bp,
+        "recursion_enabled": recursion_enabled,
+        "behavior_words": behavior_words,
+        "model": model,
+    }
+
+
 def cobra_to_placement_payloads(
     source: str,
     *,
@@ -623,6 +734,8 @@ def cobra_to_placement_payloads(
             "akinenwun": ir["canonical_compound"],
         }
         constraints = derive_render_constraints(ir, use_case=use_case)
+        entity_meta: Mapping[str, Any] = entity_meta_obj if isinstance(entity_meta_obj, dict) else {}
+        djinn_refs = derive_djinn_layer_references(meta=entity_meta, ir=ir)
         payloads.append(
             {
                 "raw": raw,
@@ -635,6 +748,7 @@ def cobra_to_placement_payloads(
                     "identity": identity,
                     "render_constraints": constraints,
                     "frontier_policy": constraints["frontier_policy"],
+                    "djinn_layer_references": djinn_refs,
                 },
             }
         )

@@ -1,20 +1,20 @@
 {
   "id": "determinism_corpus.v1",
   "version": "1.0.0",
-  "updated_at": "2026-03-03",
+  "updated_at": "2026-03-05",
   "algorithm": "sha256(canonical_json_sorted_keys)",
   "cases": [
     {
       "id": "plan_fate_knocks_day1",
       "path": "gameplay/runtime_plans/fate_knocks_day1_plan.json",
       "type": "runtime_plan",
-      "expected_hash": "c17791f32616448443bdc8597c545172dce4e4b828be76c39fec7a0437abbb0c"
+      "expected_hash": "1cc6faa6d2b9a3593dfc6b08ddcbd7117f1ed7362f853ebd7e897041d8cf9a51"
     },
     {
       "id": "plan_fate_knocks_trace",
       "path": "gameplay/runtime_plans/fate_knocks_trace_plan.json",
       "type": "runtime_plan",
-      "expected_hash": "47690b9989163ca9fb12aacb05743800a7248dbce323b5affaea7841e0d3a698"
+      "expected_hash": "4713dce0b4310fa54434d9e850095e333848400a1c2318d890719fed766cb324"
     },
     {
       "id": "plan_story_pack",

@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://djinnos.local/schemas/renderer/renderer_stream_prefetch_manifest.v1.schema.json",
+  "title": "RendererStreamPrefetchManifestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "source_stream_manifest",
+    "max_ring",
+    "chunk_count",
+    "chunks"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "atelier.renderer.stream_prefetch_manifest.v1"
+    },
+    "source_stream_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "manifest_sha256",
+        "pack_id"
+      ],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "pack_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "max_ring": { "type": "integer", "minimum": 1 },
+    "chunk_count": { "type": "integer", "minimum": 0 },
+    "chunks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "chunk_id",
+          "coord",
+          "rings",
+          "priority"
+        ],
+        "properties": {
+          "chunk_id": { "type": "string", "pattern": "^cx-?[0-9]+_cy-?[0-9]+$" },
+          "coord": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cx", "cy"],
+            "properties": {
+              "cx": { "type": "integer" },
+              "cy": { "type": "integer" }
+            }
+          },
+          "rings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ring", "chunk_ids"],
+              "properties": {
+                "ring": { "type": "integer", "minimum": 1 },
+                "chunk_ids": {
+                  "type": "array",
+                  "items": { "type": "string", "pattern": "^cx-?[0-9]+_cy-?[0-9]+$" },
+                  "uniqueItems": true
+                }
+              }
+            }
+          },
+          "priority": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["immediate", "warm", "cold"],
+            "properties": {
+              "immediate": {
+                "type": "array",
+                "items": { "type": "string", "pattern": "^cx-?[0-9]+_cy-?[0-9]+$" },
+                "uniqueItems": true
+              },
+              "warm": {
+                "type": "array",
+                "items": { "type": "string", "pattern": "^cx-?[0-9]+_cy-?[0-9]+$" },
+                "uniqueItems": true
+              },
+              "cold": {
+                "type": "array",
+                "items": { "type": "string", "pattern": "^cx-?[0-9]+_cy-?[0-9]+$" },
+                "uniqueItems": true
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

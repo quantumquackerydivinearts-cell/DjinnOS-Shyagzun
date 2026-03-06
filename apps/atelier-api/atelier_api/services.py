@@ -314,12 +314,29 @@ class AtelierService:
     _UNDERWORLD_RING_ORDER: tuple[str, ...] = (
         "pride",
         "greed",
-        "gluttony",
         "envy",
+        "gluttony",
         "sloth",
         "wrath",
         "lust",
     )
+    _SULPHERA_RING_RULERS: dict[str, str] = {
+        "pride": "lucifer",
+        "greed": "mammon",
+        "envy": "leviathan",
+        "gluttony": "beelzebub",
+        "sloth": "belphegor",
+        "wrath": "satan",
+        "lust": "asmodeus",
+    }
+    _MERCURIE_DUNGEON_ZONES: tuple[str, ...] = (
+        "zone_tideglass",
+        "zone_cindergrove",
+        "zone_rootbloom",
+        "zone_thornveil",
+        "zone_dewspire",
+    )
+    _LAPIDUS_DUNGEON_IDS: tuple[str, ...] = ("lapidus_mines_mt_hieronymus",)
     _FAE_KINDS: tuple[str, ...] = ("undines", "salamanders", "dryads", "faeries", "gnomes")
     _SOCIAL_CLASSES: tuple[str, ...] = ("assassins", "nobles", "royals", "townsfolk", "merchants", "gods")
     _REALM_IDS: tuple[str, ...] = ("lapidus", "mercurie", "sulphera")
@@ -917,9 +934,62 @@ class AtelierService:
         month = str(payload.get("month", "Shyalz")).strip() or "Shyalz"
         deadline_hour_local = max(0, min(23, self._int_from_table(payload.get("deadline_hour_local"), 19)))
         points_budget = max(1, self._int_from_table(payload.get("quiz_points_budget"), 28))
+        min_per_answer = max(0, self._int_from_table(payload.get("quiz_min_per_answer"), 1))
+        max_per_answer = max(min_per_answer, self._int_from_table(payload.get("quiz_max_per_answer"), 10))
+        vitriol_obj = payload.get("vitriol_answers")
+        vitriol_answers = [self._int_from_table(item, 0) for item in vitriol_obj] if isinstance(vitriol_obj, list) else []
         quiz_answers_obj = payload.get("quiz_answers")
         quiz_answers = [self._int_from_table(item, 0) for item in quiz_answers_obj] if isinstance(quiz_answers_obj, list) else []
-        quiz_valid = len(quiz_answers) == 7 and sum(quiz_answers) == points_budget and all(item >= 0 for item in quiz_answers)
+        if len(vitriol_answers) == 0 and len(quiz_answers) >= 7:
+            vitriol_answers = quiz_answers[:7]
+        perk_obj = payload.get("perk_answers")
+        perk_answers = [str(item).strip() for item in perk_obj] if isinstance(perk_obj, list) else []
+        skill_aptitude_obj = payload.get("skill_aptitude_answers")
+        skill_aptitude_answers = (
+            [str(item).strip() for item in skill_aptitude_obj]
+            if isinstance(skill_aptitude_obj, list)
+            else []
+        )
+        power_answer = str(payload.get("power_answer", "")).strip()
+        finance_answer = str(payload.get("finance_answer", "")).strip()
+        non_vitriol_obj = payload.get("non_vitriol_answers")
+        if isinstance(non_vitriol_obj, dict):
+            if len(perk_answers) == 0:
+                perk_embedded = non_vitriol_obj.get("perk_answers")
+                if isinstance(perk_embedded, list):
+                    perk_answers = [str(item).strip() for item in perk_embedded]
+            if len(skill_aptitude_answers) == 0:
+                apt_embedded = non_vitriol_obj.get("skill_aptitude_answers")
+                if isinstance(apt_embedded, list):
+                    skill_aptitude_answers = [str(item).strip() for item in apt_embedded]
+            if power_answer == "":
+                power_answer = str(non_vitriol_obj.get("power_answer", "")).strip()
+            if finance_answer == "":
+                finance_answer = str(non_vitriol_obj.get("finance_answer", "")).strip()
+        perk_answers = [item for item in perk_answers if item != ""]
+        skill_aptitude_answers = [item for item in skill_aptitude_answers if item != ""]
+        worldview_answers = [item for item in [power_answer, finance_answer] if item != ""]
+
+        vitriol_valid = (
+            len(vitriol_answers) == 7
+            and all(min_per_answer <= item <= max_per_answer for item in vitriol_answers)
+            and sum(vitriol_answers) == points_budget
+        )
+        v3_mode = (
+            len(perk_answers) > 0
+            or len(skill_aptitude_answers) > 0
+            or power_answer != ""
+            or finance_answer != ""
+            or "non_vitriol_answers" in payload
+        )
+        v3_valid = (
+            vitriol_valid
+            and len(perk_answers) == 3
+            and len(skill_aptitude_answers) == 3
+            and power_answer != ""
+            and finance_answer != ""
+        )
+        quiz_valid = v3_valid if v3_mode else vitriol_valid
         vitriol_axes = (
             "vitality",
             "introspection",
@@ -929,9 +999,85 @@ class AtelierService:
             "ostentation",
             "levity",
         )
-        vitriol_map = {axis: (quiz_answers[index] if quiz_valid else 0) for index, axis in enumerate(vitriol_axes)}
+        vitriol_map = {axis: (vitriol_answers[index] if quiz_valid else 0) for index, axis in enumerate(vitriol_axes)}
         dominant_sorted = sorted(vitriol_map.items(), key=lambda item: (-item[1], item[0]))
         skill_tags = [item[0] for item in dominant_sorted[:3]]
+        levity_value = int(vitriol_map.get("levity", 0))
+
+        perk_candidates: list[str] = []
+        if v3_mode and quiz_valid:
+            perk_text = " ".join(perk_answers).lower()
+            if ("iron" in perk_text and "skin" in perk_text) or "iron_skin" in perk_text:
+                perk_candidates.append("Iron Skin")
+            if "flashbulb" in perk_text or ("memory" in perk_text and "elder" in perk_text):
+                perk_candidates.append("Flashbulb Memory")
+
+        skill_table = [
+            "barter",
+            "energy_weapons",
+            "explosives",
+            "guns",
+            "lockpick",
+            "medicine",
+            "melee_weapons",
+            "repair",
+            "alchemy",
+            "sneak",
+            "hack",
+            "speech",
+            "survival",
+            "unarmed",
+            "meditation",
+            "magic",
+            "blacksmithing",
+            "silversmithing",
+            "goldsmithing",
+        ]
+        skill_modulation: dict[str, int] = {}
+        if quiz_valid:
+            vitriol_avg = sum(vitriol_map.values()) / max(1, len(vitriol_map))
+            aptitude_bias = 0.0
+            for answer in skill_aptitude_answers:
+                lowered = answer.lower()
+                if any(token in lowered for token in ("expert", "high", "master", "focused", "disciplined")):
+                    aptitude_bias += 0.8
+                elif any(token in lowered for token in ("low", "novice", "weak", "uncertain", "untrained")):
+                    aptitude_bias -= 0.4
+                else:
+                    aptitude_bias += 0.2
+            aptitude_avg = max(1.0, vitriol_avg + aptitude_bias)
+            levity_tradeoff = max(0.0, (levity_value - 5) * 0.06)
+            for skill_id in skill_table:
+                base = (vitriol_avg * 8.0) + (aptitude_avg * 2.0)
+                if skill_id in {"speech", "sneak", "magic"}:
+                    # Levity affords higher expressive/flexible skills.
+                    tuned = base * (1.0 + levity_tradeoff)
+                else:
+                    # Cost appears as reduced non-levity profile headroom.
+                    tuned = base * (1.0 - (levity_tradeoff * 0.5))
+                skill_modulation[skill_id] = max(1, min(100, int(round(tuned))))
+        power_finance_profile = {
+            "power": power_answer if quiz_valid else "",
+            "finance": finance_answer if quiz_valid else "",
+            "power_score": (
+                70
+                if ("duty" in power_answer.lower() or "service" in power_answer.lower())
+                else 60
+                if ("shared" in power_answer.lower() or "balance" in power_answer.lower())
+                else 50
+                if power_answer != ""
+                else 0
+            ),
+            "finance_score": (
+                70
+                if ("redistribution" in finance_answer.lower() or "equity" in finance_answer.lower())
+                else 60
+                if ("trade" in finance_answer.lower() or "stability" in finance_answer.lower())
+                else 50
+                if finance_answer != ""
+                else 0
+            ),
+        }
 
         if self._repo is None:
             return {
@@ -946,11 +1092,31 @@ class AtelierService:
                 "castle_report_deadline_hour_local": deadline_hour_local,
                 "stipend_revocation_if_missed": True,
                 "lottery_selected": True,
+                "quiz_version": "v3" if v3_mode else "v1",
                 "quiz_points_budget": points_budget,
+                "quiz_min_per_answer": min_per_answer,
+                "quiz_max_per_answer": max_per_answer,
                 "quiz_answers": quiz_answers,
+                "vitriol_answers": vitriol_answers,
+                "non_vitriol_answers": {
+                    "perk_answers": perk_answers if v3_mode else [],
+                    "skill_aptitude_answers": skill_aptitude_answers if v3_mode else [],
+                    "power_answer": power_answer if v3_mode else "",
+                    "finance_answer": finance_answer if v3_mode else "",
+                },
                 "quiz_valid": quiz_valid,
+                "quiz_completed": quiz_valid,
                 "vitriol": vitriol_map if quiz_valid else {},
                 "skill_tags": skill_tags,
+                "perk_candidates": perk_candidates,
+                "skill_aptitude_answers": skill_aptitude_answers if v3_mode else [],
+                "skill_modulation": skill_modulation if quiz_valid else {},
+                "power_finance_profile": power_finance_profile,
+                "wake_scene_id": "lapidus/home_morning",
+                "letter_scene_id": "lapidus/home_morning",
+                "travel_target_scene_id": "lapidus/castle_evening",
+                "destiny_calls_unlocked": quiz_valid,
+                "destiny_calls_quest_id": "0002_KLST" if quiz_valid else "",
                 "persisted": False,
                 "reason": "repository_unavailable",
             }
@@ -979,9 +1145,29 @@ class AtelierService:
                 "player.gender": player_gender,
                 "player.origin.parent_alchemist_status": "deceased_plague",
                 "player.origin.parent_mother_role": "baker",
-                "intro.quiz_question_count": 7,
+                "intro.quiz_question_count": 15 if v3_mode else 7,
                 "intro.quiz_points_budget": points_budget,
+                "intro.quiz_min_per_answer": min_per_answer,
+                "intro.quiz_max_per_answer": max_per_answer,
+                "intro.quiz_version": "v3" if v3_mode else "v1",
                 "intro.quiz_completed": quiz_valid,
+                "intro.quiz_answer_count": 15 if v3_mode else len(vitriol_answers),
+                "intro.quiz_answers_legacy": quiz_answers,
+                "intro.quiz_vitriol_answers": vitriol_answers,
+                "intro.quiz_perk_answers": perk_answers if v3_mode else [],
+                "intro.quiz_skill_aptitude_answers": skill_aptitude_answers if v3_mode else [],
+                "intro.quiz_worldview_answers": worldview_answers if v3_mode else [],
+                "intro.perk_candidates": perk_candidates,
+                "intro.skill_modulation": skill_modulation if quiz_valid else {},
+                "intro.power_finance_profile": power_finance_profile,
+                "intro.fate_knocks_resolved": False,
+                "intro.fate_knocks_status": "active",
+                "intro.fate_knocks_current_step": "route_to_castle_azoth",
+                "intro.wake_scene_id": "lapidus/home_morning",
+                "intro.letter_scene_id": "lapidus/home_morning",
+                "intro.travel_target_scene_id": "lapidus/castle_evening",
+                "intro.destiny_calls_unlocked": quiz_valid,
+                "intro.destiny_calls_quest_id": "0002_KLST" if quiz_valid else "",
                 "skills.tag_primary": skill_tags[0] if len(skill_tags) > 0 else "",
                 "skills.tag_secondary": skill_tags[1] if len(skill_tags) > 1 else "",
                 "skills.tag_tertiary": skill_tags[2] if len(skill_tags) > 2 else "",
@@ -1006,8 +1192,20 @@ class AtelierService:
                     quest_id="0001_KLST",
                     name="Fate Knocks",
                     status="active",
-                    current_step="intro_wakeup",
+                    current_step="route_to_castle_azoth",
                     requirements={},
+                    rewards={},
+                )
+            )
+        if quiz_valid and "0002_KLST" not in {row.quest_id for row in existing_quests}:
+            self.create_named_quest(
+                NamedQuestCreate(
+                    workspace_id=workspace_id,
+                    quest_id="0002_KLST",
+                    name="Destiny Calls",
+                    status="active",
+                    current_step="opened_by_fate_knocks_quiz",
+                    requirements={"from_quest": "0001_KLST", "quiz_completed": True},
                     rewards={},
                 )
             )
@@ -1024,11 +1222,137 @@ class AtelierService:
             "castle_report_deadline_hour_local": deadline_hour_local,
             "stipend_revocation_if_missed": True,
             "lottery_selected": True,
+            "quiz_version": "v3" if v3_mode else "v1",
             "quiz_points_budget": points_budget,
+            "quiz_min_per_answer": min_per_answer,
+            "quiz_max_per_answer": max_per_answer,
             "quiz_answers": quiz_answers,
+            "vitriol_answers": vitriol_answers,
+            "non_vitriol_answers": {
+                "perk_answers": perk_answers if v3_mode else [],
+                "skill_aptitude_answers": skill_aptitude_answers if v3_mode else [],
+                "power_answer": power_answer if v3_mode else "",
+                "finance_answer": finance_answer if v3_mode else "",
+            },
             "quiz_valid": quiz_valid,
+            "quiz_completed": quiz_valid,
             "vitriol": vitriol_map if quiz_valid else {},
             "skill_tags": skill_tags,
+            "perk_candidates": perk_candidates,
+            "skill_aptitude_answers": skill_aptitude_answers if v3_mode else [],
+            "skill_modulation": skill_modulation if quiz_valid else {},
+            "power_finance_profile": power_finance_profile,
+            "wake_scene_id": "lapidus/home_morning",
+            "letter_scene_id": "lapidus/home_morning",
+            "travel_target_scene_id": "lapidus/castle_evening",
+            "destiny_calls_unlocked": quiz_valid,
+            "destiny_calls_quest_id": "0002_KLST" if quiz_valid else "",
+        }
+
+    def _fate_knocks_report_to_castle(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+        workshop_id: str,
+        payload: Mapping[str, object],
+    ) -> dict[str, object]:
+        scene_id = str(payload.get("scene_id", "lapidus/castle_evening")).strip() or "lapidus/castle_evening"
+        met_hypatia = bool(payload.get("met_hypatia", True))
+        current_hour = self._int_from_table(payload.get("current_hour_local"), 19)
+
+        if self._repo is None:
+            quiz_completed = bool(payload.get("quiz_completed", False))
+            destiny_unlocked = bool(payload.get("destiny_calls_unlocked", False)) or quiz_completed
+            return {
+                "workspace_id": workspace_id,
+                "actor_id": actor_id,
+                "quest_id": "0001_KLST",
+                "scene_id": scene_id,
+                "met_hypatia": met_hypatia,
+                "reported_to_castle": True,
+                "fate_knocks_resolved": met_hypatia,
+                "destiny_calls_unlocked": destiny_unlocked,
+                "destiny_calls_quest_id": "0002_KLST" if destiny_unlocked else "",
+                "persisted": False,
+                "reason": "repository_unavailable",
+            }
+
+        state = self.get_player_state(workspace_id=workspace_id, actor_id=actor_id)
+        flags = dict(state.tables.flags)
+        quiz_completed = bool(flags.get("intro.quiz_completed", False))
+        destiny_unlocked = bool(flags.get("intro.destiny_calls_unlocked", False))
+        if not destiny_unlocked and quiz_completed:
+            destiny_unlocked = True
+            flags["intro.destiny_calls_unlocked"] = True
+            flags["intro.destiny_calls_quest_id"] = "0002_KLST"
+
+        flags["intro.castle_report_completed"] = True
+        flags["intro.castle_report_scene_id"] = scene_id
+        flags["intro.castle_report_hour_local"] = current_hour
+        flags["intro.met_hypatia"] = met_hypatia
+        flags["intro.fate_knocks_resolved"] = met_hypatia
+        flags["intro.fate_knocks_status"] = "resolved" if met_hypatia else "active"
+        flags["intro.fate_knocks_current_step"] = "resolved_hypatia_meeting" if met_hypatia else "await_hypatia_meeting"
+        flags["intro.next_quest_id"] = "0002_KLST" if destiny_unlocked else ""
+
+        quest_states_obj = self._dict_from_table(flags.get("quest_states"))
+        quest_states: dict[str, object] = dict(quest_states_obj)
+        quest_states["0001_KLST"] = {
+            "state": "resolved" if met_hypatia else "active",
+            "step_id": "resolved_hypatia_meeting" if met_hypatia else "await_hypatia_meeting",
+            "last_event_id": "report_to_hypatia",
+            "updated_tick": self._int_from_table(state.tables.clock.get("tick"), 0),
+        }
+        if destiny_unlocked:
+            existing_q2 = self._dict_from_table(quest_states.get("0002_KLST"))
+            next_step = str(existing_q2.get("step_id") or "opened_by_fate_knocks_quiz")
+            quest_states["0002_KLST"] = {
+                "state": str(existing_q2.get("state") or "active"),
+                "step_id": next_step,
+                "last_event_id": str(existing_q2.get("last_event_id") or "fate_knocks_quiz_unlock"),
+                "updated_tick": self._int_from_table(state.tables.clock.get("tick"), 0),
+            }
+        flags["quest_states"] = quest_states
+
+        self.apply_player_state(
+            payload=PlayerStateApplyInput(
+                workspace_id=workspace_id,
+                actor_id=actor_id,
+                mode="merge",
+                tables=PlayerStateTables(flags=flags),
+            ),
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+
+        existing_quests = self.list_named_quests(workspace_id)
+        existing_ids = {row.quest_id for row in existing_quests}
+        if destiny_unlocked and "0002_KLST" not in existing_ids:
+            self.create_named_quest(
+                NamedQuestCreate(
+                    workspace_id=workspace_id,
+                    quest_id="0002_KLST",
+                    name="Destiny Calls",
+                    status="active",
+                    current_step="opened_by_fate_knocks_quiz",
+                    requirements={"from_quest": "0001_KLST", "quiz_completed": True},
+                    rewards={},
+                )
+            )
+
+        return {
+            "workspace_id": workspace_id,
+            "actor_id": actor_id,
+            "quest_id": "0001_KLST",
+            "scene_id": scene_id,
+            "current_hour_local": current_hour,
+            "met_hypatia": met_hypatia,
+            "reported_to_castle": True,
+            "fate_knocks_resolved": met_hypatia,
+            "fate_knocks_status": "resolved" if met_hypatia else "active",
+            "destiny_calls_unlocked": destiny_unlocked,
+            "destiny_calls_quest_id": "0002_KLST" if destiny_unlocked else "",
         }
 
     def _fate_knocks_deadline_check(
@@ -5952,7 +6276,11 @@ class AtelierService:
                     "month": "str|optional (default Shyalz)",
                     "deadline_hour_local": "int|optional (default 19)",
                     "quiz_points_budget": "int|optional (default 28)",
-                    "quiz_answers": "list[int]|optional (len 7, sum == budget)",
+                    "quiz_min_per_answer": "int|optional (default 1)",
+                    "quiz_max_per_answer": "int|optional (default 10)",
+                    "vitriol_answers": "list[int]|optional (len 7, sum == budget)",
+                    "non_vitriol_answers": "dict|optional ({perk_answers[3], skill_aptitude_answers[3], power_answer, finance_answer})",
+                    "quiz_answers": "list[int]|optional legacy fallback",
                 },
                 example_payload={
                     "player_name": "Kael",
@@ -5960,7 +6288,15 @@ class AtelierService:
                     "month": "Shyalz",
                     "deadline_hour_local": 19,
                     "quiz_points_budget": 28,
-                    "quiz_answers": [4, 4, 4, 4, 4, 4, 4],
+                    "quiz_min_per_answer": 1,
+                    "quiz_max_per_answer": 10,
+                    "vitriol_answers": [4, 4, 4, 4, 4, 4, 4],
+                    "non_vitriol_answers": {
+                        "perk_answers": ["Iron Skin", "Flashbulb Memory", "None"],
+                        "skill_aptitude_answers": ["focused", "disciplined", "novice"],
+                        "power_answer": "service before dominion",
+                        "finance_answer": "redistribution with stable trade",
+                    },
                 },
             ),
             RuntimeActionCatalogItemOut(
@@ -5970,6 +6306,87 @@ class AtelierService:
                     "current_hour_local": "int|optional (falls back to player clock hour_local)",
                 },
                 example_payload={"current_hour_local": 20},
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="quest.fate_knocks.report_to_castle",
+                summary="Resolve Fate Knocks by reporting to Castle Azoth and meeting Hypatia.",
+                payload_fields={
+                    "scene_id": "str|optional (default lapidus/castle_evening)",
+                    "met_hypatia": "bool|optional (default true)",
+                    "current_hour_local": "int|optional (default 19)",
+                },
+                example_payload={
+                    "scene_id": "lapidus/castle_evening",
+                    "met_hypatia": True,
+                    "current_hour_local": 19,
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="dungeon.enter",
+                summary="Enter a dungeon run deterministically per-entry, generated in-memory only for current runtime execution.",
+                payload_fields={
+                    "dungeon_id": "str",
+                    "player_level": "int|optional",
+                    "quest_progress": "int|optional",
+                    "entry_nonce": "str|optional",
+                    "run_label": "str|optional",
+                },
+                example_payload={
+                    "dungeon_id": "sulphera/pride",
+                    "player_level": 4,
+                    "quest_progress": 2,
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="dungeon.generate",
+                summary="Generate deterministic dungeon scaffold and multifaceted cypher (visual/text/alchemical/Shygazun) without entering active run.",
+                payload_fields={
+                    "dungeon_id": "str",
+                    "player_level": "int|optional",
+                    "quest_progress": "int|optional",
+                    "entry_ordinal": "int|optional",
+                },
+                example_payload={
+                    "dungeon_id": "mercurie/zone_tideglass",
+                    "player_level": 6,
+                    "quest_progress": 9,
+                    "entry_ordinal": 3,
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="dungeon.complete",
+                summary="Resolve active dungeon as complete, reveal full key material, and persist success meta-progression.",
+                payload_fields={
+                    "dungeon_id": "str",
+                    "run_id": "str|optional",
+                },
+                example_payload={
+                    "dungeon_id": "sulphera/pride",
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="dungeon.fail",
+                summary="Resolve active dungeon as failed with partial retention meta-progression.",
+                payload_fields={
+                    "dungeon_id": "str",
+                    "run_id": "str|optional",
+                    "retention_ratio_bp": "int|optional (default 2500)",
+                },
+                example_payload={
+                    "dungeon_id": "sulphera/pride",
+                    "retention_ratio_bp": 2500,
+                },
+            ),
+            RuntimeActionCatalogItemOut(
+                kind="dungeon.decode",
+                summary="Derive deterministic final text key formula and contextual Shygazun byte sequence from collected key shards.",
+                payload_fields={
+                    "dungeon_id": "str",
+                    "run_id": "str|optional",
+                },
+                example_payload={
+                    "dungeon_id": "sulphera/pride",
+                },
             ),
             RuntimeActionCatalogItemOut(
                 kind="shygazun.interpret",
@@ -6226,6 +6643,11 @@ class AtelierService:
             "staged_cues": {},
             "last_command": {},
         }
+        runtime_dungeon_state: dict[str, object] = {
+            "active_runs": {},
+            "entry_counters": {},
+            "meta": {},
+        }
 
         def _normalize_realm_for_runtime(value: object) -> str:
             realm = str(value or "").strip().lower()
@@ -6315,6 +6737,274 @@ class AtelierService:
             except (TypeError, ValueError):
                 parsed = fallback
             return max(0.0, min(2.0, parsed))
+
+        def _dungeon_maps() -> tuple[dict[str, dict[str, object]], dict[str, int], dict[str, dict[str, object]]]:
+            active_obj = runtime_dungeon_state.get("active_runs")
+            counters_obj = runtime_dungeon_state.get("entry_counters")
+            meta_obj = runtime_dungeon_state.get("meta")
+            active = cast(dict[str, dict[str, object]], active_obj) if isinstance(active_obj, dict) else {}
+            counters = cast(dict[str, int], counters_obj) if isinstance(counters_obj, dict) else {}
+            meta = cast(dict[str, dict[str, object]], meta_obj) if isinstance(meta_obj, dict) else {}
+            runtime_dungeon_state["active_runs"] = active
+            runtime_dungeon_state["entry_counters"] = counters
+            runtime_dungeon_state["meta"] = meta
+            return active, counters, meta
+
+        def _normalize_dungeon_id(value: object) -> str:
+            dungeon_id = str(value or "").strip().lower()
+            if dungeon_id == "":
+                raise ValueError("dungeon_id_required")
+            return dungeon_id
+
+        def _dungeon_registry_row(dungeon_id: str) -> dict[str, object]:
+            if dungeon_id in {f"sulphera/{ring}" for ring in self._UNDERWORLD_RING_ORDER}:
+                ring = dungeon_id.split("/", 1)[1]
+                return {
+                    "realm_id": "sulphera",
+                    "domain_type": "ring",
+                    "domain_id": ring,
+                    "ruler": self._SULPHERA_RING_RULERS.get(ring, "unknown"),
+                    "hostile": ring not in {"visitors", "royalty"},
+                    "time_scale_to_lapidus": 24,
+                }
+            if dungeon_id in {f"mercurie/{zone}" for zone in self._MERCURIE_DUNGEON_ZONES}:
+                zone = dungeon_id.split("/", 1)[1]
+                return {
+                    "realm_id": "mercurie",
+                    "domain_type": "zone",
+                    "domain_id": zone,
+                    "ruler": "fae_courts",
+                    "hostile": True,
+                    "time_scale_to_lapidus": 3,
+                }
+            if dungeon_id == "lapidus/lapidus_mines_mt_hieronymus":
+                return {
+                    "realm_id": "lapidus",
+                    "domain_type": "mine",
+                    "domain_id": "lapidus_mines_mt_hieronymus",
+                    "ruler": "guild_charter",
+                    "hostile": False,
+                    "time_scale_to_lapidus": 1,
+                }
+            raise ValueError("unknown_dungeon_id")
+
+        def _dungeon_seed_hash(
+            *,
+            dungeon_id: str,
+            entry_ordinal: int,
+            player_level: int,
+            quest_progress: int,
+            actor_id_for_seed: str,
+            workspace_id_for_seed: str,
+            entry_nonce: str,
+        ) -> str:
+            return self._canonical_hash(
+                {
+                    "workspace_id": workspace_id_for_seed,
+                    "actor_id": actor_id_for_seed,
+                    "dungeon_id": dungeon_id,
+                    "entry_ordinal": entry_ordinal,
+                    "player_level": player_level,
+                    "quest_progress": quest_progress,
+                    "entry_nonce": entry_nonce,
+                }
+            )
+
+        def _seed_int(seed_hash: str, label: str, *, modulo: int, offset: int = 0) -> int:
+            if modulo <= 0:
+                raise ValueError("modulo_must_be_positive")
+            digest = hashlib.sha256(f"{seed_hash}:{label}".encode("utf-8")).hexdigest()
+            return offset + (int(digest[:12], 16) % modulo)
+
+        def _dungeon_generate(
+            *,
+            dungeon_id: str,
+            player_level: int,
+            quest_progress: int,
+            entry_ordinal: int,
+            actor_key: str,
+            entry_nonce: str,
+            run_label: str,
+        ) -> dict[str, object]:
+            row = _dungeon_registry_row(dungeon_id)
+            seed_hash = _dungeon_seed_hash(
+                dungeon_id=dungeon_id,
+                entry_ordinal=entry_ordinal,
+                player_level=player_level,
+                quest_progress=quest_progress,
+                actor_id_for_seed=actor_key,
+                workspace_id_for_seed=payload.workspace_id,
+                entry_nonce=entry_nonce,
+            )
+            realm_id = str(row.get("realm_id"))
+            hostile = bool(row.get("hostile", True))
+            floor_count = 2 + _seed_int(seed_hash, "floor_count", modulo=4)
+            rooms_per_floor = 6 + _seed_int(seed_hash, "rooms_per_floor", modulo=7)
+            difficulty_tier = max(1, min(20, 1 + (player_level // 2) + (quest_progress // 4)))
+            enemy_density_bp = 0 if not hostile else max(1000, min(9500, 2200 + difficulty_tier * 250))
+            if difficulty_tier <= 4:
+                shard_min, shard_max = 4, 6
+            elif difficulty_tier <= 10:
+                shard_min, shard_max = 6, 7
+            else:
+                shard_min, shard_max = 7, 8
+            cypher_shard_count = shard_min + _seed_int(
+                seed_hash,
+                "cypher_shard_count_clamped",
+                modulo=(shard_max - shard_min + 1),
+            )
+            base_bytes = [28, 17, 10, 45, 63, 72, 90, 109, 111]
+            shard_rows: list[dict[str, object]] = []
+            for index in range(cypher_shard_count):
+                shard_hash = hashlib.sha256(f"{seed_hash}:shard:{index}".encode("utf-8")).hexdigest()
+                text_key = shard_hash[:8].upper()
+                visual_key = f"glyph_{shard_hash[8:12]}"
+                byte_a = base_bytes[_seed_int(seed_hash, f"b{index}a", modulo=len(base_bytes))]
+                byte_b = base_bytes[_seed_int(seed_hash, f"b{index}b", modulo=len(base_bytes))]
+                alchemical_formula = f"{text_key}:{visual_key}:{byte_a:03d}-{byte_b:03d}"
+                shard_rows.append(
+                    {
+                        "shard_id": f"{dungeon_id.replace('/', '_')}_shard_{index + 1}",
+                        "textual_key_fragment": text_key,
+                        "visual_key_fragment": visual_key,
+                        "shygazun_byte_sequence": [byte_a, byte_b],
+                        "alchemical_formula_fragment": alchemical_formula,
+                    }
+                )
+            shard_rows = sorted(shard_rows, key=lambda item: str(item.get("shard_id", "")))
+            if realm_id == "lapidus":
+                population = {
+                    "hostile_entities": [],
+                    "neutral_entities": ["gnome_miners", "child_laborers", "foreman"],
+                    "resource_nodes": [
+                        "iron_vein",
+                        "silver_vein",
+                        "coal_seam",
+                        "saltpeter_deposit",
+                        "sulphur_pocket",
+                    ],
+                }
+            else:
+                enemy_count = max(2, (floor_count * rooms_per_floor * enemy_density_bp) // 10000)
+                population = {
+                    "hostile_entities": [f"enemy_{idx+1}" for idx in range(enemy_count)],
+                    "neutral_entities": [],
+                    "resource_nodes": [f"node_{idx+1}" for idx in range(max(3, floor_count))],
+                }
+            run_id = f"run:{self._safe_token(dungeon_id)}:{entry_ordinal}:{seed_hash[:10]}"
+            return {
+                "run_id": run_id,
+                "run_label": run_label if run_label != "" else f"{dungeon_id}#{entry_ordinal}",
+                "workspace_id": payload.workspace_id,
+                "actor_id": actor_key,
+                "dungeon_id": dungeon_id,
+                "realm_id": realm_id,
+                "domain_type": str(row.get("domain_type", "")),
+                "domain_id": str(row.get("domain_id", "")),
+                "ruler": str(row.get("ruler", "")),
+                "hostile": hostile,
+                "entry_ordinal": entry_ordinal,
+                "player_level": player_level,
+                "quest_progress": quest_progress,
+                "difficulty_tier": difficulty_tier,
+                "time_scale_to_lapidus": int(row.get("time_scale_to_lapidus", 1)),
+                "floor_count": floor_count,
+                "rooms_per_floor": rooms_per_floor,
+                "enemy_density_bp": enemy_density_bp,
+                "population": population,
+                "cypher_shards": shard_rows,
+                "seed_hash": seed_hash,
+                "in_memory_only": True,
+                "status": "active",
+            }
+
+        def _dungeon_decode_payload(run: Mapping[str, object]) -> dict[str, object]:
+            shard_rows_obj = run.get("cypher_shards")
+            shard_rows = shard_rows_obj if isinstance(shard_rows_obj, list) else []
+            text_parts: list[str] = []
+            visual_parts: list[str] = []
+            byte_sequence: list[int] = []
+            formula_parts: list[str] = []
+            for shard in shard_rows:
+                if not isinstance(shard, dict):
+                    continue
+                text_parts.append(str(shard.get("textual_key_fragment", "")))
+                visual_parts.append(str(shard.get("visual_key_fragment", "")))
+                bytes_obj = shard.get("shygazun_byte_sequence")
+                if isinstance(bytes_obj, list):
+                    for b in bytes_obj:
+                        byte_sequence.append(max(0, min(255, self._int_from_table(b, 0))))
+                formula_parts.append(str(shard.get("alchemical_formula_fragment", "")))
+            key_text = "-".join([part for part in text_parts if part != ""])
+            visual_signature = ".".join([part for part in visual_parts if part != ""])
+            formula = " + ".join([part for part in formula_parts if part != ""])
+            semantic_context = {
+                "dungeon_id": str(run.get("dungeon_id", "")),
+                "realm_id": str(run.get("realm_id", "")),
+                "ruler": str(run.get("ruler", "")),
+                "difficulty_tier": self._int_from_table(run.get("difficulty_tier"), 1),
+            }
+            return {
+                "text_key": key_text,
+                "visual_key_signature": visual_signature,
+                "shygazun_byte_sequence": byte_sequence,
+                "semantic_context": semantic_context,
+                "alchemical_formula": formula,
+                "decode_hash": self._canonical_hash(
+                    {
+                        "text_key": key_text,
+                        "visual_key_signature": visual_signature,
+                        "shygazun_byte_sequence": byte_sequence,
+                        "semantic_context": semantic_context,
+                        "alchemical_formula": formula,
+                    }
+                ),
+            }
+
+        def _dungeon_meta_load(actor_key: str) -> dict[str, object]:
+            _, _, meta = _dungeon_maps()
+            existing = meta.get(actor_key)
+            if isinstance(existing, dict):
+                return dict(existing)
+            loaded: dict[str, object] = {"entries": {}, "completed": {}, "failed": {}, "retained": {}}
+            if self._repo is not None:
+                state = self.get_player_state(workspace_id=payload.workspace_id, actor_id=actor_key)
+                flags = self._dict_from_table(state.tables.flags)
+                dungeon_meta_obj = flags.get("dungeon_meta")
+                if isinstance(dungeon_meta_obj, dict):
+                    loaded = {
+                        "entries": dict(cast(dict[str, object], dungeon_meta_obj.get("entries", {}))),
+                        "completed": dict(cast(dict[str, object], dungeon_meta_obj.get("completed", {}))),
+                        "failed": dict(cast(dict[str, object], dungeon_meta_obj.get("failed", {}))),
+                        "retained": dict(cast(dict[str, object], dungeon_meta_obj.get("retained", {}))),
+                    }
+            meta[actor_key] = loaded
+            return dict(loaded)
+
+        def _dungeon_meta_save(actor_key: str, meta_value: Mapping[str, object]) -> None:
+            _, _, meta = _dungeon_maps()
+            serial = {
+                "entries": dict(cast(dict[str, object], meta_value.get("entries", {}))),
+                "completed": dict(cast(dict[str, object], meta_value.get("completed", {}))),
+                "failed": dict(cast(dict[str, object], meta_value.get("failed", {}))),
+                "retained": dict(cast(dict[str, object], meta_value.get("retained", {}))),
+            }
+            meta[actor_key] = serial
+            if self._repo is None:
+                return
+            state = self.get_player_state(workspace_id=payload.workspace_id, actor_id=actor_key)
+            flags = self._dict_from_table(state.tables.flags)
+            flags["dungeon_meta"] = serial
+            self.apply_player_state(
+                payload=PlayerStateApplyInput(
+                    workspace_id=payload.workspace_id,
+                    actor_id=actor_key,
+                    tables=PlayerStateTables(flags=flags),
+                    mode="merge",
+                ),
+                actor_id=actor_id,
+                workshop_id=workshop_id,
+            )
 
         def _load_scene_content_for_runtime(action_payload: Mapping[str, object]) -> tuple[str, str, dict[str, object]]:
             realm_id = str(action_payload.get("realm_id", "")).strip().lower()
@@ -7434,6 +8124,12 @@ class AtelierService:
                         workshop_id=workshop_id,
                         payload=action_payload,
                     )
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id))
+                    actor_flags = dict(runtime_flags_state.get(actor_key, {}))
+                    actor_flags["intro.quiz_completed"] = bool(result.get("quiz_completed", False))
+                    actor_flags["intro.destiny_calls_unlocked"] = bool(result.get("destiny_calls_unlocked", False))
+                    actor_flags["intro.destiny_calls_quest_id"] = str(result.get("destiny_calls_quest_id", ""))
+                    runtime_flags_state[actor_key] = actor_flags
                 elif action.kind == "quest.fate_knocks.deadline_check":
                     result = self._fate_knocks_deadline_check(
                         workspace_id=payload.workspace_id,
@@ -7441,6 +8137,135 @@ class AtelierService:
                         workshop_id=workshop_id,
                         payload=action_payload,
                     )
+                elif action.kind == "quest.fate_knocks.report_to_castle":
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id))
+                    actor_flags = dict(runtime_flags_state.get(actor_key, {}))
+                    action_payload.setdefault("quiz_completed", bool(actor_flags.get("intro.quiz_completed", False)))
+                    action_payload.setdefault(
+                        "destiny_calls_unlocked", bool(actor_flags.get("intro.destiny_calls_unlocked", False))
+                    )
+                    result = self._fate_knocks_report_to_castle(
+                        workspace_id=payload.workspace_id,
+                        actor_id=payload.actor_id,
+                        workshop_id=workshop_id,
+                        payload=action_payload,
+                    )
+                    actor_flags["intro.castle_report_completed"] = bool(result.get("reported_to_castle", False))
+                    actor_flags["intro.met_hypatia"] = bool(result.get("met_hypatia", False))
+                    actor_flags["intro.fate_knocks_resolved"] = bool(result.get("fate_knocks_resolved", False))
+                    actor_flags["intro.destiny_calls_unlocked"] = bool(result.get("destiny_calls_unlocked", False))
+                    actor_flags["intro.destiny_calls_quest_id"] = str(result.get("destiny_calls_quest_id", ""))
+                    runtime_flags_state[actor_key] = actor_flags
+                elif action.kind in {"dungeon.enter", "dungeon.generate"}:
+                    active_runs, counters, _ = _dungeon_maps()
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id)).strip() or payload.actor_id
+                    dungeon_id = _normalize_dungeon_id(action_payload.get("dungeon_id"))
+                    player_level = max(1, self._int_from_table(action_payload.get("player_level"), 1))
+                    quest_progress = max(0, self._int_from_table(action_payload.get("quest_progress"), 0))
+                    entry_nonce = str(action_payload.get("entry_nonce", "")).strip()
+                    run_label = str(action_payload.get("run_label", "")).strip()
+                    meta_value = _dungeon_meta_load(actor_key)
+                    entries_obj = cast(dict[str, object], meta_value.get("entries", {}))
+                    persisted_count = max(0, self._int_from_table(entries_obj.get(dungeon_id), 0))
+                    counter_key = f"{actor_key}::{dungeon_id}"
+                    runtime_count = max(0, self._int_from_table(counters.get(counter_key), persisted_count))
+                    entry_ordinal = max(1, self._int_from_table(action_payload.get("entry_ordinal"), runtime_count + 1))
+                    generated = _dungeon_generate(
+                        dungeon_id=dungeon_id,
+                        player_level=player_level,
+                        quest_progress=quest_progress,
+                        entry_ordinal=entry_ordinal,
+                        actor_key=actor_key,
+                        entry_nonce=entry_nonce,
+                        run_label=run_label,
+                    )
+                    counters[counter_key] = max(runtime_count, entry_ordinal)
+                    entries_obj[dungeon_id] = counters[counter_key]
+                    meta_value["entries"] = entries_obj
+                    _dungeon_meta_save(actor_key, meta_value)
+                    if action.kind == "dungeon.enter":
+                        active_key = f"{actor_key}::{dungeon_id}"
+                        active_runs[active_key] = dict(generated)
+                    result = {
+                        "workspace_id": payload.workspace_id,
+                        "actor_id": actor_key,
+                        "action": "enter" if action.kind == "dungeon.enter" else "generate",
+                        "dungeon_id": dungeon_id,
+                        "entry_ordinal": entry_ordinal,
+                        "run_id": str(generated.get("run_id", "")),
+                        "realm_id": str(generated.get("realm_id", "")),
+                        "difficulty_tier": self._int_from_table(generated.get("difficulty_tier"), 1),
+                        "time_scale_to_lapidus": self._int_from_table(generated.get("time_scale_to_lapidus"), 1),
+                        "hostile": bool(generated.get("hostile", True)),
+                        "floor_count": self._int_from_table(generated.get("floor_count"), 0),
+                        "rooms_per_floor": self._int_from_table(generated.get("rooms_per_floor"), 0),
+                        "population": dict(cast(dict[str, object], generated.get("population", {}))),
+                        "cypher_shards": list(cast(list[object], generated.get("cypher_shards", []))),
+                        "seed_hash": str(generated.get("seed_hash", "")),
+                        "in_memory_only": True,
+                    }
+                elif action.kind in {"dungeon.complete", "dungeon.fail", "dungeon.decode"}:
+                    active_runs, _, _ = _dungeon_maps()
+                    actor_key = str(action_payload.get("actor_id", payload.actor_id)).strip() or payload.actor_id
+                    dungeon_id = _normalize_dungeon_id(action_payload.get("dungeon_id"))
+                    active_key = f"{actor_key}::{dungeon_id}"
+                    run = active_runs.get(active_key)
+                    if not isinstance(run, dict):
+                        raise ValueError("dungeon_run_not_active")
+                    expected_run_id = str(action_payload.get("run_id", "")).strip()
+                    if expected_run_id != "" and expected_run_id != str(run.get("run_id", "")):
+                        raise ValueError("dungeon_run_mismatch")
+                    if action.kind == "dungeon.decode":
+                        decode = _dungeon_decode_payload(run)
+                        result = {
+                            "workspace_id": payload.workspace_id,
+                            "actor_id": actor_key,
+                            "dungeon_id": dungeon_id,
+                            "run_id": str(run.get("run_id", "")),
+                            "decoded": decode,
+                            "in_memory_only": True,
+                        }
+                    else:
+                        decode = _dungeon_decode_payload(run)
+                        meta_value = _dungeon_meta_load(actor_key)
+                        completed_obj = cast(dict[str, object], meta_value.get("completed", {}))
+                        failed_obj = cast(dict[str, object], meta_value.get("failed", {}))
+                        retained_obj = cast(dict[str, object], meta_value.get("retained", {}))
+                        if action.kind == "dungeon.complete":
+                            run["status"] = "completed"
+                            completed_obj[dungeon_id] = self._int_from_table(completed_obj.get(dungeon_id), 0) + 1
+                            retain_count = len(cast(list[object], run.get("cypher_shards", [])))
+                        else:
+                            run["status"] = "failed"
+                            failed_obj[dungeon_id] = self._int_from_table(failed_obj.get(dungeon_id), 0) + 1
+                            ratio_bp = max(0, min(10000, self._int_from_table(action_payload.get("retention_ratio_bp"), 2500)))
+                            total_shards = len(cast(list[object], run.get("cypher_shards", [])))
+                            retain_count = max(0, min(total_shards, (total_shards * ratio_bp) // 10000))
+                        retained_obj[dungeon_id] = max(
+                            self._int_from_table(retained_obj.get(dungeon_id), 0),
+                            retain_count,
+                        )
+                        meta_value["completed"] = completed_obj
+                        meta_value["failed"] = failed_obj
+                        meta_value["retained"] = retained_obj
+                        _dungeon_meta_save(actor_key, meta_value)
+                        active_runs.pop(active_key, None)
+                        result = {
+                            "workspace_id": payload.workspace_id,
+                            "actor_id": actor_key,
+                            "dungeon_id": dungeon_id,
+                            "run_id": str(run.get("run_id", "")),
+                            "status": str(run.get("status", "")),
+                            "retained_shard_count": retain_count,
+                            "decoded": decode if action.kind == "dungeon.complete" else {},
+                            "meta_progression": {
+                                "entries": dict(cast(dict[str, object], meta_value.get("entries", {}))),
+                                "completed": dict(completed_obj),
+                                "failed": dict(failed_obj),
+                                "retained": dict(retained_obj),
+                            },
+                            "in_memory_only": True,
+                        }
                 elif action.kind == "shygazun.interpret":
                     normalized_payload = dict(action_payload)
                     normalized_payload.setdefault("workspace_id", payload.workspace_id)

@@ -1,0 +1,17 @@
+{
+  "api_base_url": "http://127.0.0.1:9000",
+  "kernel_base_url": "http://127.0.0.1:8000",
+  "backend": {
+    "mode": "local",
+    "auto_start": true,
+    "python_command": "py",
+    "kernel_host": "127.0.0.1",
+    "kernel_port": 8000,
+    "api_host": "127.0.0.1",
+    "api_port": 9000
+  },
+  "notes": {
+    "local_backend_default": true,
+    "edit_urls_after_install_if_using_remote_services": true
+  }
+}

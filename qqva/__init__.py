@@ -8,6 +8,7 @@ from .shygazun_compiler import (
     cobra_to_scene_graph,
     compile_akinenwun_batch,
     compile_akinenwun_to_ir,
+    derive_djinn_layer_references,
     derive_render_constraints,
     emit_cobra_entity,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "build_projection",
     "compile_akinenwun_to_ir",
     "compile_akinenwun_batch",
+    "derive_djinn_layer_references",
     "derive_render_constraints",
     "emit_cobra_entity",
     "cobra_to_placement_payloads",

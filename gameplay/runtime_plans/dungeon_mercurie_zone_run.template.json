@@ -1,0 +1,31 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "dungeon_mercurie_zone_run_template",
+  "actions": [
+    {
+      "action_id": "enter_zone",
+      "kind": "dungeon.enter",
+      "payload": {
+        "dungeon_id": "mercurie/zone_tideglass",
+        "player_level": 4,
+        "quest_progress": 7
+      }
+    },
+    {
+      "action_id": "decode_zone",
+      "kind": "dungeon.decode",
+      "payload": {
+        "dungeon_id": "mercurie/zone_tideglass"
+      }
+    },
+    {
+      "action_id": "fail_zone_partial_retention",
+      "kind": "dungeon.fail",
+      "payload": {
+        "dungeon_id": "mercurie/zone_tideglass",
+        "retention_ratio_bp": 3000
+      }
+    }
+  ]
+}

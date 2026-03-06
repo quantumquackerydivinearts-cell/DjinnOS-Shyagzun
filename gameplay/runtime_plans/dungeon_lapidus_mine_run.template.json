@@ -1,0 +1,30 @@
+{
+  "workspace_id": "main",
+  "actor_id": "player",
+  "plan_id": "dungeon_lapidus_mine_run_template",
+  "actions": [
+    {
+      "action_id": "enter_mine",
+      "kind": "dungeon.enter",
+      "payload": {
+        "dungeon_id": "lapidus/lapidus_mines_mt_hieronymus",
+        "player_level": 3,
+        "quest_progress": 2
+      }
+    },
+    {
+      "action_id": "decode_mine",
+      "kind": "dungeon.decode",
+      "payload": {
+        "dungeon_id": "lapidus/lapidus_mines_mt_hieronymus"
+      }
+    },
+    {
+      "action_id": "complete_mine",
+      "kind": "dungeon.complete",
+      "payload": {
+        "dungeon_id": "lapidus/lapidus_mines_mt_hieronymus"
+      }
+    }
+  ]
+}

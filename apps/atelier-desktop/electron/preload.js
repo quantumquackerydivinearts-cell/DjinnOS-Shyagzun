@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("atelierDesktop", {
     chooseDirectory: async () => ipcRenderer.invoke("studio:choose-directory"),
     listCobraScripts: async (rootDir) => ipcRenderer.invoke("studio:list-cobra-scripts", rootDir),
     listAssetsBySuffix: async (rootDir, suffix) => ipcRenderer.invoke("studio:list-assets-by-suffix", rootDir, suffix),
+    listRuntimePlans: async (rootDir) => ipcRenderer.invoke("studio:list-runtime-plans", rootDir),
     readCobraScript: async (rootDir, filename) => ipcRenderer.invoke("studio:read-cobra-script", rootDir, filename),
     readTextFile: async (rootDir, filename) => ipcRenderer.invoke("studio:read-text-file", rootDir, filename),
     readBinaryFileBase64: async (rootDir, filename) =>

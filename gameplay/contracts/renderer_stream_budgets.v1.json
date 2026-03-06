@@ -1,0 +1,10 @@
+{
+  "id": "renderer_stream_budgets.v1",
+  "version": "1.0.0",
+  "updated_at": "2026-03-04",
+  "residency": {
+    "max_atlas_chunks": 24,
+    "max_texture_chunks": 24,
+    "max_material_chunks": 48
+  }
+}

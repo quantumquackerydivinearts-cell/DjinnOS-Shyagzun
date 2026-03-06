@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://djinnos.local/schemas/renderer/renderer_toolchain_report.v1.schema.json",
+  "title": "RendererToolchainReportV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "go",
+    "inputs",
+    "artifacts",
+    "checks",
+    "summary"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "const": "renderer_toolchain_report.v1"
+    },
+    "go": {
+      "type": "boolean"
+    },
+    "inputs": {
+      "type": "object"
+    },
+    "artifacts": {
+      "type": "object"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "ok", "detail"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "ok": { "type": "boolean" },
+          "detail": { "type": "object" }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_count", "failed_count", "go"],
+      "properties": {
+        "check_count": { "type": "integer", "minimum": 0 },
+        "failed_count": { "type": "integer", "minimum": 0 },
+        "go": { "type": "boolean" }
+      }
+    }
+  }
+}

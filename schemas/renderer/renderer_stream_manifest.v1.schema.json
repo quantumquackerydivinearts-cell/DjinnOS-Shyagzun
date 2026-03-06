@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://djinnos.local/schemas/renderer/renderer_stream_manifest.v1.schema.json",
+  "title": "RendererStreamManifestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "source_pack",
+    "grid",
+    "partition",
+    "stats",
+    "budgets",
+    "chunks",
+    "residency",
+    "hotset",
+    "manifest_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "atelier.renderer.stream_manifest.v1"
+    },
+    "source_pack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pack_id",
+        "pack_sha256",
+        "compile_hash",
+        "input_path"
+      ],
+      "properties": {
+        "pack_id": { "type": "string", "minLength": 1 },
+        "pack_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "compile_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "input_path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "grid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chunk_size_x",
+        "chunk_size_y"
+      ],
+      "properties": {
+        "chunk_size_x": { "type": "integer", "minimum": 1 },
+        "chunk_size_y": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "partition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "optimize_locality",
+        "optimize_hotset_global",
+        "boundary_band",
+        "optimization_passes",
+        "moved_voxels",
+        "hotset_global_passes",
+        "moved_voxels_hotset_global"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["fixed_grid", "material_aware", "lod_aware"]
+        },
+        "optimize_locality": { "type": "boolean" },
+        "optimize_hotset_global": { "type": "boolean" },
+        "boundary_band": { "type": "integer", "minimum": 0 },
+        "optimization_passes": { "type": "integer", "minimum": 1 },
+        "moved_voxels": { "type": "integer", "minimum": 0 },
+        "hotset_global_passes": { "type": "integer", "minimum": 1 },
+        "moved_voxels_hotset_global": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chunk_count",
+        "voxel_count",
+        "max_chunk_voxels",
+        "max_chunk_bytes"
+      ],
+      "properties": {
+        "chunk_count": { "type": "integer", "minimum": 0 },
+        "voxel_count": { "type": "integer", "minimum": 0 },
+        "max_chunk_voxels": { "type": "integer", "minimum": 0 },
+        "max_chunk_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_chunk_voxels",
+        "max_chunk_bytes",
+        "violation_count",
+        "violations"
+      ],
+      "properties": {
+        "max_chunk_voxels": { "type": "integer", "minimum": 1 },
+        "max_chunk_bytes": { "type": "integer", "minimum": 1 },
+        "violation_count": { "type": "integer", "minimum": 0 },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "chunk_id",
+              "kind",
+              "value",
+              "limit"
+            ],
+            "properties": {
+              "chunk_id": { "type": "string", "minLength": 1 },
+              "kind": { "type": "string", "enum": ["voxel_count", "chunk_bytes"] },
+              "value": { "type": "integer", "minimum": 0 },
+              "limit": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "chunks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "chunk_id",
+          "coord",
+          "bounds",
+          "voxel_count",
+          "chunk_bytes",
+          "chunk_sha256",
+          "dependencies",
+          "chunk_path"
+        ],
+        "properties": {
+          "chunk_id": { "type": "string", "pattern": "^cx-?[0-9]+_cy-?[0-9]+$" },
+          "coord": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cx", "cy"],
+            "properties": {
+              "cx": { "type": "integer" },
+              "cy": { "type": "integer" }
+            }
+          },
+          "bounds": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["min_x", "max_x", "min_y", "max_y", "min_z", "max_z"],
+            "properties": {
+              "min_x": { "type": "integer" },
+              "max_x": { "type": "integer" },
+              "min_y": { "type": "integer" },
+              "max_y": { "type": "integer" },
+              "min_z": { "type": "integer" },
+              "max_z": { "type": "integer" }
+            }
+          },
+          "voxel_count": { "type": "integer", "minimum": 0 },
+          "chunk_bytes": { "type": "integer", "minimum": 0 },
+          "chunk_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "dependencies": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["atlas_ids", "texture_paths", "material_ids"],
+            "properties": {
+              "atlas_ids": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true
+              },
+              "texture_paths": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true
+              },
+              "material_ids": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true
+              }
+            }
+          },
+          "chunk_path": { "type": "string" }
+        }
+      }
+    },
+    "residency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "atlas_ids",
+        "texture_paths",
+        "materials"
+      ],
+      "properties": {
+        "atlas_ids": { "type": "array", "items": { "type": "object" } },
+        "texture_paths": { "type": "array", "items": { "type": "object" } },
+        "materials": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "hotset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_max_chunks",
+        "materials",
+        "atlas_ids",
+        "texture_paths",
+        "violation_count",
+        "violations"
+      ],
+      "properties": {
+        "target_max_chunks": { "type": "integer", "minimum": 1 },
+        "materials": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "atlas_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "texture_paths": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "violation_count": { "type": "integer", "minimum": 0 },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "id", "chunk_count", "limit"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["material", "atlas", "texture"] },
+              "id": { "type": "string", "minLength": 1 },
+              "chunk_count": { "type": "integer", "minimum": 0 },
+              "limit": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

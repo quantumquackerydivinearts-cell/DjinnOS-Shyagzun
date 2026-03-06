@@ -54,6 +54,49 @@ entity actor_kael 4 3 actor
   lex TyKoWuVu
 ```
 
+## Djinn Layer Reference Attributes
+
+For renderer/toolchain wiring, Cobra metadata may carry explicit Djinn + layer-graph references.
+These are structural references only and remain server-authoritative.
+
+Supported keys:
+
+- `djinn_function` or `djinn.function`
+- `djinn_function_version` or `djinn.function.version`
+- `layer_projection_report` (or `renderer_layer_projection_report`)
+- `reference_coeff_bp` (0..10000)
+- `recursion_coeff_bp` (0..10000)
+
+Example:
+
+```cobra
+entity labyrnth_core 0 0 anchor
+  lex TyKoWuVu
+  djinn_function djinn.renderer.stream.execute
+  djinn_function_version v1
+  layer_projection_report reports/renderer_toolchain/layer_projection.alpha.json
+  reference_coeff_bp 7000
+  recursion_coeff_bp 3000
+```
+
+Compiler behavior:
+
+- `qqva.shygazun_compiler` emits normalized `djinn_layer_references` in placement context.
+- `qqva.scene_graph` stamps the same object under node `metadata.djinn_layer_references`.
+- Coefficients are clamped to `[0,10000]`.
+
+### Shygazun Behavior Words (Labyr-Nth Hints)
+
+Shygazun symbols can act as deterministic behavior hints when present in the lexical compound:
+
+- `Wu`: process/way -> enables recurrence model.
+- `Na`: neutral/integration -> balanced reference/recursion defaults.
+- `Kysael`: authoritative commit -> stronger reference anchoring defaults.
+- `Myrun`: stream lineage marker (semantic hint for stream execution paths).
+- `Dyf`: nondeterminism marker (diagnostic/lint signal; does not bypass deterministic gates).
+
+These hints never override server policy; they only provide structured references for tooling.
+
 ## Akinenwun Split Rule
 
 Tooling split rule is structural:

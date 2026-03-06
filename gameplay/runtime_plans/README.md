@@ -33,6 +33,22 @@ py scripts/consume_runtime_plan.py gameplay/runtime_plans/fate_knocks_day1_plan.
 py scripts/consume_runtime_plan.py gameplay/runtime_plans/fate_knocks_trace_plan.json
 ```
 
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/dungeon_sulphera_ring_run.template.json
+```
+
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/dungeon_mercurie_zone_run.template.json
+```
+
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/dungeon_lapidus_mine_run.template.json
+```
+
+```powershell
+py scripts/consume_runtime_plan.py gameplay/runtime_plans/dungeon_campaign_seed.template.json
+```
+
 Generate a Breath-aware plan from CLI defaults or overrides:
 
 ```powershell
@@ -106,6 +122,12 @@ Supported runtime kinds include world streaming and realm economy catalog access
 - `sanity.adjust`
 - `quest.fate_knocks.bootstrap`
 - `quest.fate_knocks.deadline_check`
+- `quest.fate_knocks.report_to_castle`
+- `dungeon.enter`
+- `dungeon.generate`
+- `dungeon.complete`
+- `dungeon.fail`
+- `dungeon.decode`
 - `render.scene.load`
 - `render.scene.tick`
 - `render.scene.reconcile`
@@ -127,3 +149,12 @@ Realm-specific reward policy in `world.market.stock.adjust` with `use_breath_con
 - Mercurie rewards order
 - Sulphera rewards chaos
 - Lapidus rewards ROYL loyalty (`royl_loyalty` 0..100)
+
+## Canonical Dungeon IDs
+
+Canonical IDs are in `gameplay/runtime_plans/dungeon_ids.canon.json`.
+
+Domains are locked to:
+- Sulphera: 7 sin-ring dungeons (`sulphera/pride` ... `sulphera/lust`)
+- Mercurie: 5 zone dungeons
+- Lapidus: 1 mine dungeon (`lapidus/lapidus_mines_mt_hieronymus`)

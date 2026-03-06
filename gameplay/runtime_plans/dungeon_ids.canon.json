@@ -1,0 +1,28 @@
+{
+  "workspace_id": "main",
+  "actor_id": "system",
+  "plan_id": "dungeon_ids_canon",
+  "actions": [],
+  "version": "v1",
+  "dungeon_domains": {
+    "sulphera_sin_rings": [
+      "sulphera/pride",
+      "sulphera/greed",
+      "sulphera/envy",
+      "sulphera/gluttony",
+      "sulphera/sloth",
+      "sulphera/wrath",
+      "sulphera/lust"
+    ],
+    "mercurie_zones": [
+      "mercurie/zone_tideglass",
+      "mercurie/zone_cindergrove",
+      "mercurie/zone_rootbloom",
+      "mercurie/zone_thornveil",
+      "mercurie/zone_dewspire"
+    ],
+    "lapidus_mines": [
+      "lapidus/lapidus_mines_mt_hieronymus"
+    ]
+  }
+}

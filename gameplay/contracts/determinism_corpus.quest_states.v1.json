@@ -1,7 +1,7 @@
 {
   "id": "determinism_corpus.quest_states.v1",
   "version": "1.0.0",
-  "updated_at": "2026-03-03",
+  "updated_at": "2026-03-05",
   "algorithm": "sha256(canonical_json_sorted_keys)",
   "cases": [
     {
@@ -14,7 +14,7 @@
         "actions",
         "actions.0.kind"
       ],
-      "expected_hash": "6197d6c162a16d1416f30e0c335926fab2b0f3b980992ea3fdbc963a007db1e5"
+      "expected_hash": "d3746336faff4d9de02b870a430c1a5173cc7c0ad7857ee9c4fde2eb22070cb2"
     },
     {
       "id": "canon_quests",
@@ -45,7 +45,7 @@
         "quiz.question_count",
         "questions"
       ],
-      "expected_hash": "365898e6eb2b2b6fd2c5fe4ac5cf0cb25c039b56dc4a97b75c0b8c210bac9071"
+      "expected_hash": "2ee83df24463d842a8d7f5aaec935525b6b7351486c761bd410ac99a1951b775"
     },
     {
       "id": "quest_bootstrap_0001_klst",
