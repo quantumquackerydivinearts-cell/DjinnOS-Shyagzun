@@ -11,12 +11,12 @@ if ([string]::IsNullOrWhiteSpace($bootstrapRoot)) {
 if ([string]::IsNullOrWhiteSpace($bootstrapRoot)) {
     throw "Unable to resolve setup root directory."
 }
-$installerPath = Join-Path $bootstrapRoot "Install-Atelier.ps1"
+$installerPath = Join-Path $bootstrapRoot "Install-Hosted-Atelier.ps1"
 
 if (-not (Test-Path -LiteralPath $installerPath)) {
     [System.Windows.Forms.MessageBox]::Show(
-        "Install-Atelier.ps1 was not found next to this wizard.",
-        "Ko's Labyrnth Atelier Setup",
+        "Install-Hosted-Atelier.ps1 was not found next to this wizard.",
+        "Ko's Labyrnth Hosted Setup",
         [System.Windows.Forms.MessageBoxButtons]::OK,
         [System.Windows.Forms.MessageBoxIcon]::Error
     ) | Out-Null
@@ -24,111 +24,126 @@ if (-not (Test-Path -LiteralPath $installerPath)) {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Ko's Labyrnth Atelier Setup Wizard"
-$form.Size = New-Object System.Drawing.Size(760, 520)
+$form.Text = "Ko's Labyrnth Hosted Setup Wizard"
+$form.Size = New-Object System.Drawing.Size(760, 620)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedDialog"
 $form.MaximizeBox = $false
-
-$font = New-Object System.Drawing.Font("Segoe UI", 10)
-$form.Font = $font
+$form.Font = New-Object System.Drawing.Font("Segoe UI", 10)
 
 $lblTitle = New-Object System.Windows.Forms.Label
-$lblTitle.Text = "Install Ko's Labyrnth Atelier"
+$lblTitle.Text = "Install Ko's Labyrnth Hosted Atelier"
 $lblTitle.Location = New-Object System.Drawing.Point(20, 20)
-$lblTitle.Size = New-Object System.Drawing.Size(500, 28)
+$lblTitle.Size = New-Object System.Drawing.Size(560, 28)
 $lblTitle.Font = New-Object System.Drawing.Font("Segoe UI Semibold", 14)
 $form.Controls.Add($lblTitle)
 
 $lblSource = New-Object System.Windows.Forms.Label
-$lblSource.Text = "Choose source"
+$lblSource.Text = "Choose hosted suite source"
 $lblSource.Location = New-Object System.Drawing.Point(20, 65)
-$lblSource.Size = New-Object System.Drawing.Size(200, 22)
+$lblSource.Size = New-Object System.Drawing.Size(250, 22)
 $form.Controls.Add($lblSource)
 
 $radioDownload = New-Object System.Windows.Forms.RadioButton
-$radioDownload.Text = "Download suite zip (GitHub Releases URL)"
+$radioDownload.Text = "Download hosted suite zip"
 $radioDownload.Location = New-Object System.Drawing.Point(35, 90)
-$radioDownload.Size = New-Object System.Drawing.Size(260, 24)
+$radioDownload.Size = New-Object System.Drawing.Size(220, 24)
 $radioDownload.Checked = $true
 $form.Controls.Add($radioDownload)
 
 $radioLocal = New-Object System.Windows.Forms.RadioButton
-$radioLocal.Text = "Use local suite zip file"
+$radioLocal.Text = "Use local hosted suite zip"
 $radioLocal.Location = New-Object System.Drawing.Point(310, 90)
 $radioLocal.Size = New-Object System.Drawing.Size(220, 24)
 $form.Controls.Add($radioLocal)
 
 $lblUrl = New-Object System.Windows.Forms.Label
-$lblUrl.Text = "Suite Download URL"
+$lblUrl.Text = "Hosted Suite Download URL"
 $lblUrl.Location = New-Object System.Drawing.Point(20, 125)
-$lblUrl.Size = New-Object System.Drawing.Size(120, 22)
+$lblUrl.Size = New-Object System.Drawing.Size(180, 22)
 $form.Controls.Add($lblUrl)
 
 $txtUrl = New-Object System.Windows.Forms.TextBox
 $txtUrl.Location = New-Object System.Drawing.Point(20, 148)
 $txtUrl.Size = New-Object System.Drawing.Size(700, 28)
-$txtUrl.Text = "https://github.com/<OWNER>/<REPO>/releases/download/<TAG>/atelier-suite-YYYYMMDD-HHMMSS.zip"
+$txtUrl.Text = "https://github.com/<OWNER>/<REPO>/releases/download/<TAG>/atelier-hosted-suite-YYYYMMDD-HHMMSS.zip"
 $form.Controls.Add($txtUrl)
 
-$lblUrlHint = New-Object System.Windows.Forms.Label
-$lblUrlHint.Text = "Use the direct GitHub asset URL format: github.com/<owner>/<repo>/releases/download/<tag>/<asset>.zip"
-$lblUrlHint.Location = New-Object System.Drawing.Point(20, 176)
-$lblUrlHint.Size = New-Object System.Drawing.Size(700, 18)
-$lblUrlHint.ForeColor = [System.Drawing.Color]::DimGray
-$form.Controls.Add($lblUrlHint)
-
 $lblZip = New-Object System.Windows.Forms.Label
-$lblZip.Text = "Local suite zip"
-$lblZip.Location = New-Object System.Drawing.Point(20, 195)
-$lblZip.Size = New-Object System.Drawing.Size(120, 22)
+$lblZip.Text = "Local hosted suite zip"
+$lblZip.Location = New-Object System.Drawing.Point(20, 185)
+$lblZip.Size = New-Object System.Drawing.Size(160, 22)
 $form.Controls.Add($lblZip)
 
 $txtZip = New-Object System.Windows.Forms.TextBox
-$txtZip.Location = New-Object System.Drawing.Point(20, 218)
+$txtZip.Location = New-Object System.Drawing.Point(20, 208)
 $txtZip.Size = New-Object System.Drawing.Size(610, 28)
 $form.Controls.Add($txtZip)
 
 $btnBrowseZip = New-Object System.Windows.Forms.Button
 $btnBrowseZip.Text = "Browse..."
-$btnBrowseZip.Location = New-Object System.Drawing.Point(640, 217)
+$btnBrowseZip.Location = New-Object System.Drawing.Point(640, 207)
 $btnBrowseZip.Size = New-Object System.Drawing.Size(80, 30)
 $form.Controls.Add($btnBrowseZip)
 
 $lblInstall = New-Object System.Windows.Forms.Label
 $lblInstall.Text = "Install location"
-$lblInstall.Location = New-Object System.Drawing.Point(20, 255)
+$lblInstall.Location = New-Object System.Drawing.Point(20, 245)
 $lblInstall.Size = New-Object System.Drawing.Size(120, 22)
 $form.Controls.Add($lblInstall)
 
 $txtInstall = New-Object System.Windows.Forms.TextBox
-$txtInstall.Location = New-Object System.Drawing.Point(20, 278)
+$txtInstall.Location = New-Object System.Drawing.Point(20, 268)
 $txtInstall.Size = New-Object System.Drawing.Size(610, 28)
-$txtInstall.Text = "$env:LOCALAPPDATA\KosLabyrnth\Atelier"
+$txtInstall.Text = "$env:LOCALAPPDATA\KosLabyrnth\Atelier-Hosted"
 $form.Controls.Add($txtInstall)
 
 $btnBrowseInstall = New-Object System.Windows.Forms.Button
 $btnBrowseInstall.Text = "Browse..."
-$btnBrowseInstall.Location = New-Object System.Drawing.Point(640, 277)
+$btnBrowseInstall.Location = New-Object System.Drawing.Point(640, 267)
 $btnBrowseInstall.Size = New-Object System.Drawing.Size(80, 30)
 $form.Controls.Add($btnBrowseInstall)
 
+$lblApi = New-Object System.Windows.Forms.Label
+$lblApi.Text = "Hosted API URL"
+$lblApi.Location = New-Object System.Drawing.Point(20, 305)
+$lblApi.Size = New-Object System.Drawing.Size(120, 22)
+$form.Controls.Add($lblApi)
+
+$txtApi = New-Object System.Windows.Forms.TextBox
+$txtApi.Location = New-Object System.Drawing.Point(20, 328)
+$txtApi.Size = New-Object System.Drawing.Size(700, 28)
+$txtApi.Text = "http://127.0.0.1:9000"
+$form.Controls.Add($txtApi)
+
+$lblKernel = New-Object System.Windows.Forms.Label
+$lblKernel.Text = "Hosted Kernel URL"
+$lblKernel.Location = New-Object System.Drawing.Point(20, 365)
+$lblKernel.Size = New-Object System.Drawing.Size(140, 22)
+$form.Controls.Add($lblKernel)
+
+$txtKernel = New-Object System.Windows.Forms.TextBox
+$txtKernel.Location = New-Object System.Drawing.Point(20, 388)
+$txtKernel.Size = New-Object System.Drawing.Size(700, 28)
+$txtKernel.Text = "http://127.0.0.1:8000"
+$form.Controls.Add($txtKernel)
+
 $chkOverwrite = New-Object System.Windows.Forms.CheckBox
-$chkOverwrite.Text = "Overwrite existing install location"
-$chkOverwrite.Location = New-Object System.Drawing.Point(20, 322)
+$chkOverwrite.Text = "Overwrite existing hosted install"
+$chkOverwrite.Location = New-Object System.Drawing.Point(20, 425)
 $chkOverwrite.Size = New-Object System.Drawing.Size(320, 24)
 $chkOverwrite.Checked = $true
 $form.Controls.Add($chkOverwrite)
 
 $chkRunAfter = New-Object System.Windows.Forms.CheckBox
-$chkRunAfter.Text = "Launch after install"
-$chkRunAfter.Location = New-Object System.Drawing.Point(360, 322)
-$chkRunAfter.Size = New-Object System.Drawing.Size(200, 24)
+$chkRunAfter.Text = "Launch desktop after install"
+$chkRunAfter.Location = New-Object System.Drawing.Point(360, 425)
+$chkRunAfter.Size = New-Object System.Drawing.Size(220, 24)
 $chkRunAfter.Checked = $true
 $form.Controls.Add($chkRunAfter)
 
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(20, 356)
+$logBox.Location = New-Object System.Drawing.Point(20, 460)
 $logBox.Size = New-Object System.Drawing.Size(700, 90)
 $logBox.Multiline = $true
 $logBox.ReadOnly = $true
@@ -136,15 +151,15 @@ $logBox.ScrollBars = "Vertical"
 $form.Controls.Add($logBox)
 
 $btnInstall = New-Object System.Windows.Forms.Button
-$btnInstall.Text = "Install"
-$btnInstall.Location = New-Object System.Drawing.Point(560, 445)
-$btnInstall.Size = New-Object System.Drawing.Size(160, 36)
+$btnInstall.Text = "Install Hosted Suite"
+$btnInstall.Location = New-Object System.Drawing.Point(520, 550)
+$btnInstall.Size = New-Object System.Drawing.Size(200, 36)
 $form.Controls.Add($btnInstall)
 
 $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
 $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
 $openFileDialog.Filter = "Zip Files (*.zip)|*.zip|All Files (*.*)|*.*"
-$openFileDialog.Title = "Select Atelier Suite Zip"
+$openFileDialog.Title = "Select Hosted Atelier Suite Zip"
 
 function Set-SourceControls {
     $useDownload = $radioDownload.Checked
@@ -177,40 +192,14 @@ $btnBrowseInstall.Add_Click({
 $btnInstall.Add_Click({
     try {
         $logBox.Clear()
-        Append-Log "Starting install..."
+        Append-Log "Starting hosted install..."
 
         $installRoot = $txtInstall.Text.Trim()
-        if ([string]::IsNullOrWhiteSpace($installRoot)) {
-            throw "Install location is required."
-        }
-
-        $params = @{
-            InstallRoot = $installRoot
-        }
-
-        if ($radioDownload.Checked) {
-            $downloadUrl = $txtUrl.Text.Trim()
-            if ([string]::IsNullOrWhiteSpace($downloadUrl)) {
-                throw "Suite URL is required for download mode."
-            }
-            $params["DownloadUrl"] = $downloadUrl
-        } else {
-            $zipPath = $txtZip.Text.Trim()
-            if ([string]::IsNullOrWhiteSpace($zipPath)) {
-                throw "Local suite zip path is required."
-            }
-            if (-not (Test-Path -LiteralPath $zipPath)) {
-                throw "Local suite zip not found: $zipPath"
-            }
-            $params["SuiteZipPath"] = $zipPath
-        }
-
-        if ($chkOverwrite.Checked) {
-            $params["Force"] = $true
-        }
-        if ($chkRunAfter.Checked) {
-            $params["RunAfterInstall"] = $true
-        }
+        $apiBase = $txtApi.Text.Trim()
+        $kernelBase = $txtKernel.Text.Trim()
+        if ([string]::IsNullOrWhiteSpace($installRoot)) { throw "Install location is required." }
+        if ([string]::IsNullOrWhiteSpace($apiBase)) { throw "Hosted API URL is required." }
+        if ([string]::IsNullOrWhiteSpace($kernelBase)) { throw "Hosted Kernel URL is required." }
 
         $btnInstall.Enabled = $false
         $form.UseWaitCursor = $true
@@ -221,19 +210,22 @@ $btnInstall.Add_Click({
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
             "-File", $installerPath,
-            "-InstallRoot", $installRoot
+            "-InstallRoot", $installRoot,
+            "-ApiBaseUrl", $apiBase,
+            "-KernelBaseUrl", $kernelBase
         )
         if ($radioDownload.Checked) {
-            $argList += @("-DownloadUrl", $txtUrl.Text.Trim())
+            $downloadUrl = $txtUrl.Text.Trim()
+            if ([string]::IsNullOrWhiteSpace($downloadUrl)) { throw "Hosted suite URL is required for download mode." }
+            $argList += @("-DownloadUrl", $downloadUrl)
         } else {
-            $argList += @("-SuiteZipPath", $txtZip.Text.Trim())
+            $zipPath = $txtZip.Text.Trim()
+            if ([string]::IsNullOrWhiteSpace($zipPath)) { throw "Local hosted suite zip path is required." }
+            if (-not (Test-Path -LiteralPath $zipPath)) { throw "Local hosted suite zip not found: $zipPath" }
+            $argList += @("-SuiteZipPath", $zipPath)
         }
-        if ($chkOverwrite.Checked) {
-            $argList += "-Force"
-        }
-        if ($chkRunAfter.Checked) {
-            $argList += "-RunAfterInstall"
-        }
+        if ($chkOverwrite.Checked) { $argList += "-Force" }
+        if ($chkRunAfter.Checked) { $argList += "-RunAfterInstall" }
 
         $quotedArgs = $argList | ForEach-Object {
             if ($_ -match "\s") { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
@@ -254,20 +246,14 @@ $btnInstall.Add_Click({
         $stderr = $proc.StandardError.ReadToEnd()
         $proc.WaitForExit()
 
-        if (-not [string]::IsNullOrWhiteSpace($stdout)) {
-            Append-Log $stdout.Trim()
-        }
-        if (-not [string]::IsNullOrWhiteSpace($stderr)) {
-            Append-Log ("ERROR: " + $stderr.Trim())
-        }
-        if ($proc.ExitCode -ne 0) {
-            throw "Installer process exited with code $($proc.ExitCode). See log for details."
-        }
+        if (-not [string]::IsNullOrWhiteSpace($stdout)) { Append-Log $stdout.Trim() }
+        if (-not [string]::IsNullOrWhiteSpace($stderr)) { Append-Log ("ERROR: " + $stderr.Trim()) }
+        if ($proc.ExitCode -ne 0) { throw "Installer process exited with code $($proc.ExitCode). See log for details." }
 
-        Append-Log "Install completed successfully."
+        Append-Log "Hosted install completed successfully."
         [System.Windows.Forms.MessageBox]::Show(
-            "Install completed successfully.",
-            "Ko's Labyrnth Atelier Setup",
+            "Hosted install completed successfully.",
+            "Ko's Labyrnth Hosted Setup",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Information
         ) | Out-Null
@@ -275,7 +261,7 @@ $btnInstall.Add_Click({
         Append-Log ("Install failed: " + $_.Exception.Message)
         [System.Windows.Forms.MessageBox]::Show(
             $_.Exception.Message,
-            "Ko's Labyrnth Atelier Setup",
+            "Ko's Labyrnth Hosted Setup",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         ) | Out-Null

@@ -1,7 +1,7 @@
 {
   "id": "renderer_acceptance_checklist.v1",
   "version": "1.0.0",
-  "updated_at": "2026-03-05",
+  "updated_at": "2026-03-06",
   "contract": "docs/RENDERER_QUALITY_CONTRACT.md",
   "gates": [
     {
@@ -11,7 +11,7 @@
       "evidence": [
         "Renderer Lab includes `Run Gate A Smoke` action and Gate A status badge in `apps/atelier-desktop/src/App.jsx`.",
         "Smoke check validates voxel count, material count, and camera seed parity between in-panel and fullscreen state.",
-        "auto-stamp:2026-03-05T15:56:47Z:PASS",
+        "auto-stamp:2026-03-06T17:27:25Z:PASS",
         "check:gate_a_smoke_action",
         "check:gate_a_badge",
         "check:gate_a_status_key",
@@ -28,7 +28,7 @@
       "title": "Input parity across JSON/Cobra/Engine",
       "status": "done",
       "evidence": [
-        "auto-stamp:2026-03-05T15:56:47Z:PASS",
+        "auto-stamp:2026-03-06T17:27:25Z:PASS",
         "check:source_json",
         "check:source_cobra",
         "check:source_engine",
@@ -45,7 +45,7 @@
       "title": "LOD fidelity across zoom range",
       "status": "done",
       "evidence": [
-        "auto-stamp:2026-03-05T15:56:47Z:PASS",
+        "auto-stamp:2026-03-06T17:27:25Z:PASS",
         "check:lod_function",
         "check:lod_controls",
         "check:lod_brush",
@@ -63,7 +63,7 @@
       "evidence": [
         "Main renderer now subscribes to cross-window renderer sync channel and storage updates to keep player offset aligned.",
         "Renderer Lab includes `Run Gate D Smoke` action and Gate D status badge in `apps/atelier-desktop/src/App.jsx`.",
-        "auto-stamp:2026-03-05T15:56:47Z:PASS",
+        "auto-stamp:2026-03-06T17:27:25Z:PASS",
         "check:gate_d_smoke_action",
         "check:gate_d_badge",
         "check:click_move",
@@ -81,7 +81,7 @@
       "title": "Atlas/texturing consistency",
       "status": "done",
       "evidence": [
-        "auto-stamp:2026-03-05T15:56:47Z:PASS",
+        "auto-stamp:2026-03-06T17:27:25Z:PASS",
         "check:texture_atlas_panel",
         "check:atlas_material_set",
         "check:tile_png_atlas",
@@ -98,7 +98,7 @@
       "title": "Performance envelope on dev hardware",
       "status": "done",
       "evidence": [
-        "auto-stamp:2026-03-05T15:56:47Z:PASS",
+        "auto-stamp:2026-03-06T17:27:25Z:PASS",
         "check:governor",
         "check:governor_badge",
         "check:worker_parse",

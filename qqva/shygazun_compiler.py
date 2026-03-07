@@ -4,7 +4,8 @@ from dataclasses import dataclass
 import importlib.util
 from pathlib import Path
 import re
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, TypedDict
+import sys
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, TypedDict, cast
 
 from .aster_colors import resolve_aster_color
 
@@ -84,12 +85,32 @@ class DjinnLayerReferences(TypedDict):
     model: str
 
 
+class BilingualCobraSurface(TypedDict, total=False):
+    source_text: str
+    authoritative_projection: Optional[Dict[str, Any]]
+    composed_features: Dict[str, Any]
+    byte_table_trace: Dict[str, Any]
+    structural_verifications: List[Dict[str, Any]]
+    code_surface: Dict[str, Any]
+    placement_graph: Dict[str, Any]
+    trust_contract: Dict[str, Any]
+
+
 @dataclass(frozen=True)
 class SymbolInventory:
     by_symbol: Mapping[str, Sequence[ByteEntry]]
 
     def entries_for(self, symbol: str) -> Sequence[ByteEntry]:
         return self.by_symbol.get(symbol, ())
+
+
+@dataclass(frozen=True)
+class LessonRegistryPort:
+    registry: Any
+
+    def cobra_surface(self, source_text: str) -> BilingualCobraSurface:
+        payload = self.registry.cobra_surface(source_text)
+        return cast(BilingualCobraSurface, payload)
 
 
 def _load_inventory_from_shygazun_module() -> Optional[SymbolInventory]:
@@ -110,6 +131,15 @@ def _load_inventory_from_shygazun_module() -> Optional[SymbolInventory]:
                 )
             by_symbol[str(symbol)] = mapped
         return SymbolInventory(by_symbol=by_symbol)
+    except Exception:
+        return None
+
+
+def _load_lesson_registry_from_shygazun_module() -> Optional[LessonRegistryPort]:
+    try:
+        from shygazun.lesson_registry import load_lesson_registry  # type: ignore
+
+        return LessonRegistryPort(registry=load_lesson_registry())
     except Exception:
         return None
 
@@ -150,6 +180,30 @@ def _load_inventory_from_nested_repo() -> Optional[SymbolInventory]:
     return SymbolInventory(by_symbol=by_symbol)
 
 
+def _load_lesson_registry_from_nested_repo() -> Optional[LessonRegistryPort]:
+    root = Path(__file__).resolve().parents[1]
+    package_root = root / "DjinnOS-Shyagzun"
+    module_path = root / "DjinnOS-Shyagzun" / "shygazun" / "lesson_registry.py"
+    if not module_path.exists():
+        return None
+    try:
+        sys.path.insert(0, str(package_root))
+        spec = importlib.util.spec_from_file_location("nested_shygazun_lesson_registry", str(module_path))
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        load_lesson_registry = getattr(module, "load_lesson_registry", None)
+        if load_lesson_registry is None:
+            return None
+        return LessonRegistryPort(registry=load_lesson_registry())
+    except Exception:
+        return None
+    finally:
+        if str(package_root) in sys.path:
+            sys.path.remove(str(package_root))
+
+
 def default_symbol_inventory() -> SymbolInventory:
     loaded = _load_inventory_from_shygazun_module()
     if loaded is not None:
@@ -158,6 +212,13 @@ def default_symbol_inventory() -> SymbolInventory:
     if loaded is not None:
         return loaded
     raise RuntimeError("shygazun_symbol_inventory_unavailable")
+
+
+def default_lesson_registry() -> Optional[LessonRegistryPort]:
+    loaded = _load_lesson_registry_from_shygazun_module()
+    if loaded is not None:
+        return loaded
+    return _load_lesson_registry_from_nested_repo()
 
 
 def _material_properties_for_symbol(symbol: str, meaning: Optional[str]) -> Dict[str, Any]:
@@ -704,6 +765,23 @@ def derive_djinn_layer_references(
     }
 
 
+def derive_bilingual_cobra_surface(
+    source_text: str,
+    *,
+    lesson_registry: Optional[LessonRegistryPort] = None,
+) -> Optional[BilingualCobraSurface]:
+    registry = lesson_registry if lesson_registry is not None else default_lesson_registry()
+    if registry is None:
+        return None
+    normalized = str(source_text or "").strip()
+    if normalized == "":
+        return None
+    try:
+        return registry.cobra_surface(normalized)
+    except Exception:
+        return None
+
+
 def cobra_to_placement_payloads(
     source: str,
     *,
@@ -714,6 +792,7 @@ def cobra_to_placement_payloads(
     inventory: Optional[SymbolInventory] = None,
 ) -> List[CobraPlacementPayload]:
     symbol_inventory = inventory if inventory is not None else default_symbol_inventory()
+    lesson_registry = default_lesson_registry()
     entities = _parse_cobra_entities(source)
     payloads: List[CobraPlacementPayload] = []
     for entity in entities:
@@ -736,6 +815,7 @@ def cobra_to_placement_payloads(
         constraints = derive_render_constraints(ir, use_case=use_case)
         entity_meta: Mapping[str, Any] = entity_meta_obj if isinstance(entity_meta_obj, dict) else {}
         djinn_refs = derive_djinn_layer_references(meta=entity_meta, ir=ir)
+        bilingual_surface = derive_bilingual_cobra_surface(akinenwun, lesson_registry=lesson_registry)
         payloads.append(
             {
                 "raw": raw,
@@ -749,6 +829,7 @@ def cobra_to_placement_payloads(
                     "render_constraints": constraints,
                     "frontier_policy": constraints["frontier_policy"],
                     "djinn_layer_references": djinn_refs,
+                    "bilingual_cobra_surface": bilingual_surface,
                 },
             }
         )

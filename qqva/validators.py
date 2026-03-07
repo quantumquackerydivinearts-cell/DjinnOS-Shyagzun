@@ -5,7 +5,12 @@ import json
 import re
 from typing import Dict, List, Optional
 
-from .shygazun_compiler import compile_akinenwun_to_ir, default_symbol_inventory, split_akinenwun
+from .shygazun_compiler import (
+    compile_akinenwun_to_ir,
+    default_symbol_inventory,
+    derive_bilingual_cobra_surface,
+    split_akinenwun,
+)
 
 
 @dataclass(frozen=True)
@@ -102,6 +107,17 @@ def validate_cobra_content(
         if ir["unresolved"]:
             unresolved_total.extend(ir["unresolved"])
             warnings.append(f"unresolved:{entity.get('id', 'entity')}:{'|'.join(ir['unresolved'])}")
+        bilingual_surface = derive_bilingual_cobra_surface(akinenwun)
+        if bilingual_surface is not None:
+            trust = bilingual_surface.get("trust_contract", {})
+            readiness = trust.get("downstream_readiness", {}) if isinstance(trust, dict) else {}
+            if isinstance(readiness, dict):
+                if readiness.get("code_surface_safe") is not True:
+                    warnings.append(f"bilingual_code_surface_not_safe:{entity_id}")
+                if readiness.get("placement_graph_safe") is not True:
+                    warnings.append(f"bilingual_placement_graph_not_safe:{entity_id}")
+                if readiness.get("anatomy_surface_safe") is not True:
+                    warnings.append(f"bilingual_anatomy_surface_not_safe:{entity_id}")
 
     stats["entities"] = len(entities)
     stats["unresolved_count"] = len(unresolved_total)

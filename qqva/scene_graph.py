@@ -10,6 +10,7 @@ from .shygazun_compiler import (
     SymbolInventory,
     ShygazunIR,
     compile_akinenwun_to_ir,
+    derive_bilingual_cobra_surface,
     default_symbol_inventory,
     derive_djinn_layer_references,
 )
@@ -173,6 +174,7 @@ def build_scene_graph_from_cobra(
         raise ValueError(realm_error)
 
     symbol_inventory = inventory if inventory is not None else default_symbol_inventory()
+    bilingual_registry_surface = derive_bilingual_cobra_surface
     entities = _parse_cobra_entities(source)
     nodes: List[SceneNode] = []
     for entity in entities:
@@ -187,6 +189,8 @@ def build_scene_graph_from_cobra(
         normalized_meta = dict(entity["meta"])
         _normalize_aster_metadata(normalized_meta)
         normalized_meta["djinn_layer_references"] = derive_djinn_layer_references(meta=normalized_meta, ir=ir_obj)
+        if akinenwun:
+            normalized_meta["bilingual_cobra_surface"] = bilingual_registry_surface(akinenwun)
         nodes.append(
             {
                 "id": str(entity["id"]),

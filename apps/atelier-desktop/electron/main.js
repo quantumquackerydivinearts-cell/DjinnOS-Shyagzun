@@ -7,6 +7,17 @@ const STUDIO_FILE_LIMIT = 1024 * 1024;
 const STUDIO_BINARY_FILE_LIMIT = 25 * 1024 * 1024;
 const APP_ICON_PATH = path.join(__dirname, "..", "public", "icon.png");
 
+function runtimeQuery() {
+  const query = {};
+  if (process.env.KOS_API_BASE && process.env.KOS_API_BASE.trim() !== "") {
+    query.apiBase = process.env.KOS_API_BASE.trim();
+  }
+  if (process.env.KOS_KERNEL_BASE && process.env.KOS_KERNEL_BASE.trim() !== "") {
+    query.kernelBase = process.env.KOS_KERNEL_BASE.trim();
+  }
+  return query;
+}
+
 function assertWithinRoot(rootDir, targetPath) {
   const normalizedRoot = path.resolve(rootDir);
   const normalizedTarget = path.resolve(targetPath);
@@ -197,6 +208,7 @@ function registerIpcHandlers() {
 
   ipcMain.handle("renderer:open-window", async (_event, payload) => {
     const view = payload && payload.view ? payload.view : "renderer-full";
+    const query = { ...runtimeQuery(), view };
     const renderWin = new BrowserWindow({
       width: 1280,
       height: 720,
@@ -211,15 +223,17 @@ function registerIpcHandlers() {
       }
     });
     if (isDev) {
-      renderWin.loadURL(`http://127.0.0.1:5173/?view=${view}`);
+      const params = new URLSearchParams(query).toString();
+      renderWin.loadURL(`http://127.0.0.1:5173/?${params}`);
     } else {
-      renderWin.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query: { view } });
+      renderWin.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
     }
     return { ok: true };
   });
 }
 
 function createWindow() {
+  const query = runtimeQuery();
   const win = new BrowserWindow({
     width: 1320,
     height: 860,
@@ -233,9 +247,11 @@ function createWindow() {
   });
 
   if (isDev) {
-    win.loadURL("http://127.0.0.1:5173");
+    const params = new URLSearchParams(query).toString();
+    const suffix = params ? `?${params}` : "";
+    win.loadURL(`http://127.0.0.1:5173${suffix}`);
   } else {
-    win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+    win.loadFile(path.join(__dirname, "..", "dist", "index.html"), { query });
   }
 }
 

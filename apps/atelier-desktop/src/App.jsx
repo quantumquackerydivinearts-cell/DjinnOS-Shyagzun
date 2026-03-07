@@ -3,7 +3,33 @@ import sceneGraphDefaults from "../../../scene_graph_defaults.json";
 import { consumeInboxBatch } from "./engineInbox";
 import { applyRenderPack, createRenderPack, validateRenderPack } from "./rendererCore";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:9000";
+function resolveRuntimeApiBase() {
+  try {
+    const query = new URLSearchParams(window.location.search);
+    const queryValue = query.get("apiBase");
+    if (queryValue) {
+      return queryValue;
+    }
+  } catch {
+  }
+  return import.meta.env.VITE_API_BASE || "http://127.0.0.1:9000";
+}
+
+const API_BASE = resolveRuntimeApiBase();
+
+function resolveRuntimeKernelBase() {
+  try {
+    const query = new URLSearchParams(window.location.search);
+    const queryValue = query.get("kernelBase");
+    if (queryValue) {
+      return queryValue;
+    }
+  } catch {
+  }
+  return import.meta.env.VITE_KERNEL_BASE || "http://127.0.0.1:8000";
+}
+
+const KERNEL_BASE = resolveRuntimeKernelBase();
 
 const NAV_ITEMS = [
   "Foyer",
@@ -5024,9 +5050,11 @@ export function App() {
   const [contentValidateSceneId, setContentValidateSceneId] = useState("lapidus/renderer-lab");
   const [contentValidatePayload, setContentValidatePayload] = useState("");
   const [contentValidateOutput, setContentValidateOutput] = useState(null);
+  const [rendererBilingualOutput, setRendererBilingualOutput] = useState(null);
   const [shygazunTranslateSourceText, setShygazunTranslateSourceText] = useState("love whale");
   const [shygazunTranslateDirection, setShygazunTranslateDirection] = useState("auto");
   const [shygazunTranslateOutput, setShygazunTranslateOutput] = useState(null);
+  const [shygazunInterpretOutput, setShygazunInterpretOutput] = useState(null);
   const [shygazunCorrectOutput, setShygazunCorrectOutput] = useState(null);
   const [moduleCatalog, setModuleCatalog] = useState([]);
   const [moduleSelectedId, setModuleSelectedId] = useState("module.shygazun.interpret");
@@ -5050,6 +5078,10 @@ export function App() {
   const [validateBeforeEmit, setValidateBeforeEmit] = useState(() => {
     const saved = localStorage.getItem("atelier.renderer.validate_before_emit");
     return saved !== "0";
+  });
+  const [strictBilingualValidation, setStrictBilingualValidation] = useState(() => {
+    const saved = localStorage.getItem("atelier.renderer.strict_bilingual");
+    return saved === "1";
   });
   const [validationSummary, setValidationSummary] = useState({ ok: true, errors: 0, warnings: 0 });
   const [voxelSettings, setVoxelSettings] = useState(() => {
@@ -5266,6 +5298,7 @@ export function App() {
 
   const [lessonTitle, setLessonTitle] = useState("");
   const [lessonBody, setLessonBody] = useState("");
+  const [lessonValidationOutput, setLessonValidationOutput] = useState(null);
   const [lessons, setLessons] = useState([]);
   const [lessonProgress, setLessonProgress] = useState([]);
   const [lessonActorId, setLessonActorId] = useState(() => localStorage.getItem("atelier.lesson_actor") || "player");
@@ -5504,6 +5537,9 @@ export function App() {
   const [tilePresenceToken, setTilePresenceToken] = useState("Ta");
   const [tileColorToken, setTileColorToken] = useState("Ru");
   const [tileOpacityToken, setTileOpacityToken] = useState("Na");
+  const [tileTraversalClass, setTileTraversalClass] = useState(() => {
+    return localStorage.getItem("atelier.tile_traversal_class") || "walkable_surface";
+  });
   const [tileNearThreshold, setTileNearThreshold] = useState("2");
   const [tilePlacements, setTilePlacements] = useState({});
   const [tileConnections, setTileConnections] = useState([]);
@@ -5754,6 +5790,7 @@ export function App() {
   useEffect(() => localStorage.setItem("atelier.section", section), [section]);
   useEffect(() => localStorage.setItem("atelier.role", role), [role]);
   useEffect(() => localStorage.setItem("atelier.workspace", workspaceId), [workspaceId]);
+  useEffect(() => localStorage.setItem("atelier.tile_traversal_class", tileTraversalClass), [tileTraversalClass]);
   useEffect(() => localStorage.setItem("atelier.profile_name", profileName), [profileName]);
   useEffect(() => localStorage.setItem("atelier.profile_email", profileEmail), [profileEmail]);
   useEffect(() => localStorage.setItem("atelier.profile_tz", profileTimezone), [profileTimezone]);
@@ -5953,6 +5990,20 @@ export function App() {
     const response = await fetch(`${API_BASE}${path}`, {
       method,
       headers: buildHeaders(role, caps, token),
+      body: body === null ? undefined : JSON.stringify(body)
+    });
+    const data = parseSafeJson(await response.text());
+    setOutput(JSON.stringify(data, null, 2));
+    if (!response.ok) {
+      throw new Error(JSON.stringify(data));
+    }
+    return data;
+  }
+
+  async function kernelCall(path, method, body) {
+    const response = await fetch(`${KERNEL_BASE}${path}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
       body: body === null ? undefined : JSON.stringify(body)
     });
     const data = parseSafeJson(await response.text());
@@ -6401,9 +6452,14 @@ export function App() {
         scene_id: contentValidateSceneId,
         source: contentValidateSource,
         payload: contentValidatePayload,
+        strict_bilingual: strictBilingualValidation,
       };
       const data = await apiCall("/v1/content/validate", "POST", payload);
       setContentValidateOutput(data);
+      const surfaceText = contentValidateSource === "cobra"
+        ? extractFirstShygazunSurfaceFromCobra(contentValidatePayload)
+        : "";
+      await inspectRendererBilingualSurface(surfaceText);
       setValidationSummary({
         ok: Boolean(data && data.ok),
         errors: Array.isArray(data && data.errors) ? data.errors.length : 0,
@@ -6666,8 +6722,11 @@ export function App() {
       scene_id: sceneId,
       source,
       payload,
+      strict_bilingual: strictBilingualValidation,
     });
     setContentValidateOutput(validation);
+    const surfaceText = source === "cobra" ? extractFirstShygazunSurfaceFromCobra(payload) : "";
+    await inspectRendererBilingualSurface(surfaceText);
     setValidationSummary({
       ok: Boolean(validation && validation.ok),
       errors: Array.isArray(validation && validation.errors) ? validation.errors.length : 0,
@@ -7234,7 +7293,12 @@ export function App() {
       }
       const color = typeof item.color_token === "string" ? item.color_token : tileColorToken;
       const opacity = typeof item.opacity_token === "string" ? item.opacity_token : tileOpacityToken;
-      const meta = item.meta && typeof item.meta === "object" ? item.meta : {};
+      const rawMeta = item.meta && typeof item.meta === "object" ? item.meta : {};
+      const traversalClass = normalizeTileTraversalClass(
+        rawMeta.traversal_class || (rawMeta.walkable === true ? "walkable_surface" : rawMeta.walkable === false ? "visual_unwalkable" : "non_traversal"),
+        "non_traversal"
+      );
+      const meta = tileTraversalMeta(rawMeta, traversalClass);
       const key = tileKey(x, y, layer);
       nextPlacements[key] = {
         id: `tile_${layer}_${x}_${y}`,
@@ -7284,6 +7348,91 @@ export function App() {
     }
     setTileProcStatus(`generated:${Object.keys(nextPlacements).length}_tiles`);
     setRendererGameStatus(`procedural:${Object.keys(nextPlacements).length}_tiles`);
+  }
+
+  function normalizeTileTraversalClass(value, fallback = "walkable_surface") {
+    if (value === "walkable_surface" || value === "visual_unwalkable" || value === "non_traversal") {
+      return value;
+    }
+    return fallback;
+  }
+
+  function tileTraversalMeta(meta, traversalClass = tileTraversalClass) {
+    const nextMeta = meta && typeof meta === "object" ? { ...meta } : {};
+    const normalized = normalizeTileTraversalClass(traversalClass);
+    nextMeta.traversal_class = normalized;
+    if (normalized === "walkable_surface") {
+      nextMeta.walkable = true;
+    } else if (normalized === "visual_unwalkable") {
+      nextMeta.walkable = false;
+    } else {
+      delete nextMeta.walkable;
+    }
+    return nextMeta;
+  }
+
+  function tileTraversalLabel(traversalClass) {
+    switch (normalizeTileTraversalClass(traversalClass)) {
+      case "walkable_surface":
+        return "walkable";
+      case "visual_unwalkable":
+        return "visual-only solid";
+      default:
+        return "not applicable";
+    }
+  }
+
+  function tilePlacementToRendererVoxelEntity(placement) {
+    const item = placement && typeof placement === "object" ? placement : {};
+    const meta = item.meta && typeof item.meta === "object" ? item.meta : {};
+    const traversalClass = normalizeTileTraversalClass(
+      meta.traversal_class || (meta.walkable === true ? "walkable_surface" : meta.walkable === false ? "visual_unwalkable" : "non_traversal"),
+      "non_traversal"
+    );
+    const layer = String(item.layer || "base");
+    const colorToken = String(item.color_token || "Ru");
+    const opacityToken = String(item.opacity_token || "Na");
+    const type =
+      traversalClass === "walkable_surface"
+        ? "tile_floor"
+        : traversalClass === "visual_unwalkable"
+          ? "tile_blocker"
+          : "tile_visual";
+    const material =
+      traversalClass === "walkable_surface"
+        ? "ground"
+        : traversalClass === "visual_unwalkable"
+          ? "wall"
+          : "detail";
+    return {
+      ...item,
+      kind: "tile_voxel",
+      type,
+      material,
+      color: tokenColor(colorToken),
+      z: Number.isFinite(Number(item.z))
+        ? Number(item.z)
+        : layer === "ground"
+          ? 0
+          : layer === "base"
+            ? 1
+            : layer === "detail"
+              ? 2
+              : layer === "fx"
+                ? 3
+                : 1,
+      meta: {
+        ...meta,
+        layer,
+        material,
+        traversal_class: traversalClass,
+        walkable: traversalClass === "walkable_surface" ? true : traversalClass === "visual_unwalkable" ? false : undefined,
+        tile_surface: true,
+        color_token: colorToken,
+        opacity_token: opacityToken,
+        presence_token: String(item.presence_token || "Ta"),
+      },
+    };
   }
 
   async function applyProceduralTiles() {
@@ -7432,6 +7581,69 @@ export function App() {
       await apiCall(path, "POST", payload);
       reset();
       await refresh();
+      return {};
+    });
+  }
+
+  function extractFirstShygazunSurfaceFromCobra(source) {
+    const lines = String(source || "").split(/\r?\n/);
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) {
+        continue;
+      }
+      const match = line.match(/^(lex|akinenwun|shygazun)\s+(.+)$/i);
+      if (match) {
+        return String(match[2] || "").trim();
+      }
+    }
+    return "";
+  }
+
+  function parseLessonDraftPayload() {
+    const text = String(lessonBody || "").trim();
+    if (!text) {
+      throw new Error("lesson_body_required");
+    }
+    const parsed = JSON.parse(text);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("lesson_json_object_required");
+    }
+    return parsed;
+  }
+
+  async function validateLessonDraft() {
+    await runAction("lesson_validate", async () => {
+      const lessonPayload = parseLessonDraftPayload();
+      const data = await kernelCall("/v0.1/shygazun/teach/validate", "POST", { lessons: [lessonPayload] });
+      setLessonValidationOutput(data);
+      return data;
+    });
+  }
+
+  async function inspectRendererBilingualSurface(sourceTextOverride) {
+    const sourceText = String(sourceTextOverride || "").trim();
+    if (!sourceText) {
+      setRendererBilingualOutput(null);
+      return null;
+    }
+    const data = await kernelCall("/v0.1/shygazun/cobra_surface", "POST", { source_text: sourceText });
+    setRendererBilingualOutput(data);
+    return data;
+  }
+
+  async function createLessonDraft() {
+    await runAction("lessons_create", async () => {
+      const lessonText = String(lessonBody || "").trim();
+      if (lessonText.startsWith("{")) {
+        const lessonPayload = parseLessonDraftPayload();
+        const validation = await kernelCall("/v0.1/shygazun/teach/validate", "POST", { lessons: [lessonPayload] });
+        setLessonValidationOutput(validation);
+      }
+      await apiCall("/v1/lessons", "POST", { workspace_id: workspaceId, title: lessonTitle, body: lessonBody, status: "draft" });
+      setLessonTitle("");
+      setLessonBody("");
+      await listLessons();
       return {};
     });
   }
@@ -9772,6 +9984,7 @@ export function App() {
     localStorage.setItem("atelier.renderer.engine", JSON.stringify(rendererEngineState || {}));
     localStorage.setItem("atelier.renderer.realm", rendererRealmId);
     localStorage.setItem("atelier.renderer.validate_before_emit", validateBeforeEmit ? "1" : "0");
+    localStorage.setItem("atelier.renderer.strict_bilingual", strictBilingualValidation ? "1" : "0");
     localStorage.setItem("atelier.renderer.voxel_settings", JSON.stringify(voxelSettings));
     localStorage.setItem("atelier.renderer.materials", JSON.stringify(voxelMaterials));
     localStorage.setItem("atelier.renderer.layers", JSON.stringify(voxelLayers));
@@ -9840,6 +10053,7 @@ export function App() {
     businessLogicRendererUseDerived,
     rendererRealmId,
     validateBeforeEmit,
+    strictBilingualValidation,
     lessonActorId,
     isFullscreenRenderer,
   ]);
@@ -10170,7 +10384,7 @@ export function App() {
     const scene = spec.scene && typeof spec.scene === "object" ? spec.scene : {};
     const systems = spec.systems && typeof spec.systems === "object" ? spec.systems : {};
     const entities = Array.isArray(spec.entities) ? spec.entities : [];
-    const tileEntities = Object.values(tilePlacements);
+    const tileEntities = Object.values(tilePlacements).map((placement) => tilePlacementToRendererVoxelEntity(placement));
     const linkEntities = tileConnections.map((link) => ({
       id: link.id,
       kind: "tile_link",
@@ -10381,11 +10595,10 @@ export function App() {
               presence_token: "Ta",
               color_token: tileColorToken,
               opacity_token: tileOpacityToken,
-              meta: {
+              meta: tileTraversalMeta({
                 ...existingMeta,
                 lod,
-                walkable: tileColorToken !== "Ga",
-              },
+              }),
             };
           }
         }
@@ -11080,6 +11293,49 @@ export function App() {
       }
       const runtimeResult = actionResult.result || {};
       setShygazunTranslateOutput(runtimeResult);
+      return runtimeResult;
+    });
+  };
+
+  const runShygazunInterpret = async () => {
+    await runAction("shygazun_interpret", async () => {
+      const utterance = String(shygazunTranslateSourceText || "").trim();
+      if (!utterance) {
+        throw new Error("utterance_required");
+      }
+      const actorId = String(rendererTablesActorId || "player").trim() || "player";
+      const consumed = await apiCall("/v1/game/runtime/consume", "POST", {
+        workspace_id: workspaceId,
+        actor_id: actorId,
+        plan_id: `shygazun_interpret_${Date.now()}`,
+        actions: [
+          {
+            action_id: "interpret",
+            kind: "shygazun.interpret",
+            payload: {
+              utterance,
+              deity: "jabiru",
+              mode: "explicit",
+              explain_mode: "none",
+              lore_overlay: "none",
+              mutate_tokens: true,
+              kaganue_pressure: 0,
+            },
+          },
+        ],
+      });
+      const actionResult = Array.isArray(consumed?.results)
+        ? consumed.results.find((item) => item && item.action_id === "interpret")
+        : null;
+      if (!actionResult || !actionResult.ok) {
+        throw new Error(
+          actionResult && typeof actionResult.error === "string"
+            ? actionResult.error
+            : "shygazun_interpret_failed"
+        );
+      }
+      const runtimeResult = actionResult.result || {};
+      setShygazunInterpretOutput(runtimeResult);
       return runtimeResult;
     });
   };
@@ -11808,7 +12064,8 @@ export function App() {
           <h2>Lesson Builder</h2>
           <div className="row">
             <input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} placeholder="lesson title" />
-            <button className="action" onClick={() => createEntity("lessons_create", "/v1/lessons", { workspace_id: workspaceId, title: lessonTitle, body: lessonBody, status: "draft" }, () => { setLessonTitle(""); setLessonBody(""); }, listLessons)}>Create</button>
+            <button className="action" onClick={validateLessonDraft}>Validate Shygazun Lesson</button>
+            <button className="action" onClick={createLessonDraft}>Create</button>
             <button className="action" onClick={listLessons}>Refresh</button>
           </div>
           <div className="row">
@@ -11845,6 +12102,7 @@ export function App() {
               <div className="preview-body">{renderMarkdownBlocks(lessonBody)}</div>
             </div>
           </div>
+          <pre>{JSON.stringify(lessonValidationOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(filteredLessons, null, 2)}</pre>
         </section>
       );
@@ -13091,6 +13349,14 @@ export function App() {
                   />
                   Validate before emit
                 </label>
+                <label className="inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={strictBilingualValidation}
+                    onChange={(e) => setStrictBilingualValidation(e.target.checked)}
+                  />
+                  Strict bilingual gate
+                </label>
                 <button className="action" onClick={validateContent}>Validate</button>
               </div>
               <div className="row">
@@ -13104,7 +13370,15 @@ export function App() {
                 onChange={(e) => setContentValidatePayload(e.target.value)}
                 placeholder="cobra or json payload"
               />
+              <div className="row">
+                <span className="badge">{`Validation OK: ${validationSummary.ok ? "yes" : "no"}`}</span>
+                <span className="badge">{`Errors: ${validationSummary.errors}`}</span>
+                <span className="badge">{`Warnings: ${validationSummary.warnings}`}</span>
+                <span className="badge">{`Strict bilingual: ${strictBilingualValidation ? "on" : "off"}`}</span>
+              </div>
               <pre>{JSON.stringify(contentValidateOutput || {}, null, 2)}</pre>
+              <h4>Bilingual Trust Surface</h4>
+              <pre>{JSON.stringify(rendererBilingualOutput || {}, null, 2)}</pre>
             </section>
             <section className="panel">
               <h3>Shygazun Translator</h3>
@@ -13117,6 +13391,7 @@ export function App() {
                 </select>
                 <button className="action" onClick={() => setShygazunTranslateSourceText(rendererCobra)}>Use Cobra Source</button>
                 <button className="action" onClick={() => setShygazunTranslateSourceText(contentValidatePayload)}>Use Validate Payload</button>
+                <button className="action" onClick={runShygazunInterpret}>Interpret</button>
                 <button className="action" onClick={runShygazunTranslate}>Translate</button>
                 <button className="action" onClick={runShygazunCorrect}>Canonical Correct</button>
               </div>
@@ -13126,6 +13401,7 @@ export function App() {
                 onChange={(e) => setShygazunTranslateSourceText(e.target.value)}
                 placeholder="source text for translation"
               />
+              <pre>{JSON.stringify(shygazunInterpretOutput || {}, null, 2)}</pre>
               <pre>{JSON.stringify(shygazunTranslateOutput || {}, null, 2)}</pre>
               <pre>{JSON.stringify(shygazunCorrectOutput || {}, null, 2)}</pre>
             </section>
@@ -13699,6 +13975,11 @@ export function App() {
                     <option value="square">Brush: Square</option>
                     <option value="circle">Brush: Circle</option>
                   </select>
+                  <select value={tileTraversalClass} onChange={(e) => setTileTraversalClass(e.target.value)}>
+                    <option value="walkable_surface">Traversal: Walkable Surface</option>
+                    <option value="visual_unwalkable">Traversal: Visual Unwalkable</option>
+                    <option value="non_traversal">Traversal: Not Applicable</option>
+                  </select>
                   <label className="inline-toggle">
                     <input type="checkbox" checked={tileEditLodSnap} onChange={(e) => setTileEditLodSnap(e.target.checked)} />
                     LOD Snap/Block Fill
@@ -13755,6 +14036,7 @@ export function App() {
                   <span className="badge">{`PNG: ${tilePngStatus}`}</span>
                   <span className="badge">{`LOD0:${tileLodCounts["0"]} LOD1:${tileLodCounts["1"]} LOD2:${tileLodCounts["2"]} LOD3:${tileLodCounts["3"]}`}</span>
                   <span className="badge">{`Brush r=${tileBrushRadius} ${tileBrushShape}`}</span>
+                  <span className="badge">{`Traversal: ${tileTraversalLabel(tileTraversalClass)}`}</span>
                   <span className="badge">{`Rect: ${tileRectStart ? `${tileRectStart.x},${tileRectStart.y}` : "-"} -> ${tileRectEnd ? `${tileRectEnd.x},${tileRectEnd.y}` : "-"}`}</span>
                   <span className="badge">{`Feather Scale: ${tileRectFeatherScaleAware ? `on (x${clampInt(tileSvgExportScale, 1, 8, 2)})` : "off"}`}</span>
                 </div>
@@ -13799,6 +14081,11 @@ export function App() {
                 >
                   {tileGridCells.map((cell) => {
                     const token = cell.placement ? cell.placement.color_token : "";
+                    const placementMeta = cell.placement && cell.placement.meta && typeof cell.placement.meta === "object" ? cell.placement.meta : {};
+                    const traversalClass = normalizeTileTraversalClass(
+                      placementMeta.traversal_class || (placementMeta.walkable === true ? "walkable_surface" : placementMeta.walkable === false ? "visual_unwalkable" : "non_traversal"),
+                      "non_traversal"
+                    );
                     const rect = normalizeTileRect(tileRectStart, tileRectEnd);
                     const inRect = tilePointInRect(cell.x, cell.y, rect);
                     return (
@@ -13813,7 +14100,7 @@ export function App() {
                           minHeight: `${tilePreviewCellPx}px`,
                         }}
                         onClick={() => handleTileClick(cell.x, cell.y)}
-                        title={`${cell.key}${cell.placement ? ` ${cell.placement.presence_token}/${cell.placement.color_token}/${cell.placement.opacity_token}` : ""}`}
+                        title={`${cell.key}${cell.placement ? ` ${cell.placement.presence_token}/${cell.placement.color_token}/${cell.placement.opacity_token} traversal=${tileTraversalLabel(traversalClass)}` : ""}`}
                       >
                         {cell.placement ? cell.placement.color_token : "·"}
                       </button>

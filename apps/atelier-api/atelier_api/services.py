@@ -29,6 +29,7 @@ _ensure_repo_root_on_path()
 
 from qqva.world_stream import WorldStreamController
 from qqva.aster_colors import resolve_aster_color
+from shygazun.lesson_registry import load_lesson_registry
 
 from .business_schemas import (
     ArtisanBootstrapInput,
@@ -343,8 +344,17 @@ class AtelierService:
     _LANGUAGE_DEITY_DEFAULT = "jabiru"
     _LANGUAGE_DEMON_CONFUSER = "kaganue"
     _SHYGAZUN_TRANSLATION_LEXICON_EN_TO_SHY: dict[str, str] = {
+        "i": "Awu",
+        "we": "Owu",
+        "you": "Iwu",
+        "y'all": "Ewu",
+        "yall": "Ewu",
+        "he": "Ywu",
+        "she": "Ywu",
+        "they": "Uwu",
         "love": "Aely",
         "whale": "MelKoWuVu",
+        "whales": "Melkowuvune",
         "water": "Mel",
         "earth": "Zot",
         "air": "Puf",
@@ -1677,6 +1687,24 @@ class AtelierService:
         return [token for token in re.findall(r"[A-Za-z][A-Za-z']*", text) if token.strip() != ""]
 
     @classmethod
+    def _lesson_backed_translation_assets(cls) -> dict[str, dict[str, str]]:
+        assets = {
+            "english_to_shygazun": {},
+            "shygazun_to_english": {},
+            "english_examples": {},
+            "shygazun_examples": {},
+        }
+        try:
+            registry = load_lesson_registry()
+            assets["english_to_shygazun"] = dict(registry.english_to_shygazun_lexicon())
+            assets["shygazun_to_english"] = dict(registry.shygazun_to_english_lexicon())
+            assets["english_examples"] = dict(registry.english_projection_examples())
+            assets["shygazun_examples"] = dict(registry.shygazun_projection_examples())
+        except Exception:
+            return assets
+        return assets
+
+    @classmethod
     def _translate_shygazun_runtime(cls, payload: Mapping[str, object]) -> dict[str, object]:
         source_raw = str(payload.get("source_text", "")).strip()
         if source_raw == "":
@@ -1685,12 +1713,15 @@ class AtelierService:
         if direction not in {"auto", "english_to_shygazun", "shygazun_to_english"}:
             raise ValueError("invalid_translation_direction")
 
-        lex_en_to_shy = dict(cls._SHYGAZUN_TRANSLATION_LEXICON_EN_TO_SHY)
-        lex_shy_to_en = {value.lower(): key for key, value in lex_en_to_shy.items()}
-
         tokens = cls._tokenize_translation_input(source_raw)
         if len(tokens) == 0:
             raise ValueError("translation_tokens_required")
+
+        lesson_assets = cls._lesson_backed_translation_assets()
+        lex_en_to_shy = dict(cls._SHYGAZUN_TRANSLATION_LEXICON_EN_TO_SHY)
+        lex_en_to_shy.update(cast(dict[str, str], lesson_assets["english_to_shygazun"]))
+        lex_shy_to_en = {value.lower(): key for key, value in lex_en_to_shy.items()}
+        lex_shy_to_en.update(cast(dict[str, str], lesson_assets["shygazun_to_english"]))
 
         if direction == "auto":
             has_compound_shape = any(re.search(r"[A-Z][a-z]+[A-Z]", token) for token in tokens)
@@ -1704,6 +1735,30 @@ class AtelierService:
         mappings: list[dict[str, object]] = []
 
         if direction == "english_to_shygazun":
+            normalized_english = " ".join(token.lower() for token in tokens)
+            exact_projection = cast(dict[str, str], lesson_assets["english_examples"]).get(normalized_english)
+            if exact_projection is not None:
+                translated = exact_projection.split(" ")
+                target_text = exact_projection
+                mappings = [
+                    {"source": source_raw, "target": exact_projection, "resolved": True, "resolution_kind": "lesson_exact_projection"}
+                ]
+                resolved_count = len(tokens)
+                token_count = len(tokens)
+                confidence = 1.0
+                round_trip_preview = normalized_english
+                return {
+                    "direction": direction,
+                    "source_text": source_raw,
+                    "target_text": target_text,
+                    "token_count": token_count,
+                    "resolved_count": resolved_count,
+                    "unresolved": unresolved,
+                    "confidence": confidence,
+                    "mappings": mappings,
+                    "round_trip_preview": round_trip_preview,
+                    "lexicon_version": "phase2.lesson-backed",
+                }
             for raw_token in tokens:
                 token = raw_token.lower()
                 mapped = lex_en_to_shy.get(token)
@@ -1716,6 +1771,29 @@ class AtelierService:
                     mappings.append({"source": raw_token, "target": mapped, "resolved": True})
             target_text = " ".join(translated)
         else:
+            normalized_shygazun = " ".join(tokens).lower()
+            exact_projection = cast(dict[str, str], lesson_assets["shygazun_examples"]).get(normalized_shygazun)
+            if exact_projection is not None:
+                target_text = exact_projection
+                mappings = [
+                    {"source": source_raw, "target": exact_projection, "resolved": True, "resolution_kind": "lesson_exact_projection"}
+                ]
+                resolved_count = len(tokens)
+                token_count = len(tokens)
+                confidence = 1.0
+                round_trip_preview = normalized_shygazun
+                return {
+                    "direction": direction,
+                    "source_text": source_raw,
+                    "target_text": target_text,
+                    "token_count": token_count,
+                    "resolved_count": resolved_count,
+                    "unresolved": unresolved,
+                    "confidence": confidence,
+                    "mappings": mappings,
+                    "round_trip_preview": round_trip_preview,
+                    "lexicon_version": "phase2.lesson-backed",
+                }
             for raw_token in tokens:
                 token = raw_token.lower()
                 mapped = lex_shy_to_en.get(token)
@@ -1753,7 +1831,7 @@ class AtelierService:
             "confidence": confidence,
             "mappings": mappings,
             "round_trip_preview": round_trip_preview,
-            "lexicon_version": "phase1.v1",
+            "lexicon_version": "phase2.lesson-backed",
         }
 
     @classmethod
@@ -9550,6 +9628,9 @@ class AtelierService:
         errors.extend(result.errors)
         warnings.extend(result.warnings)
         stats.update(result.stats)
+        if payload.strict_bilingual:
+            bilingual_warnings = [warning for warning in warnings if warning.startswith("bilingual_")]
+            errors.extend(bilingual_warnings)
         ok = len(errors) == 0
         return ContentValidateOut(
             workspace_id=payload.workspace_id,

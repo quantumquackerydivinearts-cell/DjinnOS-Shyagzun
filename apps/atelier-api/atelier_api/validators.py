@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import re
 from typing import Dict, List, Optional
 
 
@@ -139,18 +140,52 @@ def validate_cobra_content(
     unresolved_total: List[str] = []
     if symbol_index is not None:
         for entity in entities:
+            entity_id = str(entity.get("id", "entity"))
+            meta_obj = entity.get("meta")
+            meta = meta_obj if isinstance(meta_obj, dict) else {}
+            for coeff_key in ("reference_coeff_bp", "recursion_coeff_bp", "djinn_reference_coeff_bp", "djinn_recursion_coeff_bp"):
+                raw = str(meta.get(coeff_key, "")).strip()
+                if raw == "":
+                    continue
+                if not re.fullmatch(r"-?\d+", raw):
+                    warnings.append(f"invalid_coeff_format:{entity_id}:{coeff_key}")
+                    continue
+                parsed = int(raw)
+                if parsed < 0 or parsed > 10000:
+                    warnings.append(f"coeff_out_of_range:{entity_id}:{coeff_key}:{parsed}")
             akinenwun = str(entity.get("akinenwun") or "").strip()
             if not akinenwun:
                 continue
+            entity_unresolved: List[str] = []
             for symbol in _split_akinenwun(akinenwun):
                 if symbol not in symbol_index:
                     unresolved_total.append(symbol)
-            if unresolved_total:
-                warnings.append(f"unresolved:{entity.get('id', 'entity')}:{'|'.join(unresolved_total)}")
+                    entity_unresolved.append(symbol)
+            if entity_unresolved:
+                warnings.append(f"unresolved:{entity_id}:{'|'.join(entity_unresolved)}")
+            try:
+                from qqva.shygazun_compiler import derive_bilingual_cobra_surface  # type: ignore
+
+                bilingual_surface = derive_bilingual_cobra_surface(akinenwun)
+            except Exception:
+                bilingual_surface = None
+            if isinstance(bilingual_surface, dict):
+                trust = bilingual_surface.get("trust_contract", {})
+                readiness = trust.get("downstream_readiness", {}) if isinstance(trust, dict) else {}
+                if isinstance(readiness, dict):
+                    if readiness.get("code_surface_safe") is not True:
+                        warnings.append(f"bilingual_code_surface_not_safe:{entity_id}")
+                    if readiness.get("placement_graph_safe") is not True:
+                        warnings.append(f"bilingual_placement_graph_not_safe:{entity_id}")
+                    if readiness.get("anatomy_surface_safe") is not True:
+                        warnings.append(f"bilingual_anatomy_surface_not_safe:{entity_id}")
 
     stats["entities"] = len(entities)
     stats["unresolved_count"] = len(unresolved_total)
     stats["unresolved_symbols"] = unresolved_total
+    bilingual_warnings = [warning for warning in warnings if warning.startswith("bilingual_")]
+    stats["bilingual_warning_count"] = len(bilingual_warnings)
+    stats["bilingual_warnings"] = bilingual_warnings
 
     ok = len(errors) == 0
     return ContentValidationResult(ok=ok, errors=errors, warnings=warnings, stats=stats)

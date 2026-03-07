@@ -7,6 +7,7 @@ What this gives you:
 - One click-through setup wizard for non-technical users.
 - Local backend bundle (API + kernel runtime payload) installed by default.
 - Bundled Python wheelhouse for offline-first dependency bootstrap.
+- This bootstrap package is for the LOCAL target, not the hosted/Postgres target.
 
 Files:
 - Install-Atelier.ps1
@@ -43,3 +44,4 @@ After install:
 
 Notes:
 - If you want remote services instead, edit config.json in the install folder.
+- Hosted/Postgres deployments should use the hosted release target instead of this bootstrap flow.

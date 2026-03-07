@@ -1,0 +1,18 @@
+{
+  "api_base_url": "__API_BASE_URL__",
+  "kernel_base_url": "__KERNEL_BASE_URL__",
+  "backend": {
+    "mode": "remote",
+    "auto_start": false,
+    "python_command": "py",
+    "kernel_host": "127.0.0.1",
+    "kernel_port": 8000,
+    "api_host": "127.0.0.1",
+    "api_port": 9000
+  },
+  "notes": {
+    "hosted_mode": true,
+    "local_backend_disabled": true,
+    "set_api_and_kernel_urls_to_your_managed_services": true
+  }
+}

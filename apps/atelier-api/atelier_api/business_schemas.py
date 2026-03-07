@@ -1595,6 +1595,7 @@ class ContentValidateInput(BaseModel):
     scene_id: str
     source: Literal["cobra", "json"] = "cobra"
     payload: str
+    strict_bilingual: bool = False
 
 
 class ContentValidateOut(BaseModel):
