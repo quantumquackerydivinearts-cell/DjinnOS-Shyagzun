@@ -1069,21 +1069,70 @@ function relationTokenForDistance(distance, nearThreshold) {
 }
 
 function tokenColor(token) {
-  const map = {
-    Ru: "#c62828",
-    Ot: "#ef6c00",
-    El: "#f9a825",
-    Ki: "#2e7d32",
-    Fu: "#1565c0",
-    Ka: "#283593",
-    AE: "#6a1b9a",
-    Ha: "#ffffff",
-    Ga: "#111111",
-    Na: "#9e9e9e",
-    Ung: "#4e342e",
-    Wu: "#cfd8dc",
+  const toHex = (rgb) => `#${byteToHex(rgb.r)}${byteToHex(rgb.g)}${byteToHex(rgb.b)}`;
+  const shiftToward = (hex, target, factor) => {
+    const rgb = parseHexColor(hex);
+    if (!rgb) {
+      return "#607d8b";
+    }
+    return toHex({
+      r: Math.round(rgb.r + ((target.r - rgb.r) * factor)),
+      g: Math.round(rgb.g + ((target.g - rgb.g) * factor)),
+      b: Math.round(rgb.b + ((target.b - rgb.b) * factor)),
+    });
   };
-  return map[token] || "#607d8b";
+  const resolveSingle = (raw) => {
+    const exact = String(raw || "").trim();
+    if (ROSE_COLOR_MAP[exact]) {
+      return ROSE_COLOR_MAP[exact];
+    }
+    if (ASTER_LEFT_CHIRAL_TOKENS[exact]) {
+      return shiftToward(ROSE_COLOR_MAP[ASTER_LEFT_CHIRAL_TOKENS[exact]], { r: 0, g: 0, b: 0 }, 0.32);
+    }
+    if (ASTER_RIGHT_CHIRAL_TOKENS[exact]) {
+      return shiftToward(ROSE_COLOR_MAP[ASTER_RIGHT_CHIRAL_TOKENS[exact]], { r: 255, g: 255, b: 255 }, 0.28);
+    }
+    return "";
+  };
+  const direct = resolveSingle(token);
+  if (direct) {
+    return direct;
+  }
+  const normalized = String(token || "").trim();
+  if (!normalized) {
+    return "#607d8b";
+  }
+  const source = normalized.replace(/[^A-Za-z]/g, "");
+  const units = ["Ung", "Alz", "Oth", "Tho", "AE", "Ru", "Ot", "El", "Ki", "Fu", "Ka", "Ha", "Ga", "Na", "Wu", "Ry", "Ra", "Le", "Lu", "Gi", "Ge", "Fe", "Fo", "Ky", "Kw", "Dr"];
+  const parts = [];
+  let offset = 0;
+  while (offset < source.length) {
+    let matched = "";
+    for (const unit of units) {
+      if (source.startsWith(unit, offset)) {
+        matched = unit;
+        break;
+      }
+    }
+    if (!matched) {
+      return "#607d8b";
+    }
+    parts.push(matched);
+    offset += matched.length;
+  }
+  if (parts.length <= 1) {
+    return resolveSingle(parts[0]) || "#607d8b";
+  }
+  const rgbs = parts.map((part) => parseHexColor(resolveSingle(part))).filter(Boolean);
+  if (rgbs.length === 0) {
+    return "#607d8b";
+  }
+  const mixed = {
+    r: Math.round(rgbs.reduce((sum, item) => sum + item.r, 0) / rgbs.length),
+    g: Math.round(rgbs.reduce((sum, item) => sum + item.g, 0) / rgbs.length),
+    b: Math.round(rgbs.reduce((sum, item) => sum + item.b, 0) / rgbs.length),
+  };
+  return `#${byteToHex(mixed.r)}${byteToHex(mixed.g)}${byteToHex(mixed.b)}`;
 }
 
 function parseHexColor(value) {
@@ -1207,7 +1256,7 @@ function nearestTokenForColor(hex) {
   if (!rgb) {
     return "Ru";
   }
-  const tokens = ["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"];
+  const tokens = ROSE_COLOR_TOKENS;
   let bestToken = tokens[0];
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const token of tokens) {
@@ -1226,6 +1275,57 @@ function nearestTokenForColor(hex) {
   }
   return bestToken;
 }
+
+const ROSE_COLOR_TOKENS = ["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"];
+
+const ROSE_COLOR_MAP = {
+  Ru: "#c62828",
+  Ot: "#ef6c00",
+  El: "#f9a825",
+  Ki: "#2e7d32",
+  Fu: "#1565c0",
+  Ka: "#283593",
+  AE: "#6a1b9a",
+  Ha: "#ffffff",
+  Ga: "#111111",
+  Na: "#9e9e9e",
+  Ung: "#4e342e",
+  Wu: "#cfd8dc",
+};
+
+const ASTER_LEFT_CHIRAL_TOKENS = {
+  Ra: "Ru",
+  Tho: "Ot",
+  Lu: "El",
+  Ge: "Ki",
+  Fo: "Fu",
+  Kw: "Ka",
+  Dr: "AE",
+};
+
+const ASTER_RIGHT_CHIRAL_TOKENS = {
+  Ry: "Ru",
+  Oth: "Ot",
+  Le: "El",
+  Gi: "Ki",
+  Fe: "Fu",
+  Ky: "Ka",
+  Alz: "AE",
+};
+
+const ASTER_RIGHT_TOKENS = Object.keys(ASTER_RIGHT_CHIRAL_TOKENS);
+const ASTER_LEFT_TOKENS = Object.keys(ASTER_LEFT_CHIRAL_TOKENS);
+
+const ROSE_COLOR_COMBINATION_PRESETS = [
+  { label: "Light Brown", value: "RuOtKi" },
+  { label: "Tan", value: "OtElKi" },
+  { label: "Moss", value: "KiFuEl" },
+  { label: "Rust", value: "RuOtGa" },
+  { label: "Slate", value: "KaFuNa" },
+  { label: "Ash", value: "GaNaWu" },
+  { label: "Rosewood", value: "RuKaOt" },
+  { label: "Bruised Plum", value: "KaAERu" },
+];
 
 function clampNumber(value, min, max, fallback) {
   const n = Number(value);
@@ -1266,6 +1366,44 @@ const DAISY_TONGUE_ROWS = [
 
 const DAISY_TONGUE_SYMBOLS = DAISY_TONGUE_ROWS.map((row) => row.symbol);
 
+const SAKURA_TONGUE_ROWS = [
+  { symbol: "Jy", meaning: "Top" },
+  { symbol: "Ji", meaning: "Starboard" },
+  { symbol: "Ja", meaning: "Front" },
+  { symbol: "Jo", meaning: "Back" },
+  { symbol: "Je", meaning: "Port" },
+  { symbol: "Ju", meaning: "Bottom" },
+  { symbol: "Dy", meaning: "Hence / Heretofore" },
+  { symbol: "Di", meaning: "Traveling / Distancing" },
+  { symbol: "Da", meaning: "Meeting / Conjoined" },
+  { symbol: "Do", meaning: "Parting / Divorced" },
+  { symbol: "De", meaning: "Domesticating / Staying" },
+  { symbol: "Du", meaning: "Whither / Status of" },
+  { symbol: "By", meaning: "When-hence / Eventual" },
+  { symbol: "Bi", meaning: "Crowned / Owning" },
+  { symbol: "Ba", meaning: "Plain / Explicit" },
+  { symbol: "Bo", meaning: "Hidden / Occulted" },
+  { symbol: "Be", meaning: "Common / Outer / Wild" },
+  { symbol: "Bu", meaning: "Since / Relational" },
+  { symbol: "Va", meaning: "Order / Structure / Life" },
+  { symbol: "Vo", meaning: "Chaos / Boundary-breakage / Mutation" },
+  { symbol: "Ve", meaning: "Pieces / Not-wherever / Where" },
+  { symbol: "Vu", meaning: "Death-moment / Never / Now" },
+  { symbol: "Vi", meaning: "Body / Wherever / What" },
+  { symbol: "Vy", meaning: "Lifespan / Whenever / How" },
+];
+
+const SAKURA_TONGUE_SYMBOLS = SAKURA_TONGUE_ROWS.map((row) => row.symbol);
+
+const SAKURA_BELONGING_CHAIN_PRESETS = [
+  { label: "Embodied Order", value: "Va > Vi" },
+  { label: "Spiritual Lifespan", value: "Va > Vy" },
+  { label: "Relational Belonging", value: "Bu > Bi > Vi" },
+  { label: "Wild Pieces", value: "Be > Ve" },
+  { label: "Occult Body", value: "Bo > Vi" },
+  { label: "Eventual Dissolution", value: "By > Vu" },
+];
+
 function parseDaisySymbolSequence(text) {
   const raw = String(text || "");
   const parts = raw
@@ -1285,6 +1423,21 @@ function parseDaisySymbolSequence(text) {
     out.push(symbol);
   }
   return out;
+}
+
+function parseSakuraBelongingChain(text) {
+  const raw = String(text || "");
+  if (!raw.trim()) {
+    return [];
+  }
+  return raw
+    .split(/[>\s,|/;]+/)
+    .map((item) => item.trim())
+    .filter((item) => item !== "" && SAKURA_TONGUE_SYMBOLS.includes(item));
+}
+
+function formatSakuraBelongingChain(chain) {
+  return parseSakuraBelongingChain(Array.isArray(chain) ? chain.join(" > ") : String(chain || "")).join(" > ");
 }
 
 function buildDaisyRoleComposition(archetype, symmetry, allowedSymbols) {
@@ -1361,6 +1514,8 @@ function buildDaisyBodyplanSpec(config) {
   const limbPairs = Math.round(clampNumber(config.limb_pairs, 0, 8, 2));
   const coreToken = String(config.core_token || "Ki");
   const accentToken = String(config.accent_token || "Fu");
+  const coreBelongingChain = parseSakuraBelongingChain(config.core_belonging_chain);
+  const accentBelongingChain = parseSakuraBelongingChain(config.accent_belonging_chain);
   const seed = Math.round(clampNumber(config.seed, 0, 999999, 42));
   const useWholeTongue = Boolean(config.use_whole_tongue ?? true);
   const customSymbols = Array.isArray(config.daisy_symbols) ? config.daisy_symbols.map((s) => String(s)) : [];
@@ -1387,6 +1542,15 @@ function buildDaisyBodyplanSpec(config) {
       core_rgb: tokenColor(coreToken),
       accent_rgb: tokenColor(accentToken),
     },
+    sakura_belonging: {
+      semantics: "role_belonging_chain",
+      coordinate_independent: true,
+      tongue_ref: "byte_table:Sakura",
+      core_chain: formatSakuraBelongingChain(coreBelongingChain),
+      core_steps: coreBelongingChain,
+      accent_chain: formatSakuraBelongingChain(accentBelongingChain),
+      accent_steps: accentBelongingChain,
+    },
     seed,
     daisy_tongue: {
       use_whole_tongue: useWholeTongue,
@@ -1411,6 +1575,12 @@ function daisyBodyplanToVoxels(spec) {
   const symmetry = String(spec.symmetry || "bilateral");
   const coreToken = String(spec?.palette?.core_token || "Ki");
   const accentToken = String(spec?.palette?.accent_token || "Fu");
+  const coreBelongingSteps = parseSakuraBelongingChain(spec?.sakura_belonging?.core_chain || spec?.sakura_belonging?.core_steps);
+  const accentBelongingSteps = parseSakuraBelongingChain(
+    spec?.sakura_belonging?.accent_chain || spec?.sakura_belonging?.accent_steps
+  );
+  const coreBelongingChain = formatSakuraBelongingChain(coreBelongingSteps);
+  const accentBelongingChain = formatSakuraBelongingChain(accentBelongingSteps);
   const coreColor = tokenColor(coreToken);
   const accentColor = tokenColor(accentToken);
   const systemId = String(spec.system_id || "daisy.system.alpha");
@@ -1436,6 +1606,9 @@ function daisyBodyplanToVoxels(spec) {
         system_id: systemId,
         archetype,
         core_token: coreToken,
+        sakura_belonging_anchor: "core",
+        sakura_belonging_chain: coreBelongingChain || undefined,
+        sakura_belonging_steps: coreBelongingSteps,
         daisy_symbol: daisySymbol,
       },
     });
@@ -1462,6 +1635,9 @@ function daisyBodyplanToVoxels(spec) {
         pair: p + 1,
         system_id: systemId,
         accent_token: accentToken,
+        sakura_belonging_anchor: "accent",
+        sakura_belonging_chain: accentBelongingChain || undefined,
+        sakura_belonging_steps: accentBelongingSteps,
         daisy_symbol: leftSymbol,
       },
     });
@@ -1479,6 +1655,9 @@ function daisyBodyplanToVoxels(spec) {
         pair: p + 1,
         system_id: systemId,
         accent_token: accentToken,
+        sakura_belonging_anchor: "accent",
+        sakura_belonging_chain: accentBelongingChain || undefined,
+        sakura_belonging_steps: accentBelongingSteps,
         daisy_symbol: rightSymbol,
       },
     });
@@ -1499,6 +1678,9 @@ function daisyBodyplanToVoxels(spec) {
           pair: p + 1,
           system_id: systemId,
           accent_token: accentToken,
+          sakura_belonging_anchor: "accent",
+          sakura_belonging_chain: accentBelongingChain || undefined,
+          sakura_belonging_steps: accentBelongingSteps,
           daisy_symbol: forwardSymbol,
         },
       });
@@ -1516,6 +1698,9 @@ function daisyBodyplanToVoxels(spec) {
           pair: p + 1,
           system_id: systemId,
           accent_token: accentToken,
+          sakura_belonging_anchor: "accent",
+          sakura_belonging_chain: accentBelongingChain || undefined,
+          sakura_belonging_steps: accentBelongingSteps,
           daisy_symbol: backwardSymbol,
         },
       });
@@ -1532,6 +1717,10 @@ function daisyBodyplanToVoxels(spec) {
       daisy: true,
       role: "framework",
       system_id: systemId,
+      sakura_core_belonging_chain: coreBelongingChain || undefined,
+      sakura_core_belonging_steps: coreBelongingSteps,
+      sakura_accent_belonging_chain: accentBelongingChain || undefined,
+      sakura_accent_belonging_steps: accentBelongingSteps,
       daisy_symbol: String(composition.framework || "To"),
     },
   });
@@ -1546,6 +1735,10 @@ function daisyBodyplanToVoxels(spec) {
       daisy: true,
       role: "network",
       system_id: systemId,
+      sakura_core_belonging_chain: coreBelongingChain || undefined,
+      sakura_core_belonging_steps: coreBelongingSteps,
+      sakura_accent_belonging_chain: accentBelongingChain || undefined,
+      sakura_accent_belonging_steps: accentBelongingSteps,
       daisy_symbol: String(composition.network || "Ne"),
     },
   });
@@ -5613,6 +5806,8 @@ export function App() {
   const [daisyLimbPairs, setDaisyLimbPairs] = useState("2");
   const [daisyCoreToken, setDaisyCoreToken] = useState("Ki");
   const [daisyAccentToken, setDaisyAccentToken] = useState("Fu");
+  const [daisyCoreBelongingChain, setDaisyCoreBelongingChain] = useState("");
+  const [daisyAccentBelongingChain, setDaisyAccentBelongingChain] = useState("");
   const [daisySeed, setDaisySeed] = useState("42");
   const [daisyUseWholeTongue, setDaisyUseWholeTongue] = useState(true);
   const [daisySymbolSequence, setDaisySymbolSequence] = useState(DAISY_TONGUE_SYMBOLS.join(", "));
@@ -5627,6 +5822,8 @@ export function App() {
         limb_pairs: 2,
         core_token: "Ki",
         accent_token: "Fu",
+        core_belonging_chain: "",
+        accent_belonging_chain: "",
         seed: 42,
         use_whole_tongue: true,
         daisy_symbols: DAISY_TONGUE_SYMBOLS,
@@ -8179,6 +8376,8 @@ export function App() {
       limb_pairs: toInt(daisyLimbPairs, 2),
       core_token: daisyCoreToken,
       accent_token: daisyAccentToken,
+      core_belonging_chain: daisyCoreBelongingChain,
+      accent_belonging_chain: daisyAccentBelongingChain,
       seed: toInt(daisySeed, 42),
       use_whole_tongue: daisyUseWholeTongue,
       daisy_symbols: symbols,
@@ -13941,8 +14140,32 @@ export function App() {
                     <option value="Zo">Zo absent</option>
                   </select>
                   <select value={tileColorToken} onChange={(e) => setTileColorToken(e.target.value)}>
-                    {["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
-                      <option key={tok} value={tok}>{tok}</option>
+                    <optgroup label="Rose vectors">
+                      {ROSE_COLOR_TOKENS.map((tok) => (
+                        <option key={`tile-rose-${tok}`} value={tok}>{tok}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Aster right-chiral">
+                      {ASTER_RIGHT_TOKENS.map((tok) => (
+                        <option key={`tile-aster-right-${tok}`} value={tok}>{tok}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Aster left-chiral">
+                      {ASTER_LEFT_TOKENS.map((tok) => (
+                        <option key={`tile-aster-left-${tok}`} value={tok}>{tok}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  <input
+                    value={tileColorToken}
+                    onChange={(e) => setTileColorToken(e.target.value)}
+                    placeholder="Rose/Aster formula (e.g. RuOtKi or Ry)"
+                    title="Enter a fused Rose vector mix or canonical Aster chiral token"
+                  />
+                  <select value="" onChange={(e) => e.target.value && setTileColorToken(e.target.value)}>
+                    <option value="">Compound color preset</option>
+                    {ROSE_COLOR_COMBINATION_PRESETS.map((preset) => (
+                      <option key={preset.value} value={preset.value}>{preset.label}</option>
                     ))}
                   </select>
                   <input
@@ -14192,8 +14415,32 @@ export function App() {
             </div>
             <div className="row">
               <select value={daisyCoreToken} onChange={(e) => setDaisyCoreToken(e.target.value)}>
-                {["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
-                  <option key={`daisy-core-${tok}`} value={tok}>{`core ${tok}`}</option>
+                <optgroup label="Rose vectors">
+                  {ROSE_COLOR_TOKENS.map((tok) => (
+                    <option key={`daisy-core-rose-${tok}`} value={tok}>{`core ${tok}`}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Aster right-chiral">
+                  {ASTER_RIGHT_TOKENS.map((tok) => (
+                    <option key={`daisy-core-aster-right-${tok}`} value={tok}>{`core ${tok}`}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Aster left-chiral">
+                  {ASTER_LEFT_TOKENS.map((tok) => (
+                    <option key={`daisy-core-aster-left-${tok}`} value={tok}>{`core ${tok}`}</option>
+                  ))}
+                </optgroup>
+              </select>
+              <input
+                value={daisyCoreToken}
+                onChange={(e) => setDaisyCoreToken(e.target.value)}
+                placeholder="core Rose/Aster token"
+                title="Rose vector or canonical Aster chiral token for the core palette"
+              />
+              <select value="" onChange={(e) => e.target.value && setDaisyCoreToken(e.target.value)}>
+                <option value="">core preset</option>
+                {ROSE_COLOR_COMBINATION_PRESETS.map((preset) => (
+                  <option key={`daisy-core-preset-${preset.value}`} value={preset.value}>{preset.label}</option>
                 ))}
               </select>
               <input
@@ -14203,8 +14450,32 @@ export function App() {
                 title="daisy core color"
               />
               <select value={daisyAccentToken} onChange={(e) => setDaisyAccentToken(e.target.value)}>
-                {["Ru", "Ot", "El", "Ki", "Fu", "Ka", "AE", "Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
-                  <option key={`daisy-accent-${tok}`} value={tok}>{`accent ${tok}`}</option>
+                <optgroup label="Rose vectors">
+                  {ROSE_COLOR_TOKENS.map((tok) => (
+                    <option key={`daisy-accent-rose-${tok}`} value={tok}>{`accent ${tok}`}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Aster right-chiral">
+                  {ASTER_RIGHT_TOKENS.map((tok) => (
+                    <option key={`daisy-accent-aster-right-${tok}`} value={tok}>{`accent ${tok}`}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Aster left-chiral">
+                  {ASTER_LEFT_TOKENS.map((tok) => (
+                    <option key={`daisy-accent-aster-left-${tok}`} value={tok}>{`accent ${tok}`}</option>
+                  ))}
+                </optgroup>
+              </select>
+              <input
+                value={daisyAccentToken}
+                onChange={(e) => setDaisyAccentToken(e.target.value)}
+                placeholder="accent Rose/Aster token"
+                title="Rose vector or canonical Aster chiral token for the accent palette"
+              />
+              <select value="" onChange={(e) => e.target.value && setDaisyAccentToken(e.target.value)}>
+                <option value="">accent preset</option>
+                {ROSE_COLOR_COMBINATION_PRESETS.map((preset) => (
+                  <option key={`daisy-accent-preset-${preset.value}`} value={preset.value}>{preset.label}</option>
                 ))}
               </select>
               <input
@@ -14215,6 +14486,33 @@ export function App() {
               />
               <button className="action" onClick={generateDaisyBodyplan}>Generate Bodyplan</button>
               <button className="action" onClick={projectDaisyBodyplanToRenderer}>Project to Renderer</button>
+            </div>
+            <div className="row">
+              <input
+                value={daisyCoreBelongingChain}
+                onChange={(e) => setDaisyCoreBelongingChain(formatSakuraBelongingChain(e.target.value))}
+                placeholder="core Sakura belonging chain (e.g. Bu > Va > Vi)"
+                title="Coordinate-independent Sakura belonging chain for core voxels"
+              />
+              <select value="" onChange={(e) => e.target.value && setDaisyCoreBelongingChain(e.target.value)}>
+                <option value="">core Sakura preset</option>
+                {SAKURA_BELONGING_CHAIN_PRESETS.map((preset) => (
+                  <option key={`daisy-core-sakura-${preset.value}`} value={preset.value}>{preset.label}</option>
+                ))}
+              </select>
+              <input
+                value={daisyAccentBelongingChain}
+                onChange={(e) => setDaisyAccentBelongingChain(formatSakuraBelongingChain(e.target.value))}
+                placeholder="accent Sakura belonging chain (e.g. By > Vu)"
+                title="Coordinate-independent Sakura belonging chain for accent voxels"
+              />
+              <select value="" onChange={(e) => e.target.value && setDaisyAccentBelongingChain(e.target.value)}>
+                <option value="">accent Sakura preset</option>
+                {SAKURA_BELONGING_CHAIN_PRESETS.map((preset) => (
+                  <option key={`daisy-accent-sakura-${preset.value}`} value={preset.value}>{preset.label}</option>
+                ))}
+              </select>
+              <span className="badge">Sakura belonging: role-level, not coordinate-bound</span>
             </div>
             <div className="row">
               <input

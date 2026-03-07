@@ -16,6 +16,21 @@ class AsterColorResolution(TypedDict):
 
 ASTER_PALETTE_VERSION = "aster_palette_v1"
 
+_ASTER_TOKEN_RGB: dict[str, tuple[int, int, int]] = {
+    "ru": (198, 40, 40),
+    "ot": (239, 108, 0),
+    "el": (249, 168, 37),
+    "ki": (46, 125, 50),
+    "fu": (21, 101, 192),
+    "ka": (40, 53, 147),
+    "ae": (106, 27, 154),
+    "ha": (255, 255, 255),
+    "ga": (17, 17, 17),
+    "na": (158, 158, 158),
+    "ung": (78, 52, 46),
+    "wu": (207, 216, 220),
+}
+
 _HUE_BASE_RGB: dict[str, tuple[int, int, int]] = {
     "red": (216, 58, 58),
     "orange": (224, 126, 40),
@@ -108,8 +123,40 @@ def _split_tokens(raw: str) -> list[str]:
     return [part.strip() for part in normalized.split("+") if part.strip() != ""]
 
 
+def _split_compound_token(raw: str) -> list[str]:
+    normalized = _normalize_token(raw)
+    if not normalized:
+        return []
+    candidates = sorted(_ASTER_TOKEN_RGB.keys(), key=lambda item: (-len(item), item))
+    parts: list[str] = []
+    offset = 0
+    while offset < len(normalized):
+        matched = None
+        for candidate in candidates:
+            if normalized.startswith(candidate, offset):
+                matched = candidate
+                break
+        if matched is None:
+            return []
+        parts.append(matched)
+        offset += len(matched)
+    return parts
+
+
 def _resolve_single(token: str) -> AsterColorResolution:
     normalized = _normalize_token(token)
+    if normalized in _ASTER_TOKEN_RGB:
+        rgb = _ASTER_TOKEN_RGB[normalized]
+        return {
+            "input": token,
+            "canonical": normalized,
+            "chirality": "aster",
+            "hue": normalized,
+            "rgb": _rgb_to_hex(rgb),
+            "palette_spot": normalized,
+            "components": [normalized],
+            "palette_version": ASTER_PALETTE_VERSION,
+        }
     if normalized in _RIGHT_ALIAS_TO_HUE:
         hue = _RIGHT_ALIAS_TO_HUE[normalized]
         rgb = _mix_toward_white(_HUE_BASE_RGB[hue], _RIGHT_WHITE_BIAS)
@@ -149,6 +196,15 @@ def _hex_to_rgb(value: str) -> tuple[int, int, int]:
 def _nearest_palette_spot(rgb: tuple[int, int, int]) -> str:
     best_name = ""
     best_dist = 10**12
+    for token, candidate_rgb in _ASTER_TOKEN_RGB.items():
+        dist = (
+            (rgb[0] - candidate_rgb[0]) ** 2
+            + (rgb[1] - candidate_rgb[1]) ** 2
+            + (rgb[2] - candidate_rgb[2]) ** 2
+        )
+        if dist < best_dist:
+            best_dist = dist
+            best_name = token
     for hue, base in _HUE_BASE_RGB.items():
         for chirality in ("right", "left"):
             candidate_name = f"{chirality}_{hue}"
@@ -173,6 +229,10 @@ def resolve_aster_color(token: str) -> AsterColorResolution:
     if raw == "":
         raise ValueError("unknown_aster_color_token:")
     parts = _split_tokens(raw)
+    if len(parts) == 1:
+        compound_parts = _split_compound_token(parts[0])
+        if len(compound_parts) > 1:
+            parts = compound_parts
     if len(parts) == 1:
         return _resolve_single(parts[0])
 
