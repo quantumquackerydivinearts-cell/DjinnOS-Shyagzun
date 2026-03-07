@@ -1,0 +1,65 @@
+{
+  "lesson_id": "directional_projection_over_surface_order_v1",
+  "tier": 203,
+  "lesson_type": "projection_discipline",
+  "title": "Directional implication outranks surface order for English projection",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 45, "binary": "00101101", "tongue": "Rose", "symbol": "Wu", "meaning": "Process / Way" },
+      { "decimal": 98, "binary": "01100010", "tongue": "AppleBlossom", "symbol": "A", "meaning": "Mind +" }
+    ]
+  },
+  "constraints": {
+    "authoritative_claims": [
+      "Akinenwun order does not determine English subject-object-verb order.",
+      "Directional implication and self-consistent logos determine authoritative English projection.",
+      "Surface order may be preserved in literal gloss while being reordered in English projection."
+    ],
+    "forbidden_english": [
+      "Treating the first Shygazun token as the English subject by default",
+      "Projecting surface order directly into English syntax without lesson support"
+    ]
+  },
+  "projection_examples": [
+    {
+      "source_text": "Aely Melkowuvune Awu",
+      "literal_gloss": "Love whales I",
+      "authoritative_projection": "I love whales"
+    }
+  ],
+  "projection_regimes": [
+    {
+      "regime_id": "predicate_patient_pronoun_reordering",
+      "slots": [
+        {
+          "slot_name": "predicate",
+          "kind": "lexeme_alias",
+          "semantic_role": "predicate",
+          "required_features": {
+            "mind_polarity": "positive"
+          }
+        },
+        {
+          "slot_name": "patient",
+          "kind": "lexeme_alias",
+          "semantic_role": "patient",
+          "required_features": {
+            "animacy": "animate",
+            "number": "plural"
+          }
+        },
+        { "slot_name": "speaker_alias", "kind": "pronoun_alias" }
+      ],
+      "english_template": "{speaker_alias} {predicate} {patient}",
+      "literal_gloss_template": "{predicate} {patient} {speaker_alias}"
+    }
+  ],
+  "projection_rules": [
+    {
+      "pattern": ["predicate", "patient", "pronoun_p1_singular"],
+      "english_template": "{pronoun_p1_singular} {predicate} {patient}",
+      "literal_gloss_template": "{predicate} {patient} {pronoun_p1_singular}"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "lesson_id": "animal_aliases_whale_affection_v2",
+  "tier": 203,
+  "lesson_type": "lexeme_aliases",
+  "title": "Whale-affection lexeme aliases with retained semantic features",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 98, "binary": "01100010", "tongue": "AppleBlossom", "symbol": "A", "meaning": "Mind +" },
+      { "decimal": 101, "binary": "01100101", "tongue": "AppleBlossom", "symbol": "E", "meaning": "Space -" },
+      { "decimal": 102, "binary": "01100110", "tongue": "AppleBlossom", "symbol": "Y", "meaning": "Time +" },
+      { "decimal": 106, "binary": "01101010", "tongue": "AppleBlossom", "symbol": "Mel", "meaning": "Water" },
+      { "decimal": 19, "binary": "00010011", "tongue": "Lotus", "symbol": "Ko", "meaning": "Experience / intuition" },
+      { "decimal": 45, "binary": "00101101", "tongue": "Rose", "symbol": "Wu", "meaning": "Process / Way" },
+      { "decimal": 69, "binary": "01000101", "tongue": "Sakura", "symbol": "Vu", "meaning": "Death-moment / Never / Now" },
+      { "decimal": 97, "binary": "01100001", "tongue": "Daisy", "symbol": "N", "meaning": "Seed / Sheet / Fiber" }
+    ]
+  },
+  "aliases": [
+    {
+      "token": "Aely",
+      "semantic_role": "predicate",
+      "english_alias": "love",
+      "literal_gloss": "Love",
+      "features": {
+        "mind_polarity": "positive",
+        "space_polarity": "negative",
+        "time_polarity": "positive"
+      }
+    },
+    {
+      "token": "Melkowuvune",
+      "semantic_role": "patient",
+      "english_alias": "whales",
+      "literal_gloss": "whales",
+      "features": {
+        "animacy": "animate",
+        "number": "plural",
+        "elemental_density": [
+          "water"
+        ],
+        "processual": true
+      }
+    }
+  ],
+  "constraints": {
+    "authoritative_claims": [
+      "These aliases are bilingual teaching handles for lesson-constrained projection and may retain feature surplus beyond English wording.",
+      "The whale alias remains byte-table-anchored and should not be treated as a free noun independent of its compositional substrate."
+    ],
+    "forbidden_english": [
+      "Treating these aliases as free-floating dictionary truth outside lesson-backed projection regimes"
+    ]
+  }
+}

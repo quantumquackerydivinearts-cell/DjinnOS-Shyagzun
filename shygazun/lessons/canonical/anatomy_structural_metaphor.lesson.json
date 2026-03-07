@@ -1,0 +1,39 @@
+{
+  "lesson_id": "anatomy_structural_metaphor_v1",
+  "tier": 203,
+  "lesson_type": "structural_regime",
+  "title": "Anatomy and creature-form derivation through Rose-Daisy metaphor mediated by Sakura and validated by Lotus",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 45, "binary": "00101101", "tongue": "Rose", "symbol": "Wu", "meaning": "Process / Way" },
+      { "decimal": 72, "binary": "01001000", "tongue": "Daisy", "symbol": "Lo", "meaning": "Segments / Identity" },
+      { "decimal": 69, "binary": "01000101", "tongue": "Sakura", "symbol": "Vu", "meaning": "Death-moment / Never / Now" },
+      { "decimal": 19, "binary": "00010011", "tongue": "Lotus", "symbol": "Ko", "meaning": "Experience / intuition" }
+    ]
+  },
+  "verification_regimes": [
+    {
+      "regime_id": "rose_daisy_mediated_by_sakura_validated_by_lotus",
+      "description": "Structural metaphor should exhibit Rose and Daisy source participation, Sakura mediation, and Lotus validation.",
+      "source_tongues": ["Rose", "Daisy"],
+      "mediator_tongues": ["Sakura"],
+      "validator_tongues": ["Lotus"],
+      "applies_to_kinds": ["lexeme_alias", "feature_alias"],
+      "derived_features": {
+        "anatomy_derivation": "rose_daisy_structural_metaphor",
+        "mediation_mode": "sakura",
+        "validation_mode": "lotus",
+        "creature_form": "clustered_alias"
+      }
+    }
+  ],
+  "constraints": {
+    "authoritative_claims": [
+      "Most anatomy and creature-form derivation is structurally metaphorical between Rose and Daisy, mediated by Sakura, and validated by Lotus."
+    ],
+    "forbidden_english": [
+      "Reducing anatomy derivation to a single tongue without mediation or validation"
+    ]
+  }
+}

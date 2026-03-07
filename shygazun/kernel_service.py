@@ -2,15 +2,23 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, cast
+from typing import Any, Dict, List, Literal, Mapping, Optional, cast
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 
+from shygazun.lesson_registry import (
+    LessonValidationError,
+    load_lesson_registry,
+    validate_lesson_payloads,
+)
 from shygazun.kernel.kernel import Kernel, RegisterPlugin
 from shygazun.kernel.register.rose_stub import RoseStub
 from shygazun.kernel.register.sakura_stub import SakuraStub
+from shygazun.kernel.policy import apply_frontier_policy, frontier_for_akinenwun
+from shygazun.kernel.policy.akinenwun_dictionary import AkinenwunDictionary
+from shygazun.kernel.policy.recombiner import frontier_hash, frontier_to_obj
 from shygazun.kernel.types import Clock, Edge, Frontier
 from shygazun.kernel.types.events import KernelEventObj
 
@@ -55,12 +63,27 @@ class ReplayRequest(BaseModel):
     bundle: Dict[str, Any]
 
 
+class AkinenwunLookupRequest(BaseModel):
+    akinenwun: str
+    mode: Literal["engine", "prose"] = "prose"
+    ingest: bool = True
+    policy: Dict[str, Any] = Field(default_factory=dict)
+
+
 class AttestRequest(BaseModel):
     witness_id: str
     attestation_kind: str
     attestation_tag: Optional[str]
     payload: Dict[str, Any] = Field(default_factory=dict)
     target: Dict[str, Any] = Field(default_factory=dict)
+
+
+class BilingualProjectRequest(BaseModel):
+    source_text: str
+
+
+class LessonValidateRequest(BaseModel):
+    lessons: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 def _json_response(payload: object, status_code: int = 200) -> Response:
@@ -75,6 +98,8 @@ _field = InMemoryField(field_id="F0", clock=Clock(tick=0, causal_epoch="0"))
 _registers: List[RegisterPlugin] = cast(List[RegisterPlugin], [RoseStub(), SakuraStub()])
 _kernel = Kernel(field=_field, registers=_registers)
 _state = RuntimeState()
+_akinenwun_dictionary = AkinenwunDictionary()
+_lesson_registry = load_lesson_registry()
 
 
 def _assert_field_id_or_default(field_id: Optional[str]) -> str:
@@ -277,6 +302,91 @@ def v1_replay(req: ReplayRequest) -> Response:
         "metadata": bundle.get("metadata", {}),
     }
     return _json_response({"canonical": canonical})
+
+
+@app.post("/v0.1/akinenwun/lookup")
+def v1_akinenwun_lookup(req: AkinenwunLookupRequest) -> Response:
+    try:
+        frontier = frontier_for_akinenwun(req.akinenwun, mode=req.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    policy = req.policy if isinstance(req.policy, dict) else {}
+    if req.ingest:
+        entry = _akinenwun_dictionary.ingest_frontier(frontier)
+        frontier_obj = entry.frontier_obj
+        if policy:
+            frontier_obj = apply_frontier_policy(frontier_obj, policy)
+        payload: Mapping[str, object] = {
+            "akinenwun": entry.akinenwun,
+            "mode": entry.mode,
+            "frontier_hash": entry.frontier_hash,
+            "frontier": frontier_obj,
+            "dictionary_size": len(_akinenwun_dictionary.entries()),
+            "stored": True,
+            "frontier_policy": policy,
+        }
+        return _json_response(payload)
+
+    frontier_obj = frontier_to_obj(frontier)
+    if policy:
+        frontier_obj = apply_frontier_policy(frontier_obj, policy)
+    payload_no_ingest: Mapping[str, object] = {
+        "akinenwun": frontier.akinenwun,
+        "mode": frontier.mode,
+        "frontier_hash": frontier_hash(frontier),
+        "frontier": frontier_obj,
+        "dictionary_size": len(_akinenwun_dictionary.entries()),
+        "stored": False,
+        "frontier_policy": policy,
+    }
+    return _json_response(payload_no_ingest)
+
+
+@app.get("/v0.1/shygazun/lessons")
+def v1_shygazun_lessons() -> Response:
+    payload = {"lessons": list(_lesson_registry.lessons()), "count": len(_lesson_registry.lessons())}
+    return _json_response(payload)
+
+
+@app.get("/v0.1/shygazun/lessons/{lesson_id}")
+def v1_shygazun_lesson(lesson_id: str) -> Response:
+    try:
+        payload = _lesson_registry.lesson(lesson_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="lesson_not_found") from exc
+    return _json_response(payload)
+
+
+@app.post("/v0.1/shygazun/project")
+def v1_shygazun_project(req: BilingualProjectRequest) -> Response:
+    try:
+        payload = _lesson_registry.project_text(req.source_text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LessonValidationError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return _json_response(payload)
+
+
+@app.post("/v0.1/shygazun/cobra_surface")
+def v1_shygazun_cobra_surface(req: BilingualProjectRequest) -> Response:
+    try:
+        payload = _lesson_registry.cobra_surface(req.source_text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LessonValidationError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return _json_response(payload)
+
+
+@app.post("/v0.1/shygazun/teach/validate")
+def v1_shygazun_teach_validate(req: LessonValidateRequest) -> Response:
+    try:
+        payload = validate_lesson_payloads(req.lessons)
+    except LessonValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _json_response(payload)
 
 
 if __name__ == "__main__":

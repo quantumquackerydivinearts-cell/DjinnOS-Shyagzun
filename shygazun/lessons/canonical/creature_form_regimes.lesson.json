@@ -1,0 +1,34 @@
+{
+  "lesson_id": "creature_form_regimes_v1",
+  "tier": 203,
+  "lesson_type": "structural_regime",
+  "title": "Creature forms emerge as animate processual clustered aliases under structural metaphor",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 45, "binary": "00101101", "tongue": "Rose", "symbol": "Wu", "meaning": "Process / Way" },
+      { "decimal": 66, "binary": "01000010", "tongue": "Sakura", "symbol": "Va", "meaning": "Order / Structure / Life" },
+      { "decimal": 72, "binary": "01001000", "tongue": "Daisy", "symbol": "Lo", "meaning": "Segments / Identity" },
+      { "decimal": 82, "binary": "01010010", "tongue": "Daisy", "symbol": "Kael", "meaning": "Cluster / Fruit / Flower" }
+    ]
+  },
+  "verification_regimes": [
+    {
+      "regime_id": "animate_processual_creature_alias",
+      "description": "An animate processual alias with Rose-Daisy structural support should be recognized as creature-form rather than inert object-form.",
+      "source_tongues": ["Rose", "Daisy"],
+      "mediator_tongues": ["Sakura"],
+      "validator_tongues": [],
+      "applies_to_kinds": ["lexeme_alias"],
+      "required_features": {
+        "animacy": "animate",
+        "processual": true
+      },
+      "derived_features": {
+        "ontic_domain": "creature",
+        "creature_form": "animate_processual_alias",
+        "cluster_logic": "kael_implicit"
+      }
+    }
+  ]
+}
