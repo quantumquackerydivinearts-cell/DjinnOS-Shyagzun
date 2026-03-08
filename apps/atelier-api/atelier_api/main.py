@@ -267,6 +267,9 @@ class GuildMessageEncryptInput(BaseModel):
     temple_entropy_digest: Optional[str] = None
     theatre_entropy_digest: Optional[str] = None
     attestation_media_digests: list[str] = Field(default_factory=list)
+    temple_entropy_source: Dict[str, Any] = Field(default_factory=dict)
+    theatre_entropy_source: Dict[str, Any] = Field(default_factory=dict)
+    attestation_sources: list[Dict[str, Any]] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -276,6 +279,14 @@ class GuildMessageDecryptInput(BaseModel):
     temple_entropy_digest: Optional[str] = None
     theatre_entropy_digest: Optional[str] = None
     attestation_media_digests: list[str] = Field(default_factory=list)
+    temple_entropy_source: Dict[str, Any] = Field(default_factory=dict)
+    theatre_entropy_source: Dict[str, Any] = Field(default_factory=dict)
+    attestation_sources: list[Dict[str, Any]] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class GuildMessagePersistInput(BaseModel):
+    envelope: GuildMessageEnvelopeInput
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -284,6 +295,9 @@ class EntropyMixInput(BaseModel):
     temple_entropy_digest: Optional[str] = None
     theatre_entropy_digest: Optional[str] = None
     attestation_media_digests: list[str] = Field(default_factory=list)
+    temple_entropy_source: Dict[str, Any] = Field(default_factory=dict)
+    theatre_entropy_source: Dict[str, Any] = Field(default_factory=dict)
+    attestation_sources: list[Dict[str, Any]] = Field(default_factory=list)
     context: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -791,6 +805,9 @@ def mix_entropy(
             temple_entropy_digest=payload.temple_entropy_digest,
             theatre_entropy_digest=payload.theatre_entropy_digest,
             attestation_media_digests=payload.attestation_media_digests,
+            temple_entropy_source=payload.temple_entropy_source,
+            theatre_entropy_source=payload.theatre_entropy_source,
+            attestation_sources=payload.attestation_sources,
             context=payload.context,
         )
     except ValueError as exc:
@@ -859,6 +876,9 @@ def encrypt_guild_message(
             temple_entropy_digest=payload.temple_entropy_digest,
             theatre_entropy_digest=payload.theatre_entropy_digest,
             attestation_media_digests=payload.attestation_media_digests,
+            temple_entropy_source=payload.temple_entropy_source,
+            theatre_entropy_source=payload.theatre_entropy_source,
+            attestation_sources=payload.attestation_sources,
             metadata=payload.metadata,
         )
     except ValueError as exc:
@@ -882,10 +902,50 @@ def decrypt_guild_message(
             temple_entropy_digest=payload.temple_entropy_digest,
             theatre_entropy_digest=payload.theatre_entropy_digest,
             attestation_media_digests=payload.attestation_media_digests,
+            temple_entropy_source=payload.temple_entropy_source,
+            theatre_entropy_source=payload.theatre_entropy_source,
+            attestation_sources=payload.attestation_sources,
             metadata=payload.metadata,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/guild/messages/persist")
+def persist_guild_message(
+    payload: GuildMessagePersistInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.persist_guild_message_envelope(
+        envelope=payload.envelope.model_dump(),
+        metadata=payload.metadata,
+    )
+
+
+@app.get("/v1/guild/messages/history")
+def list_guild_messages(
+    guild_id: Optional[str] = None,
+    channel_id: Optional[str] = None,
+    thread_id: Optional[str] = None,
+    limit: int = 50,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[Mapping[str, Any]]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_guild_message_history(
+        guild_id=guild_id,
+        channel_id=channel_id,
+        thread_id=thread_id,
+        limit=limit,
+    )
 
 
 @app.get("/v1/atelier/timeline")

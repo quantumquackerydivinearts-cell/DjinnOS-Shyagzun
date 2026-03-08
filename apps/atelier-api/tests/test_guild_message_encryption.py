@@ -56,6 +56,9 @@ def test_encrypt_and_decrypt_guild_message_roundtrip() -> None:
         temple_entropy_digest="temple_digest_123",
         theatre_entropy_digest="theatre_digest_456",
         attestation_media_digests=["abc", "def"],
+        temple_entropy_source={},
+        theatre_entropy_source={},
+        attestation_sources=[],
         metadata={"purpose": "guild_notice"},
     )
     assert result["verified"] is True
@@ -143,5 +146,87 @@ def test_list_and_transition_wand_epochs() -> None:
     epochs = svc.list_wand_key_epochs(wand_id="wand_001", limit=10)
     assert len(epochs) == 1
     assert epochs[0]["revoked"] is True
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)
+
+
+def test_guild_message_history_and_revocation_gate() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-security-history")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+
+    class _KernelStub:
+        def validate_wand_damage_attestation(self, **kwargs):
+            return {
+                "ok": True,
+                "normalized_media": kwargs["media"],
+                "damage_state": kwargs["damage_state"],
+            }
+
+    svc._kernel = _KernelStub()
+    envelope = svc.encrypt_guild_message(
+        guild_id="guild.atelier",
+        channel_id="hall.general",
+        sender_id="player",
+        wand_id="wand_001",
+        message_text="cipher me",
+        thread_id="thread_001",
+        temple_entropy_digest="temple_digest_123",
+        theatre_entropy_digest="theatre_digest_456",
+        attestation_media_digests=["abc"],
+        temple_entropy_source={"plot": "north-bed", "epoch": 3},
+        theatre_entropy_source={"performance": "esoteric_01"},
+        attestation_sources=[{"filename": "wand.heic", "sha256": "abc"}],
+        metadata={"purpose": "test"},
+    )
+    persisted = svc.persist_guild_message_envelope(envelope=envelope, metadata={"source": "test"})
+    assert str(persisted["message_id"]).startswith("gmsg_")
+    history = svc.list_guild_message_history(guild_id="guild.atelier", channel_id="hall.general", thread_id="thread_001")
+    assert len(history) == 1
+
+    record = svc.persist_wand_damage_attestation(
+        wand_id="wand_001",
+        notifier_id="Zo@user",
+        damage_state="broken",
+        event_tag="fracture",
+        media=[{"filename": "wand.heic", "mime_type": "image/heic", "sha256": "abc"}],
+        payload={"source": "test"},
+        actor_id="player",
+        workshop_id="main",
+    )
+    svc.transition_wand_key_epoch(
+        wand_id="wand_001",
+        attestation_record_id=str(record["record_id"]),
+        notifier_id="Zo@user",
+        previous_epoch_id=None,
+        damage_state="broken",
+        temple_entropy_digest="temple_digest_123",
+        theatre_entropy_digest="theatre_digest_456",
+        attestation_media_digests=["abc"],
+        revoked=True,
+        metadata={"reason": "fracture"},
+    )
+    try:
+        svc.encrypt_guild_message(
+            guild_id="guild.atelier",
+            channel_id="hall.general",
+            sender_id="player",
+            wand_id="wand_001",
+            message_text="blocked",
+            thread_id="thread_001",
+            temple_entropy_digest="temple_digest_123",
+            theatre_entropy_digest="theatre_digest_456",
+            attestation_media_digests=["abc"],
+            temple_entropy_source={},
+            theatre_entropy_source={},
+            attestation_sources=[],
+            metadata={"purpose": "test"},
+        )
+        assert False, "expected wand_revoked"
+    except ValueError as exc:
+        assert str(exc) == "wand_revoked"
     os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
     shutil.rmtree(tmp_path)

@@ -6234,9 +6234,14 @@ export function App() {
   const [guildTempleEntropyDigest, setGuildTempleEntropyDigest] = useState("");
   const [guildTheatreEntropyDigest, setGuildTheatreEntropyDigest] = useState("");
   const [guildAttestationDigestsText, setGuildAttestationDigestsText] = useState("");
+  const [guildTempleEntropySourceText, setGuildTempleEntropySourceText] = useState("");
+  const [guildTheatreEntropySourceText, setGuildTheatreEntropySourceText] = useState("");
+  const [guildAttestationSourcesText, setGuildAttestationSourcesText] = useState("");
   const [guildEntropyMixOutput, setGuildEntropyMixOutput] = useState(null);
   const [guildEncryptOutput, setGuildEncryptOutput] = useState(null);
   const [guildDecryptOutput, setGuildDecryptOutput] = useState(null);
+  const [guildPersistOutput, setGuildPersistOutput] = useState(null);
+  const [guildMessageHistory, setGuildMessageHistory] = useState([]);
   const [wandDamageWandId, setWandDamageWandId] = useState("wand_001");
   const [wandDamageNotifierId, setWandDamageNotifierId] = useState("Zo@user");
   const [wandDamageState, setWandDamageState] = useState("broken");
@@ -11988,6 +11993,9 @@ export function App() {
       const digests = Array.isArray(data?.normalized_media)
         ? data.normalized_media.map((item) => String(item.sha256 || "")).filter((item) => item !== "")
         : [];
+      if (Array.isArray(data?.normalized_media) && data.normalized_media.length) {
+        setGuildAttestationSourcesText(JSON.stringify(data.normalized_media, null, 2));
+      }
       if (digests.length) {
         setGuildAttestationDigestsText(digests.join(", "));
       }
@@ -12019,6 +12027,9 @@ export function App() {
       const digests = Array.isArray(data?.validation?.normalized_media)
         ? data.validation.normalized_media.map((item) => String(item.sha256 || "")).filter((item) => item !== "")
         : [];
+      if (Array.isArray(data?.validation?.normalized_media) && data.validation.normalized_media.length) {
+        setGuildAttestationSourcesText(JSON.stringify(data.validation.normalized_media, null, 2));
+      }
       if (digests.length) {
         setGuildAttestationDigestsText(digests.join(", "));
       }
@@ -12089,11 +12100,17 @@ export function App() {
         .split(/[\s,|]+/)
         .map((item) => item.trim())
         .filter((item) => item !== "");
+      const templeEntropySource = guildTempleEntropySourceText.trim() ? JSON.parse(guildTempleEntropySourceText) : {};
+      const theatreEntropySource = guildTheatreEntropySourceText.trim() ? JSON.parse(guildTheatreEntropySourceText) : {};
+      const attestationSources = guildAttestationSourcesText.trim() ? JSON.parse(guildAttestationSourcesText) : [];
       const data = await apiCall("/v1/security/entropy/mix", "POST", {
         wand_id: guildWandId,
         temple_entropy_digest: guildTempleEntropyDigest || null,
         theatre_entropy_digest: guildTheatreEntropyDigest || null,
         attestation_media_digests: attestationMediaDigests,
+        temple_entropy_source: templeEntropySource,
+        theatre_entropy_source: theatreEntropySource,
+        attestation_sources: Array.isArray(attestationSources) ? attestationSources : [],
         context: {
           guild_id: guildId,
           channel_id: guildChannelId,
@@ -12114,6 +12131,9 @@ export function App() {
         .split(/[\s,|]+/)
         .map((item) => item.trim())
         .filter((item) => item !== "");
+      const templeEntropySource = guildTempleEntropySourceText.trim() ? JSON.parse(guildTempleEntropySourceText) : {};
+      const theatreEntropySource = guildTheatreEntropySourceText.trim() ? JSON.parse(guildTheatreEntropySourceText) : {};
+      const attestationSources = guildAttestationSourcesText.trim() ? JSON.parse(guildAttestationSourcesText) : [];
       const data = await apiCall("/v1/guild/messages/encrypt", "POST", {
         guild_id: guildId,
         channel_id: guildChannelId,
@@ -12124,12 +12144,23 @@ export function App() {
         temple_entropy_digest: guildTempleEntropyDigest || null,
         theatre_entropy_digest: guildTheatreEntropyDigest || null,
         attestation_media_digests: attestationMediaDigests,
+        temple_entropy_source: templeEntropySource,
+        theatre_entropy_source: theatreEntropySource,
+        attestation_sources: Array.isArray(attestationSources) ? attestationSources : [],
         metadata: {
           workspace_id: workspaceId,
           source: "atelier.desktop.guild_hall",
         },
       });
       setGuildEncryptOutput(data);
+      const persisted = await apiCall("/v1/guild/messages/persist", "POST", {
+        envelope: data,
+        metadata: {
+          workspace_id: workspaceId,
+          source: "atelier.desktop.guild_hall",
+        },
+      });
+      setGuildPersistOutput(persisted);
       setMessageLog((prev) =>
         [
           {
@@ -12140,6 +12171,7 @@ export function App() {
             sender_id: guildSenderId,
             at: new Date().toISOString(),
             envelope: data,
+            persisted,
           },
           ...prev,
         ].slice(0, 40)
@@ -12157,18 +12189,40 @@ export function App() {
         .split(/[\s,|]+/)
         .map((item) => item.trim())
         .filter((item) => item !== "");
+      const templeEntropySource = guildTempleEntropySourceText.trim() ? JSON.parse(guildTempleEntropySourceText) : {};
+      const theatreEntropySource = guildTheatreEntropySourceText.trim() ? JSON.parse(guildTheatreEntropySourceText) : {};
+      const attestationSources = guildAttestationSourcesText.trim() ? JSON.parse(guildAttestationSourcesText) : [];
       const data = await apiCall("/v1/guild/messages/decrypt", "POST", {
         envelope: guildEncryptOutput,
         wand_id: guildWandId,
         temple_entropy_digest: guildTempleEntropyDigest || null,
         theatre_entropy_digest: guildTheatreEntropyDigest || null,
         attestation_media_digests: attestationMediaDigests,
+        temple_entropy_source: templeEntropySource,
+        theatre_entropy_source: theatreEntropySource,
+        attestation_sources: Array.isArray(attestationSources) ? attestationSources : [],
         metadata: {
           workspace_id: workspaceId,
           source: "atelier.desktop.guild_hall",
         },
       });
       setGuildDecryptOutput(data);
+      return data;
+    });
+  };
+
+  const loadGuildMessageHistory = async () => {
+    await runAction("guild_message_history", async () => {
+      const params = new URLSearchParams({
+        guild_id: guildId,
+        channel_id: guildChannelId,
+        limit: "20",
+      });
+      if (guildThreadId) {
+        params.set("thread_id", guildThreadId);
+      }
+      const data = await apiCall(`/v1/guild/messages/history?${params.toString()}`, "GET");
+      setGuildMessageHistory(Array.isArray(data) ? data : []);
       return data;
     });
   };
@@ -15451,15 +15505,26 @@ export function App() {
             <input value={guildTheatreEntropyDigest} onChange={(e) => setGuildTheatreEntropyDigest(e.target.value)} placeholder="theatre entropy digest" />
           </div>
           <div className="row">
+            <input value={guildTempleEntropySourceText} onChange={(e) => setGuildTempleEntropySourceText(e.target.value)} placeholder='temple entropy source JSON' />
+            <input value={guildTheatreEntropySourceText} onChange={(e) => setGuildTheatreEntropySourceText(e.target.value)} placeholder='theatre entropy source JSON' />
+          </div>
+          <div className="row">
             <input
               value={guildAttestationDigestsText}
               onChange={(e) => setGuildAttestationDigestsText(e.target.value)}
               placeholder="attestation media digests, comma-separated"
             />
+            <input
+              value={guildAttestationSourcesText}
+              onChange={(e) => setGuildAttestationSourcesText(e.target.value)}
+              placeholder='attestation sources JSON array'
+            />
             <button className="action" onClick={deriveGuildEntropyMix}>Derive Entropy Mix</button>
+            <button className="action" onClick={loadGuildMessageHistory}>Load Message History</button>
           </div>
           <pre>{JSON.stringify(guildEntropyMixOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildEncryptOutput || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(guildPersistOutput || {}, null, 2)}</pre>
         </section>
       );
     }
@@ -15479,6 +15544,7 @@ export function App() {
             <span className="badge">{`Wand: ${guildWandId}`}</span>
           </div>
           <pre>{JSON.stringify(guildDecryptOutput || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(guildMessageHistory || [], null, 2)}</pre>
           <pre>{JSON.stringify(messageLog, null, 2)}</pre>
         </section>
       );

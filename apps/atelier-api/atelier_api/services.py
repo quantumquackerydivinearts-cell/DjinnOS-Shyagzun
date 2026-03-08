@@ -2541,6 +2541,30 @@ class AtelierService:
         return records
 
     @classmethod
+    def _resolve_entropy_component(
+        cls,
+        *,
+        digest: Optional[str],
+        source: Optional[Mapping[str, Any]],
+        label: str,
+    ) -> dict[str, Any]:
+        digest_text = str(digest or "").strip()
+        source_payload = dict(source) if isinstance(source, Mapping) else None
+        if source_payload is not None:
+            if digest_text == "":
+                digest_text = cls._canonical_hash(source_payload)
+            return {
+                "digest": hashlib.sha256(digest_text.encode("utf-8")).hexdigest(),
+                "source_record": source_payload,
+                "label": label,
+            }
+        return {
+            "digest": hashlib.sha256(digest_text.encode("utf-8")).hexdigest(),
+            "source_record": None,
+            "label": label,
+        }
+
+    @classmethod
     def _entropy_mix_runtime(
         cls,
         *,
@@ -2550,6 +2574,9 @@ class AtelierService:
         attestation_media_digests: Sequence[str],
         context: Mapping[str, Any],
         system_entropy_digest: Optional[str] = None,
+        temple_entropy_source: Optional[Mapping[str, Any]] = None,
+        theatre_entropy_source: Optional[Mapping[str, Any]] = None,
+        attestation_sources: Sequence[Mapping[str, Any]] = (),
     ) -> dict[str, object]:
         media_digests = [str(item).strip() for item in attestation_media_digests if str(item).strip() != ""]
         context_digest = hashlib.sha256(
@@ -2557,15 +2584,26 @@ class AtelierService:
         ).hexdigest()
         effective_system_entropy_digest = system_entropy_digest or hashlib.sha256(secrets.token_bytes(32)).hexdigest()
         wand_digest = hashlib.sha256(str(wand_id).encode("utf-8")).hexdigest()
-        temple_digest = hashlib.sha256(str(temple_entropy_digest or "").encode("utf-8")).hexdigest()
-        theatre_digest = hashlib.sha256(str(theatre_entropy_digest or "").encode("utf-8")).hexdigest()
+        temple_component = cls._resolve_entropy_component(
+            digest=temple_entropy_digest,
+            source=temple_entropy_source,
+            label="temple",
+        )
+        theatre_component = cls._resolve_entropy_component(
+            digest=theatre_entropy_digest,
+            source=theatre_entropy_source,
+            label="theatre",
+        )
+        normalized_attestation_sources = [dict(item) for item in attestation_sources if isinstance(item, Mapping)]
+        if normalized_attestation_sources and not media_digests:
+            media_digests = [cls._canonical_hash(item) for item in normalized_attestation_sources]
         attestation_digest = hashlib.sha256("|".join(media_digests).encode("utf-8")).hexdigest()
         root_material = b"|".join(
             (
                 bytes.fromhex(effective_system_entropy_digest),
                 bytes.fromhex(wand_digest),
-                bytes.fromhex(temple_digest),
-                bytes.fromhex(theatre_digest),
+                bytes.fromhex(str(temple_component["digest"])),
+                bytes.fromhex(str(theatre_component["digest"])),
                 bytes.fromhex(attestation_digest),
                 bytes.fromhex(context_digest),
             )
@@ -2586,11 +2624,14 @@ class AtelierService:
             "components": {
                 "system_entropy_digest": effective_system_entropy_digest,
                 "wand_digest": wand_digest,
-                "temple_entropy_digest": temple_digest,
-                "theatre_entropy_digest": theatre_digest,
+                "temple_entropy_digest": temple_component["digest"],
+                "theatre_entropy_digest": theatre_component["digest"],
                 "attestation_digest": attestation_digest,
                 "context_digest": context_digest,
                 "attestation_media_digests": media_digests,
+                "temple_entropy_source": temple_component["source_record"],
+                "theatre_entropy_source": theatre_component["source_record"],
+                "attestation_sources": normalized_attestation_sources,
             },
         }
 
@@ -2617,6 +2658,9 @@ class AtelierService:
         temple_entropy_digest: Optional[str],
         theatre_entropy_digest: Optional[str],
         attestation_media_digests: Sequence[str],
+        temple_entropy_source: Optional[Mapping[str, Any]] = None,
+        theatre_entropy_source: Optional[Mapping[str, Any]] = None,
+        attestation_sources: Sequence[Mapping[str, Any]] = (),
         metadata: Mapping[str, Any],
     ) -> dict[str, object]:
         header_context = {
@@ -2633,6 +2677,9 @@ class AtelierService:
             theatre_entropy_digest=theatre_entropy_digest,
             attestation_media_digests=attestation_media_digests,
             context=header_context,
+            temple_entropy_source=temple_entropy_source,
+            theatre_entropy_source=theatre_entropy_source,
+            attestation_sources=attestation_sources,
         )
         root_key = bytes.fromhex(str(entropy_mix["mix_digest"]))
         system_nonce = secrets.token_bytes(16)
@@ -2670,6 +2717,9 @@ class AtelierService:
         temple_entropy_digest: Optional[str],
         theatre_entropy_digest: Optional[str],
         attestation_media_digests: Sequence[str],
+        temple_entropy_source: Optional[Mapping[str, Any]],
+        theatre_entropy_source: Optional[Mapping[str, Any]],
+        attestation_sources: Sequence[Mapping[str, Any]],
         metadata: Mapping[str, Any],
     ) -> Mapping[str, Any]:
         guild_id_norm = str(guild_id).strip()
@@ -2687,6 +2737,9 @@ class AtelierService:
             raise ValueError("wand_id_required")
         if message_text_norm.strip() == "":
             raise ValueError("message_text_required")
+        latest_epoch = next(iter(self.list_wand_key_epochs(wand_id=wand_id_norm, limit=1)), None)
+        if isinstance(latest_epoch, Mapping) and bool(latest_epoch.get("revoked")):
+            raise ValueError("wand_revoked")
         return self._encrypt_guild_message_runtime(
             guild_id=guild_id_norm,
             channel_id=channel_id_norm,
@@ -2697,6 +2750,9 @@ class AtelierService:
             temple_entropy_digest=temple_entropy_digest,
             theatre_entropy_digest=theatre_entropy_digest,
             attestation_media_digests=attestation_media_digests,
+            temple_entropy_source=temple_entropy_source,
+            theatre_entropy_source=theatre_entropy_source,
+            attestation_sources=attestation_sources,
             metadata=metadata,
         )
 
@@ -2708,11 +2764,17 @@ class AtelierService:
         temple_entropy_digest: Optional[str],
         theatre_entropy_digest: Optional[str],
         attestation_media_digests: Sequence[str],
+        temple_entropy_source: Optional[Mapping[str, Any]],
+        theatre_entropy_source: Optional[Mapping[str, Any]],
+        attestation_sources: Sequence[Mapping[str, Any]],
         metadata: Mapping[str, Any],
     ) -> Mapping[str, Any]:
         wand_id_norm = str(wand_id).strip()
         if wand_id_norm == "":
             raise ValueError("wand_id_required")
+        latest_epoch = next(iter(self.list_wand_key_epochs(wand_id=wand_id_norm, limit=1)), None)
+        if isinstance(latest_epoch, Mapping) and bool(latest_epoch.get("revoked")):
+            raise ValueError("wand_revoked")
         derivation_obj = envelope.get("derivation")
         derivation = dict(cast(Mapping[str, Any], derivation_obj)) if isinstance(derivation_obj, Mapping) else {}
         header_context = {
@@ -2730,6 +2792,9 @@ class AtelierService:
             attestation_media_digests=attestation_media_digests,
             context=header_context,
             system_entropy_digest=str(derivation.get("system_entropy_digest") or ""),
+            temple_entropy_source=temple_entropy_source,
+            theatre_entropy_source=theatre_entropy_source,
+            attestation_sources=attestation_sources,
         )
         root_key = bytes.fromhex(str(entropy_mix["mix_digest"]))
         nonce = base64.b64decode(str(envelope.get("nonce_b64") or ""))
@@ -2754,6 +2819,50 @@ class AtelierService:
             "derivation_replayed": {**cast(Mapping[str, Any], entropy_mix["components"])},
         }
 
+    def persist_guild_message_envelope(
+        self,
+        *,
+        envelope: Mapping[str, Any],
+        metadata: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        now = datetime.now(timezone.utc).isoformat()
+        payload = {
+            "envelope": dict(envelope),
+            "metadata": dict(metadata),
+            "recorded_at": now,
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        message_id = "gmsg_" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:24]
+        target = self._security_bucket_dir("guild_messages") / f"{message_id}.json"
+        target.write_text(json.dumps({**payload, "message_id": message_id}, indent=2, ensure_ascii=False), encoding="utf-8")
+        return {
+            "message_id": message_id,
+            "recorded_at": now,
+            "guild_id": cast(Mapping[str, Any], envelope).get("guild_id"),
+            "channel_id": cast(Mapping[str, Any], envelope).get("channel_id"),
+            "thread_id": cast(Mapping[str, Any], envelope).get("thread_id"),
+        }
+
+    def list_guild_message_history(
+        self,
+        *,
+        guild_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        thread_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> Sequence[Mapping[str, Any]]:
+        records = self._load_bucket_records("guild_messages")
+        if guild_id:
+            guild_id_norm = str(guild_id).strip()
+            records = [item for item in records if str(cast(Mapping[str, Any], item.get("envelope") or {}).get("guild_id") or "").strip() == guild_id_norm]
+        if channel_id:
+            channel_id_norm = str(channel_id).strip()
+            records = [item for item in records if str(cast(Mapping[str, Any], item.get("envelope") or {}).get("channel_id") or "").strip() == channel_id_norm]
+        if thread_id:
+            thread_id_norm = str(thread_id).strip()
+            records = [item for item in records if str(cast(Mapping[str, Any], item.get("envelope") or {}).get("thread_id") or "").strip() == thread_id_norm]
+        return records[: max(1, min(int(limit), 250))]
+
     def mix_entropy(
         self,
         *,
@@ -2761,6 +2870,9 @@ class AtelierService:
         temple_entropy_digest: Optional[str],
         theatre_entropy_digest: Optional[str],
         attestation_media_digests: Sequence[str],
+        temple_entropy_source: Optional[Mapping[str, Any]],
+        theatre_entropy_source: Optional[Mapping[str, Any]],
+        attestation_sources: Sequence[Mapping[str, Any]],
         context: Mapping[str, Any],
     ) -> Mapping[str, Any]:
         wand_id_norm = str(wand_id).strip()
@@ -2771,6 +2883,9 @@ class AtelierService:
             temple_entropy_digest=temple_entropy_digest,
             theatre_entropy_digest=theatre_entropy_digest,
             attestation_media_digests=attestation_media_digests,
+            temple_entropy_source=temple_entropy_source,
+            theatre_entropy_source=theatre_entropy_source,
+            attestation_sources=attestation_sources,
             context=context,
         )
 
