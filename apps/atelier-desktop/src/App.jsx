@@ -6249,6 +6249,27 @@ export function App() {
   const [guildPersistOutput, setGuildPersistOutput] = useState(null);
   const [guildMessageHistory, setGuildMessageHistory] = useState([]);
   const [guildWandStatus, setGuildWandStatus] = useState(null);
+  const [guildTempleProvenanceHistory, setGuildTempleProvenanceHistory] = useState(() => {
+    const raw = localStorage.getItem("atelier.temple_provenance_history");
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+  const [guildTheatreProvenanceHistory, setGuildTheatreProvenanceHistory] = useState(() => {
+    const raw = localStorage.getItem("atelier.theatre_provenance_history");
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+  const [migrationStatus, setMigrationStatus] = useState(null);
   const [wandDamageWandId, setWandDamageWandId] = useState("wand_001");
   const [wandDamageNotifierId, setWandDamageNotifierId] = useState("Zo@user");
   const [wandDamageState, setWandDamageState] = useState("broken");
@@ -6315,6 +6336,28 @@ export function App() {
     setGuildTheatreSourceType("performance_upload");
     setGuildTheatrePerformanceId("esoteric_01");
     setGuildTheatreUploadId("upload_01");
+  };
+
+  useEffect(() => {
+    localStorage.setItem("atelier.temple_provenance_history", JSON.stringify(guildTempleProvenanceHistory));
+  }, [guildTempleProvenanceHistory]);
+
+  useEffect(() => {
+    localStorage.setItem("atelier.theatre_provenance_history", JSON.stringify(guildTheatreProvenanceHistory));
+  }, [guildTheatreProvenanceHistory]);
+
+  const rememberProvenanceId = (kind, value) => {
+    const normalized = String(value || "").trim();
+    if (!normalized) {
+      return;
+    }
+    if (kind === "temple") {
+      setGuildTempleProvenanceHistory((prev) => [normalized, ...prev.filter((item) => item !== normalized)].slice(0, 12));
+      return;
+    }
+    if (kind === "theatre") {
+      setGuildTheatreProvenanceHistory((prev) => [normalized, ...prev.filter((item) => item !== normalized)].slice(0, 12));
+    }
   };
   const [studioFolders, setStudioFolders] = useState(() => {
     const raw = localStorage.getItem("atelier.studio_folders");
@@ -12183,6 +12226,8 @@ export function App() {
       const templeEntropySource = buildTempleEntropySourcePayload();
       const theatreEntropySource = buildTheatreEntropySourcePayload();
       const attestationSources = guildAttestationSourcesText.trim() ? JSON.parse(guildAttestationSourcesText) : [];
+      rememberProvenanceId("temple", templeEntropySource.provenance_id);
+      rememberProvenanceId("theatre", theatreEntropySource.provenance_id);
       const data = await apiCall("/v1/security/entropy/mix", "POST", {
         wand_id: guildWandId,
         temple_entropy_digest: guildTempleEntropyDigest || null,
@@ -12218,6 +12263,8 @@ export function App() {
       if (currentStatus?.revoked) {
         throw new Error("wand_revoked");
       }
+      rememberProvenanceId("temple", templeEntropySource.provenance_id);
+      rememberProvenanceId("theatre", theatreEntropySource.provenance_id);
       const data = await apiCall("/v1/guild/messages/encrypt", "POST", {
         guild_id: guildId,
         channel_id: guildChannelId,
@@ -12276,6 +12323,8 @@ export function App() {
       const templeEntropySource = buildTempleEntropySourcePayload();
       const theatreEntropySource = buildTheatreEntropySourcePayload();
       const attestationSources = guildAttestationSourcesText.trim() ? JSON.parse(guildAttestationSourcesText) : [];
+      rememberProvenanceId("temple", templeEntropySource.provenance_id);
+      rememberProvenanceId("theatre", theatreEntropySource.provenance_id);
       const data = await apiCall("/v1/guild/messages/decrypt", "POST", {
         envelope: guildEncryptOutput,
         wand_id: guildWandId,
@@ -12313,6 +12362,14 @@ export function App() {
 
   const loadGuildWandStatus = async () => {
     await loadWandStatus(guildWandId, setGuildWandStatus);
+  };
+
+  const loadMigrationStatus = async () => {
+    await runAction("migration_status", async () => {
+      const data = await apiCall("/v1/admin/migrations/status", "GET");
+      setMigrationStatus(data);
+      return data;
+    });
   };
 
   const runShygazunCorrect = async () => {
@@ -15608,8 +15665,23 @@ export function App() {
             <input value={guildTheatreUploadId} onChange={(e) => setGuildTheatreUploadId(e.target.value)} placeholder="upload id" />
           </div>
           <div className="row">
+            <select value={guildTempleProvenanceId} onChange={(e) => setGuildTempleProvenanceId(e.target.value)}>
+              <option value="">select temple provenance history</option>
+              {guildTempleProvenanceHistory.map((item) => (
+                <option key={`temple-prov-${item}`} value={item}>{item}</option>
+              ))}
+            </select>
+            <select value={guildTheatreProvenanceId} onChange={(e) => setGuildTheatreProvenanceId(e.target.value)}>
+              <option value="">select theatre provenance history</option>
+              {guildTheatreProvenanceHistory.map((item) => (
+                <option key={`theatre-prov-${item}`} value={item}>{item}</option>
+              ))}
+            </select>
+          </div>
+          <div className="row">
             <button className="action" onClick={fillTempleEntropySourcePreset}>Temple Source Preset</button>
             <button className="action" onClick={fillTheatreEntropySourcePreset}>Theatre Source Preset</button>
+            <button className="action" onClick={loadMigrationStatus} disabled={!adminVerified || role !== "steward"}>Load Migration Status</button>
           </div>
           <div className="row">
             <input
@@ -15636,6 +15708,7 @@ export function App() {
           <pre>{JSON.stringify(guildEncryptOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildPersistOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildWandStatus || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(migrationStatus || {}, null, 2)}</pre>
           <pre>{JSON.stringify(buildTempleEntropySourcePayload(), null, 2)}</pre>
           <pre>{JSON.stringify(buildTheatreEntropySourcePayload(), null, 2)}</pre>
         </section>

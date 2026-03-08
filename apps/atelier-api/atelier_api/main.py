@@ -618,6 +618,26 @@ def admin_gate_verify(
     }
 
 
+@app.get("/v1/admin/migrations/status")
+def migration_status(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    token: Optional[str] = Depends(_admin_gate_token),
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_admin_gate(
+        settings=settings,
+        role=role,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+        token=token,
+    )
+    return svc.get_migration_status()
+
+
 @app.post("/v1/atelier/place")
 def place(
     payload: PlaceInput,

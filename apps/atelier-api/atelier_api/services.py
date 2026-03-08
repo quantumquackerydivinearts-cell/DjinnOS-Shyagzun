@@ -11,6 +11,7 @@ import re
 import secrets
 import sys
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, cast
 
@@ -33,6 +34,10 @@ _ensure_repo_root_on_path()
 
 from qqva.world_stream import WorldStreamController
 from qqva.aster_colors import resolve_aster_color
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from jsonschema import Draft202012Validator
 from shygazun.lesson_registry import load_lesson_registry
 
 from .business_schemas import (
@@ -216,6 +221,7 @@ from .rendering_schemas import (
 from .kernel_integration import KernelIntegrationService
 from .market_logic import get_realm_coin, get_realm_market, list_realm_coins, list_realm_markets
 from .pygame_worker import PygameWorkerManager, get_pygame_worker_manager
+from .db import engine
 from .models import (
     ArtisanAccount,
     Booking,
@@ -2565,6 +2571,13 @@ class AtelierService:
         return records
 
     @classmethod
+    @lru_cache(maxsize=8)
+    def _schema_validator(cls, schema_name: str) -> Draft202012Validator:
+        schema_path = cls._repo_root_path() / "schemas" / schema_name
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        return Draft202012Validator(schema)
+
+    @classmethod
     def _normalize_entropy_source(cls, *, label: str, source: Optional[Mapping[str, Any]]) -> Optional[dict[str, Any]]:
         if not isinstance(source, Mapping):
             return None
@@ -2586,6 +2599,11 @@ class AtelierService:
         for field_name in required_fields:
             if str(normalized.get(field_name) or "").strip() == "":
                 raise ValueError(f"{label}_entropy_source_{field_name}_required")
+        schema_name = f"{schema_family}.schema.json"
+        try:
+            cls._schema_validator(schema_name).validate(normalized)
+        except Exception as exc:
+            raise ValueError(f"{label}_entropy_source_schema_validation_failed:{str(exc)}") from exc
         return normalized
 
     @classmethod
@@ -3254,6 +3272,23 @@ class AtelierService:
             "latest_epoch": latest_epoch,
             "attestation_count": len(attestation_history),
             "epoch_count": len(epoch_history),
+        }
+
+    def get_migration_status(self) -> Mapping[str, Any]:
+        repo_root = self._repo_root_path()
+        alembic_ini = repo_root / "apps" / "atelier-api" / "alembic.ini"
+        config = Config(str(alembic_ini))
+        config.set_main_option("script_location", str(repo_root / "apps" / "atelier-api" / "alembic"))
+        script = ScriptDirectory.from_config(config)
+        head_revision = script.get_current_head()
+        with engine.connect() as connection:
+            context = MigrationContext.configure(connection)
+            current_revision = context.get_current_revision()
+        return {
+            "head_revision": head_revision,
+            "current_revision": current_revision,
+            "up_to_date": current_revision == head_revision,
+            "pending": [] if current_revision == head_revision else [head_revision],
         }
 
     def list_contacts(self, workspace_id: str) -> Sequence[ContactOut]:
