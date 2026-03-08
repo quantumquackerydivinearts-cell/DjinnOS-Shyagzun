@@ -900,8 +900,8 @@ def register_wand(
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Mapping[str, Any]:
-    _enforce(ctx, "kernel.attest")
-    _enforce_role(role, "kernel.attest")
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
     try:
         return svc.register_wand(
             wand_id=payload.wand_id,

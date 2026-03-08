@@ -403,3 +403,39 @@ def test_register_and_list_wand_registry_file_fallback() -> None:
 
     os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
     shutil.rmtree(tmp_path)
+
+
+def test_register_wand_endpoint_allows_standard_registry_access() -> None:
+    class _ServiceStub:
+        def register_wand(self, **kwargs):
+            return {
+                "wand_id": kwargs["wand_id"],
+                "maker_id": kwargs["maker_id"],
+                "maker_date": kwargs["maker_date"],
+                "atelier_origin": kwargs["atelier_origin"],
+                "status": "active",
+            }
+
+    app.dependency_overrides[_capability_context] = lambda: type("CapCtx", (), {"actor_id": "tester", "capabilities": frozenset({"lesson.read"})})()
+    app.dependency_overrides[_workshop_context] = lambda: type(
+        "WsCtx",
+        (),
+        {"identity": type("WsIdentity", (), {"artisan_id": "artisan", "workshop_id": "main"})()},
+    )()
+    app.dependency_overrides[_role_context] = lambda: type("RoleCtx", (), {"role": "senior_artisan"})()
+    app.dependency_overrides[_atelier_service] = lambda: _ServiceStub()
+    try:
+        client = TestClient(app)
+        response = client.post(
+            "/v1/security/wands/register",
+            json={
+                "wand_id": "wand_001",
+                "maker_id": "maker.quant",
+                "maker_date": "2026-03-08",
+                "atelier_origin": "atelier.guildhall",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["wand_id"] == "wand_001"
+    finally:
+        app.dependency_overrides.clear()
