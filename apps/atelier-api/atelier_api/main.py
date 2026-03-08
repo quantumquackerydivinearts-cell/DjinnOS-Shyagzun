@@ -239,6 +239,24 @@ class WandDamageValidateInput(BaseModel):
     payload: Dict[str, Any] = Field(default_factory=dict)
 
 
+class GuildMessageEnvelopeInput(BaseModel):
+    schema_family: str
+    schema_version: str
+    cipher_family: str
+    guild_id: str
+    channel_id: str
+    sender_id: str
+    wand_id: str
+    ciphertext_b64: str
+    nonce_b64: str
+    mac_hex: str
+    plaintext_digest: Optional[str] = None
+    thread_id: Optional[str] = None
+    derivation: Dict[str, Any] = Field(default_factory=dict)
+    entropy_mix: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class GuildMessageEncryptInput(BaseModel):
     guild_id: str
     channel_id: str
@@ -249,6 +267,36 @@ class GuildMessageEncryptInput(BaseModel):
     temple_entropy_digest: Optional[str] = None
     theatre_entropy_digest: Optional[str] = None
     attestation_media_digests: list[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class GuildMessageDecryptInput(BaseModel):
+    envelope: GuildMessageEnvelopeInput
+    wand_id: str
+    temple_entropy_digest: Optional[str] = None
+    theatre_entropy_digest: Optional[str] = None
+    attestation_media_digests: list[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class EntropyMixInput(BaseModel):
+    wand_id: str
+    temple_entropy_digest: Optional[str] = None
+    theatre_entropy_digest: Optional[str] = None
+    attestation_media_digests: list[str] = Field(default_factory=list)
+    context: Dict[str, Any] = Field(default_factory=dict)
+
+
+class WandEpochTransitionInput(BaseModel):
+    wand_id: str
+    attestation_record_id: str
+    notifier_id: str
+    previous_epoch_id: Optional[str] = None
+    damage_state: str
+    temple_entropy_digest: Optional[str] = None
+    theatre_entropy_digest: Optional[str] = None
+    attestation_media_digests: list[str] = Field(default_factory=list)
+    revoked: bool = False
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -691,6 +739,105 @@ def validate_wand_damage_attestation(
     )
 
 
+@app.post("/v1/security/wand-damage/record")
+def record_wand_damage_attestation(
+    payload: WandDamageValidateInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "kernel.attest")
+    _enforce_role(role, "kernel.attest")
+    return svc.persist_wand_damage_attestation(
+        wand_id=payload.wand_id,
+        notifier_id=payload.notifier_id,
+        damage_state=payload.damage_state,
+        event_tag=payload.event_tag,
+        media=[item.model_dump() for item in payload.media],
+        payload=payload.payload,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
+@app.get("/v1/security/wand-damage/history")
+def list_wand_damage_attestations(
+    wand_id: Optional[str] = None,
+    limit: int = 50,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[Mapping[str, Any]]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_wand_damage_attestations(wand_id=wand_id, limit=limit)
+
+
+@app.post("/v1/security/entropy/mix")
+def mix_entropy(
+    payload: EntropyMixInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.mix_entropy(
+            wand_id=payload.wand_id,
+            temple_entropy_digest=payload.temple_entropy_digest,
+            theatre_entropy_digest=payload.theatre_entropy_digest,
+            attestation_media_digests=payload.attestation_media_digests,
+            context=payload.context,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/security/wand/epoch-transition")
+def transition_wand_key_epoch(
+    payload: WandEpochTransitionInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.transition_wand_key_epoch(
+            wand_id=payload.wand_id,
+            attestation_record_id=payload.attestation_record_id,
+            notifier_id=payload.notifier_id,
+            previous_epoch_id=payload.previous_epoch_id,
+            damage_state=payload.damage_state,
+            temple_entropy_digest=payload.temple_entropy_digest,
+            theatre_entropy_digest=payload.theatre_entropy_digest,
+            attestation_media_digests=payload.attestation_media_digests,
+            revoked=payload.revoked,
+            metadata=payload.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/security/wand/epochs")
+def list_wand_key_epochs(
+    wand_id: Optional[str] = None,
+    limit: int = 50,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[Mapping[str, Any]]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_wand_key_epochs(wand_id=wand_id, limit=limit)
+
+
 @app.post("/v1/guild/messages/encrypt")
 def encrypt_guild_message(
     payload: GuildMessageEncryptInput,
@@ -709,6 +856,29 @@ def encrypt_guild_message(
             wand_id=payload.wand_id,
             message_text=payload.message_text,
             thread_id=payload.thread_id,
+            temple_entropy_digest=payload.temple_entropy_digest,
+            theatre_entropy_digest=payload.theatre_entropy_digest,
+            attestation_media_digests=payload.attestation_media_digests,
+            metadata=payload.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/guild/messages/decrypt")
+def decrypt_guild_message(
+    payload: GuildMessageDecryptInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.decrypt_guild_message(
+            envelope=payload.envelope.model_dump(),
+            wand_id=payload.wand_id,
             temple_entropy_digest=payload.temple_entropy_digest,
             theatre_entropy_digest=payload.theatre_entropy_digest,
             attestation_media_digests=payload.attestation_media_digests,

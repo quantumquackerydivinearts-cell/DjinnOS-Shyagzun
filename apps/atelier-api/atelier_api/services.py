@@ -6,6 +6,7 @@ import hmac
 import importlib.util
 import json
 import math
+import os
 import re
 import secrets
 import sys
@@ -281,6 +282,8 @@ class AtelierService:
     _GUILD_MESSAGE_ENVELOPE_SCHEMA_FAMILY = "guild_message_envelope"
     _GUILD_MESSAGE_ENVELOPE_SCHEMA_VERSION = "v1"
     _GUILD_MESSAGE_CIPHER_FAMILY = "experimental_hash_stream_v1"
+    _TRI_SOURCE_ENTROPY_SCHEMA_FAMILY = "tri_source_entropy_mix"
+    _TRI_SOURCE_ENTROPY_SCHEMA_VERSION = "v1"
     _DEMON_PRESSURE_DEFAULTS: dict[str, float] = {
         "asmodeus": 0.0,
         "satan": 0.0,
@@ -2509,6 +2512,89 @@ class AtelierService:
         )
 
     @classmethod
+    def _security_state_dir(cls) -> Path:
+        env_path = os.environ.get("ATELIER_SECURITY_STATE_DIR", "").strip()
+        if env_path:
+            root = Path(env_path)
+        else:
+            root = Path(__file__).resolve().parents[1] / "runtime" / "security"
+        root.mkdir(parents=True, exist_ok=True)
+        return root
+
+    @classmethod
+    def _security_bucket_dir(cls, bucket: str) -> Path:
+        target = cls._security_state_dir() / bucket
+        target.mkdir(parents=True, exist_ok=True)
+        return target
+
+    @classmethod
+    def _load_bucket_records(cls, bucket: str) -> list[dict[str, Any]]:
+        root = cls._security_bucket_dir(bucket)
+        records: list[dict[str, Any]] = []
+        for path in sorted(root.glob("*.json"), reverse=True):
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if isinstance(payload, dict):
+                records.append(payload)
+        return records
+
+    @classmethod
+    def _entropy_mix_runtime(
+        cls,
+        *,
+        wand_id: str,
+        temple_entropy_digest: Optional[str],
+        theatre_entropy_digest: Optional[str],
+        attestation_media_digests: Sequence[str],
+        context: Mapping[str, Any],
+        system_entropy_digest: Optional[str] = None,
+    ) -> dict[str, object]:
+        media_digests = [str(item).strip() for item in attestation_media_digests if str(item).strip() != ""]
+        context_digest = hashlib.sha256(
+            json.dumps(dict(context), sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+        effective_system_entropy_digest = system_entropy_digest or hashlib.sha256(secrets.token_bytes(32)).hexdigest()
+        wand_digest = hashlib.sha256(str(wand_id).encode("utf-8")).hexdigest()
+        temple_digest = hashlib.sha256(str(temple_entropy_digest or "").encode("utf-8")).hexdigest()
+        theatre_digest = hashlib.sha256(str(theatre_entropy_digest or "").encode("utf-8")).hexdigest()
+        attestation_digest = hashlib.sha256("|".join(media_digests).encode("utf-8")).hexdigest()
+        root_material = b"|".join(
+            (
+                bytes.fromhex(effective_system_entropy_digest),
+                bytes.fromhex(wand_digest),
+                bytes.fromhex(temple_digest),
+                bytes.fromhex(theatre_digest),
+                bytes.fromhex(attestation_digest),
+                bytes.fromhex(context_digest),
+            )
+        )
+        mix_digest = hashlib.sha256(root_material).hexdigest()
+        active_sources = 1 + int(bool(temple_entropy_digest)) + int(bool(theatre_entropy_digest)) + int(bool(media_digests))
+        quality = "baseline"
+        if active_sources >= 4:
+            quality = "rich"
+        elif active_sources >= 3:
+            quality = "elevated"
+        return {
+            "schema_family": cls._TRI_SOURCE_ENTROPY_SCHEMA_FAMILY,
+            "schema_version": cls._TRI_SOURCE_ENTROPY_SCHEMA_VERSION,
+            "mix_digest": mix_digest,
+            "quality": quality,
+            "active_source_count": active_sources,
+            "components": {
+                "system_entropy_digest": effective_system_entropy_digest,
+                "wand_digest": wand_digest,
+                "temple_entropy_digest": temple_digest,
+                "theatre_entropy_digest": theatre_digest,
+                "attestation_digest": attestation_digest,
+                "context_digest": context_digest,
+                "attestation_media_digests": media_digests,
+            },
+        }
+
+    @classmethod
     def _guild_message_keystream(cls, root_key: bytes, nonce: bytes, length: int) -> bytes:
         blocks: list[bytes] = []
         counter = 0
@@ -2533,32 +2619,23 @@ class AtelierService:
         attestation_media_digests: Sequence[str],
         metadata: Mapping[str, Any],
     ) -> dict[str, object]:
-        normalized = {
+        header_context = {
             "guild_id": guild_id,
             "channel_id": channel_id,
             "thread_id": thread_id or "",
             "sender_id": sender_id,
             "wand_id": wand_id,
-            "message_text": message_text,
-            "temple_entropy_digest": temple_entropy_digest or "",
-            "theatre_entropy_digest": theatre_entropy_digest or "",
-            "attestation_media_digests": [str(item).strip() for item in attestation_media_digests if str(item).strip() != ""],
             "metadata": dict(metadata),
         }
-        derivation_context = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-        system_nonce = secrets.token_bytes(16)
-        system_entropy_digest = hashlib.sha256(system_nonce).hexdigest()
-        root_material = b"|".join(
-            (
-                bytes.fromhex(system_entropy_digest),
-                hashlib.sha256(str(normalized["wand_id"]).encode("utf-8")).digest(),
-                hashlib.sha256(str(normalized["temple_entropy_digest"]).encode("utf-8")).digest(),
-                hashlib.sha256(str(normalized["theatre_entropy_digest"]).encode("utf-8")).digest(),
-                hashlib.sha256("|".join(normalized["attestation_media_digests"]).encode("utf-8")).digest(),
-                hashlib.sha256(derivation_context).digest(),
-            )
+        entropy_mix = cls._entropy_mix_runtime(
+            wand_id=wand_id,
+            temple_entropy_digest=temple_entropy_digest,
+            theatre_entropy_digest=theatre_entropy_digest,
+            attestation_media_digests=attestation_media_digests,
+            context=header_context,
         )
-        root_key = hashlib.sha256(root_material).digest()
+        root_key = bytes.fromhex(str(entropy_mix["mix_digest"]))
+        system_nonce = secrets.token_bytes(16)
         message_bytes = message_text.encode("utf-8")
         keystream = cls._guild_message_keystream(root_key, system_nonce, len(message_bytes))
         ciphertext = bytes(left ^ right for left, right in zip(message_bytes, keystream))
@@ -2575,14 +2652,9 @@ class AtelierService:
             "ciphertext_b64": base64.b64encode(ciphertext).decode("ascii"),
             "nonce_b64": base64.b64encode(system_nonce).decode("ascii"),
             "mac_hex": mac,
-            "derivation": {
-                "system_entropy_digest": system_entropy_digest,
-                "temple_entropy_digest": temple_entropy_digest,
-                "theatre_entropy_digest": theatre_entropy_digest,
-                "attestation_media_digests": normalized["attestation_media_digests"],
-                "context_digest": hashlib.sha256(derivation_context).hexdigest(),
-                "wand_digest": hashlib.sha256(str(wand_id).encode("utf-8")).hexdigest(),
-            },
+            "plaintext_digest": hashlib.sha256(message_bytes).hexdigest(),
+            "derivation": {**cast(Mapping[str, Any], entropy_mix["components"])},
+            "entropy_mix": entropy_mix,
             "metadata": dict(metadata),
         }
 
@@ -2627,6 +2699,219 @@ class AtelierService:
             attestation_media_digests=attestation_media_digests,
             metadata=metadata,
         )
+
+    def decrypt_guild_message(
+        self,
+        *,
+        envelope: Mapping[str, Any],
+        wand_id: str,
+        temple_entropy_digest: Optional[str],
+        theatre_entropy_digest: Optional[str],
+        attestation_media_digests: Sequence[str],
+        metadata: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        wand_id_norm = str(wand_id).strip()
+        if wand_id_norm == "":
+            raise ValueError("wand_id_required")
+        derivation_obj = envelope.get("derivation")
+        derivation = dict(cast(Mapping[str, Any], derivation_obj)) if isinstance(derivation_obj, Mapping) else {}
+        header_context = {
+            "guild_id": str(envelope.get("guild_id") or "").strip(),
+            "channel_id": str(envelope.get("channel_id") or "").strip(),
+            "thread_id": str(envelope.get("thread_id") or "").strip(),
+            "sender_id": str(envelope.get("sender_id") or "").strip(),
+            "wand_id": wand_id_norm,
+            "metadata": dict(metadata),
+        }
+        entropy_mix = self._entropy_mix_runtime(
+            wand_id=wand_id_norm,
+            temple_entropy_digest=temple_entropy_digest,
+            theatre_entropy_digest=theatre_entropy_digest,
+            attestation_media_digests=attestation_media_digests,
+            context=header_context,
+            system_entropy_digest=str(derivation.get("system_entropy_digest") or ""),
+        )
+        root_key = bytes.fromhex(str(entropy_mix["mix_digest"]))
+        nonce = base64.b64decode(str(envelope.get("nonce_b64") or ""))
+        ciphertext = base64.b64decode(str(envelope.get("ciphertext_b64") or ""))
+        expected_mac = hmac.new(root_key, nonce + ciphertext, hashlib.sha256).hexdigest()
+        provided_mac = str(envelope.get("mac_hex") or "")
+        keystream = self._guild_message_keystream(root_key, nonce, len(ciphertext))
+        plaintext_bytes = bytes(left ^ right for left, right in zip(ciphertext, keystream))
+        plaintext = plaintext_bytes.decode("utf-8")
+        plaintext_digest = hashlib.sha256(plaintext_bytes).hexdigest()
+        verified = (
+            hmac.compare_digest(expected_mac, provided_mac)
+            and plaintext_digest == str(envelope.get("plaintext_digest") or plaintext_digest)
+        )
+        return {
+            "verified": verified,
+            "plaintext": plaintext,
+            "plaintext_digest": plaintext_digest,
+            "expected_mac_hex": expected_mac,
+            "provided_mac_hex": provided_mac,
+            "entropy_mix": entropy_mix,
+            "derivation_replayed": {**cast(Mapping[str, Any], entropy_mix["components"])},
+        }
+
+    def mix_entropy(
+        self,
+        *,
+        wand_id: str,
+        temple_entropy_digest: Optional[str],
+        theatre_entropy_digest: Optional[str],
+        attestation_media_digests: Sequence[str],
+        context: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        wand_id_norm = str(wand_id).strip()
+        if wand_id_norm == "":
+            raise ValueError("wand_id_required")
+        return self._entropy_mix_runtime(
+            wand_id=wand_id_norm,
+            temple_entropy_digest=temple_entropy_digest,
+            theatre_entropy_digest=theatre_entropy_digest,
+            attestation_media_digests=attestation_media_digests,
+            context=context,
+        )
+
+    def persist_wand_damage_attestation(
+        self,
+        *,
+        wand_id: str,
+        notifier_id: str,
+        damage_state: str,
+        event_tag: Optional[str],
+        media: Sequence[Mapping[str, Any]],
+        payload: Mapping[str, Any],
+        actor_id: str,
+        workshop_id: str,
+    ) -> Mapping[str, Any]:
+        validated = self.validate_wand_damage_attestation(
+            wand_id=wand_id,
+            notifier_id=notifier_id,
+            damage_state=damage_state,
+            event_tag=event_tag,
+            media=media,
+            payload=payload,
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+        now = datetime.now(timezone.utc).isoformat()
+        normalized_media = cast(Sequence[Mapping[str, Any]], validated.get("normalized_media") or media)
+        record_payload = {
+            "wand_id": wand_id,
+            "notifier_id": notifier_id,
+            "damage_state": damage_state,
+            "event_tag": event_tag,
+            "media": [dict(item) for item in normalized_media],
+            "payload": dict(payload),
+            "validated": dict(validated),
+            "actor_id": actor_id,
+            "workshop_id": workshop_id,
+            "recorded_at": now,
+        }
+        canonical = json.dumps(record_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        record_id = "watt_" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:24]
+        target = self._security_bucket_dir("wand_attestations") / f"{record_id}.json"
+        target.write_text(json.dumps({**record_payload, "record_id": record_id}, indent=2, ensure_ascii=False), encoding="utf-8")
+        return {
+            "record_id": record_id,
+            "recorded_at": now,
+            "storage_bucket": "wand_attestations",
+            "media_count": len(normalized_media),
+            "validation": validated,
+        }
+
+    def list_wand_damage_attestations(
+        self,
+        *,
+        wand_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> Sequence[Mapping[str, Any]]:
+        records = self._load_bucket_records("wand_attestations")
+        if wand_id:
+            wand_id_norm = str(wand_id).strip()
+            records = [item for item in records if str(item.get("wand_id") or "").strip() == wand_id_norm]
+        return records[: max(1, min(int(limit), 250))]
+
+    def transition_wand_key_epoch(
+        self,
+        *,
+        wand_id: str,
+        attestation_record_id: str,
+        notifier_id: str,
+        previous_epoch_id: Optional[str],
+        damage_state: str,
+        temple_entropy_digest: Optional[str],
+        theatre_entropy_digest: Optional[str],
+        attestation_media_digests: Sequence[str],
+        revoked: bool,
+        metadata: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        wand_id_norm = str(wand_id).strip()
+        attestation_record_id_norm = str(attestation_record_id).strip()
+        notifier_id_norm = str(notifier_id).strip()
+        if wand_id_norm == "":
+            raise ValueError("wand_id_required")
+        if attestation_record_id_norm == "":
+            raise ValueError("attestation_record_id_required")
+        if notifier_id_norm == "":
+            raise ValueError("notifier_id_required")
+        history = self.list_wand_damage_attestations(wand_id=wand_id_norm, limit=250)
+        matching_record = next((item for item in history if str(item.get("record_id") or "") == attestation_record_id_norm), None)
+        if matching_record is None:
+            raise ValueError("attestation_record_not_found")
+        entropy_mix = self._entropy_mix_runtime(
+            wand_id=wand_id_norm,
+            temple_entropy_digest=temple_entropy_digest,
+            theatre_entropy_digest=theatre_entropy_digest,
+            attestation_media_digests=attestation_media_digests,
+            context={
+                "wand_id": wand_id_norm,
+                "attestation_record_id": attestation_record_id_norm,
+                "notifier_id": notifier_id_norm,
+                "previous_epoch_id": previous_epoch_id or "",
+                "damage_state": damage_state,
+                "metadata": dict(metadata),
+            },
+        )
+        now = datetime.now(timezone.utc).isoformat()
+        epoch_payload = {
+            "wand_id": wand_id_norm,
+            "attestation_record_id": attestation_record_id_norm,
+            "notifier_id": notifier_id_norm,
+            "previous_epoch_id": previous_epoch_id,
+            "damage_state": damage_state,
+            "revoked": revoked,
+            "entropy_mix": entropy_mix,
+            "metadata": dict(metadata),
+            "recorded_at": now,
+        }
+        epoch_canonical = json.dumps(epoch_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        epoch_id = "wep_" + hashlib.sha256(epoch_canonical.encode("utf-8")).hexdigest()[:24]
+        target = self._security_bucket_dir("wand_epochs") / f"{epoch_id}.json"
+        target.write_text(json.dumps({**epoch_payload, "epoch_id": epoch_id}, indent=2, ensure_ascii=False), encoding="utf-8")
+        return {
+            "epoch_id": epoch_id,
+            "recorded_at": now,
+            "wand_id": wand_id_norm,
+            "attestation_record_id": attestation_record_id_norm,
+            "revoked": revoked,
+            "mix_digest": entropy_mix["mix_digest"],
+            "quality": entropy_mix["quality"],
+        }
+
+    def list_wand_key_epochs(
+        self,
+        *,
+        wand_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> Sequence[Mapping[str, Any]]:
+        records = self._load_bucket_records("wand_epochs")
+        if wand_id:
+            wand_id_norm = str(wand_id).strip()
+            records = [item for item in records if str(item.get("wand_id") or "").strip() == wand_id_norm]
+        return records[: max(1, min(int(limit), 250))]
 
     def list_contacts(self, workspace_id: str) -> Sequence[ContactOut]:
         rows = self._require_repo().list_contacts(workspace_id=workspace_id)

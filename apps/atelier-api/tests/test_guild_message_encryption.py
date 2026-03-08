@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import os
+import shutil
+from pathlib import Path
 
 from atelier_api.services import AtelierService
 
@@ -26,6 +30,118 @@ def test_encrypt_guild_message_runtime_emits_envelope() -> None:
     assert base64.b64decode(payload["ciphertext_b64"])
     assert base64.b64decode(payload["nonce_b64"])
     assert len(payload["mac_hex"]) == 64
+    assert len(str(payload["plaintext_digest"])) == 64
     derivation = payload["derivation"]
-    assert derivation["temple_entropy_digest"] == "temple_digest_123"
-    assert derivation["theatre_entropy_digest"] == "theatre_digest_456"
+    assert derivation["temple_entropy_digest"] == hashlib.sha256(b"temple_digest_123").hexdigest()
+    assert derivation["theatre_entropy_digest"] == hashlib.sha256(b"theatre_digest_456").hexdigest()
+
+
+def test_encrypt_and_decrypt_guild_message_roundtrip() -> None:
+    envelope = AtelierService._encrypt_guild_message_runtime(
+        guild_id="guild.alchemy",
+        channel_id="hall.notice",
+        sender_id="player",
+        wand_id="wand_001",
+        message_text="Meet in the hall at dusk.",
+        thread_id="thread_001",
+        temple_entropy_digest="temple_digest_123",
+        theatre_entropy_digest="theatre_digest_456",
+        attestation_media_digests=["abc", "def"],
+        metadata={"purpose": "guild_notice"},
+    )
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+    result = svc.decrypt_guild_message(
+        envelope=envelope,
+        wand_id="wand_001",
+        temple_entropy_digest="temple_digest_123",
+        theatre_entropy_digest="theatre_digest_456",
+        attestation_media_digests=["abc", "def"],
+        metadata={"purpose": "guild_notice"},
+    )
+    assert result["verified"] is True
+    assert result["plaintext"] == "Meet in the hall at dusk."
+
+
+def test_persist_wand_damage_attestation_writes_record() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-security")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+
+    class _KernelStub:
+        def validate_wand_damage_attestation(self, **kwargs):
+            media = kwargs["media"]
+            return {
+                "ok": True,
+                "normalized_media": media,
+                "damage_state": kwargs["damage_state"],
+            }
+
+    svc._kernel = _KernelStub()
+    record = svc.persist_wand_damage_attestation(
+        wand_id="wand_001",
+        notifier_id="Zo@user",
+        damage_state="broken",
+        event_tag="breakproof_01",
+        media=[{"filename": "wand.heic", "mime_type": "image/heic", "sha256": "abc"}],
+        payload={"source": "test"},
+        actor_id="player",
+        workshop_id="main",
+    )
+    assert str(record["record_id"]).startswith("watt_")
+    stored = tmp_path / "wand_attestations" / f"{record['record_id']}.json"
+    assert stored.exists()
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)
+
+
+def test_list_and_transition_wand_epochs() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-security-epochs")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+
+    class _KernelStub:
+        def validate_wand_damage_attestation(self, **kwargs):
+            media = kwargs["media"]
+            return {
+                "ok": True,
+                "normalized_media": media,
+                "damage_state": kwargs["damage_state"],
+            }
+
+    svc._kernel = _KernelStub()
+    record = svc.persist_wand_damage_attestation(
+        wand_id="wand_001",
+        notifier_id="Zo@user",
+        damage_state="broken",
+        event_tag="breakproof_01",
+        media=[{"filename": "wand.heic", "mime_type": "image/heic", "sha256": "abc"}],
+        payload={"source": "test"},
+        actor_id="player",
+        workshop_id="main",
+    )
+    history = svc.list_wand_damage_attestations(wand_id="wand_001", limit=10)
+    assert len(history) == 1
+    epoch = svc.transition_wand_key_epoch(
+        wand_id="wand_001",
+        attestation_record_id=str(record["record_id"]),
+        notifier_id="Zo@user",
+        previous_epoch_id=None,
+        damage_state="broken",
+        temple_entropy_digest="temple_digest_123",
+        theatre_entropy_digest="theatre_digest_456",
+        attestation_media_digests=["abc"],
+        revoked=True,
+        metadata={"reason": "fracture"},
+    )
+    assert str(epoch["epoch_id"]).startswith("wep_")
+    epochs = svc.list_wand_key_epochs(wand_id="wand_001", limit=10)
+    assert len(epochs) == 1
+    assert epochs[0]["revoked"] is True
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)

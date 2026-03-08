@@ -6234,13 +6234,21 @@ export function App() {
   const [guildTempleEntropyDigest, setGuildTempleEntropyDigest] = useState("");
   const [guildTheatreEntropyDigest, setGuildTheatreEntropyDigest] = useState("");
   const [guildAttestationDigestsText, setGuildAttestationDigestsText] = useState("");
+  const [guildEntropyMixOutput, setGuildEntropyMixOutput] = useState(null);
   const [guildEncryptOutput, setGuildEncryptOutput] = useState(null);
+  const [guildDecryptOutput, setGuildDecryptOutput] = useState(null);
   const [wandDamageWandId, setWandDamageWandId] = useState("wand_001");
   const [wandDamageNotifierId, setWandDamageNotifierId] = useState("Zo@user");
   const [wandDamageState, setWandDamageState] = useState("broken");
   const [wandDamageEventTag, setWandDamageEventTag] = useState("fracture_attest");
   const [wandDamageFiles, setWandDamageFiles] = useState([]);
   const [wandDamageValidation, setWandDamageValidation] = useState(null);
+  const [wandDamageRecord, setWandDamageRecord] = useState(null);
+  const [wandDamageHistory, setWandDamageHistory] = useState([]);
+  const [wandEpochHistory, setWandEpochHistory] = useState([]);
+  const [wandEpochPreviousId, setWandEpochPreviousId] = useState("");
+  const [wandEpochRevoked, setWandEpochRevoked] = useState(true);
+  const [wandEpochOutput, setWandEpochOutput] = useState(null);
   const [studioFolders, setStudioFolders] = useState(() => {
     const raw = localStorage.getItem("atelier.studio_folders");
     if (!raw) {
@@ -11987,6 +11995,119 @@ export function App() {
     });
   };
 
+  const recordWandDamageEvidence = async () => {
+    await runAction("wand_damage_record", async () => {
+      if (!wandDamageFiles.length) {
+        throw new Error("wand_damage_media_required");
+      }
+      const media = await buildWandDamageMediaDescriptors(wandDamageFiles);
+      const data = await apiCall("/v1/security/wand-damage/record", "POST", {
+        wand_id: wandDamageWandId,
+        notifier_id: wandDamageNotifierId,
+        damage_state: wandDamageState,
+        event_tag: wandDamageEventTag || null,
+        media,
+        payload: {
+          source: "atelier.desktop.temple_garden",
+          original_count: media.length,
+        },
+      });
+      setWandDamageRecord(data);
+      if (data?.record_id) {
+        setWandEpochPreviousId(String(data.record_id));
+      }
+      const digests = Array.isArray(data?.validation?.normalized_media)
+        ? data.validation.normalized_media.map((item) => String(item.sha256 || "")).filter((item) => item !== "")
+        : [];
+      if (digests.length) {
+        setGuildAttestationDigestsText(digests.join(", "));
+      }
+      return data;
+    });
+  };
+
+  const loadWandDamageHistory = async () => {
+    await runAction("wand_damage_history", async () => {
+      const params = new URLSearchParams({
+        wand_id: wandDamageWandId,
+        limit: "20",
+      });
+      const data = await apiCall(`/v1/security/wand-damage/history?${params.toString()}`, "GET");
+      setWandDamageHistory(Array.isArray(data) ? data : []);
+      return data;
+    });
+  };
+
+  const loadWandEpochHistory = async () => {
+    await runAction("wand_epoch_history", async () => {
+      const params = new URLSearchParams({
+        wand_id: wandDamageWandId,
+        limit: "20",
+      });
+      const data = await apiCall(`/v1/security/wand/epochs?${params.toString()}`, "GET");
+      setWandEpochHistory(Array.isArray(data) ? data : []);
+      return data;
+    });
+  };
+
+  const transitionWandEpoch = async () => {
+    await runAction("wand_epoch_transition", async () => {
+      const attestationMediaDigests = String(guildAttestationDigestsText || "")
+        .split(/[\s,|]+/)
+        .map((item) => item.trim())
+        .filter((item) => item !== "");
+      const attestationRecordId =
+        wandDamageRecord?.record_id ||
+        wandEpochPreviousId;
+      if (!attestationRecordId) {
+        throw new Error("attestation_record_id_required");
+      }
+      const data = await apiCall("/v1/security/wand/epoch-transition", "POST", {
+        wand_id: wandDamageWandId,
+        attestation_record_id: attestationRecordId,
+        notifier_id: wandDamageNotifierId,
+        previous_epoch_id: wandEpochPreviousId || null,
+        damage_state: wandDamageState,
+        temple_entropy_digest: guildTempleEntropyDigest || null,
+        theatre_entropy_digest: guildTheatreEntropyDigest || null,
+        attestation_media_digests: attestationMediaDigests,
+        revoked: wandEpochRevoked,
+        metadata: {
+          source: "atelier.desktop.temple_garden",
+          event_tag: wandDamageEventTag || null,
+        },
+      });
+      setWandEpochOutput(data);
+      setWandEpochPreviousId(String(data?.epoch_id || ""));
+      return data;
+    });
+  };
+
+  const deriveGuildEntropyMix = async () => {
+    await runAction("guild_entropy_mix", async () => {
+      const attestationMediaDigests = String(guildAttestationDigestsText || "")
+        .split(/[\s,|]+/)
+        .map((item) => item.trim())
+        .filter((item) => item !== "");
+      const data = await apiCall("/v1/security/entropy/mix", "POST", {
+        wand_id: guildWandId,
+        temple_entropy_digest: guildTempleEntropyDigest || null,
+        theatre_entropy_digest: guildTheatreEntropyDigest || null,
+        attestation_media_digests: attestationMediaDigests,
+        context: {
+          guild_id: guildId,
+          channel_id: guildChannelId,
+          thread_id: guildThreadId || null,
+          sender_id: guildSenderId,
+          workspace_id: workspaceId,
+          source: "atelier.desktop.guild_hall",
+        },
+      });
+      setGuildEntropyMixOutput(data);
+      return data;
+    });
+  };
+
   const encryptGuildMessage = async () => {
     await runAction("guild_message_encrypt", async () => {
       const attestationMediaDigests = String(guildAttestationDigestsText || "")
@@ -12023,6 +12144,31 @@ export function App() {
           ...prev,
         ].slice(0, 40)
       );
+      return data;
+    });
+  };
+
+  const decryptGuildMessage = async () => {
+    await runAction("guild_message_decrypt", async () => {
+      if (!guildEncryptOutput || typeof guildEncryptOutput !== "object") {
+        throw new Error("guild_envelope_required");
+      }
+      const attestationMediaDigests = String(guildAttestationDigestsText || "")
+        .split(/[\s,|]+/)
+        .map((item) => item.trim())
+        .filter((item) => item !== "");
+      const data = await apiCall("/v1/guild/messages/decrypt", "POST", {
+        envelope: guildEncryptOutput,
+        wand_id: guildWandId,
+        temple_entropy_digest: guildTempleEntropyDigest || null,
+        theatre_entropy_digest: guildTheatreEntropyDigest || null,
+        attestation_media_digests: attestationMediaDigests,
+        metadata: {
+          workspace_id: workspaceId,
+          source: "atelier.desktop.guild_hall",
+        },
+      });
+      setGuildDecryptOutput(data);
       return data;
     });
   };
@@ -15262,10 +15408,25 @@ export function App() {
               onChange={(e) => setWandDamageFiles(Array.from(e.target.files || []))}
             />
             <button className="action" onClick={validateWandDamageEvidence}>Validate Evidence</button>
+            <button className="action" onClick={recordWandDamageEvidence}>Record Evidence</button>
+            <button className="action" onClick={loadWandDamageHistory}>Load History</button>
             <span className="badge">{`Files: ${wandDamageFiles.length}`}</span>
             <span className="badge">HEIC allowed</span>
           </div>
+          <div className="row">
+            <input value={wandEpochPreviousId} onChange={(e) => setWandEpochPreviousId(e.target.value)} placeholder="previous epoch id or attestation record id" />
+            <label className="checkbox">
+              <input type="checkbox" checked={wandEpochRevoked} onChange={(e) => setWandEpochRevoked(e.target.checked)} />
+              revoke prior epoch
+            </label>
+            <button className="action" onClick={transitionWandEpoch}>Transition Wand Epoch</button>
+            <button className="action" onClick={loadWandEpochHistory}>Load Epochs</button>
+          </div>
           <pre>{JSON.stringify(wandDamageValidation || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(wandDamageRecord || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(wandEpochOutput || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(wandDamageHistory || [], null, 2)}</pre>
+          <pre>{JSON.stringify(wandEpochHistory || [], null, 2)}</pre>
         </section>
       );
     }
@@ -15295,7 +15456,9 @@ export function App() {
               onChange={(e) => setGuildAttestationDigestsText(e.target.value)}
               placeholder="attestation media digests, comma-separated"
             />
+            <button className="action" onClick={deriveGuildEntropyMix}>Derive Entropy Mix</button>
           </div>
+          <pre>{JSON.stringify(guildEntropyMixOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildEncryptOutput || {}, null, 2)}</pre>
         </section>
       );
@@ -15308,12 +15471,14 @@ export function App() {
           <div className="row">
             <input value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} placeholder="message text" />
             <button className="action" onClick={encryptGuildMessage}>Encrypt via Guild Hall</button>
+            <button className="action" onClick={decryptGuildMessage}>Decrypt Current Envelope</button>
           </div>
           <div className="row">
             <span className="badge">{`Guild: ${guildId}`}</span>
             <span className="badge">{`Channel: ${guildChannelId}`}</span>
             <span className="badge">{`Wand: ${guildWandId}`}</span>
           </div>
+          <pre>{JSON.stringify(guildDecryptOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(messageLog, null, 2)}</pre>
         </section>
       );
