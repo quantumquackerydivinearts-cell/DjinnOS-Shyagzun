@@ -32,6 +32,7 @@ from .models import (
     Supplier,
     GuildMessageEnvelopeRecord,
     DistributionRegistryRecord,
+    DistributionHandshakeRecord,
     GuildRegistryRecord,
     WandDamageAttestationRecord,
     WandKeyEpochRecord,
@@ -553,6 +554,38 @@ class AtelierRepository:
         stmt = (
             select(DistributionRegistryRecord)
             .order_by(DistributionRegistryRecord.updated_at.desc(), DistributionRegistryRecord.id.desc())
+            .limit(max(1, min(int(limit), 250)))
+        )
+        return self._db.scalars(stmt).all()
+
+    def get_distribution_handshake_record(
+        self,
+        distribution_id: str,
+    ) -> DistributionHandshakeRecord | None:
+        stmt = (
+            select(DistributionHandshakeRecord)
+            .where(DistributionHandshakeRecord.distribution_id == distribution_id)
+            .order_by(DistributionHandshakeRecord.updated_at.desc(), DistributionHandshakeRecord.id.desc())
+        )
+        return self._db.scalar(stmt)
+
+    def save_distribution_handshake_record(self, row: DistributionHandshakeRecord) -> DistributionHandshakeRecord:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_distribution_handshake_records(
+        self,
+        *,
+        distribution_id: str | None = None,
+        limit: int = 50,
+    ) -> Sequence[DistributionHandshakeRecord]:
+        stmt = select(DistributionHandshakeRecord)
+        if distribution_id is not None:
+            stmt = stmt.where(DistributionHandshakeRecord.distribution_id == distribution_id)
+        stmt = (
+            stmt.order_by(DistributionHandshakeRecord.updated_at.desc(), DistributionHandshakeRecord.id.desc())
             .limit(max(1, min(int(limit), 250)))
         )
         return self._db.scalars(stmt).all()

@@ -551,8 +551,29 @@ def test_distribution_key_discovery_and_relay_status_update() -> None:
         guild_ids=["guild.remote"],
         metadata={"source": "test"},
     )
+    svc.register_guild(
+        guild_id="guild.remote",
+        display_name="Remote Guild",
+        distribution_id="distribution.quantumquackery.remote",
+        owner_artisan_id="artisan.remote",
+        owner_profile_name="Remote Artisan",
+        owner_profile_email="remote@example.com",
+        member_profiles=[],
+        charter={"channels": ["hall.remote", "hall.notice"]},
+        metadata={"source": "test"},
+    )
+    handshake = svc.register_distribution_handshake(
+        distribution_id="distribution.quantumquackery.remote",
+        local_distribution_id="distribution.quantumquackery.main",
+        remote_public_key_ref="pk_remote_001",
+        handshake_mode="mutual_hmac",
+        metadata={"source": "test"},
+    )
+    assert handshake["distribution_id"] == "distribution.quantumquackery.remote"
     descriptor = svc.get_distribution_key_descriptor(distribution_id="distribution.quantumquackery.remote")
     assert descriptor["public_key_ref"] == "pk_remote_001"
+    capabilities = svc.discover_distribution_capabilities(distribution_id="distribution.quantumquackery.remote")
+    assert capabilities["guilds"][0]["channels"] == ["hall.remote", "hall.notice"]
 
     envelope = svc.encrypt_guild_message(
         guild_id="guild.atelier",
@@ -583,6 +604,7 @@ def test_distribution_key_discovery_and_relay_status_update() -> None:
     )
     assert updated["relay_status"] == "delivered_remote"
     assert len(updated["delivery_receipts"]) == 1
+    assert updated["delivery_receipts"][0]["signature_family"] == "distribution_receipt_hmac_v1"
     history = svc.list_guild_message_history(guild_id="guild.atelier", channel_id="hall.general", thread_id="thread_001")
     assert history[0]["metadata"]["relay_status"] == "delivered_remote"
     os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)

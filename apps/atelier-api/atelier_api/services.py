@@ -254,6 +254,7 @@ from .models import (
     WorldRegion,
     GuildMessageEnvelopeRecord,
     DistributionRegistryRecord,
+    DistributionHandshakeRecord,
     WandDamageAttestationRecord,
     WandKeyEpochRecord,
     WandRegistryRecord,
@@ -3004,6 +3005,15 @@ class AtelierService:
         if relay_status_norm == "":
             raise ValueError("relay_status_required")
         receipt_payload = dict(receipt)
+        distribution_id = str(receipt_payload.get("distribution_id") or "").strip()
+        signed_receipt = dict(receipt_payload)
+        if distribution_id:
+            signed_receipt = self._sign_distribution_receipt(
+                distribution_id=distribution_id,
+                message_id=message_id_norm,
+                relay_status=relay_status_norm,
+                receipt=receipt_payload,
+            )
         if self._repo is not None and hasattr(self._repo, "get_guild_message_envelope_record") and hasattr(self._repo, "save_guild_message_envelope_record"):
             try:
                 row = self._repo.get_guild_message_envelope_record(message_id_norm)
@@ -3012,7 +3022,7 @@ class AtelierService:
                     receipts = metadata.get("delivery_receipts")
                     if not isinstance(receipts, list):
                         receipts = []
-                    receipts = [*receipts, {**receipt_payload, "recorded_at": datetime.now(timezone.utc).isoformat()}]
+                    receipts = [*receipts, {**signed_receipt, "recorded_at": datetime.now(timezone.utc).isoformat()}]
                     metadata["delivery_receipts"] = receipts
                     metadata["relay_status"] = relay_status_norm
                     row.metadata_json = json.dumps(metadata, ensure_ascii=False)
@@ -3035,7 +3045,7 @@ class AtelierService:
             receipts = metadata.get("delivery_receipts")
             if not isinstance(receipts, list):
                 receipts = []
-            receipts = [*receipts, {**receipt_payload, "recorded_at": datetime.now(timezone.utc).isoformat()}]
+            receipts = [*receipts, {**signed_receipt, "recorded_at": datetime.now(timezone.utc).isoformat()}]
             metadata["delivery_receipts"] = receipts
             metadata["relay_status"] = relay_status_norm
             path_str = record.get("storage_path")
@@ -3675,6 +3685,8 @@ class AtelierService:
                         "owner_artisan_id": row.owner_artisan_id,
                         "owner_profile_name": row.owner_profile_name,
                         "owner_profile_email": row.owner_profile_email,
+                        "charter": json.loads(row.charter_json),
+                        "metadata": json.loads(row.metadata_json),
                         "status": row.status,
                         "updated_at": row.updated_at.isoformat(),
                         "storage_backend": "database",
@@ -3814,6 +3826,208 @@ class AtelierService:
             "transport_kind": str(record.get("transport_kind") or "").strip(),
             "public_key_ref": public_key_ref,
             "status": str(record.get("status") or "").strip(),
+        }
+
+    def register_distribution_handshake(
+        self,
+        *,
+        distribution_id: str,
+        local_distribution_id: str,
+        remote_public_key_ref: str,
+        handshake_mode: str,
+        metadata: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        record = self.get_distribution_registry_entry(distribution_id=distribution_id)
+        distribution_id_norm = str(record.get("distribution_id") or "").strip()
+        if distribution_id_norm == "":
+            raise ValueError("distribution_id_required")
+        now = datetime.now(timezone.utc).isoformat()
+        resolved_remote_key = str(remote_public_key_ref or record.get("public_key_ref") or "").strip()
+        if resolved_remote_key == "":
+            raise ValueError("remote_public_key_ref_required")
+        secret_bytes = secrets.token_bytes(32)
+        secret_b64 = base64.b64encode(secret_bytes).decode("ascii")
+        secret_digest = hashlib.sha256(secret_bytes).hexdigest()
+        handshake_id = "dhs_" + hashlib.sha256(
+            json.dumps(
+                {
+                    "distribution_id": distribution_id_norm,
+                    "local_distribution_id": str(local_distribution_id or "").strip(),
+                    "remote_public_key_ref": resolved_remote_key,
+                    "handshake_mode": str(handshake_mode or "mutual_hmac").strip() or "mutual_hmac",
+                    "secret_digest": secret_digest,
+                    "metadata": dict(metadata),
+                    "created_at": now,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+        ).hexdigest()[:24]
+        payload = {
+            "handshake_id": handshake_id,
+            "distribution_id": distribution_id_norm,
+            "local_distribution_id": str(local_distribution_id or "").strip(),
+            "remote_public_key_ref": resolved_remote_key,
+            "handshake_mode": str(handshake_mode or "mutual_hmac").strip() or "mutual_hmac",
+            "shared_secret_b64": secret_b64,
+            "shared_secret_digest": secret_digest,
+            "metadata": dict(metadata),
+            "status": "active",
+            "created_at": now,
+            "updated_at": now,
+        }
+        if self._repo is not None and hasattr(self._repo, "save_distribution_handshake_record"):
+            try:
+                row = DistributionHandshakeRecord(
+                    handshake_id=handshake_id,
+                    distribution_id=distribution_id_norm,
+                    local_distribution_id=str(local_distribution_id or "").strip(),
+                    remote_public_key_ref=resolved_remote_key,
+                    handshake_mode=str(handshake_mode or "mutual_hmac").strip() or "mutual_hmac",
+                    shared_secret_b64=secret_b64,
+                    shared_secret_digest=secret_digest,
+                    metadata_json=json.dumps(dict(metadata), ensure_ascii=False),
+                    status="active",
+                    created_at=datetime.fromisoformat(now.replace("Z", "+00:00")),
+                    updated_at=datetime.fromisoformat(now.replace("Z", "+00:00")),
+                )
+                saved = self._repo.save_distribution_handshake_record(row)
+                return {
+                    "handshake_id": saved.handshake_id,
+                    "distribution_id": saved.distribution_id,
+                    "local_distribution_id": saved.local_distribution_id,
+                    "remote_public_key_ref": saved.remote_public_key_ref,
+                    "handshake_mode": saved.handshake_mode,
+                    "shared_secret_digest": saved.shared_secret_digest,
+                    "status": saved.status,
+                    "updated_at": saved.updated_at.isoformat(),
+                    "storage_backend": "database",
+                }
+            except Exception:
+                pass
+        target = self._security_bucket_dir("distribution_handshakes") / f"{handshake_id}.json"
+        target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        return {k: v for k, v in {**payload, "storage_backend": "file"}.items() if k != "shared_secret_b64"}
+
+    def list_distribution_handshakes(
+        self,
+        *,
+        distribution_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> Sequence[Mapping[str, Any]]:
+        distribution_id_norm = str(distribution_id).strip() if distribution_id else None
+        if self._repo is not None and hasattr(self._repo, "list_distribution_handshake_records"):
+            try:
+                rows = self._repo.list_distribution_handshake_records(
+                    distribution_id=distribution_id_norm,
+                    limit=limit,
+                )
+                return [
+                    {
+                        "handshake_id": row.handshake_id,
+                        "distribution_id": row.distribution_id,
+                        "local_distribution_id": row.local_distribution_id,
+                        "remote_public_key_ref": row.remote_public_key_ref,
+                        "handshake_mode": row.handshake_mode,
+                        "shared_secret_digest": row.shared_secret_digest,
+                        "metadata": json.loads(row.metadata_json),
+                        "status": row.status,
+                        "created_at": row.created_at.isoformat(),
+                        "updated_at": row.updated_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+                    for row in rows
+                ]
+            except Exception:
+                pass
+        records = self._load_bucket_records("distribution_handshakes")
+        if distribution_id_norm:
+            records = [
+                item for item in records
+                if str(item.get("distribution_id") or "").strip() == distribution_id_norm
+            ]
+        records.sort(key=lambda item: str(item.get("updated_at") or item.get("created_at") or ""), reverse=True)
+        return [
+            {k: v for k, v in record.items() if k != "shared_secret_b64"}
+            for record in records[: max(1, min(int(limit), 250))]
+        ]
+
+    def discover_distribution_capabilities(self, *, distribution_id: str) -> Mapping[str, Any]:
+        distribution = self.get_distribution_registry_entry(distribution_id=distribution_id)
+        distribution_id_norm = str(distribution.get("distribution_id") or "").strip()
+        if distribution_id_norm == "":
+            raise ValueError("distribution_not_found")
+        guilds = []
+        for record in self.list_guild_registry(limit=250):
+            if str(record.get("distribution_id") or "").strip() != distribution_id_norm:
+                continue
+            charter = record.get("charter")
+            if not isinstance(charter, Mapping):
+                charter = {}
+            channels = charter.get("channels")
+            if not isinstance(channels, list):
+                channels = []
+            guilds.append(
+                {
+                    "guild_id": str(record.get("guild_id") or "").strip(),
+                    "display_name": str(record.get("display_name") or "").strip(),
+                    "channels": [str(item).strip() for item in channels if str(item).strip() != ""],
+                    "status": str(record.get("status") or "").strip(),
+                }
+            )
+        handshake = next(iter(self.list_distribution_handshakes(distribution_id=distribution_id_norm, limit=1)), None)
+        return {
+            "distribution": distribution,
+            "guilds": guilds,
+            "key_descriptor": self.get_distribution_key_descriptor(distribution_id=distribution_id_norm),
+            "handshake": handshake,
+        }
+
+    def _get_distribution_handshake_secret(self, *, distribution_id: str) -> tuple[str, bytes]:
+        distribution_id_norm = str(distribution_id).strip()
+        if distribution_id_norm == "":
+            raise ValueError("distribution_id_required")
+        if self._repo is not None and hasattr(self._repo, "get_distribution_handshake_record"):
+            try:
+                row = self._repo.get_distribution_handshake_record(distribution_id_norm)
+                if row is not None and str(row.status or "").strip() == "active":
+                    return row.handshake_id, base64.b64decode(row.shared_secret_b64)
+            except Exception:
+                pass
+        records = self._load_bucket_records("distribution_handshakes")
+        for record in records:
+            if str(record.get("distribution_id") or "").strip() != distribution_id_norm:
+                continue
+            if str(record.get("status") or "").strip() != "active":
+                continue
+            secret_b64 = str(record.get("shared_secret_b64") or "").strip()
+            if secret_b64:
+                return str(record.get("handshake_id") or "").strip(), base64.b64decode(secret_b64)
+        raise ValueError("distribution_handshake_unavailable")
+
+    def _sign_distribution_receipt(
+        self,
+        *,
+        distribution_id: str,
+        message_id: str,
+        relay_status: str,
+        receipt: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        handshake_id, secret = self._get_distribution_handshake_secret(distribution_id=distribution_id)
+        signature_payload = {
+            "distribution_id": str(distribution_id).strip(),
+            "message_id": str(message_id).strip(),
+            "relay_status": str(relay_status).strip(),
+            "receipt": dict(receipt),
+        }
+        canonical = json.dumps(signature_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        signature = hmac.new(secret, canonical.encode("utf-8"), hashlib.sha256).hexdigest()
+        return {
+            **dict(receipt),
+            "signature_family": "distribution_receipt_hmac_v1",
+            "handshake_id": handshake_id,
+            "signature_hex": signature,
         }
 
     def get_migration_status(self) -> Mapping[str, Any]:

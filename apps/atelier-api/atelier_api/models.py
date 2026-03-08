@@ -510,3 +510,20 @@ class DistributionRegistryRecord(Base):
     status: Mapped[str] = mapped_column(String(80), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class DistributionHandshakeRecord(Base):
+    __tablename__ = "distribution_handshakes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    handshake_id: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    distribution_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    local_distribution_id: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    remote_public_key_ref: Mapped[str] = mapped_column(String(240), nullable=False, default="")
+    handshake_mode: Mapped[str] = mapped_column(String(80), nullable=False, default="mutual_hmac")
+    shared_secret_b64: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    shared_secret_digest: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    status: Mapped[str] = mapped_column(String(80), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)

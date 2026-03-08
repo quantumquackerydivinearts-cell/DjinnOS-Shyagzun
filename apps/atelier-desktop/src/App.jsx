@@ -6267,6 +6267,11 @@ export function App() {
   const [distributionMetadataText, setDistributionMetadataText] = useState('{\n  "source": "atelier.desktop.guild_hall"\n}');
   const [distributionRegistryList, setDistributionRegistryList] = useState([]);
   const [distributionRegistryOutput, setDistributionRegistryOutput] = useState(null);
+  const [distributionCapabilitiesOutput, setDistributionCapabilitiesOutput] = useState(null);
+  const [distributionHandshakeLocalId, setDistributionHandshakeLocalId] = useState("distribution.quantumquackery.main");
+  const [distributionHandshakeMode, setDistributionHandshakeMode] = useState("mutual_hmac");
+  const [distributionHandshakeOutput, setDistributionHandshakeOutput] = useState(null);
+  const [distributionHandshakeList, setDistributionHandshakeList] = useState([]);
   const [guildWandStatus, setGuildWandStatus] = useState(null);
   const [wandRegistryWandId, setWandRegistryWandId] = useState("wand_001");
   const [wandRegistryMakerId, setWandRegistryMakerId] = useState("maker.quant");
@@ -6399,6 +6404,9 @@ export function App() {
     loadDistributionRegistryList().catch((error) => {
       console.error("distribution_registry_autoload_failed", error);
     });
+    loadDistributionHandshakes().catch((error) => {
+      console.error("distribution_handshake_autoload_failed", error);
+    });
   }, [section]);
 
   useEffect(() => {
@@ -6411,6 +6419,30 @@ export function App() {
       setGuildRecipientDistributionId(homeDistribution);
     }
   }, [guildRecipientGuildId, guildRegistryList, guildRecipientDistributionId]);
+
+  useEffect(() => {
+    const guilds = Array.isArray(distributionCapabilitiesOutput?.guilds) ? distributionCapabilitiesOutput.guilds : [];
+    const selectedGuild = guilds.find((item) => String(item?.guild_id || "") === String(guildRecipientGuildId || "").trim());
+    const channels = Array.isArray(selectedGuild?.channels) ? selectedGuild.channels : [];
+    if (!channels.length) {
+      return;
+    }
+    const currentChannel = String(guildRecipientChannelId || "").trim();
+    if (!currentChannel || !channels.includes(currentChannel)) {
+      setGuildRecipientChannelId(String(channels[0] || ""));
+    }
+  }, [distributionCapabilitiesOutput, guildRecipientGuildId, guildRecipientChannelId]);
+
+  useEffect(() => {
+    const safeDistributionId = String(guildRecipientDistributionId || "").trim();
+    if (!safeDistributionId) {
+      setDistributionCapabilitiesOutput(null);
+      return;
+    }
+    loadDistributionCapabilities(safeDistributionId).catch((error) => {
+      console.error("distribution_capabilities_autoload_failed", error);
+    });
+  }, [guildRecipientDistributionId]);
 
   const rememberProvenanceId = (kind, value) => {
     const normalized = String(value || "").trim();
@@ -12478,6 +12510,7 @@ export function App() {
         charter: {
           trust_model: "wand_registry",
           transport_profile: "distribution_registry_pending",
+          channels: Array.from(new Set([String(guildChannelId || "").trim(), "hall.general"].filter((item) => item !== ""))),
         },
         metadata: {
           workspace_id: workspaceId,
@@ -12569,6 +12602,49 @@ export function App() {
       if (!guildRecipientDistributionId) {
         setGuildRecipientDistributionId(String(data?.distribution_id || safeDistributionId));
       }
+      return data;
+    });
+  };
+
+  const loadDistributionCapabilities = async (registryDistributionId = guildRecipientDistributionId || distributionId) => {
+    await runAction("distribution_capabilities_get", async () => {
+      const safeDistributionId = String(registryDistributionId || "").trim();
+      if (!safeDistributionId) {
+        throw new Error("distribution_id_required");
+      }
+      const data = await apiCall(`/v1/distributions/registry/${encodeURIComponent(safeDistributionId)}/capabilities`, "GET");
+      setDistributionCapabilitiesOutput(data);
+      return data;
+    });
+  };
+
+  const registerDistributionHandshake = async () => {
+    await runAction("distribution_handshake_register", async () => {
+      const data = await apiCall("/v1/distributions/handshakes", "POST", {
+        distribution_id: String(distributionId || "").trim(),
+        local_distribution_id: String(distributionHandshakeLocalId || "").trim(),
+        remote_public_key_ref: String(distributionPublicKeyRef || "").trim(),
+        handshake_mode: String(distributionHandshakeMode || "").trim() || "mutual_hmac",
+        metadata: {
+          workspace_id: workspaceId,
+          source: "atelier.desktop.guild_hall",
+        },
+      });
+      setDistributionHandshakeOutput(data);
+      await loadDistributionHandshakes(String(distributionId || "").trim());
+      return data;
+    });
+  };
+
+  const loadDistributionHandshakes = async (registryDistributionId = distributionId) => {
+    await runAction("distribution_handshake_list", async () => {
+      const params = new URLSearchParams({ limit: "50" });
+      const safeDistributionId = String(registryDistributionId || "").trim();
+      if (safeDistributionId) {
+        params.set("distribution_id", safeDistributionId);
+      }
+      const data = await apiCall(`/v1/distributions/handshakes?${params.toString()}`, "GET");
+      setDistributionHandshakeList(Array.isArray(data) ? data : []);
       return data;
     });
   };
@@ -15988,6 +16064,13 @@ export function App() {
             <button className="action" onClick={loadDistributionRegistryList}>Load Distribution Registry</button>
           </div>
           <div className="row">
+            <input value={distributionHandshakeLocalId} onChange={(e) => setDistributionHandshakeLocalId(e.target.value)} placeholder="local distribution id" />
+            <input value={distributionHandshakeMode} onChange={(e) => setDistributionHandshakeMode(e.target.value)} placeholder="handshake mode" />
+            <button className="action" onClick={registerDistributionHandshake}>Register Handshake</button>
+            <button className="action" onClick={() => loadDistributionCapabilities()}>Load Capabilities</button>
+            <button className="action" onClick={() => loadDistributionHandshakes()}>Load Handshakes</button>
+          </div>
+          <div className="row">
             <textarea value={distributionGuildIdsText} onChange={(e) => setDistributionGuildIdsText(e.target.value)} placeholder="guild ids JSON array" rows={4} />
             <textarea value={distributionMetadataText} onChange={(e) => setDistributionMetadataText(e.target.value)} placeholder="distribution metadata JSON" rows={4} />
           </div>
@@ -16010,6 +16093,9 @@ export function App() {
           </div>
           <pre>{JSON.stringify(distributionRegistryOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(distributionRegistryList || [], null, 2)}</pre>
+          <pre>{JSON.stringify(distributionCapabilitiesOutput || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(distributionHandshakeOutput || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(distributionHandshakeList || [], null, 2)}</pre>
           <h3>Wand Registry</h3>
           <div className="row">
             <input value={wandRegistryWandId} onChange={(e) => setWandRegistryWandId(e.target.value)} placeholder="wand id" />
@@ -16076,13 +16162,25 @@ export function App() {
             </select>
             <select value={guildRecipientGuildId} onChange={(e) => setGuildRecipientGuildId(e.target.value)}>
               <option value="">select recipient guild</option>
-              {guildRegistryList.map((item) => (
+              {(Array.isArray(distributionCapabilitiesOutput?.guilds) ? distributionCapabilitiesOutput.guilds : guildRegistryList).map((item) => (
                 <option key={`guild-recipient-guild-${String(item?.guild_id || "")}`} value={String(item?.guild_id || "")}>
                   {`${String(item?.guild_id || "")} :: ${String(item?.display_name || "")}`}
                 </option>
               ))}
             </select>
-            <input value={guildRecipientChannelId} onChange={(e) => setGuildRecipientChannelId(e.target.value)} placeholder="recipient channel id" />
+            <select value={guildRecipientChannelId} onChange={(e) => setGuildRecipientChannelId(e.target.value)}>
+              <option value="">select recipient channel</option>
+              {(() => {
+                const guilds = Array.isArray(distributionCapabilitiesOutput?.guilds) ? distributionCapabilitiesOutput.guilds : [];
+                const selectedGuild = guilds.find((item) => String(item?.guild_id || "") === String(guildRecipientGuildId || "").trim());
+                const channels = Array.isArray(selectedGuild?.channels) ? selectedGuild.channels : [];
+                return channels.map((item) => (
+                  <option key={`guild-recipient-channel-${String(item || "")}`} value={String(item || "")}>
+                    {String(item || "")}
+                  </option>
+                ));
+              })()}
+            </select>
             <input value={guildRecipientActorId} onChange={(e) => setGuildRecipientActorId(e.target.value)} placeholder="recipient actor id" />
           </div>
           <div className="row">

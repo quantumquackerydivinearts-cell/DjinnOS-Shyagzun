@@ -363,6 +363,14 @@ class DistributionRegistryInput(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class DistributionHandshakeInput(BaseModel):
+    distribution_id: str
+    local_distribution_id: str = ""
+    remote_public_key_ref: str = ""
+    handshake_mode: str = "mutual_hmac"
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class AdminGateVerifyInput(BaseModel):
     gate_code: str
 
@@ -1106,6 +1114,58 @@ def get_distribution_key_discovery(
         return svc.get_distribution_key_descriptor(distribution_id=distribution_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/v1/distributions/registry/{distribution_id}/capabilities")
+def get_distribution_capabilities(
+    distribution_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.discover_distribution_capabilities(distribution_id=distribution_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/v1/distributions/handshakes")
+def register_distribution_handshake(
+    payload: DistributionHandshakeInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.register_distribution_handshake(
+            distribution_id=payload.distribution_id,
+            local_distribution_id=payload.local_distribution_id,
+            remote_public_key_ref=payload.remote_public_key_ref,
+            handshake_mode=payload.handshake_mode,
+            metadata=payload.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/distributions/handshakes")
+def list_distribution_handshakes(
+    distribution_id: Optional[str] = None,
+    limit: int = 50,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[Mapping[str, Any]]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_distribution_handshakes(distribution_id=distribution_id, limit=limit)
 
 
 @app.get("/v1/security/wand/epochs")
