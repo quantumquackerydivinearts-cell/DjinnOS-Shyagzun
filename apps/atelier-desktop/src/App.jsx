@@ -459,6 +459,316 @@ const RENDERER_TEST_SPEC_FRAGMENTS = [
   },
 ];
 
+const ROOM_KIT_TEMPLATES = [
+  {
+    room_id: "room.town_square",
+    label: "Town Square",
+    footprint: { width: 10, height: 8, depth: 3 },
+    tags: ["civic", "open", "social"],
+    renderer_json: {
+      scene: { id: "room_town_square", name: "Town Square" },
+      voxels: [
+        { id: "sq_0", type: "cobble", x: 0, y: 0, z: 0, color: "#7d7f86" },
+        { id: "sq_1", type: "cobble", x: 1, y: 0, z: 0, color: "#7d7f86" },
+        { id: "sq_2", type: "cobble", x: 0, y: 1, z: 0, color: "#7d7f86" },
+        { id: "sq_3", type: "cobble", x: 1, y: 1, z: 0, color: "#7d7f86" },
+        { id: "fountain_core", type: "fountain", x: 3, y: 2, z: 1, color: "#8fb8d9" },
+      ],
+    },
+  },
+  {
+    room_id: "room.alchemy_lab",
+    label: "Alchemy Lab",
+    footprint: { width: 8, height: 6, depth: 4 },
+    tags: ["craft", "interior", "alchemy"],
+    renderer_json: {
+      scene: { id: "room_alchemy_lab", name: "Alchemy Lab" },
+      voxels: [
+        { id: "lab_floor_0", type: "stone", x: 0, y: 0, z: 0, color: "#5e646d" },
+        { id: "lab_floor_1", type: "stone", x: 1, y: 0, z: 0, color: "#5e646d" },
+        { id: "lab_floor_2", type: "stone", x: 2, y: 0, z: 0, color: "#5e646d" },
+        { id: "lab_bench", type: "bench", x: 2, y: 1, z: 1, color: "#6a4b33" },
+        { id: "lab_furnace", type: "furnace", x: 4, y: 2, z: 2, color: "#8d5f32" },
+        { id: "lab_alembic", type: "alembic", x: 3, y: 1, z: 2, color: "#9ec9d4" },
+      ],
+    },
+  },
+];
+
+const FEATURE_KIT_TEMPLATES = [
+  {
+    feature_id: "feature.scene.storm_morning",
+    label: "Storm Morning Sky",
+    kind: "scene_overlay",
+    scene_patch: {
+      background: { kind: "sky_gradient", top: "#556b7f", bottom: "#1d2e40" },
+      meta: { weather: "storm", period: "morning" },
+    },
+    systems_patch: {
+      background: "#1d2e40",
+      lighting: { enabled: true, x: 0.28, y: -0.82, z: 0.74, ambient: 0.34, intensity: 0.84 },
+    },
+  },
+  {
+    feature_id: "feature.spawn.player_center",
+    label: "Player Center Spawn",
+    kind: "spawn",
+    renderer_json: {
+      voxels: [{ id: "player", type: "player", x: 2, y: 2, z: 1, color: "#f6c677", meta: { role: "player" } }],
+    },
+    systems_patch: {
+      controls: {
+        player_id: "player",
+        follow_player: true,
+        keyboard_motion: true,
+        click_move: true,
+        path_step_ms: 70,
+        player_step: 1,
+      },
+    },
+    signal_patch: { player_position: { x: 0, y: 0, z: 0 } },
+  },
+  {
+    feature_id: "feature.market_stalls",
+    label: "Market Stalls",
+    kind: "set_dressing",
+    renderer_json: {
+      voxels: [
+        { id: "stall_a_base", type: "stall", x: 6, y: 1, z: 1, color: "#835f3d" },
+        { id: "stall_a_awning", type: "awning", x: 6, y: 1, z: 2, color: "#a63f3f" },
+        { id: "stall_b_base", type: "stall", x: 8, y: 2, z: 1, color: "#6f5a44" },
+        { id: "stall_b_awning", type: "awning", x: 8, y: 2, z: 2, color: "#c08b3a" },
+      ],
+    },
+  },
+  {
+    feature_id: "feature.profile.cardinal_hd",
+    label: "Cardinal HD Profile",
+    kind: "render_profile",
+    systems_patch: {
+      render_profile: {
+        renderMode: "2.5d",
+        projection: "cardinal",
+        renderScale: 2,
+        tile: 28,
+        zScale: 10,
+        pixelate: false,
+        outline: true,
+      },
+    },
+  },
+];
+
+const CHUNK_KIT_TEMPLATES = [
+  {
+    chunk_id: "chunk.market_crossroads",
+    label: "Market Crossroads",
+    room_refs: [{ room_id: "room.town_square", offset: { x: 0, y: 0, z: 0 } }],
+    feature_refs: ["feature.market_stalls"],
+    tags: ["outdoor", "market", "hub"],
+  },
+  {
+    chunk_id: "chunk.alchemy_wing",
+    label: "Alchemy Wing",
+    room_refs: [{ room_id: "room.alchemy_lab", offset: { x: 12, y: 0, z: 0 } }],
+    feature_refs: [],
+    tags: ["interior", "craft", "lab"],
+  },
+  {
+    chunk_id: "chunk.crossroads_lab",
+    label: "Crossroads and Lab",
+    room_refs: [
+      { room_id: "room.town_square", offset: { x: 0, y: 0, z: 0 } },
+      { room_id: "room.alchemy_lab", offset: { x: 12, y: 1, z: 0 } },
+    ],
+    feature_refs: ["feature.market_stalls"],
+    tags: ["mixed", "hub", "craft"],
+  },
+];
+
+const SCENE_SHELL_TEMPLATES = [
+  {
+    scene_id: "scene.crossroads_day",
+    label: "Crossroads Day",
+    scene: { id: "crossroads_day", name: "Crossroads Day", biome: "town" },
+    systems: { gravity: 0, camera: { x: 0, y: 0 } },
+    tags: ["overworld", "day"],
+  },
+  {
+    scene_id: "scene.alchemy_district",
+    label: "Alchemy District",
+    scene: { id: "alchemy_district", name: "Alchemy District", biome: "district" },
+    systems: { gravity: 0, camera: { x: 4, y: 1 } },
+    tags: ["district", "craft"],
+  },
+];
+
+function parseKitIdSequence(text) {
+  return String(text || "")
+    .split(/[\s,|/;]+/)
+    .map((item) => item.trim())
+    .filter((item) => item !== "");
+}
+
+function mergeSceneKitPatch(base, patch) {
+  const left = base && typeof base === "object" ? base : {};
+  const right = patch && typeof patch === "object" ? patch : {};
+  const out = { ...left };
+  Object.entries(right).forEach(([key, value]) => {
+    if (value && typeof value === "object" && !Array.isArray(value) && left[key] && typeof left[key] === "object" && !Array.isArray(left[key])) {
+      out[key] = mergeSceneKitPatch(left[key], value);
+    } else {
+      out[key] = value;
+    }
+  });
+  return out;
+}
+
+function offsetSceneKitVoxel(voxel, offset, prefix, extraMeta) {
+  const source = voxel && typeof voxel === "object" ? voxel : {};
+  const shift = offset && typeof offset === "object" ? offset : {};
+  return {
+    ...source,
+    id: `${prefix}${String(source.id || "voxel")}`,
+    x: Number(source.x || 0) + Number(shift.x || 0),
+    y: Number(source.y || 0) + Number(shift.y || 0),
+    z: Number(source.z || 0) + Number(shift.z || 0),
+    meta: mergeSceneKitPatch(source.meta, extraMeta),
+  };
+}
+
+function composeSceneKitSpec(config) {
+  const shellId = String(config.scene_shell_id || "scene.crossroads_day");
+  const shell = SCENE_SHELL_TEMPLATES.find((item) => item.scene_id === shellId) || SCENE_SHELL_TEMPLATES[0];
+  const roomIds = Array.isArray(config.room_ids) ? config.room_ids : [];
+  const chunkIds = Array.isArray(config.chunk_ids) ? config.chunk_ids : [];
+  const featureIds = Array.isArray(config.feature_ids) ? config.feature_ids : [];
+  const roomById = Object.fromEntries(ROOM_KIT_TEMPLATES.map((item) => [item.room_id, item]));
+  const chunkById = Object.fromEntries(CHUNK_KIT_TEMPLATES.map((item) => [item.chunk_id, item]));
+  const featureById = Object.fromEntries(FEATURE_KIT_TEMPLATES.map((item) => [item.feature_id, item]));
+
+  const scene = mergeSceneKitPatch(shell.scene, { module_scene_id: shell.scene_id });
+  const systems = mergeSceneKitPatch(shell.systems, {});
+  const entities = [];
+  const rooms = [];
+  const chunks = [];
+  const features = [];
+  const appliedFeatureIds = new Set();
+
+  const attachFeature = (featureId, placementMeta = {}, offset = { x: 0, y: 0, z: 0 }) => {
+    const feature = featureById[featureId];
+    if (!feature) {
+      return;
+    }
+    const placementKey =
+      String(
+        placementMeta.source ||
+          placementMeta.chunk_id ||
+          placementMeta.feature_slot ||
+          features.length
+      ).replace(/[^\w.-]+/g, "_");
+    features.push({ feature_id: feature.feature_id, kind: feature.kind || "feature", ...placementMeta });
+    appliedFeatureIds.add(feature.feature_id);
+    if (feature.scene_patch) {
+      Object.assign(scene, mergeSceneKitPatch(scene, feature.scene_patch));
+    }
+    if (feature.systems_patch) {
+      Object.assign(systems, mergeSceneKitPatch(systems, feature.systems_patch));
+    }
+    if (feature.signal_patch) {
+      systems.signal = mergeSceneKitPatch(systems.signal, feature.signal_patch);
+    }
+    const voxels = Array.isArray(feature?.renderer_json?.voxels) ? feature.renderer_json.voxels : [];
+    voxels.forEach((voxel, index) => {
+      entities.push(
+        offsetSceneKitVoxel(voxel, offset, `${feature.feature_id.replace(/[^\w.-]+/g, "_")}_${placementKey}_${index}_`, {
+          scene_feature: true,
+          feature_id: feature.feature_id,
+          ...placementMeta,
+        })
+      );
+    });
+  };
+
+  const attachRoom = (roomId, offset = { x: 0, y: 0, z: 0 }, context = {}) => {
+    const room = roomById[roomId];
+    if (!room) {
+      return;
+    }
+    const placementKey =
+      String(
+        context.source ||
+          context.chunk_id ||
+          context.chunk_room_index ||
+          rooms.length
+      ).replace(/[^\w.-]+/g, "_");
+    rooms.push({
+      room_id: room.room_id,
+      offset,
+      tags: room.tags || [],
+      footprint: room.footprint || null,
+      ...context,
+    });
+    const voxels = Array.isArray(room?.renderer_json?.voxels) ? room.renderer_json.voxels : [];
+    voxels.forEach((voxel, index) => {
+      entities.push(
+        offsetSceneKitVoxel(voxel, offset, `${room.room_id.replace(/[^\w.-]+/g, "_")}_${placementKey}_${index}_`, {
+          scene_room: true,
+          room_id: room.room_id,
+          ...context,
+        })
+      );
+    });
+  };
+
+  roomIds.forEach((roomId, index) => {
+    attachRoom(roomId, { x: index * 10, y: 0, z: 0 }, { source: "direct_room" });
+  });
+
+  chunkIds.forEach((chunkId) => {
+    const chunk = chunkById[chunkId];
+    if (!chunk) {
+      return;
+    }
+    chunks.push({
+      chunk_id: chunk.chunk_id,
+      tags: chunk.tags || [],
+      room_count: Array.isArray(chunk.room_refs) ? chunk.room_refs.length : 0,
+    });
+    (Array.isArray(chunk.room_refs) ? chunk.room_refs : []).forEach((roomRef, index) => {
+      const offset = roomRef && typeof roomRef === "object" ? roomRef.offset || {} : {};
+      attachRoom(String(roomRef.room_id || ""), offset, { chunk_id: chunk.chunk_id, chunk_room_index: index });
+    });
+    (Array.isArray(chunk.feature_refs) ? chunk.feature_refs : []).forEach((featureId) => {
+      attachFeature(String(featureId || ""), { chunk_id: chunk.chunk_id });
+    });
+  });
+
+  featureIds.forEach((featureId) => attachFeature(featureId, { source: "direct_feature" }));
+
+  return {
+    schema: "qqva.scene_kit.v1",
+    scene,
+    systems,
+    entities,
+    modules: {
+      scene_shell_id: shell.scene_id,
+      room_ids,
+      chunk_ids,
+      feature_ids: Array.from(new Set([...featureIds, ...Array.from(appliedFeatureIds)])),
+      rooms,
+      chunks,
+      features,
+    },
+    stats: {
+      entity_count: entities.length,
+      room_count: rooms.length,
+      chunk_count: chunks.length,
+      feature_count: features.length,
+    },
+  };
+}
+
 function laneRank(lane) {
   const normalized = String(lane || "").trim().toLowerCase();
   if (normalized === "business") {
@@ -5258,6 +5568,14 @@ export function App() {
   const [moduleReconcileSceneId, setModuleReconcileSceneId] = useState("renderer-lab");
   const [moduleReconcileApply, setModuleReconcileApply] = useState(true);
   const [moduleRunOutput, setModuleRunOutput] = useState(null);
+  const [sceneKitShellId, setSceneKitShellId] = useState("scene.crossroads_day");
+  const [sceneKitRoomIdsText, setSceneKitRoomIdsText] = useState("room.town_square");
+  const [sceneKitChunkIdsText, setSceneKitChunkIdsText] = useState("chunk.market_crossroads");
+  const [sceneKitFeatureIdsText, setSceneKitFeatureIdsText] = useState("feature.scene.storm_morning feature.spawn.player_center");
+  const [sceneKitSelectedRoomId, setSceneKitSelectedRoomId] = useState("room.town_square");
+  const [sceneKitSelectedChunkId, setSceneKitSelectedChunkId] = useState("chunk.market_crossroads");
+  const [sceneKitSelectedFeatureId, setSceneKitSelectedFeatureId] = useState("feature.scene.storm_morning");
+  const [sceneKitOutput, setSceneKitOutput] = useState(null);
   const [labCoherence, setLabCoherence] = useState({
     last_check_at: "",
     runtime_consume_ok: null,
@@ -10578,11 +10896,40 @@ export function App() {
     setSection("Renderer Lab");
   }
 
+  function appendSceneKitId(currentText, nextId) {
+    const parts = parseKitIdSequence(currentText);
+    if (nextId && !parts.includes(nextId)) {
+      parts.push(nextId);
+    }
+    return parts.join("\n");
+  }
+
+  function composeSceneKitToGameSpec() {
+    const roomIds = parseKitIdSequence(sceneKitRoomIdsText);
+    const chunkIds = parseKitIdSequence(sceneKitChunkIdsText);
+    const featureIds = parseKitIdSequence(sceneKitFeatureIdsText);
+    const composed = composeSceneKitSpec({
+      scene_shell_id: sceneKitShellId,
+      room_ids: roomIds,
+      chunk_ids: chunkIds,
+      feature_ids: featureIds,
+    });
+    setSceneKitOutput(composed);
+    setRendererGameSpecText(JSON.stringify(composed, null, 2));
+    setRendererGameStatus(
+      `scene_kit_composed:${composed.stats.room_count}r:${composed.stats.chunk_count}c:${composed.stats.feature_count}f:${composed.stats.entity_count}e`
+    );
+    setNotice(`scene_kit_composed:${composed.scene.id || sceneKitShellId}`);
+  }
+
   function compileGameSpecToRenderer() {
     const spec = parseObjectJson(rendererGameSpecText, {});
     const scene = spec.scene && typeof spec.scene === "object" ? spec.scene : {};
     const systems = spec.systems && typeof spec.systems === "object" ? spec.systems : {};
     const entities = Array.isArray(spec.entities) ? spec.entities : [];
+    const passthrough = Object.fromEntries(
+      Object.entries(spec).filter(([key]) => !["scene", "systems", "entities"].includes(key))
+    );
     const tileEntities = Object.values(tilePlacements).map((placement) => tilePlacementToRendererVoxelEntity(placement));
     const linkEntities = tileConnections.map((link) => ({
       id: link.id,
@@ -10614,7 +10961,7 @@ export function App() {
     };
     setRendererPython(compilePythonDrawFromEntities(String(scene.name || "prototype"), mergedEntities));
     setRendererCobra(compileCobraFromEntities(mergedEntities));
-    setRendererJson(JSON.stringify({ scene, systems: systemsNext, entities: mergedEntities }, null, 2));
+    setRendererJson(JSON.stringify({ ...passthrough, scene, systems: systemsNext, entities: mergedEntities }, null, 2));
     setRendererEngineStateText(JSON.stringify(nextEngine, null, 2));
     setRendererGameStatus(`compiled:${mergedEntities.length}_entities`);
   }
@@ -13889,6 +14236,60 @@ export function App() {
           <section className="panel">
             <h2>Game Design Workbench</h2>
             <p>Define scene/systems/entities as Game Spec JSON and compile into renderer layers for playtesting.</p>
+            <div className="row">
+              <select value={sceneKitShellId} onChange={(e) => setSceneKitShellId(e.target.value)}>
+                {SCENE_SHELL_TEMPLATES.map((item) => (
+                  <option key={item.scene_id} value={item.scene_id}>{`scene shell ${item.label}`}</option>
+                ))}
+              </select>
+              <select value={sceneKitSelectedRoomId} onChange={(e) => setSceneKitSelectedRoomId(e.target.value)}>
+                {ROOM_KIT_TEMPLATES.map((item) => (
+                  <option key={item.room_id} value={item.room_id}>{`room ${item.label}`}</option>
+                ))}
+              </select>
+              <button className="action" onClick={() => setSceneKitRoomIdsText((prev) => appendSceneKitId(prev, sceneKitSelectedRoomId))}>
+                Add Room
+              </button>
+              <select value={sceneKitSelectedChunkId} onChange={(e) => setSceneKitSelectedChunkId(e.target.value)}>
+                {CHUNK_KIT_TEMPLATES.map((item) => (
+                  <option key={item.chunk_id} value={item.chunk_id}>{`chunk ${item.label}`}</option>
+                ))}
+              </select>
+              <button className="action" onClick={() => setSceneKitChunkIdsText((prev) => appendSceneKitId(prev, sceneKitSelectedChunkId))}>
+                Add Chunk
+              </button>
+              <select value={sceneKitSelectedFeatureId} onChange={(e) => setSceneKitSelectedFeatureId(e.target.value)}>
+                {FEATURE_KIT_TEMPLATES.map((item) => (
+                  <option key={item.feature_id} value={item.feature_id}>{`feature ${item.label}`}</option>
+                ))}
+              </select>
+              <button className="action" onClick={() => setSceneKitFeatureIdsText((prev) => appendSceneKitId(prev, sceneKitSelectedFeatureId))}>
+                Add Feature
+              </button>
+            </div>
+            <div className="row">
+              <input
+                value={sceneKitRoomIdsText}
+                onChange={(e) => setSceneKitRoomIdsText(e.target.value)}
+                placeholder="room ids"
+              />
+              <input
+                value={sceneKitChunkIdsText}
+                onChange={(e) => setSceneKitChunkIdsText(e.target.value)}
+                placeholder="chunk ids"
+              />
+              <input
+                value={sceneKitFeatureIdsText}
+                onChange={(e) => setSceneKitFeatureIdsText(e.target.value)}
+                placeholder="feature ids"
+              />
+              <button className="action" onClick={composeSceneKitToGameSpec}>Compose Scene Kit</button>
+              <span className="badge">{`Scene Shells: ${SCENE_SHELL_TEMPLATES.length}`}</span>
+              <span className="badge">{`Rooms: ${parseKitIdSequence(sceneKitRoomIdsText).length}`}</span>
+              <span className="badge">{`Chunks: ${parseKitIdSequence(sceneKitChunkIdsText).length}`}</span>
+              <span className="badge">{`Features: ${parseKitIdSequence(sceneKitFeatureIdsText).length}`}</span>
+            </div>
+            <pre>{JSON.stringify(sceneKitOutput || {}, null, 2)}</pre>
             <div className="row">
               <button className="action" onClick={compileGameSpecToRenderer}>Compile Game Spec</button>
               <button className="action" onClick={() => downloadJson("renderer-game-spec.json", rendererGameSpec)}>Export Spec</button>
