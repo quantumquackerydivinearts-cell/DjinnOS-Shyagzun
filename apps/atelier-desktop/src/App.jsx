@@ -6242,6 +6242,7 @@ export function App() {
   const [guildDecryptOutput, setGuildDecryptOutput] = useState(null);
   const [guildPersistOutput, setGuildPersistOutput] = useState(null);
   const [guildMessageHistory, setGuildMessageHistory] = useState([]);
+  const [guildWandStatus, setGuildWandStatus] = useState(null);
   const [wandDamageWandId, setWandDamageWandId] = useState("wand_001");
   const [wandDamageNotifierId, setWandDamageNotifierId] = useState("Zo@user");
   const [wandDamageState, setWandDamageState] = useState("broken");
@@ -6254,6 +6255,7 @@ export function App() {
   const [wandEpochPreviousId, setWandEpochPreviousId] = useState("");
   const [wandEpochRevoked, setWandEpochRevoked] = useState(true);
   const [wandEpochOutput, setWandEpochOutput] = useState(null);
+  const [wandStatus, setWandStatus] = useState(null);
   const [studioFolders, setStudioFolders] = useState(() => {
     const raw = localStorage.getItem("atelier.studio_folders");
     if (!raw) {
@@ -11999,6 +12001,8 @@ export function App() {
       if (digests.length) {
         setGuildAttestationDigestsText(digests.join(", "));
       }
+      await fetchWandStatus(wandDamageWandId, setWandStatus);
+      await fetchWandStatus(guildWandId, setGuildWandStatus);
       return data;
     });
   };
@@ -12061,8 +12065,22 @@ export function App() {
     });
   };
 
+  const fetchWandStatus = async (wandId, sink) => {
+    const params = new URLSearchParams({ wand_id: String(wandId || "").trim() });
+    const data = await apiCall(`/v1/security/wand/status?${params.toString()}`, "GET");
+    sink(data);
+    return data;
+  };
+
+  const loadWandStatus = async (wandId = wandDamageWandId, sink = setWandStatus) => {
+    await runAction("wand_status", async () => fetchWandStatus(wandId, sink));
+  };
+
   const transitionWandEpoch = async () => {
     await runAction("wand_epoch_transition", async () => {
+      if (wandEpochRevoked && role !== "steward") {
+        throw new Error("steward_required_for_revocation");
+      }
       const attestationMediaDigests = String(guildAttestationDigestsText || "")
         .split(/[\s,|]+/)
         .map((item) => item.trim())
@@ -12090,6 +12108,8 @@ export function App() {
       });
       setWandEpochOutput(data);
       setWandEpochPreviousId(String(data?.epoch_id || ""));
+      await fetchWandStatus(wandDamageWandId, setWandStatus);
+      await fetchWandStatus(guildWandId, setGuildWandStatus);
       return data;
     });
   };
@@ -12225,6 +12245,10 @@ export function App() {
       setGuildMessageHistory(Array.isArray(data) ? data : []);
       return data;
     });
+  };
+
+  const loadGuildWandStatus = async () => {
+    await loadWandStatus(guildWandId, setGuildWandStatus);
   };
 
   const runShygazunCorrect = async () => {
@@ -15470,15 +15494,18 @@ export function App() {
           <div className="row">
             <input value={wandEpochPreviousId} onChange={(e) => setWandEpochPreviousId(e.target.value)} placeholder="previous epoch id or attestation record id" />
             <label className="checkbox">
-              <input type="checkbox" checked={wandEpochRevoked} onChange={(e) => setWandEpochRevoked(e.target.checked)} />
+              <input type="checkbox" checked={wandEpochRevoked} onChange={(e) => setWandEpochRevoked(e.target.checked)} disabled={role !== "steward"} />
               revoke prior epoch
             </label>
-            <button className="action" onClick={transitionWandEpoch}>Transition Wand Epoch</button>
+            <button className="action" onClick={transitionWandEpoch} disabled={wandEpochRevoked && role !== "steward"}>Transition Wand Epoch</button>
             <button className="action" onClick={loadWandEpochHistory}>Load Epochs</button>
+            <button className="action" onClick={() => loadWandStatus(wandDamageWandId, setWandStatus)}>Load Wand Status</button>
+            <span className="badge">{role === "steward" ? "Steward revoke enabled" : "Revocation steward-gated"}</span>
           </div>
           <pre>{JSON.stringify(wandDamageValidation || {}, null, 2)}</pre>
           <pre>{JSON.stringify(wandDamageRecord || {}, null, 2)}</pre>
           <pre>{JSON.stringify(wandEpochOutput || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(wandStatus || {}, null, 2)}</pre>
           <pre>{JSON.stringify(wandDamageHistory || [], null, 2)}</pre>
           <pre>{JSON.stringify(wandEpochHistory || [], null, 2)}</pre>
         </section>
@@ -15520,11 +15547,19 @@ export function App() {
               placeholder='attestation sources JSON array'
             />
             <button className="action" onClick={deriveGuildEntropyMix}>Derive Entropy Mix</button>
+            <button className="action" onClick={loadGuildWandStatus}>Load Wand Status</button>
             <button className="action" onClick={loadGuildMessageHistory}>Load Message History</button>
+          </div>
+          <div className="row">
+            <span className="badge">{`Wand status: ${String(guildWandStatus?.status || "unknown")}`}</span>
+            <span className="badge">{`Revoked: ${guildWandStatus?.revoked ? "yes" : "no"}`}</span>
+            <span className="badge">{`Epochs: ${Number(guildWandStatus?.epoch_count || 0)}`}</span>
+            <span className="badge">{`Attestations: ${Number(guildWandStatus?.attestation_count || 0)}`}</span>
           </div>
           <pre>{JSON.stringify(guildEntropyMixOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildEncryptOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildPersistOutput || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(guildWandStatus || {}, null, 2)}</pre>
         </section>
       );
     }

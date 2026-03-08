@@ -2527,6 +2527,14 @@ class AtelierService:
         target.mkdir(parents=True, exist_ok=True)
         return target
 
+    @staticmethod
+    def _safe_storage_component(value: Optional[str], fallback: str) -> str:
+        text = str(value or "").strip()
+        if text == "":
+            text = fallback
+        cleaned = "".join(ch if ch.isalnum() or ch in ("-", "_", ".") else "_" for ch in text)
+        return cleaned or fallback
+
     @classmethod
     def _load_bucket_records(cls, bucket: str) -> list[dict[str, Any]]:
         root = cls._security_bucket_dir(bucket)
@@ -2541,6 +2549,43 @@ class AtelierService:
         return records
 
     @classmethod
+    def _load_recursive_records(cls, bucket: str) -> list[dict[str, Any]]:
+        root = cls._security_bucket_dir(bucket)
+        records: list[dict[str, Any]] = []
+        for path in sorted(root.glob("**/*.json"), reverse=True):
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if isinstance(payload, dict):
+                records.append(payload)
+        return records
+
+    @classmethod
+    def _normalize_entropy_source(cls, *, label: str, source: Optional[Mapping[str, Any]]) -> Optional[dict[str, Any]]:
+        if not isinstance(source, Mapping):
+            return None
+        normalized = {str(key): value for key, value in dict(source).items()}
+        if not normalized:
+            return None
+        if label == "temple":
+            schema_family = "temple_entropy_source"
+            required_fields = ("provenance_id", "source_type", "state_digest")
+        elif label == "theatre":
+            schema_family = "theatre_entropy_source"
+            required_fields = ("provenance_id", "source_type", "media_digest")
+        else:
+            raise ValueError(f"unsupported_entropy_source_label:{label}")
+        if str(normalized.get("schema_family") or "").strip() != schema_family:
+            raise ValueError(f"{label}_entropy_source_schema_family_invalid")
+        if str(normalized.get("schema_version") or "").strip() != "v1":
+            raise ValueError(f"{label}_entropy_source_schema_version_invalid")
+        for field_name in required_fields:
+            if str(normalized.get(field_name) or "").strip() == "":
+                raise ValueError(f"{label}_entropy_source_{field_name}_required")
+        return normalized
+
+    @classmethod
     def _resolve_entropy_component(
         cls,
         *,
@@ -2549,7 +2594,7 @@ class AtelierService:
         label: str,
     ) -> dict[str, Any]:
         digest_text = str(digest or "").strip()
-        source_payload = dict(source) if isinstance(source, Mapping) else None
+        source_payload = cls._normalize_entropy_source(label=label, source=source)
         if source_payload is not None:
             if digest_text == "":
                 digest_text = cls._canonical_hash(source_payload)
@@ -2825,22 +2870,29 @@ class AtelierService:
         envelope: Mapping[str, Any],
         metadata: Mapping[str, Any],
     ) -> Mapping[str, Any]:
+        envelope_obj = dict(envelope)
         now = datetime.now(timezone.utc).isoformat()
         payload = {
-            "envelope": dict(envelope),
+            "envelope": envelope_obj,
             "metadata": dict(metadata),
             "recorded_at": now,
         }
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         message_id = "gmsg_" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:24]
-        target = self._security_bucket_dir("guild_messages") / f"{message_id}.json"
+        guild_component = self._safe_storage_component(str(envelope_obj.get("guild_id") or ""), "guild")
+        channel_component = self._safe_storage_component(str(envelope_obj.get("channel_id") or ""), "channel")
+        thread_component = self._safe_storage_component(str(envelope_obj.get("thread_id") or ""), "__root__")
+        target_dir = self._security_bucket_dir("guild_messages") / guild_component / channel_component / thread_component
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target = target_dir / f"{message_id}.json"
         target.write_text(json.dumps({**payload, "message_id": message_id}, indent=2, ensure_ascii=False), encoding="utf-8")
         return {
             "message_id": message_id,
             "recorded_at": now,
-            "guild_id": cast(Mapping[str, Any], envelope).get("guild_id"),
-            "channel_id": cast(Mapping[str, Any], envelope).get("channel_id"),
-            "thread_id": cast(Mapping[str, Any], envelope).get("thread_id"),
+            "guild_id": envelope_obj.get("guild_id"),
+            "channel_id": envelope_obj.get("channel_id"),
+            "thread_id": envelope_obj.get("thread_id"),
+            "storage_path": str(target.relative_to(self._security_state_dir())),
         }
 
     def list_guild_message_history(
@@ -2851,7 +2903,7 @@ class AtelierService:
         thread_id: Optional[str] = None,
         limit: int = 50,
     ) -> Sequence[Mapping[str, Any]]:
-        records = self._load_bucket_records("guild_messages")
+        records = self._load_recursive_records("guild_messages")
         if guild_id:
             guild_id_norm = str(guild_id).strip()
             records = [item for item in records if str(cast(Mapping[str, Any], item.get("envelope") or {}).get("guild_id") or "").strip() == guild_id_norm]
@@ -2861,6 +2913,7 @@ class AtelierService:
         if thread_id:
             thread_id_norm = str(thread_id).strip()
             records = [item for item in records if str(cast(Mapping[str, Any], item.get("envelope") or {}).get("thread_id") or "").strip() == thread_id_norm]
+        records.sort(key=lambda item: str(item.get("recorded_at") or ""), reverse=True)
         return records[: max(1, min(int(limit), 250))]
 
     def mix_entropy(
@@ -3027,6 +3080,29 @@ class AtelierService:
             wand_id_norm = str(wand_id).strip()
             records = [item for item in records if str(item.get("wand_id") or "").strip() == wand_id_norm]
         return records[: max(1, min(int(limit), 250))]
+
+    def get_wand_status(
+        self,
+        *,
+        wand_id: str,
+    ) -> Mapping[str, Any]:
+        wand_id_norm = str(wand_id).strip()
+        if wand_id_norm == "":
+            raise ValueError("wand_id_required")
+        attestation_history = list(self.list_wand_damage_attestations(wand_id=wand_id_norm, limit=250))
+        epoch_history = list(self.list_wand_key_epochs(wand_id=wand_id_norm, limit=250))
+        latest_attestation = attestation_history[0] if attestation_history else None
+        latest_epoch = epoch_history[0] if epoch_history else None
+        revoked = bool(latest_epoch.get("revoked")) if isinstance(latest_epoch, Mapping) else False
+        return {
+            "wand_id": wand_id_norm,
+            "revoked": revoked,
+            "status": "revoked" if revoked else "active",
+            "latest_attestation": latest_attestation,
+            "latest_epoch": latest_epoch,
+            "attestation_count": len(attestation_history),
+            "epoch_count": len(epoch_history),
+        }
 
     def list_contacts(self, workspace_id: str) -> Sequence[ContactOut]:
         rows = self._require_repo().list_contacts(workspace_id=workspace_id)

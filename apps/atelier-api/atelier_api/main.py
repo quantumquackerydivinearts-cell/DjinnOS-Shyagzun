@@ -824,6 +824,8 @@ def transition_wand_key_epoch(
 ) -> Mapping[str, Any]:
     _enforce(ctx, "lesson.read")
     _enforce_role(role, "lesson.read")
+    if payload.revoked and role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required_for_revocation")
     try:
         return svc.transition_wand_key_epoch(
             wand_id=payload.wand_id,
@@ -837,6 +839,22 @@ def transition_wand_key_epoch(
             revoked=payload.revoked,
             metadata=payload.metadata,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/security/wand/status")
+def get_wand_status(
+    wand_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.get_wand_status(wand_id=wand_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

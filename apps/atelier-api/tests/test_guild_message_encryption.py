@@ -6,7 +6,40 @@ import os
 import shutil
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
+from atelier_api.main import (
+    _atelier_service,
+    _capability_context,
+    _role_context,
+    _workshop_context,
+    app,
+)
 from atelier_api.services import AtelierService
+
+
+def _temple_source() -> dict[str, object]:
+    return {
+        "schema_family": "temple_entropy_source",
+        "schema_version": "v1",
+        "provenance_id": "garden.north-bed.epoch3",
+        "source_type": "garden_observation",
+        "state_digest": "temple_state_123",
+        "garden_id": "temple.main",
+        "plot_id": "north-bed",
+    }
+
+
+def _theatre_source() -> dict[str, object]:
+    return {
+        "schema_family": "theatre_entropy_source",
+        "schema_version": "v1",
+        "provenance_id": "theatre.performance.esoteric_01",
+        "source_type": "performance_upload",
+        "media_digest": "theatre_media_456",
+        "performance_id": "esoteric_01",
+        "upload_id": "upload_01",
+    }
 
 
 def test_encrypt_guild_message_runtime_emits_envelope() -> None:
@@ -177,13 +210,14 @@ def test_guild_message_history_and_revocation_gate() -> None:
         temple_entropy_digest="temple_digest_123",
         theatre_entropy_digest="theatre_digest_456",
         attestation_media_digests=["abc"],
-        temple_entropy_source={"plot": "north-bed", "epoch": 3},
-        theatre_entropy_source={"performance": "esoteric_01"},
+        temple_entropy_source=_temple_source(),
+        theatre_entropy_source=_theatre_source(),
         attestation_sources=[{"filename": "wand.heic", "sha256": "abc"}],
         metadata={"purpose": "test"},
     )
     persisted = svc.persist_guild_message_envelope(envelope=envelope, metadata={"source": "test"})
     assert str(persisted["message_id"]).startswith("gmsg_")
+    assert "guild_messages" in str(persisted["storage_path"])
     history = svc.list_guild_message_history(guild_id="guild.atelier", channel_id="hall.general", thread_id="thread_001")
     assert len(history) == 1
 
@@ -230,3 +264,102 @@ def test_guild_message_history_and_revocation_gate() -> None:
         assert str(exc) == "wand_revoked"
     os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
     shutil.rmtree(tmp_path)
+
+
+def test_get_wand_status_reports_latest_epoch() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-security-status")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+
+    class _KernelStub:
+        def validate_wand_damage_attestation(self, **kwargs):
+            return {
+                "ok": True,
+                "normalized_media": kwargs["media"],
+                "damage_state": kwargs["damage_state"],
+            }
+
+    svc._kernel = _KernelStub()
+    record = svc.persist_wand_damage_attestation(
+        wand_id="wand_002",
+        notifier_id="Zo@user",
+        damage_state="cracked",
+        event_tag="lineage_shift",
+        media=[{"filename": "wand.heic", "mime_type": "image/heic", "sha256": "def"}],
+        payload={"source": "test"},
+        actor_id="player",
+        workshop_id="main",
+    )
+    svc.transition_wand_key_epoch(
+        wand_id="wand_002",
+        attestation_record_id=str(record["record_id"]),
+        notifier_id="Zo@user",
+        previous_epoch_id=None,
+        damage_state="cracked",
+        temple_entropy_digest="temple_digest_123",
+        theatre_entropy_digest="theatre_digest_456",
+        attestation_media_digests=["def"],
+        revoked=False,
+        metadata={"reason": "test"},
+    )
+    status = svc.get_wand_status(wand_id="wand_002")
+    assert status["wand_id"] == "wand_002"
+    assert status["revoked"] is False
+    assert status["status"] == "active"
+    assert status["attestation_count"] == 1
+    assert status["epoch_count"] == 1
+    assert status["latest_epoch"]["damage_state"] == "cracked"
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)
+
+
+def test_mix_entropy_rejects_invalid_nonempty_source_contract() -> None:
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+    try:
+        svc.mix_entropy(
+            wand_id="wand_001",
+            temple_entropy_digest=None,
+            theatre_entropy_digest=None,
+            attestation_media_digests=[],
+            temple_entropy_source={"plot": "north-bed"},
+            theatre_entropy_source={},
+            attestation_sources=[],
+            context={"source": "test"},
+        )
+        assert False, "expected temple source contract failure"
+    except ValueError as exc:
+        assert str(exc) == "temple_entropy_source_schema_family_invalid"
+
+
+def test_wand_epoch_transition_revocation_requires_steward() -> None:
+    class _ServiceStub:
+        def transition_wand_key_epoch(self, **kwargs):
+            return {"epoch_id": "wep_stub", "revoked": kwargs["revoked"]}
+
+    app.dependency_overrides[_capability_context] = lambda: type("CapCtx", (), {"actor_id": "tester", "capabilities": frozenset({"lesson.read"})})()
+    app.dependency_overrides[_workshop_context] = lambda: type(
+        "WsCtx",
+        (),
+        {"identity": type("WsIdentity", (), {"artisan_id": "artisan", "workshop_id": "main"})()},
+    )()
+    app.dependency_overrides[_role_context] = lambda: type("RoleCtx", (), {"role": "senior_artisan"})()
+    app.dependency_overrides[_atelier_service] = lambda: _ServiceStub()
+    try:
+        client = TestClient(app)
+        response = client.post(
+            "/v1/security/wand/epoch-transition",
+            json={
+                "wand_id": "wand_001",
+                "attestation_record_id": "watt_001",
+                "notifier_id": "Zo@user",
+                "damage_state": "broken",
+                "revoked": True,
+            },
+        )
+        assert response.status_code == 403
+        assert response.json()["detail"] == "steward_required_for_revocation"
+    finally:
+        app.dependency_overrides.clear()

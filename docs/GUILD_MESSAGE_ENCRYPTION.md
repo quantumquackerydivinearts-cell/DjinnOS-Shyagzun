@@ -25,6 +25,8 @@ Important constraint:
 
 Related schema:
 - `schemas/guild_message_envelope.schema.json`
+- `schemas/temple_entropy_source.schema.json`
+- `schemas/theatre_entropy_source.schema.json`
 
 Desktop surfaces:
 - `Guild Hall`
@@ -39,3 +41,7 @@ Desktop surfaces:
 Relationship to wand damage attestation:
 - validated wand damage media digests can be copied directly into guild message derivation
 - this allows damage attestation state to influence later message key epochs without mutating provenance
+
+Source provenance:
+- non-empty temple and theatre source records are now versioned contracts
+- the mixer rejects non-empty source payloads that do not match their schema family/version expectations
