@@ -6249,6 +6249,16 @@ export function App() {
   const [guildPersistOutput, setGuildPersistOutput] = useState(null);
   const [guildMessageHistory, setGuildMessageHistory] = useState([]);
   const [guildWandStatus, setGuildWandStatus] = useState(null);
+  const [wandRegistryWandId, setWandRegistryWandId] = useState("wand_001");
+  const [wandRegistryMakerId, setWandRegistryMakerId] = useState("maker.quant");
+  const [wandRegistryAtelierOrigin, setWandRegistryAtelierOrigin] = useState("atelier.guildhall");
+  const [wandRegistryStructuralFingerprint, setWandRegistryStructuralFingerprint] = useState("");
+  const [wandRegistryCraftRecordHash, setWandRegistryCraftRecordHash] = useState("");
+  const [wandRegistryMaterialProfileText, setWandRegistryMaterialProfileText] = useState("{\n  \"wood\": \"ash\",\n  \"core\": \"silver-thread\"\n}");
+  const [wandRegistryOwnershipChainText, setWandRegistryOwnershipChainText] = useState('[\n  {\n    "owner_id": "player",\n    "epoch": "creation"\n  }\n]');
+  const [wandRegistryMetadataText, setWandRegistryMetadataText] = useState('{\n  "display_name": "North Ash Wand"\n}');
+  const [wandRegistryList, setWandRegistryList] = useState([]);
+  const [wandRegistryOutput, setWandRegistryOutput] = useState(null);
   const [guildTempleProvenanceHistory, setGuildTempleProvenanceHistory] = useState(() => {
     const raw = localStorage.getItem("atelier.temple_provenance_history");
     if (!raw) return [];
@@ -12364,6 +12374,61 @@ export function App() {
     await loadWandStatus(guildWandId, setGuildWandStatus);
   };
 
+  const registerWandRegistryEntry = async () => {
+    await runAction("wand_registry_register", async () => {
+      const data = await apiCall("/v1/security/wands/register", "POST", {
+        wand_id: String(wandRegistryWandId || "").trim(),
+        maker_id: String(wandRegistryMakerId || "").trim(),
+        atelier_origin: String(wandRegistryAtelierOrigin || "").trim(),
+        structural_fingerprint: String(wandRegistryStructuralFingerprint || "").trim(),
+        craft_record_hash: String(wandRegistryCraftRecordHash || "").trim(),
+        material_profile: parseObjectJson(wandRegistryMaterialProfileText, {}),
+        ownership_chain: (() => {
+          try {
+            const parsed = JSON.parse(wandRegistryOwnershipChainText || "[]");
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        })(),
+        metadata: parseObjectJson(wandRegistryMetadataText, {}),
+      });
+      setWandRegistryOutput(data);
+      setWandRegistryWandId(String(data?.wand_id || wandRegistryWandId));
+      await fetchWandStatus(String(data?.wand_id || wandRegistryWandId), setGuildWandStatus);
+      await loadWandRegistryList();
+      return data;
+    });
+  };
+
+  const loadWandRegistryList = async () => {
+    await runAction("wand_registry_list", async () => {
+      const data = await apiCall("/v1/security/wands?limit=50", "GET");
+      setWandRegistryList(Array.isArray(data) ? data : []);
+      return data;
+    });
+  };
+
+  const loadWandRegistryEntry = async (wandId = wandRegistryWandId) => {
+    await runAction("wand_registry_get", async () => {
+      const safeWandId = String(wandId || "").trim();
+      if (!safeWandId) {
+        throw new Error("wand_id_required");
+      }
+      const data = await apiCall(`/v1/security/wands/${encodeURIComponent(safeWandId)}`, "GET");
+      setWandRegistryOutput(data);
+      setWandRegistryWandId(String(data?.wand_id || safeWandId));
+      setWandRegistryMakerId(String(data?.maker_id || ""));
+      setWandRegistryAtelierOrigin(String(data?.atelier_origin || ""));
+      setWandRegistryStructuralFingerprint(String(data?.structural_fingerprint || ""));
+      setWandRegistryCraftRecordHash(String(data?.craft_record_hash || ""));
+      setWandRegistryMaterialProfileText(JSON.stringify(data?.material_profile || {}, null, 2));
+      setWandRegistryOwnershipChainText(JSON.stringify(data?.ownership_chain || [], null, 2));
+      setWandRegistryMetadataText(JSON.stringify(data?.metadata || {}, null, 2));
+      return data;
+    });
+  };
+
   const loadMigrationStatus = async () => {
     await runAction("migration_status", async () => {
       const data = await apiCall("/v1/admin/migrations/status", "GET");
@@ -15641,6 +15706,37 @@ export function App() {
             <button className="action" onClick={listLessons}>Refresh Lessons</button>
             <button className="action" onClick={listModules}>Refresh Modules</button>
           </div>
+          <h3>Wand Registry</h3>
+          <div className="row">
+            <input value={wandRegistryWandId} onChange={(e) => setWandRegistryWandId(e.target.value)} placeholder="wand id" />
+            <input value={wandRegistryMakerId} onChange={(e) => setWandRegistryMakerId(e.target.value)} placeholder="maker id" />
+            <input value={wandRegistryAtelierOrigin} onChange={(e) => setWandRegistryAtelierOrigin(e.target.value)} placeholder="atelier origin" />
+          </div>
+          <div className="row">
+            <input value={wandRegistryStructuralFingerprint} onChange={(e) => setWandRegistryStructuralFingerprint(e.target.value)} placeholder="structural fingerprint" />
+            <input value={wandRegistryCraftRecordHash} onChange={(e) => setWandRegistryCraftRecordHash(e.target.value)} placeholder="craft record hash" />
+            <button className="action" onClick={registerWandRegistryEntry}>Register Wand</button>
+            <button className="action" onClick={() => loadWandRegistryEntry()}>Load Wand</button>
+            <button className="action" onClick={loadWandRegistryList}>Load Registry</button>
+          </div>
+          <div className="row">
+            <textarea value={wandRegistryMaterialProfileText} onChange={(e) => setWandRegistryMaterialProfileText(e.target.value)} placeholder="material profile JSON" rows={4} />
+            <textarea value={wandRegistryOwnershipChainText} onChange={(e) => setWandRegistryOwnershipChainText(e.target.value)} placeholder="ownership chain JSON array" rows={4} />
+            <textarea value={wandRegistryMetadataText} onChange={(e) => setWandRegistryMetadataText(e.target.value)} placeholder="wand metadata JSON" rows={4} />
+          </div>
+          <div className="row">
+            <select value={wandRegistryWandId} onChange={(e) => setWandRegistryWandId(e.target.value)}>
+              <option value="">select registered wand</option>
+              {wandRegistryList.map((item) => (
+                <option key={`wand-reg-${String(item?.wand_id || "")}`} value={String(item?.wand_id || "")}>
+                  {`${String(item?.wand_id || "")} :: ${String(item?.maker_id || "")}`}
+                </option>
+              ))}
+            </select>
+            <span className="badge">{`Registry count: ${wandRegistryList.length}`}</span>
+          </div>
+          <pre>{JSON.stringify(wandRegistryOutput || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(wandRegistryList || [], null, 2)}</pre>
           <div className="row">
             <input value={guildId} onChange={(e) => setGuildId(e.target.value)} placeholder="guild id" />
             <input value={guildChannelId} onChange={(e) => setGuildChannelId(e.target.value)} placeholder="channel id" />

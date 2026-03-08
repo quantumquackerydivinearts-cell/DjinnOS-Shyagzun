@@ -33,6 +33,7 @@ from .models import (
     GuildMessageEnvelopeRecord,
     WandDamageAttestationRecord,
     WandKeyEpochRecord,
+    WandRegistryRecord,
 )
 
 
@@ -487,5 +488,22 @@ class AtelierRepository:
             stmt = stmt.where(WandKeyEpochRecord.wand_id == wand_id)
         stmt = stmt.order_by(WandKeyEpochRecord.recorded_at.desc(), WandKeyEpochRecord.id.desc()).limit(
             max(1, min(int(limit), 250))
+        )
+        return self._db.scalars(stmt).all()
+
+    def get_wand_registry_record(self, wand_id: str) -> WandRegistryRecord | None:
+        return self._db.scalar(select(WandRegistryRecord).where(WandRegistryRecord.wand_id == wand_id))
+
+    def save_wand_registry_record(self, row: WandRegistryRecord) -> WandRegistryRecord:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_wand_registry_records(self, limit: int = 50) -> Sequence[WandRegistryRecord]:
+        stmt = (
+            select(WandRegistryRecord)
+            .order_by(WandRegistryRecord.updated_at.desc(), WandRegistryRecord.id.desc())
+            .limit(max(1, min(int(limit), 250)))
         )
         return self._db.scalars(stmt).all()

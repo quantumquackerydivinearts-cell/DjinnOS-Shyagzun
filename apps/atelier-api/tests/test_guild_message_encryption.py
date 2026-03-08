@@ -363,3 +363,38 @@ def test_wand_epoch_transition_revocation_requires_steward() -> None:
         assert response.json()["detail"] == "steward_required_for_revocation"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_register_and_list_wand_registry_file_fallback() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-wand-registry")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+
+    record = svc.register_wand(
+        wand_id="wand_registry_001",
+        maker_id="maker.quant",
+        atelier_origin="atelier.guildhall",
+        material_profile={"wood": "ash", "core": "silver-thread"},
+        structural_fingerprint="fp_001",
+        craft_record_hash="craft_hash_001",
+        ownership_chain=[{"owner_id": "player", "epoch": "creation"}],
+        metadata={"display_name": "North Ash Wand"},
+    )
+    assert record["wand_id"] == "wand_registry_001"
+    assert record["maker_id"] == "maker.quant"
+
+    stored = tmp_path / "wand_registry" / "wand_registry_001.json"
+    assert stored.exists()
+
+    loaded = svc.get_wand_registry_entry(wand_id="wand_registry_001")
+    assert loaded["craft_record_hash"] == "craft_hash_001"
+    assert loaded["material_profile"]["wood"] == "ash"
+
+    records = svc.list_wand_registry(limit=10)
+    assert any(item["wand_id"] == "wand_registry_001" for item in records)
+
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)

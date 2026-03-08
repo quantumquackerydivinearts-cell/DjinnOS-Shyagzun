@@ -17,16 +17,20 @@ from typing import Any, Mapping, Optional, Sequence, cast
 
 
 def _ensure_repo_root_on_path() -> None:
-    if "qqva" in sys.modules:
-        return
     current = Path(__file__).resolve()
     candidates = [current.parents[3], current.parents[2], current.parents[1]]
     for candidate in candidates:
         qqva_dir = candidate / "qqva"
+        shygazun_dir = candidate / "DjinnOS-Shyagzun"
         if qqva_dir.is_dir():
             candidate_str = str(candidate)
             if candidate_str not in sys.path:
                 sys.path.insert(0, candidate_str)
+        if shygazun_dir.is_dir():
+            shygazun_str = str(shygazun_dir)
+            if shygazun_str not in sys.path:
+                sys.path.insert(0, shygazun_str)
+        if qqva_dir.is_dir() or shygazun_dir.is_dir():
             return
 
 
@@ -251,6 +255,7 @@ from .models import (
     GuildMessageEnvelopeRecord,
     WandDamageAttestationRecord,
     WandKeyEpochRecord,
+    WandRegistryRecord,
 )
 from .repositories import AtelierRepository
 from .validators import build_scene_graph_content_from_cobra, validate_cobra_content, validate_json_content, validate_scene_realm
@@ -3273,6 +3278,131 @@ class AtelierService:
             "attestation_count": len(attestation_history),
             "epoch_count": len(epoch_history),
         }
+
+    def register_wand(
+        self,
+        *,
+        wand_id: str,
+        maker_id: str,
+        atelier_origin: str,
+        material_profile: Mapping[str, Any],
+        structural_fingerprint: str,
+        craft_record_hash: str,
+        ownership_chain: Sequence[Mapping[str, Any]],
+        metadata: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        wand_id_norm = str(wand_id).strip()
+        maker_id_norm = str(maker_id).strip()
+        if wand_id_norm == "":
+            raise ValueError("wand_id_required")
+        if maker_id_norm == "":
+            raise ValueError("maker_id_required")
+        now = datetime.now(timezone.utc).isoformat()
+        payload = {
+            "wand_id": wand_id_norm,
+            "maker_id": maker_id_norm,
+            "atelier_origin": str(atelier_origin or "").strip(),
+            "material_profile": dict(material_profile),
+            "structural_fingerprint": str(structural_fingerprint or "").strip(),
+            "craft_record_hash": str(craft_record_hash or "").strip(),
+            "ownership_chain": [dict(item) for item in ownership_chain if isinstance(item, Mapping)],
+            "metadata": dict(metadata),
+            "status": "active",
+            "created_at": now,
+            "updated_at": now,
+        }
+        if self._repo is not None and hasattr(self._repo, "get_wand_registry_record") and hasattr(self._repo, "save_wand_registry_record"):
+            try:
+                existing = self._repo.get_wand_registry_record(wand_id_norm)
+                if existing is None:
+                    existing = WandRegistryRecord(wand_id=wand_id_norm, maker_id=maker_id_norm)
+                existing.maker_id = maker_id_norm
+                existing.atelier_origin = str(atelier_origin or "").strip()
+                existing.material_profile_json = json.dumps(dict(material_profile), ensure_ascii=False)
+                existing.structural_fingerprint = str(structural_fingerprint or "").strip()
+                existing.craft_record_hash = str(craft_record_hash or "").strip()
+                existing.ownership_chain_json = json.dumps(
+                    [dict(item) for item in ownership_chain if isinstance(item, Mapping)],
+                    ensure_ascii=False,
+                )
+                existing.metadata_json = json.dumps(dict(metadata), ensure_ascii=False)
+                existing.status = "active"
+                existing.updated_at = datetime.fromisoformat(now.replace("Z", "+00:00"))
+                saved = self._repo.save_wand_registry_record(existing)
+                return {
+                    "wand_id": saved.wand_id,
+                    "maker_id": saved.maker_id,
+                    "atelier_origin": saved.atelier_origin,
+                    "status": saved.status,
+                    "updated_at": saved.updated_at.isoformat(),
+                    "storage_backend": "database",
+                }
+            except Exception:
+                pass
+        target = self._security_bucket_dir("wand_registry") / f"{wand_id_norm}.json"
+        target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        return {
+            "wand_id": wand_id_norm,
+            "maker_id": maker_id_norm,
+            "atelier_origin": str(atelier_origin or "").strip(),
+            "status": "active",
+            "updated_at": now,
+            "storage_backend": "file",
+        }
+
+    def get_wand_registry_entry(self, *, wand_id: str) -> Mapping[str, Any]:
+        wand_id_norm = str(wand_id).strip()
+        if wand_id_norm == "":
+            raise ValueError("wand_id_required")
+        if self._repo is not None and hasattr(self._repo, "get_wand_registry_record"):
+            try:
+                row = self._repo.get_wand_registry_record(wand_id_norm)
+                if row is not None:
+                    return {
+                        "wand_id": row.wand_id,
+                        "maker_id": row.maker_id,
+                        "atelier_origin": row.atelier_origin,
+                        "material_profile": json.loads(row.material_profile_json),
+                        "structural_fingerprint": row.structural_fingerprint,
+                        "craft_record_hash": row.craft_record_hash,
+                        "ownership_chain": json.loads(row.ownership_chain_json),
+                        "metadata": json.loads(row.metadata_json),
+                        "status": row.status,
+                        "created_at": row.created_at.isoformat(),
+                        "updated_at": row.updated_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+            except Exception:
+                pass
+        path = self._security_bucket_dir("wand_registry") / f"{wand_id_norm}.json"
+        if not path.exists():
+            raise ValueError("wand_not_found")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("wand_not_found")
+        return {**payload, "storage_backend": "file"}
+
+    def list_wand_registry(self, *, limit: int = 50) -> Sequence[Mapping[str, Any]]:
+        if self._repo is not None and hasattr(self._repo, "list_wand_registry_records"):
+            try:
+                rows = self._repo.list_wand_registry_records(limit=limit)
+                return [
+                    {
+                        "wand_id": row.wand_id,
+                        "maker_id": row.maker_id,
+                        "atelier_origin": row.atelier_origin,
+                        "structural_fingerprint": row.structural_fingerprint,
+                        "craft_record_hash": row.craft_record_hash,
+                        "status": row.status,
+                        "updated_at": row.updated_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+                    for row in rows
+                ]
+            except Exception:
+                pass
+        records = self._load_bucket_records("wand_registry")
+        return records[: max(1, min(int(limit), 250))]
 
     def get_migration_status(self) -> Mapping[str, Any]:
         repo_root = self._repo_root_path()

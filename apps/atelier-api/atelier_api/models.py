@@ -457,3 +457,20 @@ class WandKeyEpochRecord(Base):
     entropy_mix_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class WandRegistryRecord(Base):
+    __tablename__ = "wand_registry"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    wand_id: Mapped[str] = mapped_column(String(160), nullable=False, unique=True)
+    maker_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    atelier_origin: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    material_profile_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    structural_fingerprint: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    craft_record_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    ownership_chain_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    status: Mapped[str] = mapped_column(String(80), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)

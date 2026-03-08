@@ -314,6 +314,17 @@ class WandEpochTransitionInput(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class WandRegistryInput(BaseModel):
+    wand_id: str
+    maker_id: str
+    atelier_origin: str = ""
+    material_profile: Dict[str, Any] = Field(default_factory=dict)
+    structural_fingerprint: str = ""
+    craft_record_hash: str = ""
+    ownership_chain: list[Dict[str, Any]] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class AdminGateVerifyInput(BaseModel):
     gate_code: str
 
@@ -877,6 +888,60 @@ def get_wand_status(
         return svc.get_wand_status(wand_id=wand_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/security/wands/register")
+def register_wand(
+    payload: WandRegistryInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "kernel.attest")
+    _enforce_role(role, "kernel.attest")
+    try:
+        return svc.register_wand(
+            wand_id=payload.wand_id,
+            maker_id=payload.maker_id,
+            atelier_origin=payload.atelier_origin,
+            material_profile=payload.material_profile,
+            structural_fingerprint=payload.structural_fingerprint,
+            craft_record_hash=payload.craft_record_hash,
+            ownership_chain=payload.ownership_chain,
+            metadata=payload.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/security/wands")
+def list_registered_wands(
+    limit: int = 50,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[Mapping[str, Any]]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_wand_registry(limit=limit)
+
+
+@app.get("/v1/security/wands/{wand_id}")
+def get_registered_wand(
+    wand_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.get_wand_registry_entry(wand_id=wand_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/v1/security/wand/epochs")
