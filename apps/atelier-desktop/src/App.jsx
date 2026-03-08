@@ -6358,6 +6358,15 @@ export function App() {
     localStorage.setItem("atelier.theatre_provenance_history", JSON.stringify(guildTheatreProvenanceHistory));
   }, [guildTheatreProvenanceHistory]);
 
+  useEffect(() => {
+    if (section !== "Temple and Gardens" && section !== "Guild Hall") {
+      return;
+    }
+    loadWandRegistryList().catch((error) => {
+      console.error("wand_registry_autoload_failed", error);
+    });
+  }, [section]);
+
   const rememberProvenanceId = (kind, value) => {
     const normalized = String(value || "").trim();
     if (!normalized) {
