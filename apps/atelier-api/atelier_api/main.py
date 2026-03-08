@@ -298,6 +298,12 @@ class GuildMessagePersistInput(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class GuildMessageRelayStatusInput(BaseModel):
+    message_id: str
+    relay_status: str
+    receipt: Dict[str, Any] = Field(default_factory=dict)
+
+
 class EntropyMixInput(BaseModel):
     wand_id: str
     temple_entropy_digest: Optional[str] = None
@@ -1086,6 +1092,22 @@ def get_registered_distribution(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@app.get("/v1/distributions/registry/{distribution_id}/key-discovery")
+def get_distribution_key_discovery(
+    distribution_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.get_distribution_key_descriptor(distribution_id=distribution_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.get("/v1/security/wand/epochs")
 def list_wand_key_epochs(
     wand_id: Optional[str] = None,
@@ -1174,6 +1196,26 @@ def persist_guild_message(
         envelope=payload.envelope.model_dump(),
         metadata=payload.metadata,
     )
+
+
+@app.post("/v1/guild/messages/relay-status")
+def update_guild_message_relay_status(
+    payload: GuildMessageRelayStatusInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.update_guild_message_relay_status(
+            message_id=payload.message_id,
+            relay_status=payload.relay_status,
+            receipt=payload.receipt,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/v1/guild/messages/history")

@@ -450,6 +450,17 @@ class AtelierRepository:
         )
         return self._db.scalars(stmt).all()
 
+    def get_guild_message_envelope_record(self, message_id: str) -> GuildMessageEnvelopeRecord | None:
+        return self._db.scalar(
+            select(GuildMessageEnvelopeRecord).where(GuildMessageEnvelopeRecord.message_id == message_id)
+        )
+
+    def save_guild_message_envelope_record(self, row: GuildMessageEnvelopeRecord) -> GuildMessageEnvelopeRecord:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
     def create_wand_damage_attestation_record(
         self,
         row: WandDamageAttestationRecord,

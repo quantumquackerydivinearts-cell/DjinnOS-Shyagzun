@@ -2829,6 +2829,14 @@ class AtelierService:
         latest_epoch = next(iter(self.list_wand_key_epochs(wand_id=wand_id_norm, limit=1)), None)
         if isinstance(latest_epoch, Mapping) and bool(latest_epoch.get("revoked")):
             raise ValueError("wand_revoked")
+        recipient_distribution_norm = str(recipient_distribution_id or "").strip()
+        recipient_metadata = dict(metadata)
+        if recipient_distribution_norm:
+            recipient_key = self.get_distribution_key_descriptor(distribution_id=recipient_distribution_norm)
+            recipient_metadata = {
+                **recipient_metadata,
+                "recipient_distribution_key": recipient_key,
+            }
         return self._encrypt_guild_message_runtime(
             guild_id=guild_id_norm,
             channel_id=channel_id_norm,
@@ -2836,7 +2844,7 @@ class AtelierService:
             wand_id=wand_id_norm,
             message_text=message_text_norm,
             thread_id=thread_id,
-            recipient_distribution_id=recipient_distribution_id,
+            recipient_distribution_id=recipient_distribution_norm or None,
             recipient_guild_id=recipient_guild_id,
             recipient_channel_id=recipient_channel_id,
             recipient_actor_id=recipient_actor_id,
@@ -2846,7 +2854,7 @@ class AtelierService:
             temple_entropy_source=temple_entropy_source,
             theatre_entropy_source=theatre_entropy_source,
             attestation_sources=attestation_sources,
-            metadata=metadata,
+            metadata=recipient_metadata,
         )
 
     def decrypt_guild_message(
@@ -2924,9 +2932,15 @@ class AtelierService:
     ) -> Mapping[str, Any]:
         envelope_obj = dict(envelope)
         now = datetime.now(timezone.utc).isoformat()
+        relay_status = "remote_pending" if str(envelope_obj.get("recipient_distribution_id") or "").strip() else "local_only"
+        persisted_metadata = {
+            **dict(metadata),
+            "relay_status": relay_status,
+            "delivery_receipts": list(dict(metadata).get("delivery_receipts") or []),
+        }
         payload = {
             "envelope": envelope_obj,
-            "metadata": dict(metadata),
+            "metadata": persisted_metadata,
             "recorded_at": now,
         }
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -2941,7 +2955,7 @@ class AtelierService:
                     sender_id=str(envelope_obj.get("sender_id") or ""),
                     wand_id=str(envelope_obj.get("wand_id") or ""),
                     envelope_json=json.dumps(envelope_obj, ensure_ascii=False),
-                    metadata_json=json.dumps(dict(metadata), ensure_ascii=False),
+                    metadata_json=json.dumps(persisted_metadata, ensure_ascii=False),
                     recorded_at=datetime.fromisoformat(now.replace("Z", "+00:00")),
                 )
                 self._repo.create_guild_message_envelope_record(row)
@@ -2951,6 +2965,8 @@ class AtelierService:
                     "guild_id": envelope_obj.get("guild_id"),
                     "channel_id": envelope_obj.get("channel_id"),
                     "thread_id": envelope_obj.get("thread_id"),
+                    "relay_status": relay_status,
+                    "delivery_receipts": [],
                     "storage_backend": "database",
                 }
             except Exception:
@@ -2968,9 +2984,78 @@ class AtelierService:
             "guild_id": envelope_obj.get("guild_id"),
             "channel_id": envelope_obj.get("channel_id"),
             "thread_id": envelope_obj.get("thread_id"),
+            "relay_status": relay_status,
+            "delivery_receipts": [],
             "storage_path": str(target.relative_to(self._security_state_dir())),
             "storage_backend": "file",
         }
+
+    def update_guild_message_relay_status(
+        self,
+        *,
+        message_id: str,
+        relay_status: str,
+        receipt: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        message_id_norm = str(message_id).strip()
+        relay_status_norm = str(relay_status).strip()
+        if message_id_norm == "":
+            raise ValueError("message_id_required")
+        if relay_status_norm == "":
+            raise ValueError("relay_status_required")
+        receipt_payload = dict(receipt)
+        if self._repo is not None and hasattr(self._repo, "get_guild_message_envelope_record") and hasattr(self._repo, "save_guild_message_envelope_record"):
+            try:
+                row = self._repo.get_guild_message_envelope_record(message_id_norm)
+                if row is not None:
+                    metadata = json.loads(row.metadata_json)
+                    receipts = metadata.get("delivery_receipts")
+                    if not isinstance(receipts, list):
+                        receipts = []
+                    receipts = [*receipts, {**receipt_payload, "recorded_at": datetime.now(timezone.utc).isoformat()}]
+                    metadata["delivery_receipts"] = receipts
+                    metadata["relay_status"] = relay_status_norm
+                    row.metadata_json = json.dumps(metadata, ensure_ascii=False)
+                    saved = self._repo.save_guild_message_envelope_record(row)
+                    return {
+                        "message_id": saved.message_id,
+                        "relay_status": relay_status_norm,
+                        "delivery_receipts": receipts,
+                        "storage_backend": "database",
+                    }
+            except Exception:
+                pass
+        records = self._load_recursive_records("guild_messages")
+        for record in records:
+            if str(record.get("message_id") or "").strip() != message_id_norm:
+                continue
+            metadata = record.get("metadata")
+            if not isinstance(metadata, dict):
+                metadata = {}
+            receipts = metadata.get("delivery_receipts")
+            if not isinstance(receipts, list):
+                receipts = []
+            receipts = [*receipts, {**receipt_payload, "recorded_at": datetime.now(timezone.utc).isoformat()}]
+            metadata["delivery_receipts"] = receipts
+            metadata["relay_status"] = relay_status_norm
+            path_str = record.get("storage_path")
+            if isinstance(path_str, str) and path_str:
+                target = self._security_state_dir() / path_str
+            else:
+                matches = list(self._security_bucket_dir("guild_messages").rglob(f"{message_id_norm}.json"))
+                if not matches:
+                    break
+                target = matches[0]
+            file_payload = json.loads(target.read_text(encoding="utf-8"))
+            file_payload["metadata"] = metadata
+            target.write_text(json.dumps(file_payload, indent=2, ensure_ascii=False), encoding="utf-8")
+            return {
+                "message_id": message_id_norm,
+                "relay_status": relay_status_norm,
+                "delivery_receipts": receipts,
+                "storage_backend": "file",
+            }
+        raise ValueError("message_not_found")
 
     def list_guild_message_history(
         self,
@@ -3716,6 +3801,20 @@ class AtelierService:
                 pass
         records = self._load_bucket_records("distribution_registry")
         return records[: max(1, min(int(limit), 250))]
+
+    def get_distribution_key_descriptor(self, *, distribution_id: str) -> Mapping[str, Any]:
+        record = self.get_distribution_registry_entry(distribution_id=distribution_id)
+        public_key_ref = str(record.get("public_key_ref") or "").strip()
+        if public_key_ref == "":
+            raise ValueError("recipient_distribution_key_unavailable")
+        return {
+            "distribution_id": str(record.get("distribution_id") or "").strip(),
+            "display_name": str(record.get("display_name") or "").strip(),
+            "base_url": str(record.get("base_url") or "").strip(),
+            "transport_kind": str(record.get("transport_kind") or "").strip(),
+            "public_key_ref": public_key_ref,
+            "status": str(record.get("status") or "").strip(),
+        }
 
     def get_migration_status(self) -> Mapping[str, Any]:
         repo_root = self._repo_root_path()

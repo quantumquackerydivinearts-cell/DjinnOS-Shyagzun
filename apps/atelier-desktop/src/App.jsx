@@ -6254,6 +6254,8 @@ export function App() {
   const [guildDecryptOutput, setGuildDecryptOutput] = useState(null);
   const [guildPersistOutput, setGuildPersistOutput] = useState(null);
   const [guildMessageHistory, setGuildMessageHistory] = useState([]);
+  const [guildRelayStatus, setGuildRelayStatus] = useState("remote_pending");
+  const [guildRelayReceiptText, setGuildRelayReceiptText] = useState('{\n  "relay_id": "relay_001"\n}');
   const [guildRegistryList, setGuildRegistryList] = useState([]);
   const [guildRegistryOutput, setGuildRegistryOutput] = useState(null);
   const [distributionId, setDistributionId] = useState("distribution.quantumquackery.main");
@@ -6398,6 +6400,17 @@ export function App() {
       console.error("distribution_registry_autoload_failed", error);
     });
   }, [section]);
+
+  useEffect(() => {
+    const selectedGuild = guildRegistryList.find((item) => String(item?.guild_id || "") === String(guildRecipientGuildId || "").trim());
+    if (!selectedGuild) {
+      return;
+    }
+    const homeDistribution = String(selectedGuild?.distribution_id || "").trim();
+    if (homeDistribution && homeDistribution !== String(guildRecipientDistributionId || "").trim()) {
+      setGuildRecipientDistributionId(homeDistribution);
+    }
+  }, [guildRecipientGuildId, guildRegistryList, guildRecipientDistributionId]);
 
   const rememberProvenanceId = (kind, value) => {
     const normalized = String(value || "").trim();
@@ -12417,6 +12430,30 @@ export function App() {
     });
   };
 
+  const updateGuildMessageRelayStatus = async () => {
+    await runAction("guild_message_relay_status", async () => {
+      const messageId = String(guildPersistOutput?.message_id || guildMessageHistory?.[0]?.message_id || "").trim();
+      if (!messageId) {
+        throw new Error("message_id_required");
+      }
+      const receipt = parseObjectJson(guildRelayReceiptText, {});
+      const mergedReceipt = {
+        distribution_id: guildRecipientDistributionId || null,
+        recipient_guild_id: guildRecipientGuildId || null,
+        recipient_channel_id: guildRecipientChannelId || null,
+        ...receipt,
+      };
+      const data = await apiCall("/v1/guild/messages/relay-status", "POST", {
+        message_id: messageId,
+        relay_status: String(guildRelayStatus || "").trim(),
+        receipt: mergedReceipt,
+      });
+      setGuildPersistOutput((prev) => ({ ...(prev || {}), ...data }));
+      await loadGuildMessageHistory();
+      return data;
+    });
+  };
+
   const loadGuildWandStatus = async () => {
     await loadWandStatus(guildWandId, setGuildWandStatus);
   };
@@ -16037,7 +16074,14 @@ export function App() {
                 </option>
               ))}
             </select>
-            <input value={guildRecipientGuildId} onChange={(e) => setGuildRecipientGuildId(e.target.value)} placeholder="recipient guild id" />
+            <select value={guildRecipientGuildId} onChange={(e) => setGuildRecipientGuildId(e.target.value)}>
+              <option value="">select recipient guild</option>
+              {guildRegistryList.map((item) => (
+                <option key={`guild-recipient-guild-${String(item?.guild_id || "")}`} value={String(item?.guild_id || "")}>
+                  {`${String(item?.guild_id || "")} :: ${String(item?.display_name || "")}`}
+                </option>
+              ))}
+            </select>
             <input value={guildRecipientChannelId} onChange={(e) => setGuildRecipientChannelId(e.target.value)} placeholder="recipient channel id" />
             <input value={guildRecipientActorId} onChange={(e) => setGuildRecipientActorId(e.target.value)} placeholder="recipient actor id" />
           </div>
@@ -16084,9 +16128,14 @@ export function App() {
               placeholder='attestation sources JSON array'
             />
             <button className="action" onClick={deriveGuildEntropyMix}>Derive Entropy Mix</button>
+            <button className="action" onClick={updateGuildMessageRelayStatus}>Update Relay Status</button>
             <button className="action" onClick={loadGuildWandStatus}>Load Wand Status</button>
             <button className="action" onClick={loadGuildMessageHistory}>Load Message History</button>
             <button className="action" onClick={() => runAction("guild_use_registered_wand", () => applyRegisteredWandSelection(guildWandId, { target: "guild", loadEntry: true }))}>Use Registry Wand</button>
+          </div>
+          <div className="row">
+            <input value={guildRelayStatus} onChange={(e) => setGuildRelayStatus(e.target.value)} placeholder="relay status" />
+            <textarea value={guildRelayReceiptText} onChange={(e) => setGuildRelayReceiptText(e.target.value)} placeholder="relay receipt JSON" rows={3} />
           </div>
           <div className="row">
             <span className="badge">{`Wand status: ${String(guildWandStatus?.status || "unknown")}`}</span>
@@ -16122,6 +16171,7 @@ export function App() {
             <span className="badge">{`Revocation: ${guildWandStatus?.revoked ? "blocked" : "clear"}`}</span>
             <span className="badge">{`Status: ${String(guildWandStatus?.status || "unknown")}`}</span>
             <span className="badge">{`Remote: ${guildRecipientDistributionId || "none"} / ${guildRecipientGuildId || "none"}`}</span>
+            <span className="badge">{`Relay: ${String(guildPersistOutput?.relay_status || guildMessageHistory?.[0]?.metadata?.relay_status || "unknown")}`}</span>
           </div>
           <pre>{JSON.stringify(guildDecryptOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildMessageHistory || [], null, 2)}</pre>

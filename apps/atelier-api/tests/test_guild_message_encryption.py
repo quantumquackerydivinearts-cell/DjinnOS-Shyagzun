@@ -212,6 +212,15 @@ def test_guild_message_history_and_revocation_gate() -> None:
             }
 
     svc._kernel = _KernelStub()
+    svc.register_distribution(
+        distribution_id="distribution.remote.one",
+        display_name="Remote One",
+        base_url="https://remote.one.example",
+        transport_kind="https",
+        public_key_ref="pk_remote_one",
+        guild_ids=["guild.remote"],
+        metadata={"source": "test"},
+    )
     envelope = svc.encrypt_guild_message(
         guild_id="guild.atelier",
         channel_id="hall.general",
@@ -521,5 +530,60 @@ def test_register_and_list_distribution_registry_file_fallback() -> None:
     loaded = svc.get_distribution_registry_entry(distribution_id="distribution.quantumquackery.remote")
     assert loaded["base_url"] == "https://remote.quantumquackery.org"
     assert loaded["guild_ids"] == ["guild.atelier", "guild.remote"]
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)
+
+
+def test_distribution_key_discovery_and_relay_status_update() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-distribution-relay")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+
+    svc.register_distribution(
+        distribution_id="distribution.quantumquackery.remote",
+        display_name="Quantum Quackery Remote",
+        base_url="https://remote.quantumquackery.org",
+        transport_kind="https",
+        public_key_ref="pk_remote_001",
+        guild_ids=["guild.remote"],
+        metadata={"source": "test"},
+    )
+    descriptor = svc.get_distribution_key_descriptor(distribution_id="distribution.quantumquackery.remote")
+    assert descriptor["public_key_ref"] == "pk_remote_001"
+
+    envelope = svc.encrypt_guild_message(
+        guild_id="guild.atelier",
+        channel_id="hall.general",
+        sender_id="player",
+        wand_id="wand_001",
+        message_text="remote hello",
+        thread_id="thread_001",
+        recipient_distribution_id="distribution.quantumquackery.remote",
+        recipient_guild_id="guild.remote",
+        recipient_channel_id="hall.remote",
+        recipient_actor_id="remote-player",
+        temple_entropy_digest="temple_digest_123",
+        theatre_entropy_digest="theatre_digest_456",
+        attestation_media_digests=["abc"],
+        temple_entropy_source=_temple_source(),
+        theatre_entropy_source=_theatre_source(),
+        attestation_sources=[],
+        metadata={"purpose": "relay_test"},
+    )
+    assert envelope["metadata"]["recipient_distribution_key"]["public_key_ref"] == "pk_remote_001"
+    persisted = svc.persist_guild_message_envelope(envelope=envelope, metadata={"source": "test"})
+    assert persisted["relay_status"] == "remote_pending"
+    updated = svc.update_guild_message_relay_status(
+        message_id=str(persisted["message_id"]),
+        relay_status="delivered_remote",
+        receipt={"distribution_id": "distribution.quantumquackery.remote", "relay_id": "relay_001"},
+    )
+    assert updated["relay_status"] == "delivered_remote"
+    assert len(updated["delivery_receipts"]) == 1
+    history = svc.list_guild_message_history(guild_id="guild.atelier", channel_id="hall.general", thread_id="thread_001")
+    assert history[0]["metadata"]["relay_status"] == "delivered_remote"
     os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
     shutil.rmtree(tmp_path)
