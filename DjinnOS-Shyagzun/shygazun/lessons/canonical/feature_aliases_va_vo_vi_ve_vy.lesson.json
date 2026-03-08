@@ -1,0 +1,75 @@
+{
+  "lesson_id": "feature_aliases_animacy_embodiment_number_v1",
+  "tier": 203,
+  "lesson_type": "feature_aliases",
+  "title": "Feature-bearing akinen for animacy, number, embodiment, and implicit polarity",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 66, "binary": "01000010", "tongue": "Sakura", "symbol": "Va", "meaning": "Order / Structure / Life" },
+      { "decimal": 67, "binary": "01000011", "tongue": "Sakura", "symbol": "Vo", "meaning": "Chaos / Boundary-breakage / Mutation" },
+      { "decimal": 70, "binary": "01000110", "tongue": "Sakura", "symbol": "Vi", "meaning": "Body / Wherever / What" },
+      { "decimal": 68, "binary": "01000100", "tongue": "Sakura", "symbol": "Ve", "meaning": "Pieces / Not-wherever / Where" },
+      { "decimal": 71, "binary": "01000111", "tongue": "Sakura", "symbol": "Vy", "meaning": "Lifespan / Whenever / How" }
+    ]
+  },
+  "aliases": [
+    {
+      "token": "Va",
+      "english_alias": "animate",
+      "literal_gloss": "Animate",
+      "features": {
+        "animacy": "animate",
+        "sakura_axis": "life",
+        "space_polarity": "positive"
+      }
+    },
+    {
+      "token": "Vo",
+      "english_alias": "inanimate",
+      "literal_gloss": "Inanimate",
+      "features": {
+        "animacy": "inanimate",
+        "sakura_axis": "mutation",
+        "space_polarity": "negative"
+      }
+    },
+    {
+      "token": "Vi",
+      "english_alias": "body-singular",
+      "literal_gloss": "Body / singular",
+      "features": {
+        "number": "singular",
+        "embodiment": "body",
+        "space_polarity": "positive"
+      }
+    },
+    {
+      "token": "Ve",
+      "english_alias": "plural",
+      "literal_gloss": "Plural",
+      "features": {
+        "number": "plural",
+        "space_polarity": "negative"
+      }
+    },
+    {
+      "token": "Vy",
+      "english_alias": "spirit",
+      "literal_gloss": "Spirit",
+      "features": {
+        "embodiment": "spirit",
+        "time_polarity": "positive"
+      }
+    }
+  ],
+  "constraints": {
+    "authoritative_claims": [
+      "These akinen contribute feature-bearing semantic load and may encode multiple simultaneous dimensions.",
+      "Feature projection must not erase retained structural surplus when English cannot express every dimension."
+    ],
+    "forbidden_english": [
+      "Treating Va, Vo, Vi, Ve, and Vy as one-dimensional dictionary tokens"
+    ]
+  }
+}

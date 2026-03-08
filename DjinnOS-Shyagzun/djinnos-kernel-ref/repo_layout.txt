@@ -1,0 +1,81 @@
+shygazun/
+├── README.md
+├── LICENSE
+├── .gitignore
+│
+├── kernel/
+│   ├── README.md
+│   ├── core/
+│   │   ├── field.py
+│   │   ├── ceg.py
+│   │   ├── frontier.py
+│   │   ├── ledger.py
+│   │   ├── invariants.py
+│   │   └── kernel.py
+│   │
+│   ├── registers/
+│   │   ├── __init__.py
+│   │   ├── rose_stub.py
+│   │   └── sakura_stub.py
+│   │
+│   ├── policies/
+│   │   └── default_policy.py
+│   │
+│   ├── replay/
+│   │   ├── canonicalize.py
+│   │   └── replay_executor.py
+│   │
+│   ├── persistence/
+│   │   ├── event_log.py
+│   │   └── snapshots.py
+│   │
+│   └── service/
+│       ├── kernel_service.py   ← FastAPI / HTTP wrapper
+│       └── __main__.py
+│
+├── ide/
+│   ├── README.md
+│   ├── main.js                 ← Electron main (spawns kernel)
+│   ├── package.json
+│   ├── renderer/
+│   │   ├── App.jsx
+│   │   ├── components/
+│   │   │   ├── Workbench.jsx
+│   │   │   ├── Frontiers.jsx
+│   │   │   ├── Timeline.jsx
+│   │   │   ├── Conformance.jsx
+│   │   │   └── Witness.jsx
+│   │   └── lib/
+│   │       ├── kernel_client.ts
+│   │       └── canonical_json.ts
+│   │
+│   └── assets/
+│
+├── conformance/
+│   ├── README.md
+│   ├── v0.1.1/
+│   │   ├── conformance.json              ← ✅ PUT YOUR FILE HERE
+│   │   ├── conformance_runner_min_spec.md← ✅ GOES HERE
+│   │   └── fixtures/
+│   │       └── README.md
+│   │
+│   └── runners/
+│       ├── python/
+│       │   ├── runner.py
+│       │   └── requirements.txt
+│       ├── node/
+│       │   └── runner.ts
+│       └── README.md
+│
+├── scripts/
+│   ├── run_kernel_dev.sh
+│   ├── run_ide_dev.sh
+│   └── run_conformance.sh
+│
+└── docs/
+    ├── kernel_spec/
+    │   └── semantic_physics.md
+    ├── ide_spec/
+    │   └── ide_interface_v0.1.md
+    └── philosophy/
+        └── metaphysics.md

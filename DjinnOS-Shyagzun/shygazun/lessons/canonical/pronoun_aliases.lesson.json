@@ -1,0 +1,38 @@
+{
+  "lesson_id": "pronoun_aliases_sextal_wu_v1",
+  "tier": 203,
+  "lesson_type": "pronoun_paradigm",
+  "title": "Pronouns as Wu-based sextal aliases",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 45, "binary": "00101101", "tongue": "Rose", "symbol": "Wu", "meaning": "Process / Way" },
+      { "decimal": 98, "binary": "01100010", "tongue": "AppleBlossom", "symbol": "A", "meaning": "Mind +" },
+      { "decimal": 99, "binary": "01100011", "tongue": "AppleBlossom", "symbol": "O", "meaning": "Mind -" },
+      { "decimal": 100, "binary": "01100100", "tongue": "AppleBlossom", "symbol": "I", "meaning": "Space +" },
+      { "decimal": 101, "binary": "01100101", "tongue": "AppleBlossom", "symbol": "E", "meaning": "Space -" },
+      { "decimal": 102, "binary": "01100110", "tongue": "AppleBlossom", "symbol": "Y", "meaning": "Time +" },
+      { "decimal": 103, "binary": "01100111", "tongue": "AppleBlossom", "symbol": "U", "meaning": "Time -" }
+    ]
+  },
+  "paradigm": [
+    { "token": "Awu", "english_alias": "I", "person": 1, "number": "singular", "distance_from_speaker_mind": "self-center" },
+    { "token": "Owu", "english_alias": "We", "person": 1, "number": "plural", "distance_from_speaker_mind": "expanded-self-center" },
+    { "token": "Iwu", "english_alias": "You", "person": 2, "number": "singular", "distance_from_speaker_mind": "addressed-other" },
+    { "token": "Ewu", "english_alias": "Y'all", "person": 2, "number": "plural", "distance_from_speaker_mind": "addressed-collective" },
+    { "token": "Ywu", "english_alias": "They/He/She", "person": 3, "number": "singular", "distance_from_speaker_mind": "distal-singular" },
+    { "token": "Uwu", "english_alias": "They", "person": 3, "number": "plural", "distance_from_speaker_mind": "distal-plural" }
+  ],
+  "constraints": {
+    "authoritative_claims": [
+      "The sextal vowel lattice over Wu preserves person and number distinction by layered distance from the speaker-mind.",
+      "English aliases are projections of the pronoun lattice, not replacements for the underlying Shygazun structure."
+    ],
+    "forbidden_english": [
+      "Treating Awu and Owu as the same center",
+      "Collapsing Ywu and Uwu into a number-neutral third person",
+      "Treating the vowel slot as ornamental"
+    ]
+  }
+}
+

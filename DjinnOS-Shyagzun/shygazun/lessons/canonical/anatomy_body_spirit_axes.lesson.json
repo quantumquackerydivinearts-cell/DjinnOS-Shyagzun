@@ -1,0 +1,36 @@
+{
+  "lesson_id": "anatomy_body_spirit_axes_v1",
+  "tier": 203,
+  "lesson_type": "structural_regime",
+  "title": "Body and spirit anatomy axes are carried by Sakura embodiment tokens",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 70, "binary": "01000110", "tongue": "Sakura", "symbol": "Vi", "meaning": "Body / Wherever / What" },
+      { "decimal": 71, "binary": "01000111", "tongue": "Sakura", "symbol": "Vy", "meaning": "Lifespan / Whenever / How" }
+    ]
+  },
+  "verification_regimes": [
+    {
+      "regime_id": "sakura_embodiment_axes_present",
+      "description": "Embodiment analysis should expose Sakura-carried body/spirit axes through Vi and Vy-derived feature state.",
+      "source_tongues": ["Sakura"],
+      "mediator_tongues": [],
+      "validator_tongues": [],
+      "applies_to_kinds": ["feature_alias"],
+      "derived_features": {
+        "anatomy_axes": ["body", "spirit"],
+        "anatomy_frame": "sakura_embodiment",
+        "embodiment_mode": "dual_axis"
+      }
+    }
+  ],
+  "constraints": {
+    "authoritative_claims": [
+      "Body and spirit anatomy axes are explicitly carried by Sakura tokens and should survive bilingual feature composition."
+    ],
+    "forbidden_english": [
+      "Collapsing body and spirit into one undifferentiated anatomy label"
+    ]
+  }
+}

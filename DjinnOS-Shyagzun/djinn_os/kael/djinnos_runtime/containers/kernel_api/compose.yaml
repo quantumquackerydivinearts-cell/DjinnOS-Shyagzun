@@ -1,0 +1,17 @@
+services:
+  kernel_api:
+    build:
+      context: ../../../../..   # points at repo root (djinnos/)
+      dockerfile: djinnos/kael/djinnos_runtime/containers/kernel_api/Dockerfile
+    environment:
+      - PORT=8080
+      - LOG_LEVEL=info
+      # No “modes”. No semantics. Only ops.
+    ports:
+      - "${KERNEL_PORT:-8080}:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.connect(('127.0.0.1',8080)); s.close()"]
+      interval: 10s
+      timeout: 2s
+      retries: 10

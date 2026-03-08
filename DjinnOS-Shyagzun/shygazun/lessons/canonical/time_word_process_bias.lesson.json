@@ -1,0 +1,42 @@
+{
+  "lesson_id": "time_word_process_bias_v1",
+  "tier": 203,
+  "lesson_type": "structural_regime",
+  "title": "Time-bearing words are probable verb stems",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 102, "binary": "01100110", "tongue": "AppleBlossom", "symbol": "Y", "meaning": "Time +" },
+      { "decimal": 103, "binary": "01100111", "tongue": "AppleBlossom", "symbol": "U", "meaning": "Time -" },
+      { "decimal": 69, "binary": "01000101", "tongue": "Sakura", "symbol": "Vu", "meaning": "Death-moment / Never / Now" },
+      { "decimal": 71, "binary": "01000111", "tongue": "Sakura", "symbol": "Vy", "meaning": "Lifespan / Whenever / How" },
+      { "decimal": 45, "binary": "00101101", "tongue": "Rose", "symbol": "Wu", "meaning": "Process / Way" }
+    ]
+  },
+  "verification_regimes": [
+    {
+      "regime_id": "time_bearing_probable_verb_stem",
+      "description": "Time-bearing akinenwun should be treated as probable verb stems unless contradicted by stronger structure.",
+      "source_tongues": ["AppleBlossom"],
+      "mediator_tongues": ["Sakura"],
+      "validator_tongues": [],
+      "applies_to_kinds": ["akinenwun_surface", "lexeme_alias", "feature_alias"],
+      "required_features": {
+        "time_bearing": true
+      },
+      "derived_features": {
+        "stem_likelihood": "verbal",
+        "process_bias": "high",
+        "probable_verb_stem": true
+      }
+    }
+  ],
+  "constraints": {
+    "authoritative_claims": [
+      "If a word carries time directly, it is usually functioning verbally or as a strong process stem."
+    ],
+    "forbidden_english": [
+      "Treating time-bearing forms as purely static noun labels by default"
+    ]
+  }
+}

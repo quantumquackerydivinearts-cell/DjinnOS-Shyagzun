@@ -146,13 +146,13 @@ __pycache__/
 .venv/
 
 # Local repo-specific artifacts
-DjinnOS-Shyagzun/
 apps/atelier-api/atelier_local.db
 apps/atelier-api/release/
 apps/atelier-desktop/release/
 apps/atelier-desktop/.vite/
 releases/
 secrets/
+DjinnOS-Shyagzun/.git.gitbasin-backup/
 *.jks
 atelier-api-bundle.zip
 tmp_atelier_install/

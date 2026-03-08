@@ -1,0 +1,349 @@
+{
+  "version": "0.1.1",
+  "name": "Shygazun Kernel Conformance Pack (API-level)",
+  "normative_fixes": {
+    "fix_A": "EligibilityEvent uses candidate_id + candidate_hash (no embedded candidate)",
+    "fix_B": "Frontiers canonical order is id asc"
+  },
+  "base_url": "http://127.0.0.1:${PORT}",
+  "canonicalization": {
+    "json": {
+      "sort_object_keys": true,
+      "utf8": true,
+      "no_whitespace": true
+    },
+    "array_orders_required": {
+      "frontiers": "id_asc",
+      "ceg.events": "tick_asc_kind_asc_id_asc",
+      "ceg.edges": "from_asc_to_asc_type_asc"
+    },
+    "hash": {
+      "algorithm": "sha256",
+      "encoding": "hex"
+    },
+    "diff_exempt_metadata_keys_path": "$.diff_exempt_metadata_keys"
+  },
+  "jsonpath_dialect": "jayway",
+  "assumptions": {
+    "kernel_localhost": true,
+    "stubs": {
+      "RoseStub": {
+        "eligible_candidates": ["rose.link.alpha", "rose.link.beta"],
+        "mutual_conflict": true
+      },
+      "SakuraStub": {
+        "lotus_gated_candidate": "sakura.await.lotus",
+        "lotus_requirement": { "kind": "await_attestation", "attestation_tag": "closure" }
+      }
+    },
+    "initial_state": {
+      "field_empty": true,
+      "frontiers": [{ "id": "F0", "status": "active" }]
+    }
+  },
+  "vars": {
+    "field_id": null,
+    "frontier_id": "F0",
+    "candidate_alpha": "rose.link.alpha",
+    "candidate_beta": "rose.link.beta",
+    "candidate_to_commit": null,
+    "commitment_event_id": null,
+    "counter_event_id": null,
+    "field_snapshot_1": null,
+    "field_snapshot_2": null,
+    "field_hash_1": null,
+    "field_hash_2": null,
+    "replay_hash_1": null,
+    "replay_hash_2": null,
+    "diff_exempt_metadata_keys": []
+  },
+  "helpers": {
+    "canonical_hash_of_paths": [
+      { "name": "hash_ceg", "path": "$.ceg" },
+      { "name": "hash_field", "path": "$.field" },
+      { "name": "hash_frontiers", "path": "$.frontiers" },
+      { "name": "hash_replay_canonical", "path": "$.canonical" }
+    ]
+  },
+  "tests": [
+    {
+      "id": "T1",
+      "name": "Multi-frontier survival (divergence without collapse)",
+      "status": "required",
+      "steps": [
+        {
+          "id": "T1.S1",
+          "call": {
+            "method": "POST",
+            "path": "/v0.1/place",
+            "body": {
+              "utterance": { "raw": "A" },
+              "context": { "field_id": "{{field_id}}", "active_frontier_ids": ["{{frontier_id}}"] }
+            }
+          },
+          "save": {
+            "field_id": "$.field_id",
+            "diff_exempt_metadata_keys": "$.diff_exempt_metadata_keys"
+          },
+          "assert": [
+            { "type": "equals", "path": "$.placement_event.kind", "value": "placement" }
+          ]
+        },
+        {
+          "id": "T1.S2",
+          "call": {
+            "method": "POST",
+            "path": "/v0.1/evaluate_eligibility",
+            "body": { "field_id": "{{field_id}}", "frontier_ids": ["{{frontier_id}}"] }
+          },
+          "assert": [
+            { "type": "contains", "path": "$.eligible_by_frontier.F0[*].id", "value": "{{candidate_alpha}}" },
+            { "type": "contains", "path": "$.eligible_by_frontier.F0[*].id", "value": "{{candidate_beta}}" }
+          ]
+        },
+        {
+          "id": "T1.S3",
+          "call": { "method": "GET", "path": "/v0.1/ceg/{{field_id}}" },
+          "assert": [
+            { "type": "contains", "path": "$.events[?(@.kind=='eligibility' && @.frontier_id=='F0')].candidate_id", "value": "{{candidate_alpha}}" },
+            { "type": "contains", "path": "$.events[?(@.kind=='eligibility' && @.frontier_id=='F0')].candidate_id", "value": "{{candidate_beta}}" },
+            { "type": "exists", "path": "$.events[?(@.kind=='eligibility' && @.candidate_id=='{{candidate_alpha}}')].candidate_hash" },
+            { "type": "exists", "path": "$.events[?(@.kind=='eligibility' && @.candidate_id=='{{candidate_beta}}')].candidate_hash" }
+          ]
+        },
+        {
+          "id": "T1.S3b",
+          "call": { "method": "GET", "path": "/v0.1/ceg/{{field_id}}" },
+          "assert": [
+            { "type": "count_gte", "path": "$.edges[?(@.type=='conflicts')]", "value": 1 }
+          ]
+        },
+        {
+          "id": "T1.S4",
+          "call": { "method": "GET", "path": "/v0.1/frontiers/{{field_id}}" },
+          "assert": [
+            { "type": "equals", "path": "$.frontiers[0].id", "value": "F0" },
+            { "type": "equals", "path": "$.frontiers[0].status", "value": "active" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "name": "Witness-gated commit (no commitment without attest)",
+      "status": "required",
+      "steps": [
+        {
+          "id": "T3.S1",
+          "call": {
+            "method": "POST",
+            "path": "/v0.1/evaluate_eligibility",
+            "body": { "field_id": "{{field_id}}", "frontier_ids": ["{{frontier_id}}"] }
+          },
+          "save": {
+            "candidate_to_commit": "$.eligible_by_frontier.F0[0].id"
+          },
+          "assert": [
+            { "type": "exists", "path": "$.eligible_by_frontier.F0[0].id" }
+          ]
+        },
+        {
+          "id": "T3.S2",
+          "call": {
+            "method": "POST",
+            "path": "/v0.1/request_commit",
+            "body": { "field_id": "{{field_id}}", "frontier_id": "{{frontier_id}}", "candidate_id": "{{candidate_to_commit}}" }
+          }
+        },
+        {
+          "id": "T3.S3",
+          "call": { "method": "GET", "path": "/v0.1/ceg/{{field_id}}" },
+          "assert": [
+            { "type": "count_equals", "path": "$.events[?(@.kind=='commitment')]", "value": 0 }
+          ]
+        },
+        {
+          "id": "T3.S4",
+          "call": {
+            "method": "POST",
+            "path": "/v0.1/attest",
+            "body": {
+              "field_id": "{{field_id}}",
+              "attestation": { "witness_id": "qa_witness_1", "kind": "recognition", "tag": "qa", "payload": {} },
+              "target": { "frontier_id": "{{frontier_id}}", "candidate_id": "{{candidate_to_commit}}" }
+            }
+          },
+          "save": {
+            "commitment_event_id": "$.committed.id"
+          },
+          "assert": [
+            { "type": "equals", "path": "$.committed.kind", "value": "commitment" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T4",
+      "name": "Lotus await never resolves internally",
+      "status": "required",
+      "steps": [
+        {
+          "id": "T4.S1",
+          "call": {
+            "method": "POST",
+            "path": "/v0.1/place",
+            "body": {
+              "utterance": { "raw": "B" },
+              "context": { "field_id": "{{field_id}}", "active_frontier_ids": ["{{frontier_id}}"] }
+            }
+          }
+        },
+        {
+          "id": "T4.S2",
+          "repeat": 3,
+          "call": {
+            "method": "POST",
+            "path": "/v0.1/evaluate_eligibility",
+            "body": { "field_id": "{{field_id}}", "frontier_ids": ["{{frontier_id}}"] }
+          },
+          "assert": [
+            { "type": "not_contains", "path": "$.eligible_by_frontier.F0[*].id", "value": "sakura.await.lotus" },
+            { "type": "contains_any", "path": "$.refusals[*].reason_code", "values": ["await-lotus"] }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T5",
+      "name": "Lotus attestation only changes lotus state",
+      "status": "required",
+      "steps": [
+        {
+          "id": "T5.S1",
+          "call": { "method": "GET", "path": "/v0.1/field/{{field_id}}" },
+          "save": {
+            "field_snapshot_1": "$.field",
+            "field_hash_1": { "canonical_hash": "$.field", "exclude_metadata_keys_from": "{{diff_exempt_metadata_keys}}" }
+          }
+        },
+        {
+          "id": "T5.S2",
+          "call": {
+            "method": "POST",
+            "path": "/v0.1/attest",
+            "body": {
+              "field_id": "{{field_id}}",
+              "attestation": { "witness_id": "qa_witness_1", "kind": "lotus", "tag": "qa_lotus", "payload": {} },
+              "target": {}
+            }
+          }
+        },
+        {
+          "id": "T5.S3",
+          "call": { "method": "GET", "path": "/v0.1/field/{{field_id}}" },
+          "save": {
+            "field_snapshot_2": "$.field",
+            "field_hash_2": { "canonical_hash": "$.field", "exclude_metadata_keys_from": "{{diff_exempt_metadata_keys}}" }
+          },
+          "assert": [
+            {
+              "type": "equals_subset_except",
+              "path": "$.field",
+              "compare_to_saved": "{{field_snapshot_1}}",
+              "allowed_differences": ["lotus"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T8",
+      "name": "Replay determinism (same bundle -> same canonical outputs)",
+      "status": "required",
+      "steps": [
+        {
+          "id": "T8.S1",
+          "call": {
+            "method": "POST",
+            "path": "/v0.1/replay",
+            "body": {
+              "bundle": {
+                "field_id": "{{field_id}}",
+                "placements": [
+                  { "utterance": { "raw": "A" }, "context": { "field_id": "{{field_id}}" } },
+                  { "utterance": { "raw": "B" }, "context": { "field_id": "{{field_id}}" } }
+                ],
+                "attestations": [
+                  {
+                    "attestation": { "witness_id": "qa_witness_1", "kind": "recognition", "payload": {} },
+                    "target": { "frontier_id": "F0", "candidate_id": "rose.link.alpha" }
+                  }
+                ],
+                "metadata": {}
+              }
+            }
+          },
+          "save": {
+            "replay_hash_1": { "canonical_hash": "$.canonical" }
+          }
+        },
+        {
+          "id": "T8.S2",
+          "call": {
+            "method": "POST",
+            "path": "/v0.1/replay",
+            "body": {
+              "bundle": {
+                "field_id": "{{field_id}}",
+                "placements": [
+                  { "utterance": { "raw": "A" }, "context": { "field_id": "{{field_id}}" } },
+                  { "utterance": { "raw": "B" }, "context": { "field_id": "{{field_id}}" } }
+                ],
+                "attestations": [
+                  {
+                    "attestation": { "witness_id": "qa_witness_1", "kind": "recognition", "payload": {} },
+                    "target": { "frontier_id": "F0", "candidate_id": "rose.link.alpha" }
+                  }
+                ],
+                "metadata": {}
+              }
+            }
+          },
+          "save": {
+            "replay_hash_2": { "canonical_hash": "$.canonical" }
+          }
+        },
+        {
+          "id": "T8.S3",
+          "assert": [
+            { "type": "equals", "left": "{{replay_hash_1}}", "right": "{{replay_hash_2}}" }
+          ]
+        }
+      ]
+    }
+  ],
+  "runner_requirements": {
+    "capabilities": [
+      "http_call",
+      "jsonpath_extract",
+      "jsonpath_assert",
+      "canonical_json_hash",
+      "repeat_steps",
+      "pending_test_marker"
+    ],
+    "assertion_types": [
+      "http_status",
+      "equals",
+      "not_equals",
+      "exists",
+      "contains",
+      "not_contains",
+      "contains_any",
+      "count_equals",
+      "count_gte",
+      "all",
+      "for_each",
+      "equals_subset_except"
+    ]
+  }
+}
