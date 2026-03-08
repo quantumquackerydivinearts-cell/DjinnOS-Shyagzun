@@ -30,6 +30,14 @@ function resolveRuntimeKernelBase() {
 }
 
 const KERNEL_BASE = resolveRuntimeKernelBase();
+const WAND_DAMAGE_IMAGE_ACCEPT = ".heic,.heif,.jpg,.jpeg,.png,.webp";
+const WAND_DAMAGE_ALLOWED_IMAGE_MIME_TYPES = [
+  "image/heic",
+  "image/heif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
 
 const NAV_ITEMS = [
   "Foyer",
@@ -2092,6 +2100,56 @@ function audioMimeTypeForFilename(filename) {
     return "audio/mp4";
   }
   return "application/octet-stream";
+}
+
+function imageMimeTypeForFilename(filename) {
+  const lower = String(filename || "").toLowerCase();
+  if (lower.endsWith(".heic")) {
+    return "image/heic";
+  }
+  if (lower.endsWith(".heif")) {
+    return "image/heif";
+  }
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+    return "image/jpeg";
+  }
+  if (lower.endsWith(".png")) {
+    return "image/png";
+  }
+  if (lower.endsWith(".webp")) {
+    return "image/webp";
+  }
+  return "application/octet-stream";
+}
+
+async function sha256HexFromArrayBuffer(buffer) {
+  if (!window.crypto || !window.crypto.subtle) {
+    throw new Error("crypto_subtle_unavailable");
+  }
+  const digest = await window.crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function buildWandDamageMediaDescriptors(files) {
+  const descriptors = [];
+  for (const file of files) {
+    const mimeType = String(file.type || imageMimeTypeForFilename(file.name)).toLowerCase();
+    const arrayBuffer = await file.arrayBuffer();
+    descriptors.push({
+      filename: file.name,
+      mime_type: mimeType,
+      sha256: await sha256HexFromArrayBuffer(arrayBuffer),
+      size_bytes: Number(file.size || 0),
+      capture_timestamp: null,
+      metadata_hash: null,
+      feature_digest: null,
+      width: null,
+      height: null,
+    });
+  }
+  return descriptors;
 }
 
 function normalizeCamera3d(camera) {
@@ -6168,6 +6226,21 @@ export function App() {
 
   const [messageDraft, setMessageDraft] = useState("");
   const [messageLog, setMessageLog] = useState([]);
+  const [guildId, setGuildId] = useState("guild.atelier");
+  const [guildChannelId, setGuildChannelId] = useState("hall.general");
+  const [guildThreadId, setGuildThreadId] = useState("thread_001");
+  const [guildSenderId, setGuildSenderId] = useState("player");
+  const [guildWandId, setGuildWandId] = useState("wand_001");
+  const [guildTempleEntropyDigest, setGuildTempleEntropyDigest] = useState("");
+  const [guildTheatreEntropyDigest, setGuildTheatreEntropyDigest] = useState("");
+  const [guildAttestationDigestsText, setGuildAttestationDigestsText] = useState("");
+  const [guildEncryptOutput, setGuildEncryptOutput] = useState(null);
+  const [wandDamageWandId, setWandDamageWandId] = useState("wand_001");
+  const [wandDamageNotifierId, setWandDamageNotifierId] = useState("Zo@user");
+  const [wandDamageState, setWandDamageState] = useState("broken");
+  const [wandDamageEventTag, setWandDamageEventTag] = useState("fracture_attest");
+  const [wandDamageFiles, setWandDamageFiles] = useState([]);
+  const [wandDamageValidation, setWandDamageValidation] = useState(null);
   const [studioFolders, setStudioFolders] = useState(() => {
     const raw = localStorage.getItem("atelier.studio_folders");
     if (!raw) {
@@ -11886,6 +11959,74 @@ export function App() {
     });
   };
 
+  const validateWandDamageEvidence = async () => {
+    await runAction("wand_damage_validate", async () => {
+      if (!wandDamageFiles.length) {
+        throw new Error("wand_damage_media_required");
+      }
+      const media = await buildWandDamageMediaDescriptors(wandDamageFiles);
+      const data = await apiCall("/v1/security/wand-damage/validate", "POST", {
+        wand_id: wandDamageWandId,
+        notifier_id: wandDamageNotifierId,
+        damage_state: wandDamageState,
+        event_tag: wandDamageEventTag || null,
+        media,
+        payload: {
+          source: "atelier.desktop.temple_garden",
+          original_count: media.length,
+        },
+      });
+      setWandDamageValidation(data);
+      const digests = Array.isArray(data?.normalized_media)
+        ? data.normalized_media.map((item) => String(item.sha256 || "")).filter((item) => item !== "")
+        : [];
+      if (digests.length) {
+        setGuildAttestationDigestsText(digests.join(", "));
+      }
+      return data;
+    });
+  };
+
+  const encryptGuildMessage = async () => {
+    await runAction("guild_message_encrypt", async () => {
+      const attestationMediaDigests = String(guildAttestationDigestsText || "")
+        .split(/[\s,|]+/)
+        .map((item) => item.trim())
+        .filter((item) => item !== "");
+      const data = await apiCall("/v1/guild/messages/encrypt", "POST", {
+        guild_id: guildId,
+        channel_id: guildChannelId,
+        thread_id: guildThreadId || null,
+        sender_id: guildSenderId,
+        wand_id: guildWandId,
+        message_text: messageDraft,
+        temple_entropy_digest: guildTempleEntropyDigest || null,
+        theatre_entropy_digest: guildTheatreEntropyDigest || null,
+        attestation_media_digests: attestationMediaDigests,
+        metadata: {
+          workspace_id: workspaceId,
+          source: "atelier.desktop.guild_hall",
+        },
+      });
+      setGuildEncryptOutput(data);
+      setMessageLog((prev) =>
+        [
+          {
+            section: "Messages",
+            guild_id: guildId,
+            channel_id: guildChannelId,
+            thread_id: guildThreadId || null,
+            sender_id: guildSenderId,
+            at: new Date().toISOString(),
+            envelope: data,
+          },
+          ...prev,
+        ].slice(0, 40)
+      );
+      return data;
+    });
+  };
+
   const runShygazunCorrect = async () => {
     await runAction("shygazun_correct", async () => {
       const sourceText = String(shygazunTranslateSourceText || "").trim();
@@ -15090,13 +15231,92 @@ export function App() {
       );
     }
     if (section === "Temple and Gardens") {
-      return <section className="panel"><h2>Frontier Reflection</h2><div className="row"><button className="action" onClick={frontiers}>Load Frontiers</button><button className="action" onClick={observe}>Run Observe</button><button className="action" onClick={timeline}>Timeline</button></div></section>;
+      return (
+        <section className="panel">
+          <h2>Temple and Gardens</h2>
+          <p>Frontier reflection, garden entropy, and wand damage attestation intake.</p>
+          <div className="row">
+            <button className="action" onClick={frontiers}>Load Frontiers</button>
+            <button className="action" onClick={observe}>Run Observe</button>
+            <button className="action" onClick={timeline}>Timeline</button>
+          </div>
+          <h3>Wand Damage Attestation</h3>
+          <div className="row">
+            <input value={wandDamageWandId} onChange={(e) => setWandDamageWandId(e.target.value)} placeholder="wand id" />
+            <input value={wandDamageNotifierId} onChange={(e) => setWandDamageNotifierId(e.target.value)} placeholder="notifier id" />
+            <select value={wandDamageState} onChange={(e) => setWandDamageState(e.target.value)}>
+              <option value="worn">worn</option>
+              <option value="chipped">chipped</option>
+              <option value="cracked">cracked</option>
+              <option value="broken">broken</option>
+              <option value="restored">restored</option>
+              <option value="retired">retired</option>
+            </select>
+            <input value={wandDamageEventTag} onChange={(e) => setWandDamageEventTag(e.target.value)} placeholder="event tag" />
+          </div>
+          <div className="row">
+            <input
+              type="file"
+              multiple
+              accept={WAND_DAMAGE_IMAGE_ACCEPT}
+              onChange={(e) => setWandDamageFiles(Array.from(e.target.files || []))}
+            />
+            <button className="action" onClick={validateWandDamageEvidence}>Validate Evidence</button>
+            <span className="badge">{`Files: ${wandDamageFiles.length}`}</span>
+            <span className="badge">HEIC allowed</span>
+          </div>
+          <pre>{JSON.stringify(wandDamageValidation || {}, null, 2)}</pre>
+        </section>
+      );
     }
     if (section === "Guild Hall") {
-      return <section className="panel"><h2>Guild Activity</h2><div className="row"><button className="action" onClick={listLessons}>Refresh Lessons</button><button className="action" onClick={listModules}>Refresh Modules</button></div></section>;
+      return (
+        <section className="panel">
+          <h2>Guild Hall</h2>
+          <p>Guild administration and message encryption derivation inputs.</p>
+          <div className="row">
+            <button className="action" onClick={listLessons}>Refresh Lessons</button>
+            <button className="action" onClick={listModules}>Refresh Modules</button>
+          </div>
+          <div className="row">
+            <input value={guildId} onChange={(e) => setGuildId(e.target.value)} placeholder="guild id" />
+            <input value={guildChannelId} onChange={(e) => setGuildChannelId(e.target.value)} placeholder="channel id" />
+            <input value={guildThreadId} onChange={(e) => setGuildThreadId(e.target.value)} placeholder="thread id" />
+          </div>
+          <div className="row">
+            <input value={guildSenderId} onChange={(e) => setGuildSenderId(e.target.value)} placeholder="sender id" />
+            <input value={guildWandId} onChange={(e) => setGuildWandId(e.target.value)} placeholder="wand id" />
+            <input value={guildTempleEntropyDigest} onChange={(e) => setGuildTempleEntropyDigest(e.target.value)} placeholder="temple entropy digest" />
+            <input value={guildTheatreEntropyDigest} onChange={(e) => setGuildTheatreEntropyDigest(e.target.value)} placeholder="theatre entropy digest" />
+          </div>
+          <div className="row">
+            <input
+              value={guildAttestationDigestsText}
+              onChange={(e) => setGuildAttestationDigestsText(e.target.value)}
+              placeholder="attestation media digests, comma-separated"
+            />
+          </div>
+          <pre>{JSON.stringify(guildEncryptOutput || {}, null, 2)}</pre>
+        </section>
+      );
     }
     if (section === "Messages") {
-      return <section className="panel"><h2>Messages</h2><div className="row"><input value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} placeholder="message text" /><button className="action" onClick={() => setMessageLog((prev) => [{ section, text: messageDraft, at: new Date().toISOString() }, ...prev].slice(0, 40))}>Post</button></div><pre>{JSON.stringify(messageLog, null, 2)}</pre></section>;
+      return (
+        <section className="panel">
+          <h2>Messages</h2>
+          <p>Guild message drafting with wand, temple, and theatre derived envelope generation.</p>
+          <div className="row">
+            <input value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} placeholder="message text" />
+            <button className="action" onClick={encryptGuildMessage}>Encrypt via Guild Hall</button>
+          </div>
+          <div className="row">
+            <span className="badge">{`Guild: ${guildId}`}</span>
+            <span className="badge">{`Channel: ${guildChannelId}`}</span>
+            <span className="badge">{`Wand: ${guildWandId}`}</span>
+          </div>
+          <pre>{JSON.stringify(messageLog, null, 2)}</pre>
+        </section>
+      );
     }
     if (section === "Studio Hub") {
       return (

@@ -374,7 +374,7 @@ try {
 
     $backendMode = "local"
     $autoStart = $true
-    $pythonCommand = "py"
+    $pythonCommand = "python"
     $kernelHost = "127.0.0.1"
     $kernelPort = 8000
     $apiHost = "127.0.0.1"

@@ -87,6 +87,28 @@ class KernelIntegrationService:
         self._stamp("akinenwun_lookup", actor_id, workshop_id)
         return self._client.akinenwun_lookup(akinenwun=akinenwun, mode=mode, ingest=ingest, policy=policy or {})
 
+    def validate_wand_damage_attestation(
+        self,
+        *,
+        wand_id: str,
+        notifier_id: str,
+        damage_state: str,
+        event_tag: Optional[str],
+        media: Sequence[Mapping[str, Any]],
+        payload: Mapping[str, Any],
+        actor_id: str,
+        workshop_id: str,
+    ) -> Mapping[str, Any]:
+        self._stamp("validate_wand_damage_attestation", actor_id, workshop_id)
+        return self._client.validate_wand_damage_attestation(
+            wand_id=wand_id,
+            notifier_id=notifier_id,
+            damage_state=damage_state,
+            event_tag=event_tag,
+            media=media,
+            payload=payload,
+        )
+
     def audit_log(self) -> Sequence[KernelInvocation]:
         return list(self._audit)
 

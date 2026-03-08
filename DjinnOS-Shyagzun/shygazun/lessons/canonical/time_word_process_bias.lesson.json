@@ -18,7 +18,7 @@
       "regime_id": "time_bearing_probable_verb_stem",
       "description": "Time-bearing akinenwun should be treated as probable verb stems unless contradicted by stronger structure.",
       "source_tongues": ["AppleBlossom"],
-      "mediator_tongues": ["Sakura"],
+      "mediator_tongues": [],
       "validator_tongues": [],
       "applies_to_kinds": ["akinenwun_surface", "lexeme_alias", "feature_alias"],
       "required_features": {

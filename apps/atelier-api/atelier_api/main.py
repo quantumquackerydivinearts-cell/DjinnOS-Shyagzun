@@ -217,6 +217,41 @@ class AkinenwunLookupInput(BaseModel):
     policy: Dict[str, Any] = Field(default_factory=dict)
 
 
+class WandDamageMediaInput(BaseModel):
+    filename: str
+    mime_type: str
+    sha256: Optional[str] = None
+    size_bytes: Optional[int] = None
+    capture_timestamp: Optional[str] = None
+    feature_digest: Optional[str] = None
+    metadata_hash: Optional[str] = None
+    transcoded_from_mime: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+
+class WandDamageValidateInput(BaseModel):
+    wand_id: str
+    notifier_id: str
+    damage_state: str
+    event_tag: Optional[str] = None
+    media: list[WandDamageMediaInput] = Field(default_factory=list)
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+class GuildMessageEncryptInput(BaseModel):
+    guild_id: str
+    channel_id: str
+    sender_id: str
+    wand_id: str
+    message_text: str
+    thread_id: Optional[str] = None
+    temple_entropy_digest: Optional[str] = None
+    theatre_entropy_digest: Optional[str] = None
+    attestation_media_digests: list[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class AdminGateVerifyInput(BaseModel):
     gate_code: str
 
@@ -632,6 +667,55 @@ def ambroflow_akinenwun_lookup(
         actor_id=ctx.actor_id,
         workshop_id=workshop.identity.workshop_id,
     )
+
+
+@app.post("/v1/security/wand-damage/validate")
+def validate_wand_damage_attestation(
+    payload: WandDamageValidateInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "kernel.attest")
+    _enforce_role(role, "kernel.attest")
+    return svc.validate_wand_damage_attestation(
+        wand_id=payload.wand_id,
+        notifier_id=payload.notifier_id,
+        damage_state=payload.damage_state,
+        event_tag=payload.event_tag,
+        media=[item.model_dump() for item in payload.media],
+        payload=payload.payload,
+        actor_id=ctx.actor_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
+@app.post("/v1/guild/messages/encrypt")
+def encrypt_guild_message(
+    payload: GuildMessageEncryptInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.encrypt_guild_message(
+            guild_id=payload.guild_id,
+            channel_id=payload.channel_id,
+            sender_id=payload.sender_id,
+            wand_id=payload.wand_id,
+            message_text=payload.message_text,
+            thread_id=payload.thread_id,
+            temple_entropy_digest=payload.temple_entropy_digest,
+            theatre_entropy_digest=payload.theatre_entropy_digest,
+            attestation_media_digests=payload.attestation_media_digests,
+            metadata=payload.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/v1/atelier/timeline")

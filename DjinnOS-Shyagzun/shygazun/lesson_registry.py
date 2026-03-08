@@ -185,6 +185,8 @@ class LessonRegistry:
         for token in tokens:
             alias = self._pronoun_aliases.get(token)
             if alias is not None:
+                alias_decimals = _effective_decimals(alias)
+                alias_symbols = _effective_symbols(alias)
                 applied_lessons.add(str(alias["lesson_id"]))
                 token_objects.append(
                     {
@@ -195,9 +197,9 @@ class LessonRegistry:
                         "number": alias["number"],
                         "distance_from_speaker_mind": alias["distance_from_speaker_mind"],
                         "english_alias": alias["english_alias"],
-                        "bytes": list(alias["bytes"]),
-                        "symbols": list(alias["symbols"]),
-                        "semantic_trace": _semantic_trace_from_decimals(alias["bytes"]),
+                        "bytes": alias_decimals,
+                        "symbols": alias_symbols,
+                        "semantic_trace": _semantic_trace_from_decimals(alias_decimals),
                         "authority_citations": list(alias["authority_citations"]),
                     }
                 )
@@ -205,6 +207,8 @@ class LessonRegistry:
 
             lexeme = self._lexeme_aliases.get(token)
             if lexeme is not None:
+                lexeme_decimals = _effective_decimals(lexeme)
+                lexeme_symbols = _effective_symbols(lexeme)
                 applied_lessons.add(str(lexeme["lesson_id"]))
                 token_objects.append(
                     {
@@ -214,9 +218,9 @@ class LessonRegistry:
                         "semantic_role": lexeme["semantic_role"],
                         "english_alias": lexeme["english_alias"],
                         "literal_gloss": lexeme["literal_gloss"],
-                        "bytes": list(lexeme["bytes"]),
-                        "symbols": list(lexeme["symbols"]),
-                        "semantic_trace": _semantic_trace_from_decimals(lexeme["bytes"]),
+                        "bytes": lexeme_decimals,
+                        "symbols": lexeme_symbols,
+                        "semantic_trace": _semantic_trace_from_decimals(lexeme_decimals),
                         "authority_citations": list(lexeme["authority_citations"]),
                         "feature_bundle": dict(cast(Mapping[str, Any], lexeme["feature_bundle"])),
                     }
@@ -225,6 +229,8 @@ class LessonRegistry:
 
             feature_alias = self._feature_aliases.get(token)
             if feature_alias is not None:
+                feature_decimals = _effective_decimals(feature_alias)
+                feature_symbols = _effective_symbols(feature_alias)
                 applied_lessons.add(str(feature_alias["lesson_id"]))
                 token_objects.append(
                     {
@@ -234,9 +240,9 @@ class LessonRegistry:
                         "english_alias": feature_alias["english_alias"],
                         "literal_gloss": feature_alias["literal_gloss"],
                         "feature_bundle": dict(cast(Mapping[str, Any], feature_alias["feature_bundle"])),
-                        "bytes": list(feature_alias["bytes"]),
-                        "symbols": list(feature_alias["symbols"]),
-                        "semantic_trace": _semantic_trace_from_decimals(feature_alias["bytes"]),
+                        "bytes": feature_decimals,
+                        "symbols": feature_symbols,
+                        "semantic_trace": _semantic_trace_from_decimals(feature_decimals),
                         "authority_citations": list(feature_alias["authority_citations"]),
                     }
                 )
@@ -331,8 +337,8 @@ class LessonRegistry:
                 symbols = parse_akinenwun(token)
                 decimals = _decimals_for_symbols(symbols)
             except ValueError:
-                symbols = tuple()
-                decimals = []
+                symbols = _loose_symbols_for_surface(token)
+                decimals = _decimals_for_symbols(symbols) if symbols else []
             self._pronoun_aliases[token] = {
                 "lesson_id": lesson.lesson_id,
                 "english_alias": english_alias,
@@ -366,8 +372,8 @@ class LessonRegistry:
                 symbols = parse_akinenwun(token)
                 decimals = _decimals_for_symbols(symbols)
             except ValueError:
-                symbols = tuple()
-                decimals = []
+                symbols = _loose_symbols_for_surface(token)
+                decimals = _decimals_for_symbols(symbols) if symbols else []
             self._lexeme_aliases[token] = {
                 "lesson_id": lesson.lesson_id,
                 "english_alias": english_alias,
@@ -399,8 +405,8 @@ class LessonRegistry:
                 symbols = parse_akinenwun(token)
                 decimals = _decimals_for_symbols(symbols)
             except ValueError:
-                symbols = tuple()
-                decimals = []
+                symbols = _loose_symbols_for_surface(token)
+                decimals = _decimals_for_symbols(symbols) if symbols else []
             self._feature_aliases[token] = {
                 "lesson_id": lesson.lesson_id,
                 "english_alias": english_alias,
@@ -661,17 +667,49 @@ def _authority_decimals(token_obj: Mapping[str, Any]) -> list[int]:
     return decimals
 
 
+def _effective_decimals(token_obj: Mapping[str, Any]) -> list[int]:
+    bytes_obj = token_obj.get("bytes")
+    decimals: list[int] = []
+    if isinstance(bytes_obj, Sequence) and not isinstance(bytes_obj, (str, bytes, bytearray)):
+        for item in bytes_obj:
+            try:
+                decimals.append(int(item))
+            except (TypeError, ValueError):
+                continue
+    if decimals:
+        return decimals
+    return _authority_decimals(token_obj)
+
+
+def _authority_symbols(token_obj: Mapping[str, Any]) -> list[str]:
+    authority_citations = token_obj.get("authority_citations")
+    if not isinstance(authority_citations, Sequence):
+        return []
+    symbols: list[str] = []
+    for citation in authority_citations:
+        if not isinstance(citation, Mapping):
+            continue
+        symbol = str(citation.get("symbol") or "").strip()
+        if symbol and symbol not in symbols:
+            symbols.append(symbol)
+    return symbols
+
+
+def _effective_symbols(token_obj: Mapping[str, Any]) -> list[str]:
+    symbols_obj = token_obj.get("symbols")
+    if isinstance(symbols_obj, Sequence) and not isinstance(symbols_obj, (str, bytes, bytearray)):
+        symbols = [str(item).strip() for item in symbols_obj if str(item).strip()]
+        if symbols:
+            return symbols
+    return _authority_symbols(token_obj)
+
+
 def _token_feature_bundle(token_obj: Mapping[str, Any]) -> dict[str, Any]:
     bundle: dict[str, Any] = {}
     feature_bundle = token_obj.get("feature_bundle")
     if isinstance(feature_bundle, Mapping):
         bundle.update(dict(feature_bundle))
-    bytes_obj = token_obj.get("bytes")
-    decimals: list[int] = []
-    if isinstance(bytes_obj, list):
-        decimals = [int(item) for item in bytes_obj]
-    elif len(_authority_decimals(token_obj)) > 0:
-        decimals = _authority_decimals(token_obj)
+    decimals = _effective_decimals(token_obj)
     if decimals:
         intrinsic = _derive_intrinsic_feature_bundle(decimals)
         for key, value in intrinsic.items():
@@ -685,12 +723,7 @@ def _token_feature_bundle(token_obj: Mapping[str, Any]) -> dict[str, Any]:
 
 def _token_tongues(token_obj: Mapping[str, Any]) -> tuple[str, ...]:
     tongues: list[str] = []
-    bytes_obj = token_obj.get("bytes")
-    decimals: list[int] = []
-    if isinstance(bytes_obj, list):
-        decimals = [int(item) for item in bytes_obj]
-    elif len(_authority_decimals(token_obj)) > 0:
-        decimals = _authority_decimals(token_obj)
+    decimals = _effective_decimals(token_obj)
     if decimals:
         for item in decimals:
             try:
@@ -849,6 +882,10 @@ def _derive_trust_contract(projection: Mapping[str, Any]) -> dict[str, Any]:
     authoritative_projection = projection.get("authoritative_projection")
     structural_obj = projection.get("structural_verifications")
     structural = cast(Sequence[Mapping[str, Any]], structural_obj) if isinstance(structural_obj, Sequence) else tuple()
+    applicable_structural = tuple(
+        item for item in structural
+        if isinstance(item.get("matching_tokens"), list) and len(cast(list[Any], item.get("matching_tokens"))) > 0
+    )
     composed_features_obj = projection.get("composed_features")
     composed_features = cast(Mapping[str, Any], composed_features_obj) if isinstance(composed_features_obj, Mapping) else {}
 
@@ -860,8 +897,8 @@ def _derive_trust_contract(projection: Mapping[str, Any]) -> dict[str, Any]:
         if str(token.get("kind") or "") in {"pronoun_alias", "lexeme_alias", "feature_alias"}
     )
     frontier_tokens = sum(1 for token in tokens if str(token.get("kind") or "") == "akinenwun_surface")
-    verified_structures = sum(1 for item in structural if bool(item.get("verified")))
-    structural_total = len(structural)
+    verified_structures = sum(1 for item in applicable_structural if bool(item.get("verified")))
+    structural_total = len(applicable_structural)
     authority_level = (
         str(cast(Mapping[str, Any], authoritative_projection).get("authority_level") or "none")
         if isinstance(authoritative_projection, Mapping)
@@ -908,10 +945,17 @@ def _derive_trust_contract(projection: Mapping[str, Any]) -> dict[str, Any]:
         "score": normalized_score,
         "grade": grade,
         "downstream_readiness": {
-            "code_surface_safe": unresolved_tokens == 0 and authority_level in {"lesson_exact_match", "lesson_regime_match", "lesson_pattern_match"},
+            "code_surface_safe": unresolved_tokens == 0 and (
+                authority_level in {"lesson_exact_match", "lesson_regime_match", "lesson_pattern_match"}
+                or lesson_tokens == total_tokens
+                or (structural_total > 0 and verified_structures == structural_total)
+            ),
             "placement_graph_safe": unresolved_tokens == 0 and (structural_total == 0 or verified_structures == structural_total),
             "anatomy_surface_safe": unresolved_tokens == 0 and (
-                total_tokens == 0 or composed_features.get("anatomy_derivation") is not None
+                total_tokens == 0
+                or composed_features.get("anatomy_derivation") is not None
+                or composed_features.get("anatomy_axes") is not None
+                or composed_features.get("embodiment_mode") is not None
             ),
         },
     }
@@ -936,10 +980,7 @@ def _derive_byte_table_trace(token_objects: Sequence[Mapping[str, Any]]) -> dict
     rows: list[dict[str, Any]] = []
     tongue_counts: dict[str, int] = {}
     for token_obj in token_objects:
-        bytes_obj = token_obj.get("bytes")
-        if not isinstance(bytes_obj, list):
-            continue
-        for decimal in bytes_obj:
+        for decimal in _effective_decimals(token_obj):
             try:
                 entry = byte_entry(int(decimal))
             except Exception:
@@ -1035,6 +1076,29 @@ def _decimals_for_symbols(symbols: Sequence[str]) -> tuple[int, ...]:
             raise LessonValidationError(f"symbol '{symbol}' must resolve to exactly one byte row for lesson indexing")
         decimals.append(int(entries[0]["decimal"]))
     return tuple(decimals)
+
+
+def _loose_symbols_for_surface(surface: str) -> tuple[str, ...]:
+    remaining = surface.strip().lower()
+    if remaining == "":
+        return tuple()
+    symbol_map = {
+        str(entry["symbol"]).lower(): str(entry["symbol"])
+        for entry in SHYGAZUN_BYTE_TABLE.values()
+    }
+    ordered_symbols = sorted(symbol_map.keys(), key=len, reverse=True)
+    resolved: list[str] = []
+    while remaining:
+        matched = False
+        for symbol_lower in ordered_symbols:
+            if remaining.startswith(symbol_lower):
+                resolved.append(symbol_map[symbol_lower])
+                remaining = remaining[len(symbol_lower):]
+                matched = True
+                break
+        if not matched:
+            return tuple()
+    return tuple(resolved)
 
 
 def _validate_citations(citations: Iterable[Mapping[str, Any]]) -> None:

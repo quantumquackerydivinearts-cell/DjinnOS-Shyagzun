@@ -38,6 +38,17 @@ class KernelClient(Protocol):
         policy: Mapping[str, Any],
     ) -> Mapping[str, Any]: ...
 
+    def validate_wand_damage_attestation(
+        self,
+        *,
+        wand_id: str,
+        notifier_id: str,
+        damage_state: str,
+        event_tag: Optional[str],
+        media: Sequence[Mapping[str, Any]],
+        payload: Mapping[str, Any],
+    ) -> Mapping[str, Any]: ...
+
 
 @dataclass
 class HttpKernelClient:
@@ -126,5 +137,28 @@ class HttpKernelClient:
             "POST",
             "/v0.1/akinenwun/lookup",
             body={"akinenwun": akinenwun, "mode": mode, "ingest": ingest, "policy": dict(policy)},
+        )
+
+    def validate_wand_damage_attestation(
+        self,
+        *,
+        wand_id: str,
+        notifier_id: str,
+        damage_state: str,
+        event_tag: Optional[str],
+        media: Sequence[Mapping[str, Any]],
+        payload: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        return self._call(
+            "POST",
+            "/v0.1/wand/damage/validate",
+            body={
+                "wand_id": wand_id,
+                "notifier_id": notifier_id,
+                "damage_state": damage_state,
+                "event_tag": event_tag,
+                "media": [dict(item) for item in media],
+                "payload": dict(payload),
+            },
         )
 

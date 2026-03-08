@@ -260,3 +260,54 @@ def test_bilingual_teach_validate_rejects_bad_citations() -> None:
     response = client.post("/v0.1/shygazun/teach/validate", json={"lessons": [lesson]})
     assert response.status_code == 400
     assert "citation mismatch" in response.json()["detail"]
+
+
+def test_wand_damage_validate_accepts_heic_media() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v0.1/wand/damage/validate",
+        json={
+            "wand_id": "wand_001",
+            "notifier_id": "Zo@user",
+            "damage_state": "broken",
+            "event_tag": "fracture_attest",
+            "media": [
+                {
+                    "filename": "wand-break.heic",
+                    "mime_type": "image/heic",
+                    "sha256": "abc123",
+                    "size_bytes": 2048,
+                    "feature_digest": "fd01",
+                }
+            ],
+            "payload": {"damage_summary": "tip fracture"},
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["heic_accepted"] is True
+    assert payload["normalized_media"][0]["mime_type"] == "image/heic"
+    assert payload["normalized_media"][0]["extension"] == ".heic"
+    assert payload["normalized_media"][0]["heic_family"] is True
+
+
+def test_wand_damage_validate_rejects_unsupported_media() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v0.1/wand/damage/validate",
+        json={
+            "wand_id": "wand_001",
+            "notifier_id": "Zo@user",
+            "damage_state": "broken",
+            "media": [
+                {
+                    "filename": "wand-break.gif",
+                    "mime_type": "image/gif",
+                    "size_bytes": 2048,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 422
+    assert "wand_damage_media_mime_unsupported" in response.json()["detail"]

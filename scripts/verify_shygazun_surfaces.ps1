@@ -86,7 +86,7 @@ ir = compile_akinenwun_to_ir("TyKoWuVu")
 assert ir["canonical_compound"] == "TyKoWuVu"
 assert len(ir["symbols"]) == 4
 '@
-& py -c $pyCmd
+& python -c $pyCmd
 if ($LASTEXITCODE -ne 0) {
     throw "verification_failed: python cobra compiler check failed"
 }

@@ -21,4 +21,4 @@ if (-not $env:KERNEL_BASE_URL) {
 $env:PYTHONPATH = "$repoRoot;$apiRoot"
 
 Set-Location $apiRoot
-py -m uvicorn atelier_api.main:app --host 127.0.0.1 --port 9000
+python -m uvicorn atelier_api.main:app --host 127.0.0.1 --port 9000

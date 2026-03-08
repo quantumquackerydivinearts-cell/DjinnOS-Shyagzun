@@ -7,4 +7,4 @@ if (-not (Test-Path $repoRoot)) {
 }
 
 Set-Location $repoRoot
-py -m uvicorn shygazun.kernel_service:app --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn shygazun.kernel_service:app --host 127.0.0.1 --port 8000 --reload

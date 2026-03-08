@@ -4,7 +4,7 @@
   "backend": {
     "mode": "remote",
     "auto_start": false,
-    "python_command": "py",
+    "python_command": "python",
     "kernel_host": "127.0.0.1",
     "kernel_port": 8000,
     "api_host": "127.0.0.1",

@@ -86,6 +86,92 @@ class LessonValidateRequest(BaseModel):
     lessons: List[Dict[str, Any]] = Field(default_factory=list)
 
 
+class WandDamageMediaEvidence(BaseModel):
+    filename: str
+    mime_type: str
+    sha256: Optional[str] = None
+    size_bytes: Optional[int] = None
+    capture_timestamp: Optional[str] = None
+    feature_digest: Optional[str] = None
+    metadata_hash: Optional[str] = None
+    transcoded_from_mime: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+
+class WandDamageAttestationValidateRequest(BaseModel):
+    wand_id: str
+    notifier_id: str
+    damage_state: Literal["worn", "chipped", "cracked", "broken", "restored", "retired"]
+    event_tag: Optional[str] = None
+    media: List[WandDamageMediaEvidence] = Field(default_factory=list)
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+_WAND_DAMAGE_ALLOWED_IMAGE_MIME_TYPES: tuple[str, ...] = (
+    "image/heic",
+    "image/heif",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+)
+_WAND_DAMAGE_ALLOWED_IMAGE_EXTENSIONS: tuple[str, ...] = (
+    ".heic",
+    ".heif",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+)
+
+
+def _wand_damage_extension(filename: str) -> str:
+    lower = str(filename).strip().lower()
+    for suffix in sorted(_WAND_DAMAGE_ALLOWED_IMAGE_EXTENSIONS, key=len, reverse=True):
+        if lower.endswith(suffix):
+            return suffix
+    dot_idx = lower.rfind(".")
+    if dot_idx < 0:
+        return ""
+    return lower[dot_idx:]
+
+
+def _validate_wand_damage_media(media: List[WandDamageMediaEvidence]) -> List[Dict[str, Any]]:
+    if not media:
+        raise HTTPException(status_code=422, detail="wand_damage_media_required")
+    normalized: List[Dict[str, Any]] = []
+    for idx, item in enumerate(media):
+        filename = str(item.filename).strip()
+        if filename == "":
+            raise HTTPException(status_code=422, detail=f"wand_damage_media_filename_required:{idx}")
+        mime_type = str(item.mime_type).strip().lower()
+        extension = _wand_damage_extension(filename)
+        if mime_type not in _WAND_DAMAGE_ALLOWED_IMAGE_MIME_TYPES:
+            raise HTTPException(status_code=422, detail=f"wand_damage_media_mime_unsupported:{mime_type}")
+        if extension not in _WAND_DAMAGE_ALLOWED_IMAGE_EXTENSIONS:
+            raise HTTPException(status_code=422, detail=f"wand_damage_media_extension_unsupported:{extension or 'none'}")
+        if item.size_bytes is not None and int(item.size_bytes) <= 0:
+            raise HTTPException(status_code=422, detail=f"wand_damage_media_size_invalid:{idx}")
+        normalized.append(
+            {
+                "filename": filename,
+                "mime_type": mime_type,
+                "extension": extension,
+                "sha256": item.sha256,
+                "size_bytes": item.size_bytes,
+                "capture_timestamp": item.capture_timestamp,
+                "feature_digest": item.feature_digest,
+                "metadata_hash": item.metadata_hash,
+                "transcoded_from_mime": item.transcoded_from_mime,
+                "width": item.width,
+                "height": item.height,
+                "heic_family": mime_type in {"image/heic", "image/heif"},
+                "evidence_role": "authoritative_original",
+            }
+        )
+    return normalized
+
+
 def _json_response(payload: object, status_code: int = 200) -> Response:
     encoded = jsonable_encoder(payload)
     body = json.dumps(encoded, ensure_ascii=False, separators=(",", ":"))
@@ -387,6 +473,33 @@ def v1_shygazun_teach_validate(req: LessonValidateRequest) -> Response:
     except LessonValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _json_response(payload)
+
+
+@app.post("/v0.1/wand/damage/validate")
+def v1_wand_damage_validate(req: WandDamageAttestationValidateRequest) -> Response:
+    wand_id = str(req.wand_id).strip()
+    notifier_id = str(req.notifier_id).strip()
+    if wand_id == "":
+        raise HTTPException(status_code=422, detail="wand_id_required")
+    if notifier_id == "":
+        raise HTTPException(status_code=422, detail="notifier_id_required")
+    normalized_media = _validate_wand_damage_media(req.media)
+    return _json_response(
+        {
+            "ok": True,
+            "schema_family": "wand_damage_attestation",
+            "schema_version": "v1",
+            "wand_id": wand_id,
+            "notifier_id": notifier_id,
+            "damage_state": req.damage_state,
+            "event_tag": req.event_tag,
+            "heic_accepted": True,
+            "allowed_image_mime_types": list(_WAND_DAMAGE_ALLOWED_IMAGE_MIME_TYPES),
+            "allowed_image_extensions": list(_WAND_DAMAGE_ALLOWED_IMAGE_EXTENSIONS),
+            "normalized_media": normalized_media,
+            "payload": dict(req.payload),
+        }
+    )
 
 
 if __name__ == "__main__":

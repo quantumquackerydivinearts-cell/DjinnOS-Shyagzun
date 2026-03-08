@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
 import importlib.util
 import json
 import math
 import re
+import secrets
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -275,6 +278,9 @@ class AtelierService:
         "mammon": "ostentation",
         "lucifer": "levity",
     }
+    _GUILD_MESSAGE_ENVELOPE_SCHEMA_FAMILY = "guild_message_envelope"
+    _GUILD_MESSAGE_ENVELOPE_SCHEMA_VERSION = "v1"
+    _GUILD_MESSAGE_CIPHER_FAMILY = "experimental_hash_stream_v1"
     _DEMON_PRESSURE_DEFAULTS: dict[str, float] = {
         "asmodeus": 0.0,
         "satan": 0.0,
@@ -2477,6 +2483,149 @@ class AtelierService:
             policy=policy or {},
             actor_id=actor_id,
             workshop_id=workshop_id,
+        )
+
+    def validate_wand_damage_attestation(
+        self,
+        *,
+        wand_id: str,
+        notifier_id: str,
+        damage_state: str,
+        event_tag: Optional[str],
+        media: Sequence[Mapping[str, Any]],
+        payload: Mapping[str, Any],
+        actor_id: str,
+        workshop_id: str,
+    ) -> Mapping[str, Any]:
+        return self._kernel.validate_wand_damage_attestation(
+            wand_id=wand_id,
+            notifier_id=notifier_id,
+            damage_state=damage_state,
+            event_tag=event_tag,
+            media=media,
+            payload=payload,
+            actor_id=actor_id,
+            workshop_id=workshop_id,
+        )
+
+    @classmethod
+    def _guild_message_keystream(cls, root_key: bytes, nonce: bytes, length: int) -> bytes:
+        blocks: list[bytes] = []
+        counter = 0
+        while sum(len(item) for item in blocks) < length:
+            block = hashlib.sha256(root_key + nonce + counter.to_bytes(4, "big")).digest()
+            blocks.append(block)
+            counter += 1
+        return b"".join(blocks)[:length]
+
+    @classmethod
+    def _encrypt_guild_message_runtime(
+        cls,
+        *,
+        guild_id: str,
+        channel_id: str,
+        sender_id: str,
+        wand_id: str,
+        message_text: str,
+        thread_id: Optional[str],
+        temple_entropy_digest: Optional[str],
+        theatre_entropy_digest: Optional[str],
+        attestation_media_digests: Sequence[str],
+        metadata: Mapping[str, Any],
+    ) -> dict[str, object]:
+        normalized = {
+            "guild_id": guild_id,
+            "channel_id": channel_id,
+            "thread_id": thread_id or "",
+            "sender_id": sender_id,
+            "wand_id": wand_id,
+            "message_text": message_text,
+            "temple_entropy_digest": temple_entropy_digest or "",
+            "theatre_entropy_digest": theatre_entropy_digest or "",
+            "attestation_media_digests": [str(item).strip() for item in attestation_media_digests if str(item).strip() != ""],
+            "metadata": dict(metadata),
+        }
+        derivation_context = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        system_nonce = secrets.token_bytes(16)
+        system_entropy_digest = hashlib.sha256(system_nonce).hexdigest()
+        root_material = b"|".join(
+            (
+                bytes.fromhex(system_entropy_digest),
+                hashlib.sha256(str(normalized["wand_id"]).encode("utf-8")).digest(),
+                hashlib.sha256(str(normalized["temple_entropy_digest"]).encode("utf-8")).digest(),
+                hashlib.sha256(str(normalized["theatre_entropy_digest"]).encode("utf-8")).digest(),
+                hashlib.sha256("|".join(normalized["attestation_media_digests"]).encode("utf-8")).digest(),
+                hashlib.sha256(derivation_context).digest(),
+            )
+        )
+        root_key = hashlib.sha256(root_material).digest()
+        message_bytes = message_text.encode("utf-8")
+        keystream = cls._guild_message_keystream(root_key, system_nonce, len(message_bytes))
+        ciphertext = bytes(left ^ right for left, right in zip(message_bytes, keystream))
+        mac = hmac.new(root_key, system_nonce + ciphertext, hashlib.sha256).hexdigest()
+        return {
+            "schema_family": cls._GUILD_MESSAGE_ENVELOPE_SCHEMA_FAMILY,
+            "schema_version": cls._GUILD_MESSAGE_ENVELOPE_SCHEMA_VERSION,
+            "cipher_family": cls._GUILD_MESSAGE_CIPHER_FAMILY,
+            "guild_id": guild_id,
+            "channel_id": channel_id,
+            "thread_id": thread_id,
+            "sender_id": sender_id,
+            "wand_id": wand_id,
+            "ciphertext_b64": base64.b64encode(ciphertext).decode("ascii"),
+            "nonce_b64": base64.b64encode(system_nonce).decode("ascii"),
+            "mac_hex": mac,
+            "derivation": {
+                "system_entropy_digest": system_entropy_digest,
+                "temple_entropy_digest": temple_entropy_digest,
+                "theatre_entropy_digest": theatre_entropy_digest,
+                "attestation_media_digests": normalized["attestation_media_digests"],
+                "context_digest": hashlib.sha256(derivation_context).hexdigest(),
+                "wand_digest": hashlib.sha256(str(wand_id).encode("utf-8")).hexdigest(),
+            },
+            "metadata": dict(metadata),
+        }
+
+    def encrypt_guild_message(
+        self,
+        *,
+        guild_id: str,
+        channel_id: str,
+        sender_id: str,
+        wand_id: str,
+        message_text: str,
+        thread_id: Optional[str],
+        temple_entropy_digest: Optional[str],
+        theatre_entropy_digest: Optional[str],
+        attestation_media_digests: Sequence[str],
+        metadata: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        guild_id_norm = str(guild_id).strip()
+        channel_id_norm = str(channel_id).strip()
+        sender_id_norm = str(sender_id).strip()
+        wand_id_norm = str(wand_id).strip()
+        message_text_norm = str(message_text)
+        if guild_id_norm == "":
+            raise ValueError("guild_id_required")
+        if channel_id_norm == "":
+            raise ValueError("channel_id_required")
+        if sender_id_norm == "":
+            raise ValueError("sender_id_required")
+        if wand_id_norm == "":
+            raise ValueError("wand_id_required")
+        if message_text_norm.strip() == "":
+            raise ValueError("message_text_required")
+        return self._encrypt_guild_message_runtime(
+            guild_id=guild_id_norm,
+            channel_id=channel_id_norm,
+            sender_id=sender_id_norm,
+            wand_id=wand_id_norm,
+            message_text=message_text_norm,
+            thread_id=thread_id,
+            temple_entropy_digest=temple_entropy_digest,
+            theatre_entropy_digest=theatre_entropy_digest,
+            attestation_media_digests=attestation_media_digests,
+            metadata=metadata,
         )
 
     def list_contacts(self, workspace_id: str) -> Sequence[ContactOut]:
