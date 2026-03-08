@@ -439,3 +439,39 @@ def test_register_wand_endpoint_allows_standard_registry_access() -> None:
         assert response.json()["wand_id"] == "wand_001"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_register_and_list_guild_registry_file_fallback() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-guild-registry")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+
+    record = svc.register_guild(
+        guild_id="guild.atelier",
+        display_name="Atelier Guild",
+        distribution_id="distribution.quantumquackery.main",
+        owner_artisan_id="artisan-desktop",
+        owner_profile_name="Artisan",
+        owner_profile_email="artisan@example.com",
+        member_profiles=[{"actor_id": "player", "display_name": "Artisan"}],
+        charter={"trust_model": "wand_registry"},
+        metadata={"source": "test"},
+    )
+    assert record["guild_id"] == "guild.atelier"
+    assert record["owner_artisan_id"] == "artisan-desktop"
+
+    stored = tmp_path / "guild_registry" / "guild.atelier.json"
+    assert stored.exists()
+
+    loaded = svc.get_guild_registry_entry(guild_id="guild.atelier")
+    assert loaded["distribution_id"] == "distribution.quantumquackery.main"
+    assert loaded["member_profiles"][0]["actor_id"] == "player"
+
+    records = svc.list_guild_registry(limit=10)
+    assert any(item["guild_id"] == "guild.atelier" for item in records)
+
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)

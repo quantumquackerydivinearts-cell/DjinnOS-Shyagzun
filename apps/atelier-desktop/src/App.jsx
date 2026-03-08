@@ -6227,6 +6227,8 @@ export function App() {
   const [messageDraft, setMessageDraft] = useState("");
   const [messageLog, setMessageLog] = useState([]);
   const [guildId, setGuildId] = useState("guild.atelier");
+  const [guildDisplayName, setGuildDisplayName] = useState("Atelier Guild");
+  const [guildDistributionId, setGuildDistributionId] = useState("distribution.quantumquackery.main");
   const [guildChannelId, setGuildChannelId] = useState("hall.general");
   const [guildThreadId, setGuildThreadId] = useState("thread_001");
   const [guildSenderId, setGuildSenderId] = useState("player");
@@ -6248,6 +6250,8 @@ export function App() {
   const [guildDecryptOutput, setGuildDecryptOutput] = useState(null);
   const [guildPersistOutput, setGuildPersistOutput] = useState(null);
   const [guildMessageHistory, setGuildMessageHistory] = useState([]);
+  const [guildRegistryList, setGuildRegistryList] = useState([]);
+  const [guildRegistryOutput, setGuildRegistryOutput] = useState(null);
   const [guildWandStatus, setGuildWandStatus] = useState(null);
   const [wandRegistryWandId, setWandRegistryWandId] = useState("wand_001");
   const [wandRegistryMakerId, setWandRegistryMakerId] = useState("maker.quant");
@@ -6367,6 +6371,15 @@ export function App() {
     }
     loadWandRegistryList().catch((error) => {
       console.error("wand_registry_autoload_failed", error);
+    });
+  }, [section]);
+
+  useEffect(() => {
+    if (section !== "Guild Hall") {
+      return;
+    }
+    loadGuildRegistryList().catch((error) => {
+      console.error("guild_registry_autoload_failed", error);
     });
   }, [section]);
 
@@ -12388,6 +12401,61 @@ export function App() {
     await loadWandStatus(guildWandId, setGuildWandStatus);
   };
 
+  const registerGuildRegistryEntry = async () => {
+    await runAction("guild_registry_register", async () => {
+      const data = await apiCall("/v1/guild/registry", "POST", {
+        guild_id: String(guildId || "").trim(),
+        display_name: String(guildDisplayName || "").trim(),
+        distribution_id: String(guildDistributionId || "").trim(),
+        owner_artisan_id: guildSenderId || "artisan-desktop",
+        owner_profile_name: profileName || "Artisan",
+        owner_profile_email: profileEmail || "",
+        member_profiles: [
+          {
+            actor_id: guildSenderId || "player",
+            display_name: profileName || "Artisan",
+            email: profileEmail || "",
+            timezone: profileTimezone || "UTC",
+          },
+        ],
+        charter: {
+          trust_model: "wand_registry",
+          transport_profile: "distribution_registry_pending",
+        },
+        metadata: {
+          workspace_id: workspaceId,
+          source: "atelier.desktop.guild_hall",
+        },
+      });
+      setGuildRegistryOutput(data);
+      await loadGuildRegistryList();
+      return data;
+    });
+  };
+
+  const loadGuildRegistryList = async () => {
+    await runAction("guild_registry_list", async () => {
+      const data = await apiCall("/v1/guild/registry?limit=50", "GET");
+      setGuildRegistryList(Array.isArray(data) ? data : []);
+      return data;
+    });
+  };
+
+  const loadGuildRegistryEntry = async (registryGuildId = guildId) => {
+    await runAction("guild_registry_get", async () => {
+      const safeGuildId = String(registryGuildId || "").trim();
+      if (!safeGuildId) {
+        throw new Error("guild_id_required");
+      }
+      const data = await apiCall(`/v1/guild/registry/${encodeURIComponent(safeGuildId)}`, "GET");
+      setGuildRegistryOutput(data);
+      setGuildId(String(data?.guild_id || safeGuildId));
+      setGuildDisplayName(String(data?.display_name || ""));
+      setGuildDistributionId(String(data?.distribution_id || ""));
+      return data;
+    });
+  };
+
   const applyRegisteredWandSelection = async (wandId, { target = "both", loadEntry = false } = {}) => {
     const safeWandId = String(wandId || "").trim();
     if (!safeWandId) {
@@ -15764,6 +15832,31 @@ export function App() {
             <button className="action" onClick={listLessons}>Refresh Lessons</button>
             <button className="action" onClick={listModules}>Refresh Modules</button>
           </div>
+          <h3>Guild Registry</h3>
+          <div className="row">
+            <input value={guildId} onChange={(e) => setGuildId(e.target.value)} placeholder="guild id" />
+            <input value={guildDisplayName} onChange={(e) => setGuildDisplayName(e.target.value)} placeholder="guild display name" />
+            <input value={guildDistributionId} onChange={(e) => setGuildDistributionId(e.target.value)} placeholder="distribution id" />
+          </div>
+          <div className="row">
+            <button className="action" onClick={registerGuildRegistryEntry}>Register Guild</button>
+            <button className="action" onClick={() => loadGuildRegistryEntry()}>Load Guild</button>
+            <button className="action" onClick={loadGuildRegistryList}>Load Guild Registry</button>
+          </div>
+          <div className="row">
+            <select value={guildId} onChange={(e) => setGuildId(e.target.value)}>
+              <option value="">select registered guild</option>
+              {guildRegistryList.map((item) => (
+                <option key={`guild-reg-${String(item?.guild_id || "")}`} value={String(item?.guild_id || "")}>
+                  {`${String(item?.guild_id || "")} :: ${String(item?.display_name || "")}`}
+                </option>
+              ))}
+            </select>
+            <span className="badge">{`Guild registry count: ${guildRegistryList.length}`}</span>
+            <span className="badge">{`Profile: ${profileName || "Artisan"}`}</span>
+          </div>
+          <pre>{JSON.stringify(guildRegistryOutput || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(guildRegistryList || [], null, 2)}</pre>
           <h3>Wand Registry</h3>
           <div className="row">
             <input value={wandRegistryWandId} onChange={(e) => setWandRegistryWandId(e.target.value)} placeholder="wand id" />
@@ -15802,7 +15895,6 @@ export function App() {
           <pre>{JSON.stringify(wandRegistryOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(wandRegistryList || [], null, 2)}</pre>
           <div className="row">
-            <input value={guildId} onChange={(e) => setGuildId(e.target.value)} placeholder="guild id" />
             <input value={guildChannelId} onChange={(e) => setGuildChannelId(e.target.value)} placeholder="channel id" />
             <input value={guildThreadId} onChange={(e) => setGuildThreadId(e.target.value)} placeholder="thread id" />
           </div>

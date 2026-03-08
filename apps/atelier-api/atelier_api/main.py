@@ -327,6 +327,18 @@ class WandRegistryInput(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class GuildRegistryInput(BaseModel):
+    guild_id: str
+    display_name: str = ""
+    distribution_id: str = ""
+    owner_artisan_id: str
+    owner_profile_name: str = ""
+    owner_profile_email: str = ""
+    member_profiles: list[Dict[str, Any]] = Field(default_factory=list)
+    charter: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class AdminGateVerifyInput(BaseModel):
     gate_code: str
 
@@ -944,6 +956,61 @@ def get_registered_wand(
     _enforce_role(role, "lesson.read")
     try:
         return svc.get_wand_registry_entry(wand_id=wand_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/v1/guild/registry")
+def register_guild(
+    payload: GuildRegistryInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.register_guild(
+            guild_id=payload.guild_id,
+            display_name=payload.display_name,
+            distribution_id=payload.distribution_id,
+            owner_artisan_id=payload.owner_artisan_id,
+            owner_profile_name=payload.owner_profile_name,
+            owner_profile_email=payload.owner_profile_email,
+            member_profiles=payload.member_profiles,
+            charter=payload.charter,
+            metadata=payload.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/guild/registry")
+def list_registered_guilds(
+    limit: int = 50,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[Mapping[str, Any]]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_guild_registry(limit=limit)
+
+
+@app.get("/v1/guild/registry/{guild_id}")
+def get_registered_guild(
+    guild_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.get_guild_registry_entry(guild_id=guild_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

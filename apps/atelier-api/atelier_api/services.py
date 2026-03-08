@@ -256,6 +256,7 @@ from .models import (
     WandDamageAttestationRecord,
     WandKeyEpochRecord,
     WandRegistryRecord,
+    GuildRegistryRecord,
 )
 from .repositories import AtelierRepository
 from .validators import build_scene_graph_content_from_cobra, validate_cobra_content, validate_json_content, validate_scene_realm
@@ -3440,6 +3441,139 @@ class AtelierService:
             except Exception:
                 pass
         records = self._load_bucket_records("wand_registry")
+        return records[: max(1, min(int(limit), 250))]
+
+    def register_guild(
+        self,
+        *,
+        guild_id: str,
+        display_name: str,
+        distribution_id: str,
+        owner_artisan_id: str,
+        owner_profile_name: str,
+        owner_profile_email: str,
+        member_profiles: Sequence[Mapping[str, Any]],
+        charter: Mapping[str, Any],
+        metadata: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        guild_id_norm = str(guild_id).strip()
+        owner_artisan_id_norm = str(owner_artisan_id).strip()
+        if guild_id_norm == "":
+            raise ValueError("guild_id_required")
+        if owner_artisan_id_norm == "":
+            raise ValueError("owner_artisan_id_required")
+        now = datetime.now(timezone.utc).isoformat()
+        payload = {
+            "guild_id": guild_id_norm,
+            "display_name": str(display_name or "").strip(),
+            "distribution_id": str(distribution_id or "").strip(),
+            "owner_artisan_id": owner_artisan_id_norm,
+            "owner_profile_name": str(owner_profile_name or "").strip(),
+            "owner_profile_email": str(owner_profile_email or "").strip(),
+            "member_profiles": [dict(item) for item in member_profiles if isinstance(item, Mapping)],
+            "charter": dict(charter),
+            "metadata": dict(metadata),
+            "status": "active",
+            "created_at": now,
+            "updated_at": now,
+        }
+        if self._repo is not None and hasattr(self._repo, "get_guild_registry_record") and hasattr(self._repo, "save_guild_registry_record"):
+            try:
+                existing = self._repo.get_guild_registry_record(guild_id_norm)
+                if existing is None:
+                    existing = GuildRegistryRecord(guild_id=guild_id_norm)
+                existing.display_name = str(display_name or "").strip()
+                existing.distribution_id = str(distribution_id or "").strip()
+                existing.owner_artisan_id = owner_artisan_id_norm
+                existing.owner_profile_name = str(owner_profile_name or "").strip()
+                existing.owner_profile_email = str(owner_profile_email or "").strip()
+                existing.member_profiles_json = json.dumps([dict(item) for item in member_profiles if isinstance(item, Mapping)], ensure_ascii=False)
+                existing.charter_json = json.dumps(dict(charter), ensure_ascii=False)
+                existing.metadata_json = json.dumps(dict(metadata), ensure_ascii=False)
+                existing.status = "active"
+                existing.updated_at = datetime.fromisoformat(now.replace("Z", "+00:00"))
+                saved = self._repo.save_guild_registry_record(existing)
+                return {
+                    "guild_id": saved.guild_id,
+                    "display_name": saved.display_name,
+                    "distribution_id": saved.distribution_id,
+                    "owner_artisan_id": saved.owner_artisan_id,
+                    "owner_profile_name": saved.owner_profile_name,
+                    "owner_profile_email": saved.owner_profile_email,
+                    "status": saved.status,
+                    "updated_at": saved.updated_at.isoformat(),
+                    "storage_backend": "database",
+                }
+            except Exception:
+                pass
+        target = self._security_bucket_dir("guild_registry") / f"{guild_id_norm}.json"
+        target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        return {
+            "guild_id": guild_id_norm,
+            "display_name": str(display_name or "").strip(),
+            "distribution_id": str(distribution_id or "").strip(),
+            "owner_artisan_id": owner_artisan_id_norm,
+            "owner_profile_name": str(owner_profile_name or "").strip(),
+            "owner_profile_email": str(owner_profile_email or "").strip(),
+            "status": "active",
+            "updated_at": now,
+            "storage_backend": "file",
+        }
+
+    def get_guild_registry_entry(self, *, guild_id: str) -> Mapping[str, Any]:
+        guild_id_norm = str(guild_id).strip()
+        if guild_id_norm == "":
+            raise ValueError("guild_id_required")
+        if self._repo is not None and hasattr(self._repo, "get_guild_registry_record"):
+            try:
+                row = self._repo.get_guild_registry_record(guild_id_norm)
+                if row is not None:
+                    return {
+                        "guild_id": row.guild_id,
+                        "display_name": row.display_name,
+                        "distribution_id": row.distribution_id,
+                        "owner_artisan_id": row.owner_artisan_id,
+                        "owner_profile_name": row.owner_profile_name,
+                        "owner_profile_email": row.owner_profile_email,
+                        "member_profiles": json.loads(row.member_profiles_json),
+                        "charter": json.loads(row.charter_json),
+                        "metadata": json.loads(row.metadata_json),
+                        "status": row.status,
+                        "created_at": row.created_at.isoformat(),
+                        "updated_at": row.updated_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+            except Exception:
+                pass
+        path = self._security_bucket_dir("guild_registry") / f"{guild_id_norm}.json"
+        if not path.exists():
+            raise ValueError("guild_not_found")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("guild_not_found")
+        return {**payload, "storage_backend": "file"}
+
+    def list_guild_registry(self, *, limit: int = 50) -> Sequence[Mapping[str, Any]]:
+        if self._repo is not None and hasattr(self._repo, "list_guild_registry_records"):
+            try:
+                rows = self._repo.list_guild_registry_records(limit=limit)
+                return [
+                    {
+                        "guild_id": row.guild_id,
+                        "display_name": row.display_name,
+                        "distribution_id": row.distribution_id,
+                        "owner_artisan_id": row.owner_artisan_id,
+                        "owner_profile_name": row.owner_profile_name,
+                        "owner_profile_email": row.owner_profile_email,
+                        "status": row.status,
+                        "updated_at": row.updated_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+                    for row in rows
+                ]
+            except Exception:
+                pass
+        records = self._load_bucket_records("guild_registry")
         return records[: max(1, min(int(limit), 250))]
 
     def get_migration_status(self) -> Mapping[str, Any]:

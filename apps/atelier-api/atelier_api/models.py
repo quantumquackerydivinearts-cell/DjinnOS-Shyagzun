@@ -476,3 +476,21 @@ class WandRegistryRecord(Base):
     status: Mapped[str] = mapped_column(String(80), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class GuildRegistryRecord(Base):
+    __tablename__ = "guild_registry"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    guild_id: Mapped[str] = mapped_column(String(160), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(240), nullable=False, default="")
+    distribution_id: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    owner_artisan_id: Mapped[str] = mapped_column(String(160), nullable=False, default="")
+    owner_profile_name: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    owner_profile_email: Mapped[str] = mapped_column(String(320), nullable=False, default="")
+    member_profiles_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    charter_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    status: Mapped[str] = mapped_column(String(80), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
