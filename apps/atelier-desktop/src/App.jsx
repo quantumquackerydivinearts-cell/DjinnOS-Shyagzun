@@ -12376,6 +12376,37 @@ export function App() {
     await loadWandStatus(guildWandId, setGuildWandStatus);
   };
 
+  const applyRegisteredWandSelection = async (wandId, { target = "both", loadEntry = false } = {}) => {
+    const safeWandId = String(wandId || "").trim();
+    if (!safeWandId) {
+      throw new Error("wand_id_required");
+    }
+    if (target === "both" || target === "temple") {
+      setWandDamageWandId(safeWandId);
+      await fetchWandStatus(safeWandId, setWandStatus);
+    }
+    if (target === "both" || target === "guild") {
+      setGuildWandId(safeWandId);
+      await fetchWandStatus(safeWandId, setGuildWandStatus);
+    }
+    setWandRegistryWandId(safeWandId);
+    if (loadEntry) {
+      const data = await apiCall(`/v1/security/wands/${encodeURIComponent(safeWandId)}`, "GET");
+      setWandRegistryOutput(data);
+      setWandRegistryMakerId(String(data?.maker_id || ""));
+      setWandRegistryMakerDate(String(data?.maker_date || data?.wand_spec?.maker_date || ""));
+      setWandRegistryAtelierOrigin(String(data?.atelier_origin || ""));
+      setWandRegistryStructuralFingerprint(String(data?.structural_fingerprint || ""));
+      setWandRegistryCraftRecordHash(String(data?.craft_record_hash || ""));
+      setWandRegistryMaterialProfileText(JSON.stringify(data?.material_profile || data?.wand_spec?.material_profile || {}, null, 2));
+      setWandRegistryDimensionsText(JSON.stringify(data?.dimensions || data?.wand_spec?.dimensions || {}, null, 2));
+      setWandRegistryOwnershipChainText(JSON.stringify(data?.ownership_chain || [], null, 2));
+      setWandRegistryMetadataText(JSON.stringify(data?.metadata || {}, null, 2));
+      return data;
+    }
+    return null;
+  };
+
   const registerWandRegistryEntry = async () => {
     await runAction("wand_registry_register", async () => {
       const data = await apiCall("/v1/security/wands/register", "POST", {
@@ -15659,6 +15690,14 @@ export function App() {
           <h3>Wand Damage Attestation</h3>
           <div className="row">
             <input value={wandDamageWandId} onChange={(e) => setWandDamageWandId(e.target.value)} placeholder="wand id" />
+            <select value={wandDamageWandId} onChange={(e) => setWandDamageWandId(e.target.value)}>
+              <option value="">select registered wand</option>
+              {wandRegistryList.map((item) => (
+                <option key={`temple-wand-${String(item?.wand_id || "")}`} value={String(item?.wand_id || "")}>
+                  {`${String(item?.wand_id || "")} :: ${String(item?.maker_id || "")}`}
+                </option>
+              ))}
+            </select>
             <input value={wandDamageNotifierId} onChange={(e) => setWandDamageNotifierId(e.target.value)} placeholder="notifier id" />
             <select value={wandDamageState} onChange={(e) => setWandDamageState(e.target.value)}>
               <option value="worn">worn</option>
@@ -15680,6 +15719,7 @@ export function App() {
             <button className="action" onClick={validateWandDamageEvidence}>Validate Evidence</button>
             <button className="action" onClick={recordWandDamageEvidence}>Record Evidence</button>
             <button className="action" onClick={loadWandDamageHistory}>Load History</button>
+            <button className="action" onClick={() => runAction("temple_use_registered_wand", () => applyRegisteredWandSelection(wandDamageWandId, { target: "temple", loadEntry: true }))}>Use Registry Wand</button>
             <span className="badge">{`Files: ${wandDamageFiles.length}`}</span>
             <span className="badge">HEIC allowed</span>
           </div>
@@ -15753,6 +15793,14 @@ export function App() {
           <div className="row">
             <input value={guildSenderId} onChange={(e) => setGuildSenderId(e.target.value)} placeholder="sender id" />
             <input value={guildWandId} onChange={(e) => setGuildWandId(e.target.value)} placeholder="wand id" />
+            <select value={guildWandId} onChange={(e) => setGuildWandId(e.target.value)}>
+              <option value="">select registered wand</option>
+              {wandRegistryList.map((item) => (
+                <option key={`guild-wand-${String(item?.wand_id || "")}`} value={String(item?.wand_id || "")}>
+                  {`${String(item?.wand_id || "")} :: ${String(item?.maker_id || "")}`}
+                </option>
+              ))}
+            </select>
             <input value={guildTempleEntropyDigest} onChange={(e) => setGuildTempleEntropyDigest(e.target.value)} placeholder="temple entropy digest" />
             <input value={guildTheatreEntropyDigest} onChange={(e) => setGuildTheatreEntropyDigest(e.target.value)} placeholder="theatre entropy digest" />
           </div>
@@ -15801,6 +15849,7 @@ export function App() {
             <button className="action" onClick={deriveGuildEntropyMix}>Derive Entropy Mix</button>
             <button className="action" onClick={loadGuildWandStatus}>Load Wand Status</button>
             <button className="action" onClick={loadGuildMessageHistory}>Load Message History</button>
+            <button className="action" onClick={() => runAction("guild_use_registered_wand", () => applyRegisteredWandSelection(guildWandId, { target: "guild", loadEntry: true }))}>Use Registry Wand</button>
           </div>
           <div className="row">
             <span className="badge">{`Wand status: ${String(guildWandStatus?.status || "unknown")}`}</span>
