@@ -31,6 +31,7 @@ from .models import (
     Quote,
     Supplier,
     GuildMessageEnvelopeRecord,
+    DistributionRegistryRecord,
     GuildRegistryRecord,
     WandDamageAttestationRecord,
     WandKeyEpochRecord,
@@ -522,6 +523,25 @@ class AtelierRepository:
         stmt = (
             select(GuildRegistryRecord)
             .order_by(GuildRegistryRecord.updated_at.desc(), GuildRegistryRecord.id.desc())
+            .limit(max(1, min(int(limit), 250)))
+        )
+        return self._db.scalars(stmt).all()
+
+    def get_distribution_registry_record(self, distribution_id: str) -> DistributionRegistryRecord | None:
+        return self._db.scalar(
+            select(DistributionRegistryRecord).where(DistributionRegistryRecord.distribution_id == distribution_id)
+        )
+
+    def save_distribution_registry_record(self, row: DistributionRegistryRecord) -> DistributionRegistryRecord:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_distribution_registry_records(self, limit: int = 50) -> Sequence[DistributionRegistryRecord]:
+        stmt = (
+            select(DistributionRegistryRecord)
+            .order_by(DistributionRegistryRecord.updated_at.desc(), DistributionRegistryRecord.id.desc())
             .limit(max(1, min(int(limit), 250)))
         )
         return self._db.scalars(stmt).all()

@@ -494,3 +494,19 @@ class GuildRegistryRecord(Base):
     status: Mapped[str] = mapped_column(String(80), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class DistributionRegistryRecord(Base):
+    __tablename__ = "distribution_registry"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    distribution_id: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(240), nullable=False, default="")
+    base_url: Mapped[str] = mapped_column(String(400), nullable=False, default="")
+    transport_kind: Mapped[str] = mapped_column(String(80), nullable=False, default="https")
+    public_key_ref: Mapped[str] = mapped_column(String(240), nullable=False, default="")
+    guild_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    status: Mapped[str] = mapped_column(String(80), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)

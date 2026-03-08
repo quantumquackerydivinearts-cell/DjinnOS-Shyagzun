@@ -252,6 +252,10 @@ class GuildMessageEnvelopeInput(BaseModel):
     mac_hex: str
     plaintext_digest: Optional[str] = None
     thread_id: Optional[str] = None
+    recipient_distribution_id: Optional[str] = None
+    recipient_guild_id: Optional[str] = None
+    recipient_channel_id: Optional[str] = None
+    recipient_actor_id: Optional[str] = None
     derivation: Dict[str, Any] = Field(default_factory=dict)
     entropy_mix: Dict[str, Any] = Field(default_factory=dict)
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -264,6 +268,10 @@ class GuildMessageEncryptInput(BaseModel):
     wand_id: str
     message_text: str
     thread_id: Optional[str] = None
+    recipient_distribution_id: Optional[str] = None
+    recipient_guild_id: Optional[str] = None
+    recipient_channel_id: Optional[str] = None
+    recipient_actor_id: Optional[str] = None
     temple_entropy_digest: Optional[str] = None
     theatre_entropy_digest: Optional[str] = None
     attestation_media_digests: list[str] = Field(default_factory=list)
@@ -336,6 +344,16 @@ class GuildRegistryInput(BaseModel):
     owner_profile_email: str = ""
     member_profiles: list[Dict[str, Any]] = Field(default_factory=list)
     charter: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class DistributionRegistryInput(BaseModel):
+    distribution_id: str
+    display_name: str = ""
+    base_url: str = ""
+    transport_kind: str = "https"
+    public_key_ref: str = ""
+    guild_ids: list[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -1015,6 +1033,59 @@ def get_registered_guild(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@app.post("/v1/distributions/registry")
+def register_distribution(
+    payload: DistributionRegistryInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.register_distribution(
+            distribution_id=payload.distribution_id,
+            display_name=payload.display_name,
+            base_url=payload.base_url,
+            transport_kind=payload.transport_kind,
+            public_key_ref=payload.public_key_ref,
+            guild_ids=payload.guild_ids,
+            metadata=payload.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/distributions/registry")
+def list_registered_distributions(
+    limit: int = 50,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[Mapping[str, Any]]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_distribution_registry(limit=limit)
+
+
+@app.get("/v1/distributions/registry/{distribution_id}")
+def get_registered_distribution(
+    distribution_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.get_distribution_registry_entry(distribution_id=distribution_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.get("/v1/security/wand/epochs")
 def list_wand_key_epochs(
     wand_id: Optional[str] = None,
@@ -1047,6 +1118,10 @@ def encrypt_guild_message(
             wand_id=payload.wand_id,
             message_text=payload.message_text,
             thread_id=payload.thread_id,
+            recipient_distribution_id=payload.recipient_distribution_id,
+            recipient_guild_id=payload.recipient_guild_id,
+            recipient_channel_id=payload.recipient_channel_id,
+            recipient_actor_id=payload.recipient_actor_id,
             temple_entropy_digest=payload.temple_entropy_digest,
             theatre_entropy_digest=payload.theatre_entropy_digest,
             attestation_media_digests=payload.attestation_media_digests,

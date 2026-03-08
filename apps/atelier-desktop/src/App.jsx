@@ -6229,6 +6229,10 @@ export function App() {
   const [guildId, setGuildId] = useState("guild.atelier");
   const [guildDisplayName, setGuildDisplayName] = useState("Atelier Guild");
   const [guildDistributionId, setGuildDistributionId] = useState("distribution.quantumquackery.main");
+  const [guildRecipientDistributionId, setGuildRecipientDistributionId] = useState("");
+  const [guildRecipientGuildId, setGuildRecipientGuildId] = useState("");
+  const [guildRecipientChannelId, setGuildRecipientChannelId] = useState("");
+  const [guildRecipientActorId, setGuildRecipientActorId] = useState("");
   const [guildChannelId, setGuildChannelId] = useState("hall.general");
   const [guildThreadId, setGuildThreadId] = useState("thread_001");
   const [guildSenderId, setGuildSenderId] = useState("player");
@@ -6252,6 +6256,15 @@ export function App() {
   const [guildMessageHistory, setGuildMessageHistory] = useState([]);
   const [guildRegistryList, setGuildRegistryList] = useState([]);
   const [guildRegistryOutput, setGuildRegistryOutput] = useState(null);
+  const [distributionId, setDistributionId] = useState("distribution.quantumquackery.main");
+  const [distributionDisplayName, setDistributionDisplayName] = useState("Quantum Quackery Main");
+  const [distributionBaseUrl, setDistributionBaseUrl] = useState("https://quantumquackery.org");
+  const [distributionTransportKind, setDistributionTransportKind] = useState("https");
+  const [distributionPublicKeyRef, setDistributionPublicKeyRef] = useState("");
+  const [distributionGuildIdsText, setDistributionGuildIdsText] = useState('[\n  "guild.atelier"\n]');
+  const [distributionMetadataText, setDistributionMetadataText] = useState('{\n  "source": "atelier.desktop.guild_hall"\n}');
+  const [distributionRegistryList, setDistributionRegistryList] = useState([]);
+  const [distributionRegistryOutput, setDistributionRegistryOutput] = useState(null);
   const [guildWandStatus, setGuildWandStatus] = useState(null);
   const [wandRegistryWandId, setWandRegistryWandId] = useState("wand_001");
   const [wandRegistryMakerId, setWandRegistryMakerId] = useState("maker.quant");
@@ -6380,6 +6393,9 @@ export function App() {
     }
     loadGuildRegistryList().catch((error) => {
       console.error("guild_registry_autoload_failed", error);
+    });
+    loadDistributionRegistryList().catch((error) => {
+      console.error("distribution_registry_autoload_failed", error);
     });
   }, [section]);
 
@@ -12309,6 +12325,10 @@ export function App() {
         sender_id: guildSenderId,
         wand_id: guildWandId,
         message_text: messageDraft,
+        recipient_distribution_id: guildRecipientDistributionId || null,
+        recipient_guild_id: guildRecipientGuildId || null,
+        recipient_channel_id: guildRecipientChannelId || null,
+        recipient_actor_id: guildRecipientActorId || null,
         temple_entropy_digest: guildTempleEntropyDigest || null,
         theatre_entropy_digest: guildTheatreEntropyDigest || null,
         attestation_media_digests: attestationMediaDigests,
@@ -12452,6 +12472,66 @@ export function App() {
       setGuildId(String(data?.guild_id || safeGuildId));
       setGuildDisplayName(String(data?.display_name || ""));
       setGuildDistributionId(String(data?.distribution_id || ""));
+      if (!guildRecipientDistributionId) {
+        setGuildRecipientDistributionId(String(data?.distribution_id || ""));
+      }
+      return data;
+    });
+  };
+
+  const registerDistributionRegistryEntry = async () => {
+    await runAction("distribution_registry_register", async () => {
+      const guildIds = (() => {
+        try {
+          const parsed = JSON.parse(distributionGuildIdsText || "[]");
+          return Array.isArray(parsed)
+            ? parsed.map((item) => String(item || "").trim()).filter((item) => item !== "")
+            : [];
+        } catch {
+          return [];
+        }
+      })();
+      const data = await apiCall("/v1/distributions/registry", "POST", {
+        distribution_id: String(distributionId || "").trim(),
+        display_name: String(distributionDisplayName || "").trim(),
+        base_url: String(distributionBaseUrl || "").trim(),
+        transport_kind: String(distributionTransportKind || "").trim() || "https",
+        public_key_ref: String(distributionPublicKeyRef || "").trim(),
+        guild_ids: guildIds,
+        metadata: parseObjectJson(distributionMetadataText, {}),
+      });
+      setDistributionRegistryOutput(data);
+      await loadDistributionRegistryList();
+      return data;
+    });
+  };
+
+  const loadDistributionRegistryList = async () => {
+    await runAction("distribution_registry_list", async () => {
+      const data = await apiCall("/v1/distributions/registry?limit=50", "GET");
+      setDistributionRegistryList(Array.isArray(data) ? data : []);
+      return data;
+    });
+  };
+
+  const loadDistributionRegistryEntry = async (registryDistributionId = distributionId) => {
+    await runAction("distribution_registry_get", async () => {
+      const safeDistributionId = String(registryDistributionId || "").trim();
+      if (!safeDistributionId) {
+        throw new Error("distribution_id_required");
+      }
+      const data = await apiCall(`/v1/distributions/registry/${encodeURIComponent(safeDistributionId)}`, "GET");
+      setDistributionRegistryOutput(data);
+      setDistributionId(String(data?.distribution_id || safeDistributionId));
+      setDistributionDisplayName(String(data?.display_name || ""));
+      setDistributionBaseUrl(String(data?.base_url || ""));
+      setDistributionTransportKind(String(data?.transport_kind || "https"));
+      setDistributionPublicKeyRef(String(data?.public_key_ref || ""));
+      setDistributionGuildIdsText(JSON.stringify(data?.guild_ids || [], null, 2));
+      setDistributionMetadataText(JSON.stringify(data?.metadata || {}, null, 2));
+      if (!guildRecipientDistributionId) {
+        setGuildRecipientDistributionId(String(data?.distribution_id || safeDistributionId));
+      }
       return data;
     });
   };
@@ -15857,6 +15937,42 @@ export function App() {
           </div>
           <pre>{JSON.stringify(guildRegistryOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildRegistryList || [], null, 2)}</pre>
+          <h3>Distribution Registry</h3>
+          <div className="row">
+            <input value={distributionId} onChange={(e) => setDistributionId(e.target.value)} placeholder="distribution id" />
+            <input value={distributionDisplayName} onChange={(e) => setDistributionDisplayName(e.target.value)} placeholder="distribution display name" />
+            <input value={distributionBaseUrl} onChange={(e) => setDistributionBaseUrl(e.target.value)} placeholder="base url" />
+          </div>
+          <div className="row">
+            <input value={distributionTransportKind} onChange={(e) => setDistributionTransportKind(e.target.value)} placeholder="transport kind" />
+            <input value={distributionPublicKeyRef} onChange={(e) => setDistributionPublicKeyRef(e.target.value)} placeholder="public key ref" />
+            <button className="action" onClick={registerDistributionRegistryEntry}>Register Distribution</button>
+            <button className="action" onClick={() => loadDistributionRegistryEntry()}>Load Distribution</button>
+            <button className="action" onClick={loadDistributionRegistryList}>Load Distribution Registry</button>
+          </div>
+          <div className="row">
+            <textarea value={distributionGuildIdsText} onChange={(e) => setDistributionGuildIdsText(e.target.value)} placeholder="guild ids JSON array" rows={4} />
+            <textarea value={distributionMetadataText} onChange={(e) => setDistributionMetadataText(e.target.value)} placeholder="distribution metadata JSON" rows={4} />
+          </div>
+          <div className="row">
+            <select value={distributionId} onChange={(e) => setDistributionId(e.target.value)}>
+              <option value="">select registered distribution</option>
+              {distributionRegistryList.map((item) => (
+                <option key={`distribution-reg-${String(item?.distribution_id || "")}`} value={String(item?.distribution_id || "")}>
+                  {`${String(item?.distribution_id || "")} :: ${String(item?.display_name || "")}`}
+                </option>
+              ))}
+            </select>
+            <button className="action" onClick={() => {
+              const next = String(distributionId || "").trim();
+              if (next) {
+                setGuildRecipientDistributionId(next);
+              }
+            }}>Use As Recipient Target</button>
+            <span className="badge">{`Distribution registry count: ${distributionRegistryList.length}`}</span>
+          </div>
+          <pre>{JSON.stringify(distributionRegistryOutput || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(distributionRegistryList || [], null, 2)}</pre>
           <h3>Wand Registry</h3>
           <div className="row">
             <input value={wandRegistryWandId} onChange={(e) => setWandRegistryWandId(e.target.value)} placeholder="wand id" />
@@ -15913,6 +16029,19 @@ export function App() {
             <input value={guildTheatreEntropyDigest} onChange={(e) => setGuildTheatreEntropyDigest(e.target.value)} placeholder="theatre entropy digest" />
           </div>
           <div className="row">
+            <select value={guildRecipientDistributionId} onChange={(e) => setGuildRecipientDistributionId(e.target.value)}>
+              <option value="">select recipient distribution</option>
+              {distributionRegistryList.map((item) => (
+                <option key={`guild-recipient-distribution-${String(item?.distribution_id || "")}`} value={String(item?.distribution_id || "")}>
+                  {`${String(item?.distribution_id || "")} :: ${String(item?.display_name || "")}`}
+                </option>
+              ))}
+            </select>
+            <input value={guildRecipientGuildId} onChange={(e) => setGuildRecipientGuildId(e.target.value)} placeholder="recipient guild id" />
+            <input value={guildRecipientChannelId} onChange={(e) => setGuildRecipientChannelId(e.target.value)} placeholder="recipient channel id" />
+            <input value={guildRecipientActorId} onChange={(e) => setGuildRecipientActorId(e.target.value)} placeholder="recipient actor id" />
+          </div>
+          <div className="row">
             <input value={guildTempleProvenanceId} onChange={(e) => setGuildTempleProvenanceId(e.target.value)} placeholder="temple provenance id" />
             <input value={guildTempleSourceType} onChange={(e) => setGuildTempleSourceType(e.target.value)} placeholder="temple source type" />
             <input value={guildTempleGardenId} onChange={(e) => setGuildTempleGardenId(e.target.value)} placeholder="garden id" />
@@ -15964,6 +16093,7 @@ export function App() {
             <span className="badge">{`Revoked: ${guildWandStatus?.revoked ? "yes" : "no"}`}</span>
             <span className="badge">{`Epochs: ${Number(guildWandStatus?.epoch_count || 0)}`}</span>
             <span className="badge">{`Attestations: ${Number(guildWandStatus?.attestation_count || 0)}`}</span>
+            <span className="badge">{`Recipient distribution: ${guildRecipientDistributionId || "local"}`}</span>
           </div>
           <pre>{JSON.stringify(guildEntropyMixOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildEncryptOutput || {}, null, 2)}</pre>
@@ -15991,6 +16121,7 @@ export function App() {
             <span className="badge">{`Wand: ${guildWandId}`}</span>
             <span className="badge">{`Revocation: ${guildWandStatus?.revoked ? "blocked" : "clear"}`}</span>
             <span className="badge">{`Status: ${String(guildWandStatus?.status || "unknown")}`}</span>
+            <span className="badge">{`Remote: ${guildRecipientDistributionId || "none"} / ${guildRecipientGuildId || "none"}`}</span>
           </div>
           <pre>{JSON.stringify(guildDecryptOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildMessageHistory || [], null, 2)}</pre>

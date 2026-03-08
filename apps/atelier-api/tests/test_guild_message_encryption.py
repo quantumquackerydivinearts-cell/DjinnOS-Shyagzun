@@ -50,6 +50,10 @@ def test_encrypt_guild_message_runtime_emits_envelope() -> None:
         wand_id="wand_001",
         message_text="Meet in the hall at dusk.",
         thread_id="thread_001",
+        recipient_distribution_id="distribution.remote.one",
+        recipient_guild_id="guild.remote",
+        recipient_channel_id="channel.remote",
+        recipient_actor_id="remote-player",
         temple_entropy_digest="temple_digest_123",
         theatre_entropy_digest="theatre_digest_456",
         attestation_media_digests=["abc", "def"],
@@ -60,6 +64,10 @@ def test_encrypt_guild_message_runtime_emits_envelope() -> None:
     assert payload["cipher_family"] == "experimental_hash_stream_v1"
     assert payload["guild_id"] == "guild.alchemy"
     assert payload["wand_id"] == "wand_001"
+    assert payload["recipient_distribution_id"] == "distribution.remote.one"
+    assert payload["recipient_guild_id"] == "guild.remote"
+    assert payload["recipient_channel_id"] == "channel.remote"
+    assert payload["recipient_actor_id"] == "remote-player"
     assert base64.b64decode(payload["ciphertext_b64"])
     assert base64.b64decode(payload["nonce_b64"])
     assert len(payload["mac_hex"]) == 64
@@ -77,6 +85,10 @@ def test_encrypt_and_decrypt_guild_message_roundtrip() -> None:
         wand_id="wand_001",
         message_text="Meet in the hall at dusk.",
         thread_id="thread_001",
+        recipient_distribution_id="distribution.remote.one",
+        recipient_guild_id="guild.remote",
+        recipient_channel_id="channel.remote",
+        recipient_actor_id="remote-player",
         temple_entropy_digest="temple_digest_123",
         theatre_entropy_digest="theatre_digest_456",
         attestation_media_digests=["abc", "def"],
@@ -207,6 +219,10 @@ def test_guild_message_history_and_revocation_gate() -> None:
         wand_id="wand_001",
         message_text="cipher me",
         thread_id="thread_001",
+        recipient_distribution_id="distribution.remote.one",
+        recipient_guild_id="guild.remote",
+        recipient_channel_id="channel.remote",
+        recipient_actor_id="remote-player",
         temple_entropy_digest="temple_digest_123",
         theatre_entropy_digest="theatre_digest_456",
         attestation_media_digests=["abc"],
@@ -220,6 +236,7 @@ def test_guild_message_history_and_revocation_gate() -> None:
     assert "guild_messages" in str(persisted["storage_path"])
     history = svc.list_guild_message_history(guild_id="guild.atelier", channel_id="hall.general", thread_id="thread_001")
     assert len(history) == 1
+    assert history[0]["envelope"]["recipient_distribution_id"] == "distribution.remote.one"
 
     record = svc.persist_wand_damage_attestation(
         wand_id="wand_001",
@@ -251,6 +268,10 @@ def test_guild_message_history_and_revocation_gate() -> None:
             wand_id="wand_001",
             message_text="blocked",
             thread_id="thread_001",
+            recipient_distribution_id=None,
+            recipient_guild_id=None,
+            recipient_channel_id=None,
+            recipient_actor_id=None,
             temple_entropy_digest="temple_digest_123",
             theatre_entropy_digest="theatre_digest_456",
             attestation_media_digests=["abc"],
@@ -473,5 +494,32 @@ def test_register_and_list_guild_registry_file_fallback() -> None:
     records = svc.list_guild_registry(limit=10)
     assert any(item["guild_id"] == "guild.atelier" for item in records)
 
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)
+
+
+def test_register_and_list_distribution_registry_file_fallback() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-distribution-registry")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+
+    record = svc.register_distribution(
+        distribution_id="distribution.quantumquackery.remote",
+        display_name="Quantum Quackery Remote",
+        base_url="https://remote.quantumquackery.org",
+        transport_kind="https",
+        public_key_ref="pk_remote_001",
+        guild_ids=["guild.atelier", "guild.remote"],
+        metadata={"source": "test"},
+    )
+    assert record["distribution_id"] == "distribution.quantumquackery.remote"
+    listed = svc.list_distribution_registry(limit=10)
+    assert len(listed) == 1
+    loaded = svc.get_distribution_registry_entry(distribution_id="distribution.quantumquackery.remote")
+    assert loaded["base_url"] == "https://remote.quantumquackery.org"
+    assert loaded["guild_ids"] == ["guild.atelier", "guild.remote"]
     os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
     shutil.rmtree(tmp_path)

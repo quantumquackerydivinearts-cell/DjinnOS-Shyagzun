@@ -253,6 +253,7 @@ from .models import (
     Scene,
     WorldRegion,
     GuildMessageEnvelopeRecord,
+    DistributionRegistryRecord,
     WandDamageAttestationRecord,
     WandKeyEpochRecord,
     WandRegistryRecord,
@@ -2727,6 +2728,10 @@ class AtelierService:
         wand_id: str,
         message_text: str,
         thread_id: Optional[str],
+        recipient_distribution_id: Optional[str],
+        recipient_guild_id: Optional[str],
+        recipient_channel_id: Optional[str],
+        recipient_actor_id: Optional[str],
         temple_entropy_digest: Optional[str],
         theatre_entropy_digest: Optional[str],
         attestation_media_digests: Sequence[str],
@@ -2741,6 +2746,10 @@ class AtelierService:
             "thread_id": thread_id or "",
             "sender_id": sender_id,
             "wand_id": wand_id,
+            "recipient_distribution_id": recipient_distribution_id or "",
+            "recipient_guild_id": recipient_guild_id or "",
+            "recipient_channel_id": recipient_channel_id or "",
+            "recipient_actor_id": recipient_actor_id or "",
             "metadata": dict(metadata),
         }
         entropy_mix = cls._entropy_mix_runtime(
@@ -2768,6 +2777,10 @@ class AtelierService:
             "thread_id": thread_id,
             "sender_id": sender_id,
             "wand_id": wand_id,
+            "recipient_distribution_id": str(recipient_distribution_id or "").strip() or None,
+            "recipient_guild_id": str(recipient_guild_id or "").strip() or None,
+            "recipient_channel_id": str(recipient_channel_id or "").strip() or None,
+            "recipient_actor_id": str(recipient_actor_id or "").strip() or None,
             "ciphertext_b64": base64.b64encode(ciphertext).decode("ascii"),
             "nonce_b64": base64.b64encode(system_nonce).decode("ascii"),
             "mac_hex": mac,
@@ -2786,6 +2799,10 @@ class AtelierService:
         wand_id: str,
         message_text: str,
         thread_id: Optional[str],
+        recipient_distribution_id: Optional[str],
+        recipient_guild_id: Optional[str],
+        recipient_channel_id: Optional[str],
+        recipient_actor_id: Optional[str],
         temple_entropy_digest: Optional[str],
         theatre_entropy_digest: Optional[str],
         attestation_media_digests: Sequence[str],
@@ -2819,6 +2836,10 @@ class AtelierService:
             wand_id=wand_id_norm,
             message_text=message_text_norm,
             thread_id=thread_id,
+            recipient_distribution_id=recipient_distribution_id,
+            recipient_guild_id=recipient_guild_id,
+            recipient_channel_id=recipient_channel_id,
+            recipient_actor_id=recipient_actor_id,
             temple_entropy_digest=temple_entropy_digest,
             theatre_entropy_digest=theatre_entropy_digest,
             attestation_media_digests=attestation_media_digests,
@@ -2855,6 +2876,10 @@ class AtelierService:
             "thread_id": str(envelope.get("thread_id") or "").strip(),
             "sender_id": str(envelope.get("sender_id") or "").strip(),
             "wand_id": wand_id_norm,
+            "recipient_distribution_id": str(envelope.get("recipient_distribution_id") or "").strip(),
+            "recipient_guild_id": str(envelope.get("recipient_guild_id") or "").strip(),
+            "recipient_channel_id": str(envelope.get("recipient_channel_id") or "").strip(),
+            "recipient_actor_id": str(envelope.get("recipient_actor_id") or "").strip(),
             "metadata": dict(metadata),
         }
         entropy_mix = self._entropy_mix_runtime(
@@ -3574,6 +3599,122 @@ class AtelierService:
             except Exception:
                 pass
         records = self._load_bucket_records("guild_registry")
+        return records[: max(1, min(int(limit), 250))]
+
+    def register_distribution(
+        self,
+        *,
+        distribution_id: str,
+        display_name: str,
+        base_url: str,
+        transport_kind: str,
+        public_key_ref: str,
+        guild_ids: Sequence[str],
+        metadata: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        distribution_id_norm = str(distribution_id).strip()
+        if distribution_id_norm == "":
+            raise ValueError("distribution_id_required")
+        now = datetime.now(timezone.utc).isoformat()
+        normalized_guild_ids = [
+            str(item).strip() for item in guild_ids if str(item).strip() != ""
+        ]
+        payload = {
+            "distribution_id": distribution_id_norm,
+            "display_name": str(display_name or "").strip(),
+            "base_url": str(base_url or "").strip(),
+            "transport_kind": str(transport_kind or "https").strip() or "https",
+            "public_key_ref": str(public_key_ref or "").strip(),
+            "guild_ids": normalized_guild_ids,
+            "metadata": dict(metadata),
+            "status": "active",
+            "created_at": now,
+            "updated_at": now,
+        }
+        if self._repo is not None and hasattr(self._repo, "get_distribution_registry_record") and hasattr(self._repo, "save_distribution_registry_record"):
+            try:
+                existing = self._repo.get_distribution_registry_record(distribution_id_norm)
+                if existing is None:
+                    existing = DistributionRegistryRecord(distribution_id=distribution_id_norm)
+                existing.display_name = str(display_name or "").strip()
+                existing.base_url = str(base_url or "").strip()
+                existing.transport_kind = str(transport_kind or "https").strip() or "https"
+                existing.public_key_ref = str(public_key_ref or "").strip()
+                existing.guild_ids_json = json.dumps(normalized_guild_ids, ensure_ascii=False)
+                existing.metadata_json = json.dumps(dict(metadata), ensure_ascii=False)
+                existing.status = "active"
+                existing.updated_at = datetime.fromisoformat(now.replace("Z", "+00:00"))
+                saved = self._repo.save_distribution_registry_record(existing)
+                return {
+                    "distribution_id": saved.distribution_id,
+                    "display_name": saved.display_name,
+                    "base_url": saved.base_url,
+                    "transport_kind": saved.transport_kind,
+                    "public_key_ref": saved.public_key_ref,
+                    "guild_ids": json.loads(saved.guild_ids_json),
+                    "metadata": json.loads(saved.metadata_json),
+                    "status": saved.status,
+                    "updated_at": saved.updated_at.isoformat(),
+                    "storage_backend": "database",
+                }
+            except Exception:
+                pass
+        target = self._security_bucket_dir("distribution_registry") / f"{distribution_id_norm}.json"
+        target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        return {**payload, "storage_backend": "file"}
+
+    def get_distribution_registry_entry(self, *, distribution_id: str) -> Mapping[str, Any]:
+        distribution_id_norm = str(distribution_id).strip()
+        if distribution_id_norm == "":
+            raise ValueError("distribution_id_required")
+        if self._repo is not None and hasattr(self._repo, "get_distribution_registry_record"):
+            try:
+                row = self._repo.get_distribution_registry_record(distribution_id_norm)
+                if row is not None:
+                    return {
+                        "distribution_id": row.distribution_id,
+                        "display_name": row.display_name,
+                        "base_url": row.base_url,
+                        "transport_kind": row.transport_kind,
+                        "public_key_ref": row.public_key_ref,
+                        "guild_ids": json.loads(row.guild_ids_json),
+                        "metadata": json.loads(row.metadata_json),
+                        "status": row.status,
+                        "created_at": row.created_at.isoformat(),
+                        "updated_at": row.updated_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+            except Exception:
+                pass
+        path = self._security_bucket_dir("distribution_registry") / f"{distribution_id_norm}.json"
+        if not path.exists():
+            raise ValueError("distribution_not_found")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("distribution_not_found")
+        return {**payload, "storage_backend": "file"}
+
+    def list_distribution_registry(self, *, limit: int = 50) -> Sequence[Mapping[str, Any]]:
+        if self._repo is not None and hasattr(self._repo, "list_distribution_registry_records"):
+            try:
+                rows = self._repo.list_distribution_registry_records(limit=limit)
+                return [
+                    {
+                        "distribution_id": row.distribution_id,
+                        "display_name": row.display_name,
+                        "base_url": row.base_url,
+                        "transport_kind": row.transport_kind,
+                        "public_key_ref": row.public_key_ref,
+                        "guild_ids": json.loads(row.guild_ids_json),
+                        "status": row.status,
+                        "updated_at": row.updated_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+                    for row in rows
+                ]
+            except Exception:
+                pass
+        records = self._load_bucket_records("distribution_registry")
         return records[: max(1, min(int(limit), 250))]
 
     def get_migration_status(self) -> Mapping[str, Any]:
