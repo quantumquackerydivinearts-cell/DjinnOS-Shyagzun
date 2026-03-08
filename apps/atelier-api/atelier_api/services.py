@@ -3284,8 +3284,10 @@ class AtelierService:
         *,
         wand_id: str,
         maker_id: str,
+        maker_date: str,
         atelier_origin: str,
         material_profile: Mapping[str, Any],
+        dimensions: Mapping[str, Any],
         structural_fingerprint: str,
         craft_record_hash: str,
         ownership_chain: Sequence[Mapping[str, Any]],
@@ -3301,8 +3303,17 @@ class AtelierService:
         payload = {
             "wand_id": wand_id_norm,
             "maker_id": maker_id_norm,
+            "maker_date": str(maker_date or "").strip(),
             "atelier_origin": str(atelier_origin or "").strip(),
             "material_profile": dict(material_profile),
+            "dimensions": dict(dimensions),
+            "wand_spec": {
+                "maker_date": str(maker_date or "").strip(),
+                "material_profile": dict(material_profile),
+                "dimensions": dict(dimensions),
+                "structural_fingerprint": str(structural_fingerprint or "").strip(),
+                "craft_record_hash": str(craft_record_hash or "").strip(),
+            },
             "structural_fingerprint": str(structural_fingerprint or "").strip(),
             "craft_record_hash": str(craft_record_hash or "").strip(),
             "ownership_chain": [dict(item) for item in ownership_chain if isinstance(item, Mapping)],
@@ -3317,8 +3328,10 @@ class AtelierService:
                 if existing is None:
                     existing = WandRegistryRecord(wand_id=wand_id_norm, maker_id=maker_id_norm)
                 existing.maker_id = maker_id_norm
+                existing.maker_date = str(maker_date or "").strip()
                 existing.atelier_origin = str(atelier_origin or "").strip()
                 existing.material_profile_json = json.dumps(dict(material_profile), ensure_ascii=False)
+                existing.dimensions_json = json.dumps(dict(dimensions), ensure_ascii=False)
                 existing.structural_fingerprint = str(structural_fingerprint or "").strip()
                 existing.craft_record_hash = str(craft_record_hash or "").strip()
                 existing.ownership_chain_json = json.dumps(
@@ -3332,7 +3345,15 @@ class AtelierService:
                 return {
                     "wand_id": saved.wand_id,
                     "maker_id": saved.maker_id,
+                    "maker_date": saved.maker_date,
                     "atelier_origin": saved.atelier_origin,
+                    "wand_spec": {
+                        "maker_date": saved.maker_date,
+                        "material_profile": json.loads(saved.material_profile_json),
+                        "dimensions": json.loads(saved.dimensions_json),
+                        "structural_fingerprint": saved.structural_fingerprint,
+                        "craft_record_hash": saved.craft_record_hash,
+                    },
                     "status": saved.status,
                     "updated_at": saved.updated_at.isoformat(),
                     "storage_backend": "database",
@@ -3361,8 +3382,17 @@ class AtelierService:
                     return {
                         "wand_id": row.wand_id,
                         "maker_id": row.maker_id,
+                        "maker_date": row.maker_date,
                         "atelier_origin": row.atelier_origin,
                         "material_profile": json.loads(row.material_profile_json),
+                        "dimensions": json.loads(row.dimensions_json),
+                        "wand_spec": {
+                            "maker_date": row.maker_date,
+                            "material_profile": json.loads(row.material_profile_json),
+                            "dimensions": json.loads(row.dimensions_json),
+                            "structural_fingerprint": row.structural_fingerprint,
+                            "craft_record_hash": row.craft_record_hash,
+                        },
                         "structural_fingerprint": row.structural_fingerprint,
                         "craft_record_hash": row.craft_record_hash,
                         "ownership_chain": json.loads(row.ownership_chain_json),
@@ -3390,7 +3420,15 @@ class AtelierService:
                     {
                         "wand_id": row.wand_id,
                         "maker_id": row.maker_id,
+                        "maker_date": row.maker_date,
                         "atelier_origin": row.atelier_origin,
+                        "wand_spec": {
+                            "maker_date": row.maker_date,
+                            "material_profile": json.loads(row.material_profile_json),
+                            "dimensions": json.loads(row.dimensions_json),
+                            "structural_fingerprint": row.structural_fingerprint,
+                            "craft_record_hash": row.craft_record_hash,
+                        },
                         "structural_fingerprint": row.structural_fingerprint,
                         "craft_record_hash": row.craft_record_hash,
                         "status": row.status,

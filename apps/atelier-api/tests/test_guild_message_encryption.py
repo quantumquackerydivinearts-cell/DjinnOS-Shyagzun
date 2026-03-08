@@ -376,8 +376,10 @@ def test_register_and_list_wand_registry_file_fallback() -> None:
     record = svc.register_wand(
         wand_id="wand_registry_001",
         maker_id="maker.quant",
+        maker_date="2026-03-08",
         atelier_origin="atelier.guildhall",
         material_profile={"wood": "ash", "core": "silver-thread"},
+        dimensions={"length_mm": 340, "shaft_diameter_mm": 11, "mass_g": 31},
         structural_fingerprint="fp_001",
         craft_record_hash="craft_hash_001",
         ownership_chain=[{"owner_id": "player", "epoch": "creation"}],
@@ -392,6 +394,9 @@ def test_register_and_list_wand_registry_file_fallback() -> None:
     loaded = svc.get_wand_registry_entry(wand_id="wand_registry_001")
     assert loaded["craft_record_hash"] == "craft_hash_001"
     assert loaded["material_profile"]["wood"] == "ash"
+    assert loaded["dimensions"]["length_mm"] == 340
+    assert loaded["maker_date"] == "2026-03-08"
+    assert loaded["wand_spec"]["dimensions"]["mass_g"] == 31
 
     records = svc.list_wand_registry(limit=10)
     assert any(item["wand_id"] == "wand_registry_001" for item in records)

@@ -317,8 +317,10 @@ class WandEpochTransitionInput(BaseModel):
 class WandRegistryInput(BaseModel):
     wand_id: str
     maker_id: str
+    maker_date: str = ""
     atelier_origin: str = ""
     material_profile: Dict[str, Any] = Field(default_factory=dict)
+    dimensions: Dict[str, Any] = Field(default_factory=dict)
     structural_fingerprint: str = ""
     craft_record_hash: str = ""
     ownership_chain: list[Dict[str, Any]] = Field(default_factory=list)
@@ -904,8 +906,10 @@ def register_wand(
         return svc.register_wand(
             wand_id=payload.wand_id,
             maker_id=payload.maker_id,
+            maker_date=payload.maker_date,
             atelier_origin=payload.atelier_origin,
             material_profile=payload.material_profile,
+            dimensions=payload.dimensions,
             structural_fingerprint=payload.structural_fingerprint,
             craft_record_hash=payload.craft_record_hash,
             ownership_chain=payload.ownership_chain,

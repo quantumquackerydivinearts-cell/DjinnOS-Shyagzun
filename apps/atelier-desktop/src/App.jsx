@@ -6251,10 +6251,12 @@ export function App() {
   const [guildWandStatus, setGuildWandStatus] = useState(null);
   const [wandRegistryWandId, setWandRegistryWandId] = useState("wand_001");
   const [wandRegistryMakerId, setWandRegistryMakerId] = useState("maker.quant");
+  const [wandRegistryMakerDate, setWandRegistryMakerDate] = useState("2026-03-08");
   const [wandRegistryAtelierOrigin, setWandRegistryAtelierOrigin] = useState("atelier.guildhall");
   const [wandRegistryStructuralFingerprint, setWandRegistryStructuralFingerprint] = useState("");
   const [wandRegistryCraftRecordHash, setWandRegistryCraftRecordHash] = useState("");
   const [wandRegistryMaterialProfileText, setWandRegistryMaterialProfileText] = useState("{\n  \"wood\": \"ash\",\n  \"core\": \"silver-thread\"\n}");
+  const [wandRegistryDimensionsText, setWandRegistryDimensionsText] = useState("{\n  \"length_mm\": 340,\n  \"shaft_diameter_mm\": 11,\n  \"mass_g\": 31\n}");
   const [wandRegistryOwnershipChainText, setWandRegistryOwnershipChainText] = useState('[\n  {\n    "owner_id": "player",\n    "epoch": "creation"\n  }\n]');
   const [wandRegistryMetadataText, setWandRegistryMetadataText] = useState('{\n  "display_name": "North Ash Wand"\n}');
   const [wandRegistryList, setWandRegistryList] = useState([]);
@@ -12379,10 +12381,12 @@ export function App() {
       const data = await apiCall("/v1/security/wands/register", "POST", {
         wand_id: String(wandRegistryWandId || "").trim(),
         maker_id: String(wandRegistryMakerId || "").trim(),
+        maker_date: String(wandRegistryMakerDate || "").trim(),
         atelier_origin: String(wandRegistryAtelierOrigin || "").trim(),
         structural_fingerprint: String(wandRegistryStructuralFingerprint || "").trim(),
         craft_record_hash: String(wandRegistryCraftRecordHash || "").trim(),
         material_profile: parseObjectJson(wandRegistryMaterialProfileText, {}),
+        dimensions: parseObjectJson(wandRegistryDimensionsText, {}),
         ownership_chain: (() => {
           try {
             const parsed = JSON.parse(wandRegistryOwnershipChainText || "[]");
@@ -12419,10 +12423,12 @@ export function App() {
       setWandRegistryOutput(data);
       setWandRegistryWandId(String(data?.wand_id || safeWandId));
       setWandRegistryMakerId(String(data?.maker_id || ""));
+      setWandRegistryMakerDate(String(data?.maker_date || data?.wand_spec?.maker_date || ""));
       setWandRegistryAtelierOrigin(String(data?.atelier_origin || ""));
       setWandRegistryStructuralFingerprint(String(data?.structural_fingerprint || ""));
       setWandRegistryCraftRecordHash(String(data?.craft_record_hash || ""));
-      setWandRegistryMaterialProfileText(JSON.stringify(data?.material_profile || {}, null, 2));
+      setWandRegistryMaterialProfileText(JSON.stringify(data?.material_profile || data?.wand_spec?.material_profile || {}, null, 2));
+      setWandRegistryDimensionsText(JSON.stringify(data?.dimensions || data?.wand_spec?.dimensions || {}, null, 2));
       setWandRegistryOwnershipChainText(JSON.stringify(data?.ownership_chain || [], null, 2));
       setWandRegistryMetadataText(JSON.stringify(data?.metadata || {}, null, 2));
       return data;
@@ -15710,6 +15716,7 @@ export function App() {
           <div className="row">
             <input value={wandRegistryWandId} onChange={(e) => setWandRegistryWandId(e.target.value)} placeholder="wand id" />
             <input value={wandRegistryMakerId} onChange={(e) => setWandRegistryMakerId(e.target.value)} placeholder="maker id" />
+            <input value={wandRegistryMakerDate} onChange={(e) => setWandRegistryMakerDate(e.target.value)} placeholder="maker date" />
             <input value={wandRegistryAtelierOrigin} onChange={(e) => setWandRegistryAtelierOrigin(e.target.value)} placeholder="atelier origin" />
           </div>
           <div className="row">
@@ -15721,6 +15728,7 @@ export function App() {
           </div>
           <div className="row">
             <textarea value={wandRegistryMaterialProfileText} onChange={(e) => setWandRegistryMaterialProfileText(e.target.value)} placeholder="material profile JSON" rows={4} />
+            <textarea value={wandRegistryDimensionsText} onChange={(e) => setWandRegistryDimensionsText(e.target.value)} placeholder="dimensions JSON" rows={4} />
             <textarea value={wandRegistryOwnershipChainText} onChange={(e) => setWandRegistryOwnershipChainText(e.target.value)} placeholder="ownership chain JSON array" rows={4} />
             <textarea value={wandRegistryMetadataText} onChange={(e) => setWandRegistryMetadataText(e.target.value)} placeholder="wand metadata JSON" rows={4} />
           </div>
