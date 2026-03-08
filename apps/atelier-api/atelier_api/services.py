@@ -242,6 +242,9 @@ from .models import (
     Realm,
     Scene,
     WorldRegion,
+    GuildMessageEnvelopeRecord,
+    WandDamageAttestationRecord,
+    WandKeyEpochRecord,
 )
 from .repositories import AtelierRepository
 from .validators import build_scene_graph_content_from_cobra, validate_cobra_content, validate_json_content, validate_scene_realm
@@ -2879,6 +2882,30 @@ class AtelierService:
         }
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         message_id = "gmsg_" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:24]
+        if self._repo is not None and hasattr(self._repo, "create_guild_message_envelope_record"):
+            try:
+                row = GuildMessageEnvelopeRecord(
+                    message_id=message_id,
+                    guild_id=str(envelope_obj.get("guild_id") or ""),
+                    channel_id=str(envelope_obj.get("channel_id") or ""),
+                    thread_id=str(envelope_obj.get("thread_id") or "") or None,
+                    sender_id=str(envelope_obj.get("sender_id") or ""),
+                    wand_id=str(envelope_obj.get("wand_id") or ""),
+                    envelope_json=json.dumps(envelope_obj, ensure_ascii=False),
+                    metadata_json=json.dumps(dict(metadata), ensure_ascii=False),
+                    recorded_at=datetime.fromisoformat(now.replace("Z", "+00:00")),
+                )
+                self._repo.create_guild_message_envelope_record(row)
+                return {
+                    "message_id": message_id,
+                    "recorded_at": now,
+                    "guild_id": envelope_obj.get("guild_id"),
+                    "channel_id": envelope_obj.get("channel_id"),
+                    "thread_id": envelope_obj.get("thread_id"),
+                    "storage_backend": "database",
+                }
+            except Exception:
+                pass
         guild_component = self._safe_storage_component(str(envelope_obj.get("guild_id") or ""), "guild")
         channel_component = self._safe_storage_component(str(envelope_obj.get("channel_id") or ""), "channel")
         thread_component = self._safe_storage_component(str(envelope_obj.get("thread_id") or ""), "__root__")
@@ -2893,6 +2920,7 @@ class AtelierService:
             "channel_id": envelope_obj.get("channel_id"),
             "thread_id": envelope_obj.get("thread_id"),
             "storage_path": str(target.relative_to(self._security_state_dir())),
+            "storage_backend": "file",
         }
 
     def list_guild_message_history(
@@ -2903,6 +2931,26 @@ class AtelierService:
         thread_id: Optional[str] = None,
         limit: int = 50,
     ) -> Sequence[Mapping[str, Any]]:
+        if self._repo is not None and hasattr(self._repo, "list_guild_message_envelope_records"):
+            try:
+                rows = self._repo.list_guild_message_envelope_records(
+                    guild_id=str(guild_id).strip() if guild_id else None,
+                    channel_id=str(channel_id).strip() if channel_id else None,
+                    thread_id=str(thread_id).strip() if thread_id else None,
+                    limit=limit,
+                )
+                return [
+                    {
+                        "message_id": row.message_id,
+                        "envelope": json.loads(row.envelope_json),
+                        "metadata": json.loads(row.metadata_json),
+                        "recorded_at": row.recorded_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+                    for row in rows
+                ]
+            except Exception:
+                pass
         records = self._load_recursive_records("guild_messages")
         if guild_id:
             guild_id_norm = str(guild_id).strip()
@@ -2980,6 +3028,32 @@ class AtelierService:
         }
         canonical = json.dumps(record_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         record_id = "watt_" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:24]
+        if self._repo is not None and hasattr(self._repo, "create_wand_damage_attestation_record"):
+            try:
+                row = WandDamageAttestationRecord(
+                    record_id=record_id,
+                    wand_id=str(wand_id),
+                    notifier_id=str(notifier_id),
+                    damage_state=str(damage_state),
+                    event_tag=event_tag,
+                    actor_id=str(actor_id),
+                    workshop_id=str(workshop_id),
+                    media_json=json.dumps([dict(item) for item in normalized_media], ensure_ascii=False),
+                    payload_json=json.dumps(dict(payload), ensure_ascii=False),
+                    validated_json=json.dumps(dict(validated), ensure_ascii=False),
+                    recorded_at=datetime.fromisoformat(now.replace("Z", "+00:00")),
+                )
+                self._repo.create_wand_damage_attestation_record(row)
+                return {
+                    "record_id": record_id,
+                    "recorded_at": now,
+                    "storage_bucket": "wand_attestations",
+                    "media_count": len(normalized_media),
+                    "validation": validated,
+                    "storage_backend": "database",
+                }
+            except Exception:
+                pass
         target = self._security_bucket_dir("wand_attestations") / f"{record_id}.json"
         target.write_text(json.dumps({**record_payload, "record_id": record_id}, indent=2, ensure_ascii=False), encoding="utf-8")
         return {
@@ -2988,6 +3062,7 @@ class AtelierService:
             "storage_bucket": "wand_attestations",
             "media_count": len(normalized_media),
             "validation": validated,
+            "storage_backend": "file",
         }
 
     def list_wand_damage_attestations(
@@ -2996,6 +3071,31 @@ class AtelierService:
         wand_id: Optional[str] = None,
         limit: int = 50,
     ) -> Sequence[Mapping[str, Any]]:
+        if self._repo is not None and hasattr(self._repo, "list_wand_damage_attestation_records"):
+            try:
+                rows = self._repo.list_wand_damage_attestation_records(
+                    wand_id=str(wand_id).strip() if wand_id else None,
+                    limit=limit,
+                )
+                return [
+                    {
+                        "record_id": row.record_id,
+                        "wand_id": row.wand_id,
+                        "notifier_id": row.notifier_id,
+                        "damage_state": row.damage_state,
+                        "event_tag": row.event_tag,
+                        "actor_id": row.actor_id,
+                        "workshop_id": row.workshop_id,
+                        "media": json.loads(row.media_json),
+                        "payload": json.loads(row.payload_json),
+                        "validated": json.loads(row.validated_json),
+                        "recorded_at": row.recorded_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+                    for row in rows
+                ]
+            except Exception:
+                pass
         records = self._load_bucket_records("wand_attestations")
         if wand_id:
             wand_id_norm = str(wand_id).strip()
@@ -3057,6 +3157,33 @@ class AtelierService:
         }
         epoch_canonical = json.dumps(epoch_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         epoch_id = "wep_" + hashlib.sha256(epoch_canonical.encode("utf-8")).hexdigest()[:24]
+        if self._repo is not None and hasattr(self._repo, "create_wand_key_epoch_record"):
+            try:
+                row = WandKeyEpochRecord(
+                    epoch_id=epoch_id,
+                    wand_id=wand_id_norm,
+                    attestation_record_id=attestation_record_id_norm,
+                    notifier_id=notifier_id_norm,
+                    previous_epoch_id=previous_epoch_id,
+                    damage_state=damage_state,
+                    revoked=revoked,
+                    entropy_mix_json=json.dumps(entropy_mix, ensure_ascii=False),
+                    metadata_json=json.dumps(dict(metadata), ensure_ascii=False),
+                    recorded_at=datetime.fromisoformat(now.replace("Z", "+00:00")),
+                )
+                self._repo.create_wand_key_epoch_record(row)
+                return {
+                    "epoch_id": epoch_id,
+                    "recorded_at": now,
+                    "wand_id": wand_id_norm,
+                    "attestation_record_id": attestation_record_id_norm,
+                    "revoked": revoked,
+                    "mix_digest": entropy_mix["mix_digest"],
+                    "quality": entropy_mix["quality"],
+                    "storage_backend": "database",
+                }
+            except Exception:
+                pass
         target = self._security_bucket_dir("wand_epochs") / f"{epoch_id}.json"
         target.write_text(json.dumps({**epoch_payload, "epoch_id": epoch_id}, indent=2, ensure_ascii=False), encoding="utf-8")
         return {
@@ -3067,6 +3194,7 @@ class AtelierService:
             "revoked": revoked,
             "mix_digest": entropy_mix["mix_digest"],
             "quality": entropy_mix["quality"],
+            "storage_backend": "file",
         }
 
     def list_wand_key_epochs(
@@ -3075,6 +3203,30 @@ class AtelierService:
         wand_id: Optional[str] = None,
         limit: int = 50,
     ) -> Sequence[Mapping[str, Any]]:
+        if self._repo is not None and hasattr(self._repo, "list_wand_key_epoch_records"):
+            try:
+                rows = self._repo.list_wand_key_epoch_records(
+                    wand_id=str(wand_id).strip() if wand_id else None,
+                    limit=limit,
+                )
+                return [
+                    {
+                        "epoch_id": row.epoch_id,
+                        "wand_id": row.wand_id,
+                        "attestation_record_id": row.attestation_record_id,
+                        "notifier_id": row.notifier_id,
+                        "previous_epoch_id": row.previous_epoch_id,
+                        "damage_state": row.damage_state,
+                        "revoked": row.revoked,
+                        "entropy_mix": json.loads(row.entropy_mix_json),
+                        "metadata": json.loads(row.metadata_json),
+                        "recorded_at": row.recorded_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+                    for row in rows
+                ]
+            except Exception:
+                pass
         records = self._load_bucket_records("wand_epochs")
         if wand_id:
             wand_id_norm = str(wand_id).strip()

@@ -30,6 +30,9 @@ from .models import (
     RuntimePlanRun,
     Quote,
     Supplier,
+    GuildMessageEnvelopeRecord,
+    WandDamageAttestationRecord,
+    WandKeyEpochRecord,
 )
 
 
@@ -417,3 +420,72 @@ class AtelierRepository:
         self._db.commit()
         self._db.refresh(row)
         return row
+
+    def create_guild_message_envelope_record(self, row: GuildMessageEnvelopeRecord) -> GuildMessageEnvelopeRecord:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_guild_message_envelope_records(
+        self,
+        *,
+        guild_id: str | None = None,
+        channel_id: str | None = None,
+        thread_id: str | None = None,
+        limit: int = 50,
+    ) -> Sequence[GuildMessageEnvelopeRecord]:
+        stmt = select(GuildMessageEnvelopeRecord)
+        if guild_id is not None:
+            stmt = stmt.where(GuildMessageEnvelopeRecord.guild_id == guild_id)
+        if channel_id is not None:
+            stmt = stmt.where(GuildMessageEnvelopeRecord.channel_id == channel_id)
+        if thread_id is not None:
+            stmt = stmt.where(GuildMessageEnvelopeRecord.thread_id == thread_id)
+        stmt = stmt.order_by(GuildMessageEnvelopeRecord.recorded_at.desc(), GuildMessageEnvelopeRecord.id.desc()).limit(
+            max(1, min(int(limit), 250))
+        )
+        return self._db.scalars(stmt).all()
+
+    def create_wand_damage_attestation_record(
+        self,
+        row: WandDamageAttestationRecord,
+    ) -> WandDamageAttestationRecord:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_wand_damage_attestation_records(
+        self,
+        *,
+        wand_id: str | None = None,
+        limit: int = 50,
+    ) -> Sequence[WandDamageAttestationRecord]:
+        stmt = select(WandDamageAttestationRecord)
+        if wand_id is not None:
+            stmt = stmt.where(WandDamageAttestationRecord.wand_id == wand_id)
+        stmt = stmt.order_by(WandDamageAttestationRecord.recorded_at.desc(), WandDamageAttestationRecord.id.desc()).limit(
+            max(1, min(int(limit), 250))
+        )
+        return self._db.scalars(stmt).all()
+
+    def create_wand_key_epoch_record(self, row: WandKeyEpochRecord) -> WandKeyEpochRecord:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_wand_key_epoch_records(
+        self,
+        *,
+        wand_id: str | None = None,
+        limit: int = 50,
+    ) -> Sequence[WandKeyEpochRecord]:
+        stmt = select(WandKeyEpochRecord)
+        if wand_id is not None:
+            stmt = stmt.where(WandKeyEpochRecord.wand_id == wand_id)
+        stmt = stmt.order_by(WandKeyEpochRecord.recorded_at.desc(), WandKeyEpochRecord.id.desc()).limit(
+            max(1, min(int(limit), 250))
+        )
+        return self._db.scalars(stmt).all()

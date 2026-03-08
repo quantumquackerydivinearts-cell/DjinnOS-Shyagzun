@@ -6256,6 +6256,50 @@ export function App() {
   const [wandEpochRevoked, setWandEpochRevoked] = useState(true);
   const [wandEpochOutput, setWandEpochOutput] = useState(null);
   const [wandStatus, setWandStatus] = useState(null);
+
+  const fillTempleEntropySourcePreset = () => {
+    setGuildTempleEntropySourceText(
+      JSON.stringify(
+        {
+          schema_family: "temple_entropy_source",
+          schema_version: "v1",
+          provenance_id: "garden.temple.main.north-bed.epoch1",
+          source_type: "garden_observation",
+          garden_id: "temple.main",
+          plot_id: "north-bed",
+          state_digest: guildTempleEntropyDigest || "temple_state_digest",
+          metadata: {
+            source: "atelier.desktop.temple_garden",
+            caretaker: guildSenderId || "player",
+          },
+        },
+        null,
+        2
+      )
+    );
+  };
+
+  const fillTheatreEntropySourcePreset = () => {
+    setGuildTheatreEntropySourceText(
+      JSON.stringify(
+        {
+          schema_family: "theatre_entropy_source",
+          schema_version: "v1",
+          provenance_id: "theatre.performance.esoteric_01",
+          source_type: "performance_upload",
+          performance_id: "esoteric_01",
+          upload_id: "upload_01",
+          media_digest: guildTheatreEntropyDigest || "theatre_media_digest",
+          metadata: {
+            source: "atelier.desktop.guild_hall",
+            troupe: "esoteric_theatre",
+          },
+        },
+        null,
+        2
+      )
+    );
+  };
   const [studioFolders, setStudioFolders] = useState(() => {
     const raw = localStorage.getItem("atelier.studio_folders");
     if (!raw) {
@@ -15536,6 +15580,10 @@ export function App() {
             <input value={guildTheatreEntropySourceText} onChange={(e) => setGuildTheatreEntropySourceText(e.target.value)} placeholder='theatre entropy source JSON' />
           </div>
           <div className="row">
+            <button className="action" onClick={fillTempleEntropySourcePreset}>Temple Source Preset</button>
+            <button className="action" onClick={fillTheatreEntropySourcePreset}>Theatre Source Preset</button>
+          </div>
+          <div className="row">
             <input
               value={guildAttestationDigestsText}
               onChange={(e) => setGuildAttestationDigestsText(e.target.value)}
@@ -15577,6 +15625,8 @@ export function App() {
             <span className="badge">{`Guild: ${guildId}`}</span>
             <span className="badge">{`Channel: ${guildChannelId}`}</span>
             <span className="badge">{`Wand: ${guildWandId}`}</span>
+            <span className="badge">{`Revocation: ${guildWandStatus?.revoked ? "blocked" : "clear"}`}</span>
+            <span className="badge">{`Status: ${String(guildWandStatus?.status || "unknown")}`}</span>
           </div>
           <pre>{JSON.stringify(guildDecryptOutput || {}, null, 2)}</pre>
           <pre>{JSON.stringify(guildMessageHistory || [], null, 2)}</pre>

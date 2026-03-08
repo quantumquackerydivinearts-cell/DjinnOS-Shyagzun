@@ -409,3 +409,51 @@ class AssetManifest(Base):
     workspace: Mapped[Workspace] = relationship()
 
     workspace: Mapped[Workspace] = relationship()
+
+
+class GuildMessageEnvelopeRecord(Base):
+    __tablename__ = "guild_message_envelopes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    message_id: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    guild_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    channel_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    thread_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    sender_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    wand_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    envelope_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class WandDamageAttestationRecord(Base):
+    __tablename__ = "wand_damage_attestations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    record_id: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    wand_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    notifier_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    damage_state: Mapped[str] = mapped_column(String(80), nullable=False)
+    event_tag: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    actor_id: Mapped[str] = mapped_column(String(160), nullable=False, default="")
+    workshop_id: Mapped[str] = mapped_column(String(160), nullable=False, default="")
+    media_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    validated_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class WandKeyEpochRecord(Base):
+    __tablename__ = "wand_key_epochs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    epoch_id: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    wand_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    attestation_record_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    notifier_id: Mapped[str] = mapped_column(String(160), nullable=False)
+    previous_epoch_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    damage_state: Mapped[str] = mapped_column(String(80), nullable=False)
+    revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    entropy_mix_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
