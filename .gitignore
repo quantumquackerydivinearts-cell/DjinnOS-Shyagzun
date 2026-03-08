@@ -147,6 +147,7 @@ __pycache__/
 
 # Local repo-specific artifacts
 apps/atelier-api/atelier_local.db
+apps/atelier-api/runtime/
 apps/atelier-api/release/
 apps/atelier-desktop/release/
 apps/atelier-desktop/.vite/

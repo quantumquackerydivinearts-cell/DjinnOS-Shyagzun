@@ -6295,6 +6295,9 @@ export function App() {
   const [wandEpochRevoked, setWandEpochRevoked] = useState(true);
   const [wandEpochOutput, setWandEpochOutput] = useState(null);
   const [wandStatus, setWandStatus] = useState(null);
+  const wandRegistryMinimumReady =
+    String(wandRegistryWandId || "").trim() !== "" &&
+    String(wandRegistryMakerId || "").trim() !== "";
 
   const buildTempleEntropySourcePayload = () => {
     const provenanceId = String(guildTempleProvenanceId || "").trim();
@@ -15771,9 +15774,13 @@ export function App() {
           <div className="row">
             <input value={wandRegistryStructuralFingerprint} onChange={(e) => setWandRegistryStructuralFingerprint(e.target.value)} placeholder="structural fingerprint" />
             <input value={wandRegistryCraftRecordHash} onChange={(e) => setWandRegistryCraftRecordHash(e.target.value)} placeholder="craft record hash" />
-            <button className="action" onClick={registerWandRegistryEntry}>Register Wand</button>
+            <button className="action" onClick={registerWandRegistryEntry} disabled={!wandRegistryMinimumReady}>Register Wand</button>
             <button className="action" onClick={() => loadWandRegistryEntry()}>Load Wand</button>
             <button className="action" onClick={loadWandRegistryList}>Load Registry</button>
+          </div>
+          <div className="row">
+            <span className="badge">{wandRegistryMinimumReady ? "Registry minimum met" : "Register Wand requires wand id + maker id"}</span>
+            <span className="badge">Optional: maker date, dimensions, material profile</span>
           </div>
           <div className="row">
             <textarea value={wandRegistryMaterialProfileText} onChange={(e) => setWandRegistryMaterialProfileText(e.target.value)} placeholder="material profile JSON" rows={4} />
