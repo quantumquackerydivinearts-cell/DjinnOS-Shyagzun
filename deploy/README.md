@@ -44,5 +44,13 @@ sudo bash deploy/update_release.sh
 ```bash
 curl -sSf http://127.0.0.1:8000/events > /dev/null
 curl -sSf http://127.0.0.1:9000/health
+curl -sSf http://127.0.0.1:9000/ready
 curl -sSf https://atelier-api.quantumquackery.com/health
+curl -sSf https://atelier-api.quantumquackery.com/ready
 ```
+
+`/health` is process liveness and returns structured degraded status if the API is up but the database is unavailable. `/ready` is the strict readiness gate and returns non-success until the database is reachable.
+
+## Render note
+
+If you deploy this API on Render, set a real `DATABASE_URL`. The default local fallback points to `127.0.0.1`, which does not exist on Render and will leave `/ready` failing and `/health` degraded.

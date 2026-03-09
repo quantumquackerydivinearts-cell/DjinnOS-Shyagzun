@@ -5,6 +5,7 @@ from typing import Any, Dict, Mapping, Optional, Sequence
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -586,9 +587,44 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health(svc: AtelierService = Depends(_atelier_service)) -> Dict[str, str]:
-    svc.health()
-    return {"status": "ok"}
+def health(svc: AtelierService = Depends(_atelier_service)) -> JSONResponse:
+    try:
+        svc.health()
+    except Exception as exc:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "degraded",
+                "api": "up",
+                "database": "down",
+                "detail": str(exc),
+            },
+        )
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "ok",
+            "api": "up",
+            "database": "up",
+        },
+    )
+
+
+@app.get("/ready")
+def ready(svc: AtelierService = Depends(_atelier_service)) -> Dict[str, str]:
+    try:
+        svc.health()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "api": "up",
+                "database": "down",
+                "detail": str(exc),
+            },
+        ) from exc
+    return {"status": "ready", "api": "up", "database": "up"}
 
 
 @app.get("/public/privacy/manifest")
