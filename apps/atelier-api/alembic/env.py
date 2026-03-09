@@ -41,20 +41,19 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
-    with connectable.connect() as connection:
-        # Older databases may have Alembic's default varchar(32) revision column,
-        # which is too small for this project's revision ids. Widen it before
-        # Alembic attempts to write a newer revision.
-        if connection.dialect.name == "postgresql":
+    if connectable.dialect.name == "postgresql":
+        with connectable.connect().execution_options(isolation_level="AUTOCOMMIT") as bootstrap_connection:
             try:
-                connection.exec_driver_sql(
+                bootstrap_connection.exec_driver_sql(
                     "ALTER TABLE alembic_version "
                     "ALTER COLUMN version_num TYPE VARCHAR(128)"
                 )
             except Exception:
-                # If the table does not exist yet or the type is already wide
-                # enough, let normal migration execution continue.
+                # If the version table does not exist yet or the type is already
+                # wide enough, let normal migration execution continue.
                 pass
+
+    with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
 
         with context.begin_transaction():
