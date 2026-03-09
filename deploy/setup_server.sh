@@ -73,7 +73,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 KERNEL_BASE_URL=http://127.0.0.1:8000
 DATABASE_URL=postgresql+psycopg://atelier:atelier@127.0.0.1:5432/atelier
 ADMIN_GATE_CODE=CHANGE_ME
-CORS_ALLOWED_ORIGINS=https://quantumquackery.com,https://www.quantumquackery.com,capacitor://localhost,http://localhost
+CORS_ALLOWED_ORIGINS=https://quantumquackery.com,https://www.quantumquackery.com,https://quantumquackery.org,https://www.quantumquackery.org,capacitor://localhost,http://localhost
 EOF
 fi
 chown root:"$APP_GROUP" "$ENV_FILE"

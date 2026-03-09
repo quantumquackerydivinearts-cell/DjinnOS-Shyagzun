@@ -6281,14 +6281,14 @@ export function App() {
   const [guildRegistryOutput, setGuildRegistryOutput] = useState(null);
   const [distributionId, setDistributionId] = useState("distribution.quantumquackery.main");
   const [distributionDisplayName, setDistributionDisplayName] = useState("Quantum Quackery Main");
-  const [distributionBaseUrl, setDistributionBaseUrl] = useState("https://quantumquackery.org");
+  const [distributionBaseUrl, setDistributionBaseUrl] = useState("https://atelier-api.quantumquackery.com");
   const [distributionTransportKind, setDistributionTransportKind] = useState("https");
   const [distributionPublicKeyRef, setDistributionPublicKeyRef] = useState("");
   const [distributionProtocolFamily, setDistributionProtocolFamily] = useState("guild_message_signal_artifice");
   const [distributionProtocolVersion, setDistributionProtocolVersion] = useState("v1");
   const [distributionSupportedProtocolVersionsText, setDistributionSupportedProtocolVersionsText] = useState('[\n  "v1"\n]');
   const [distributionGuildIdsText, setDistributionGuildIdsText] = useState('[\n  "guild.atelier"\n]');
-  const [distributionMetadataText, setDistributionMetadataText] = useState('{\n  "source": "atelier.desktop.guild_hall"\n}');
+  const [distributionMetadataText, setDistributionMetadataText] = useState('{\n  "source": "atelier.desktop.guild_hall",\n  "website_url": "https://www.quantumquackery.org",\n  "service_url": "https://atelier-api.quantumquackery.com"\n}');
   const [distributionRegistryList, setDistributionRegistryList] = useState([]);
   const [distributionRegistryOutput, setDistributionRegistryOutput] = useState(null);
   const [distributionCapabilitiesOutput, setDistributionCapabilitiesOutput] = useState(null);
@@ -13381,6 +13381,29 @@ export function App() {
     if (section === "Foyer") {
       return (
         <>
+          <section className="panel">
+            <h2>Network Links</h2>
+            <div className="foyer-link-grid">
+              <a
+                className="foyer-link-card"
+                href="https://www.quantumquackery.org"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <strong>QuantumQuackery.org</strong>
+                <span>Public website and front door</span>
+              </a>
+              <a
+                className="foyer-link-card"
+                href="https://atelier-api.quantumquackery.com/health"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <strong>atelier-api.quantumquackery.com</strong>
+                <span>Hosted API health surface</span>
+              </a>
+            </div>
+          </section>
           <section className="panel">
             <h2>Session Control</h2>
             <div className="row">

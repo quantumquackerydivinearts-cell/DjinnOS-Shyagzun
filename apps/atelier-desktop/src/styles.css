@@ -125,6 +125,32 @@ body {
   margin-top: 0;
   font-size: 22px;
 }
+.foyer-link-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.foyer-link-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+}
+.foyer-link-card strong {
+  font-size: 15px;
+}
+.foyer-link-card span {
+  color: #5e564b;
+  font-size: 13px;
+}
+.foyer-link-card:hover {
+  border-color: var(--accent);
+  background: #f7fcfb;
+}
 .row {
   display: flex;
   gap: 10px;

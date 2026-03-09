@@ -25,7 +25,7 @@ Then edit env file:
 sudo nano /etc/djinnos/atelier-api.env
 ```
 
-Set real values (DB URL, admin gate code, CORS).
+Set real values (DB URL, admin gate code, CORS). If your public site is on `quantumquackery.org` and the service host is `atelier-api.quantumquackery.com`, include both origins in `CORS_ALLOWED_ORIGINS`.
 
 Restart API:
 
