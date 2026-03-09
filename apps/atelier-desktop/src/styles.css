@@ -707,3 +707,72 @@ pre {
   border-radius: 8px;
   background: #0b1426;
 }
+
+
+.guild-hall-shell {
+  display: grid;
+  gap: 14px;
+}
+.guild-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.guild-hall-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.guild-subpanel {
+  display: grid;
+  gap: 12px;
+}
+.guild-hall-shell .row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+.guild-hall-shell .row > button.action,
+.guild-hall-shell .row > .badge {
+  justify-self: start;
+}
+.guild-hall-shell .row > textarea {
+  width: 100%;
+  min-height: 110px;
+}
+.guild-hall-shell .row > input,
+.guild-hall-shell .row > select,
+.guild-hall-shell .row > textarea {
+  width: 100%;
+  min-width: 0;
+}
+.guild-subcopy {
+  margin: 0;
+  color: #5e564b;
+}
+.guild-subgroup {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.guild-subgroup h4 {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+}
+.guild-diagnostic {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.guild-diagnostic summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.guild-diagnostic pre {
+  margin-top: 10px;
+}
+@media (max-width: 1100px) {
+  .guild-hall-grid {
+    grid-template-columns: 1fr;
+  }
+}
