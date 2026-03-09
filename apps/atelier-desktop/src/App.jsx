@@ -12999,28 +12999,71 @@ export function App() {
     });
   };
 
+  const buildProbeErrorPayload = (scope, err) => {
+    const raw = err instanceof Error ? err.message : String(err);
+    const parsed = parseSafeJson(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return {
+        status: "error",
+        scope,
+        detail: parsed,
+      };
+    }
+    const detail = String(raw || "").trim();
+    let category = "request_failed";
+    if (detail.includes("Failed to fetch")) {
+      category = "network_unreachable";
+    } else if (detail.includes("404")) {
+      category = "route_missing";
+    } else if (detail.includes("401") || detail.includes("403")) {
+      category = "auth_blocked";
+    } else if (detail.includes("500")) {
+      category = "server_error";
+    }
+    return {
+      status: "error",
+      scope,
+      category,
+      detail,
+    };
+  };
+
   const loadServiceReadiness = async () => {
     await runAction("service_readiness", async () => {
-      const response = await fetch(`${API_BASE}/ready`, {
-        method: "GET",
-        headers: buildHeaders(role, caps, adminGateToken),
-      });
-      const data = parseSafeJson(await response.text());
-      setOutput(JSON.stringify(data, null, 2));
-      setServiceReadinessOutput(data);
-      return data;
+      try {
+        const response = await fetch(`${API_BASE}/ready`, {
+          method: "GET",
+          headers: buildHeaders(role, caps, adminGateToken),
+        });
+        const data = parseSafeJson(await response.text());
+        setOutput(JSON.stringify(data, null, 2));
+        setServiceReadinessOutput(data);
+        return data;
+      } catch (err) {
+        const failure = buildProbeErrorPayload("ready", err);
+        setOutput(JSON.stringify(failure, null, 2));
+        setServiceReadinessOutput(failure);
+        throw err;
+      }
     });
   };
 
   const loadFederationHealth = async (targetDistributionId = guildRecipientDistributionId || distributionId) => {
     await runAction("federation_health", async () => {
-      const safeDistributionId = String(targetDistributionId || "").trim();
-      const query = safeDistributionId
-        ? `?distribution_id=${encodeURIComponent(safeDistributionId)}&limit=25`
-        : "?limit=25";
-      const data = await apiCall(`/v1/federation/health${query}`, "GET");
-      setFederationHealthOutput(data);
-      return data;
+      try {
+        const safeDistributionId = String(targetDistributionId || "").trim();
+        const query = safeDistributionId
+          ? `?distribution_id=${encodeURIComponent(safeDistributionId)}&limit=25`
+          : "?limit=25";
+        const data = await apiCall(`/v1/federation/health${query}`, "GET");
+        setFederationHealthOutput(data);
+        return data;
+      } catch (err) {
+        const failure = buildProbeErrorPayload("federation", err);
+        setOutput(JSON.stringify(failure, null, 2));
+        setFederationHealthOutput(failure);
+        throw err;
+      }
     });
   };
 
@@ -13469,14 +13512,14 @@ export function App() {
               <button className="action" onClick={() => loadFederationHealth()}>Refresh Federation</button>
             </div>
             <div className="row">
-              <span className={`badge ${foyerReadinessStatus === "ready" ? "badge-ok" : foyerReadinessStatus === "not_ready" ? "badge-warn" : ""}`}>{`Readiness: ${foyerReadinessStatus}`}</span>
+              <span className={`badge ${foyerReadinessStatus === "ready" ? "badge-ok" : foyerReadinessStatus === "not_ready" ? "badge-warn" : foyerReadinessStatus === "error" ? "badge-error" : ""}`}>{`Readiness: ${foyerReadinessStatus}`}</span>
               <span className={`badge ${String(foyerReadiness?.database?.status || "") === "up" ? "badge-ok" : String(foyerReadiness?.database?.status || "") === "down" ? "badge-error" : ""}`}>{`DB: ${String(foyerReadiness?.database?.status || "unknown")}`}</span>
               <span className={`badge ${String(foyerReadiness?.kernel?.status || "") === "up" ? "badge-ok" : String(foyerReadiness?.kernel?.status || "") === "down" ? "badge-error" : ""}`}>{`Kernel: ${String(foyerReadiness?.kernel?.status || "unknown")}`}</span>
               <span className={`badge ${String(foyerReadiness?.migrations?.status || "") === "up" ? "badge-ok" : String(foyerReadiness?.migrations?.status || "") === "down" ? "badge-error" : ""}`}>{`Migrations: ${String(foyerReadiness?.migrations?.status || "unknown")}`}</span>
               <span className={`badge ${String(foyerReadiness?.config?.status || "") === "up" ? "badge-ok" : String(foyerReadiness?.config?.status || "") === "warning" ? "badge-warn" : ""}`}>{`Config: ${String(foyerReadiness?.config?.status || "unknown")}`}</span>
             </div>
             <div className="row">
-              <span className={`badge ${foyerFederationStatus === "ok" ? "badge-ok" : foyerFederationStatus === "degraded" ? "badge-warn" : ""}`}>{`Federation: ${foyerFederationStatus}`}</span>
+              <span className={`badge ${foyerFederationStatus === "ok" ? "badge-ok" : foyerFederationStatus === "degraded" ? "badge-warn" : foyerFederationStatus === "error" ? "badge-error" : ""}`}>{`Federation: ${foyerFederationStatus}`}</span>
               <span className="badge">{`Targets: ${Number(foyerFederation?.target_count || 0)}`}</span>
               <span className="badge">{`Active trust: ${Number(foyerFederation?.active_trust_count || 0)}`}</span>
               <span className={`badge ${foyerFederationTrust === "active" ? "badge-ok" : foyerFederationTrust === "unreachable" || foyerFederationTrust === "untrusted" ? "badge-error" : foyerFederationTrust === "key_known" || foyerFederationTrust === "key_only" ? "badge-warn" : ""}`}>{`Current trust: ${foyerFederationTrust}`}</span>

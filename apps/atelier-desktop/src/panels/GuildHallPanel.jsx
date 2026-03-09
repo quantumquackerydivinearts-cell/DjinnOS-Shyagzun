@@ -197,11 +197,11 @@ export function GuildHallPanel(props) {
   const readiness = serviceReadinessOutput && typeof serviceReadinessOutput === "object" ? serviceReadinessOutput : {};
   const readinessStatus = String(readiness.status || "unknown");
   const readinessBadgeClass =
-    readinessStatus === "ready" ? "badge-ok" : readinessStatus === "not_ready" ? "badge-warn" : "";
+    readinessStatus === "ready" ? "badge-ok" : readinessStatus === "not_ready" ? "badge-warn" : readinessStatus === "error" ? "badge-error" : "";
   const federation = federationHealthOutput && typeof federationHealthOutput === "object" ? federationHealthOutput : {};
   const federationStatus = String(federation.status || "unknown");
   const federationBadgeClass =
-    federationStatus === "ok" ? "badge-ok" : federationStatus === "degraded" ? "badge-warn" : "";
+    federationStatus === "ok" ? "badge-ok" : federationStatus === "degraded" ? "badge-warn" : federationStatus === "error" ? "badge-error" : "";
   const currentFederationTarget = Array.isArray(federation.targets) && federation.targets.length > 0 ? federation.targets[0] : null;
   const currentFederationTrust = String(currentFederationTarget?.trust_grade || "unknown");
   const currentFederationTrustClass =
@@ -352,6 +352,16 @@ export function GuildHallPanel(props) {
               <span className="badge">{`Active trust: ${Number(federation?.active_trust_count || 0)}`}</span>
               <span className={`badge ${currentFederationTrustClass}`}>{`Current trust: ${currentFederationTrust}`}</span>
             </div>
+            {(readinessStatus === "error" || federationStatus === "error") ? (
+              <div className="row">
+                <span className="badge badge-error">
+                  {`Probe detail: ${String(readiness?.category || federation?.category || "request_failed")}`}
+                </span>
+                <span className="badge">
+                  {String(readiness?.detail || federation?.detail || "See diagnostics for full payload.")}
+                </span>
+              </div>
+            ) : null}
           </div>
           <div className="guild-subgroup">
             <h4>Wand Registry</h4>
