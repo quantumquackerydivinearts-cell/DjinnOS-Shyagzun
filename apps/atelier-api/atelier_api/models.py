@@ -416,6 +416,8 @@ class GuildMessageEnvelopeRecord(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     message_id: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    conversation_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    conversation_kind: Mapped[str] = mapped_column(String(80), nullable=False, default="guild_channel")
     guild_id: Mapped[str] = mapped_column(String(160), nullable=False)
     channel_id: Mapped[str] = mapped_column(String(160), nullable=False)
     thread_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
@@ -424,6 +426,26 @@ class GuildMessageEnvelopeRecord(Base):
     envelope_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class GuildConversationRecord(Base):
+    __tablename__ = "guild_conversations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    conversation_id: Mapped[str] = mapped_column(String(160), nullable=False, unique=True)
+    conversation_kind: Mapped[str] = mapped_column(String(80), nullable=False, default="guild_channel")
+    guild_id: Mapped[str] = mapped_column(String(160), nullable=False, default="")
+    channel_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    thread_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    title: Mapped[str] = mapped_column(String(240), nullable=False, default="")
+    participant_member_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    participant_guild_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    distribution_id: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    security_session_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    status: Mapped[str] = mapped_column(String(80), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
 
 class WandDamageAttestationRecord(Base):

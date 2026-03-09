@@ -252,6 +252,7 @@ from .models import (
     Realm,
     Scene,
     WorldRegion,
+    GuildConversationRecord,
     GuildMessageEnvelopeRecord,
     DistributionRegistryRecord,
     DistributionHandshakeRecord,
@@ -299,6 +300,9 @@ class AtelierService:
     _GUILD_MESSAGE_ENVELOPE_SCHEMA_FAMILY = "guild_message_envelope"
     _GUILD_MESSAGE_ENVELOPE_SCHEMA_VERSION = "v1"
     _GUILD_MESSAGE_CIPHER_FAMILY = "experimental_hash_stream_v1"
+    _GUILD_MESSAGE_PROTOCOL_FAMILY = "guild_message_signal_artifice"
+    _GUILD_MESSAGE_PROTOCOL_VERSION = "v1"
+    _GUILD_MESSAGE_SUPPORTED_PROTOCOL_VERSIONS = ("v1",)
     _TRI_SOURCE_ENTROPY_SCHEMA_FAMILY = "tri_source_entropy_mix"
     _TRI_SOURCE_ENTROPY_SCHEMA_VERSION = "v1"
     _DEMON_PRESSURE_DEFAULTS: dict[str, float] = {
@@ -2643,9 +2647,10 @@ class AtelierService:
         cls,
         *,
         wand_id: str,
-        temple_entropy_digest: Optional[str],
-        theatre_entropy_digest: Optional[str],
-        attestation_media_digests: Sequence[str],
+        wand_passkey_ward: Optional[str] = None,
+        temple_entropy_digest: Optional[str] = None,
+        theatre_entropy_digest: Optional[str] = None,
+        attestation_media_digests: Sequence[str] = (),
         context: Mapping[str, Any],
         system_entropy_digest: Optional[str] = None,
         temple_entropy_source: Optional[Mapping[str, Any]] = None,
@@ -2658,6 +2663,7 @@ class AtelierService:
         ).hexdigest()
         effective_system_entropy_digest = system_entropy_digest or hashlib.sha256(secrets.token_bytes(32)).hexdigest()
         wand_digest = hashlib.sha256(str(wand_id).encode("utf-8")).hexdigest()
+        wand_passkey_digest = hashlib.sha256(str(wand_passkey_ward or "").encode("utf-8")).hexdigest()
         temple_component = cls._resolve_entropy_component(
             digest=temple_entropy_digest,
             source=temple_entropy_source,
@@ -2676,6 +2682,7 @@ class AtelierService:
             (
                 bytes.fromhex(effective_system_entropy_digest),
                 bytes.fromhex(wand_digest),
+                bytes.fromhex(wand_passkey_digest),
                 bytes.fromhex(str(temple_component["digest"])),
                 bytes.fromhex(str(theatre_component["digest"])),
                 bytes.fromhex(attestation_digest),
@@ -2683,7 +2690,7 @@ class AtelierService:
             )
         )
         mix_digest = hashlib.sha256(root_material).hexdigest()
-        active_sources = 1 + int(bool(temple_entropy_digest)) + int(bool(theatre_entropy_digest)) + int(bool(media_digests))
+        active_sources = 1 + int(bool(str(wand_passkey_ward or "").strip())) + int(bool(temple_entropy_digest)) + int(bool(theatre_entropy_digest)) + int(bool(media_digests))
         quality = "baseline"
         if active_sources >= 4:
             quality = "rich"
@@ -2698,6 +2705,8 @@ class AtelierService:
             "components": {
                 "system_entropy_digest": effective_system_entropy_digest,
                 "wand_digest": wand_digest,
+                "wand_passkey_digest": wand_passkey_digest,
+                "has_wand_passkey_ward": bool(str(wand_passkey_ward or "").strip()),
                 "temple_entropy_digest": temple_component["digest"],
                 "theatre_entropy_digest": theatre_component["digest"],
                 "attestation_digest": attestation_digest,
@@ -2719,6 +2728,48 @@ class AtelierService:
             counter += 1
         return b"".join(blocks)[:length]
 
+    @staticmethod
+    def _normalize_security_session(
+        *,
+        security_session: Optional[Mapping[str, Any]],
+        conversation_id: Optional[str],
+        conversation_kind: Optional[str],
+        sender_member_id: Optional[str],
+        recipient_member_id: Optional[str],
+        recipient_distribution_id: Optional[str],
+    ) -> dict[str, Any]:
+        payload = dict(security_session or {})
+        session_context = {
+            "conversation_id": str(conversation_id or "").strip(),
+            "conversation_kind": str(conversation_kind or "").strip() or "guild_channel",
+            "sender_member_id": str(sender_member_id or "").strip(),
+            "recipient_member_id": str(recipient_member_id or "").strip(),
+            "recipient_distribution_id": str(recipient_distribution_id or "").strip(),
+        }
+        session_seed = json.dumps(session_context, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        session_id = str(payload.get("session_id") or "").strip() or (
+            "gsess_" + hashlib.sha256(session_seed.encode("utf-8")).hexdigest()[:24]
+        )
+        return {
+            "schema_family": str(payload.get("schema_family") or "signal_artifice_session"),
+            "schema_version": str(payload.get("schema_version") or "v1"),
+            "session_id": session_id,
+            "session_mode": str(payload.get("session_mode") or "double_ratchet_like"),
+            "sender_identity_key_ref": str(payload.get("sender_identity_key_ref") or sender_member_id or ""),
+            "sender_signed_pre_key_ref": str(payload.get("sender_signed_pre_key_ref") or ""),
+            "sender_one_time_pre_key_ref": str(payload.get("sender_one_time_pre_key_ref") or ""),
+            "recipient_identity_key_ref": str(payload.get("recipient_identity_key_ref") or recipient_member_id or ""),
+            "recipient_signed_pre_key_ref": str(payload.get("recipient_signed_pre_key_ref") or ""),
+            "recipient_one_time_pre_key_ref": str(payload.get("recipient_one_time_pre_key_ref") or ""),
+            "session_epoch": int(payload.get("session_epoch") or 1),
+            "sealed_sender": bool(payload.get("sealed_sender", True)),
+            "ratchet_seed_digest": str(
+                payload.get("ratchet_seed_digest")
+                or hashlib.sha256((session_id + "::ratchet").encode("utf-8")).hexdigest()
+            ),
+            "metadata": dict(payload.get("metadata") or {}),
+        }
+
     @classmethod
     def _encrypt_guild_message_runtime(
         cls,
@@ -2728,33 +2779,54 @@ class AtelierService:
         sender_id: str,
         wand_id: str,
         message_text: str,
-        thread_id: Optional[str],
-        recipient_distribution_id: Optional[str],
-        recipient_guild_id: Optional[str],
-        recipient_channel_id: Optional[str],
-        recipient_actor_id: Optional[str],
-        temple_entropy_digest: Optional[str],
-        theatre_entropy_digest: Optional[str],
-        attestation_media_digests: Sequence[str],
+        wand_passkey_ward: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+        conversation_kind: Optional[str] = None,
+        thread_id: Optional[str] = None,
+        sender_member_id: Optional[str] = None,
+        recipient_member_id: Optional[str] = None,
+        recipient_distribution_id: Optional[str] = None,
+        recipient_guild_id: Optional[str] = None,
+        recipient_channel_id: Optional[str] = None,
+        recipient_actor_id: Optional[str] = None,
+        temple_entropy_digest: Optional[str] = None,
+        theatre_entropy_digest: Optional[str] = None,
+        attestation_media_digests: Sequence[str] = (),
         temple_entropy_source: Optional[Mapping[str, Any]] = None,
         theatre_entropy_source: Optional[Mapping[str, Any]] = None,
         attestation_sources: Sequence[Mapping[str, Any]] = (),
-        metadata: Mapping[str, Any],
+        security_session: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
     ) -> dict[str, object]:
+        metadata_payload = dict(metadata or {})
+        session_payload = cls._normalize_security_session(
+            security_session=security_session,
+            conversation_id=conversation_id,
+            conversation_kind=conversation_kind,
+            sender_member_id=sender_member_id,
+            recipient_member_id=recipient_member_id,
+            recipient_distribution_id=recipient_distribution_id,
+        )
         header_context = {
+            "conversation_id": conversation_id or "",
+            "conversation_kind": conversation_kind or "guild_channel",
             "guild_id": guild_id,
             "channel_id": channel_id,
             "thread_id": thread_id or "",
             "sender_id": sender_id,
+            "sender_member_id": sender_member_id or "",
             "wand_id": wand_id,
+            "recipient_member_id": recipient_member_id or "",
             "recipient_distribution_id": recipient_distribution_id or "",
             "recipient_guild_id": recipient_guild_id or "",
             "recipient_channel_id": recipient_channel_id or "",
             "recipient_actor_id": recipient_actor_id or "",
-            "metadata": dict(metadata),
+            "security_session": session_payload,
+            "metadata": metadata_payload,
         }
         entropy_mix = cls._entropy_mix_runtime(
             wand_id=wand_id,
+            wand_passkey_ward=wand_passkey_ward,
             temple_entropy_digest=temple_entropy_digest,
             theatre_entropy_digest=theatre_entropy_digest,
             attestation_media_digests=attestation_media_digests,
@@ -2773,22 +2845,27 @@ class AtelierService:
             "schema_family": cls._GUILD_MESSAGE_ENVELOPE_SCHEMA_FAMILY,
             "schema_version": cls._GUILD_MESSAGE_ENVELOPE_SCHEMA_VERSION,
             "cipher_family": cls._GUILD_MESSAGE_CIPHER_FAMILY,
+            "conversation_id": str(conversation_id or "").strip() or None,
+            "conversation_kind": str(conversation_kind or "").strip() or "guild_channel",
             "guild_id": guild_id,
             "channel_id": channel_id,
             "thread_id": thread_id,
             "sender_id": sender_id,
+            "sender_member_id": str(sender_member_id or "").strip() or None,
             "wand_id": wand_id,
+            "recipient_member_id": str(recipient_member_id or "").strip() or None,
             "recipient_distribution_id": str(recipient_distribution_id or "").strip() or None,
             "recipient_guild_id": str(recipient_guild_id or "").strip() or None,
             "recipient_channel_id": str(recipient_channel_id or "").strip() or None,
             "recipient_actor_id": str(recipient_actor_id or "").strip() or None,
+            "security_session": session_payload,
             "ciphertext_b64": base64.b64encode(ciphertext).decode("ascii"),
             "nonce_b64": base64.b64encode(system_nonce).decode("ascii"),
             "mac_hex": mac,
             "plaintext_digest": hashlib.sha256(message_bytes).hexdigest(),
             "derivation": {**cast(Mapping[str, Any], entropy_mix["components"])},
             "entropy_mix": entropy_mix,
-            "metadata": dict(metadata),
+            "metadata": metadata_payload,
         }
 
     def encrypt_guild_message(
@@ -2799,18 +2876,24 @@ class AtelierService:
         sender_id: str,
         wand_id: str,
         message_text: str,
-        thread_id: Optional[str],
-        recipient_distribution_id: Optional[str],
-        recipient_guild_id: Optional[str],
-        recipient_channel_id: Optional[str],
-        recipient_actor_id: Optional[str],
-        temple_entropy_digest: Optional[str],
-        theatre_entropy_digest: Optional[str],
-        attestation_media_digests: Sequence[str],
-        temple_entropy_source: Optional[Mapping[str, Any]],
-        theatre_entropy_source: Optional[Mapping[str, Any]],
-        attestation_sources: Sequence[Mapping[str, Any]],
-        metadata: Mapping[str, Any],
+        wand_passkey_ward: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+        conversation_kind: Optional[str] = None,
+        thread_id: Optional[str] = None,
+        sender_member_id: Optional[str] = None,
+        recipient_member_id: Optional[str] = None,
+        recipient_distribution_id: Optional[str] = None,
+        recipient_guild_id: Optional[str] = None,
+        recipient_channel_id: Optional[str] = None,
+        recipient_actor_id: Optional[str] = None,
+        temple_entropy_digest: Optional[str] = None,
+        theatre_entropy_digest: Optional[str] = None,
+        attestation_media_digests: Sequence[str] = (),
+        temple_entropy_source: Optional[Mapping[str, Any]] = None,
+        theatre_entropy_source: Optional[Mapping[str, Any]] = None,
+        attestation_sources: Sequence[Mapping[str, Any]] = (),
+        security_session: Optional[Mapping[str, Any]] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
     ) -> Mapping[str, Any]:
         guild_id_norm = str(guild_id).strip()
         channel_id_norm = str(channel_id).strip()
@@ -2827,24 +2910,36 @@ class AtelierService:
             raise ValueError("wand_id_required")
         if message_text_norm.strip() == "":
             raise ValueError("message_text_required")
+        conversation_kind_norm = str(conversation_kind or "").strip() or "guild_channel"
+        conversation_id_norm = str(conversation_id or "").strip() or None
+        if conversation_kind_norm == "member_dm" and str(recipient_member_id or "").strip() == "":
+            raise ValueError("recipient_member_id_required")
         latest_epoch = next(iter(self.list_wand_key_epochs(wand_id=wand_id_norm, limit=1)), None)
         if isinstance(latest_epoch, Mapping) and bool(latest_epoch.get("revoked")):
             raise ValueError("wand_revoked")
         recipient_distribution_norm = str(recipient_distribution_id or "").strip()
-        recipient_metadata = dict(metadata)
+        recipient_metadata = dict(metadata or {})
         if recipient_distribution_norm:
             recipient_key = self.get_distribution_key_descriptor(distribution_id=recipient_distribution_norm)
+            recipient_protocol = self._ensure_distribution_protocol_compatibility(distribution_id=recipient_distribution_norm)
             recipient_metadata = {
                 **recipient_metadata,
                 "recipient_distribution_key": recipient_key,
+                "recipient_distribution_protocol": recipient_protocol["distribution"],
+                "recipient_distribution_handshake_protocol": recipient_protocol["handshake"],
             }
         return self._encrypt_guild_message_runtime(
             guild_id=guild_id_norm,
             channel_id=channel_id_norm,
             sender_id=sender_id_norm,
             wand_id=wand_id_norm,
+            wand_passkey_ward=wand_passkey_ward,
             message_text=message_text_norm,
+            conversation_id=conversation_id_norm,
+            conversation_kind=conversation_kind_norm,
             thread_id=thread_id,
+            sender_member_id=sender_member_id,
+            recipient_member_id=recipient_member_id,
             recipient_distribution_id=recipient_distribution_norm or None,
             recipient_guild_id=recipient_guild_id,
             recipient_channel_id=recipient_channel_id,
@@ -2855,6 +2950,7 @@ class AtelierService:
             temple_entropy_source=temple_entropy_source,
             theatre_entropy_source=theatre_entropy_source,
             attestation_sources=attestation_sources,
+            security_session=security_session,
             metadata=recipient_metadata,
         )
 
@@ -2863,6 +2959,7 @@ class AtelierService:
         *,
         envelope: Mapping[str, Any],
         wand_id: str,
+        wand_passkey_ward: Optional[str],
         temple_entropy_digest: Optional[str],
         theatre_entropy_digest: Optional[str],
         attestation_media_digests: Sequence[str],
@@ -2882,17 +2979,23 @@ class AtelierService:
         header_context = {
             "guild_id": str(envelope.get("guild_id") or "").strip(),
             "channel_id": str(envelope.get("channel_id") or "").strip(),
+            "conversation_id": str(envelope.get("conversation_id") or "").strip(),
+            "conversation_kind": str(envelope.get("conversation_kind") or "").strip(),
             "thread_id": str(envelope.get("thread_id") or "").strip(),
             "sender_id": str(envelope.get("sender_id") or "").strip(),
+            "sender_member_id": str(envelope.get("sender_member_id") or "").strip(),
             "wand_id": wand_id_norm,
+            "recipient_member_id": str(envelope.get("recipient_member_id") or "").strip(),
             "recipient_distribution_id": str(envelope.get("recipient_distribution_id") or "").strip(),
             "recipient_guild_id": str(envelope.get("recipient_guild_id") or "").strip(),
             "recipient_channel_id": str(envelope.get("recipient_channel_id") or "").strip(),
             "recipient_actor_id": str(envelope.get("recipient_actor_id") or "").strip(),
+            "security_session": dict(cast(Mapping[str, Any], envelope.get("security_session") or {})),
             "metadata": dict(metadata),
         }
         entropy_mix = self._entropy_mix_runtime(
             wand_id=wand_id_norm,
+            wand_passkey_ward=wand_passkey_ward,
             temple_entropy_digest=temple_entropy_digest,
             theatre_entropy_digest=theatre_entropy_digest,
             attestation_media_digests=attestation_media_digests,
@@ -2909,11 +3012,15 @@ class AtelierService:
         provided_mac = str(envelope.get("mac_hex") or "")
         keystream = self._guild_message_keystream(root_key, nonce, len(ciphertext))
         plaintext_bytes = bytes(left ^ right for left, right in zip(ciphertext, keystream))
-        plaintext = plaintext_bytes.decode("utf-8")
+        try:
+            plaintext = plaintext_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            plaintext = ""
         plaintext_digest = hashlib.sha256(plaintext_bytes).hexdigest()
         verified = (
             hmac.compare_digest(expected_mac, provided_mac)
             and plaintext_digest == str(envelope.get("plaintext_digest") or plaintext_digest)
+            and plaintext != ""
         )
         return {
             "verified": verified,
@@ -2950,6 +3057,8 @@ class AtelierService:
             try:
                 row = GuildMessageEnvelopeRecord(
                     message_id=message_id,
+                    conversation_id=str(envelope_obj.get("conversation_id") or "") or None,
+                    conversation_kind=str(envelope_obj.get("conversation_kind") or "guild_channel"),
                     guild_id=str(envelope_obj.get("guild_id") or ""),
                     channel_id=str(envelope_obj.get("channel_id") or ""),
                     thread_id=str(envelope_obj.get("thread_id") or "") or None,
@@ -2975,12 +3084,15 @@ class AtelierService:
         guild_component = self._safe_storage_component(str(envelope_obj.get("guild_id") or ""), "guild")
         channel_component = self._safe_storage_component(str(envelope_obj.get("channel_id") or ""), "channel")
         thread_component = self._safe_storage_component(str(envelope_obj.get("thread_id") or ""), "__root__")
-        target_dir = self._security_bucket_dir("guild_messages") / guild_component / channel_component / thread_component
+        conversation_component = self._safe_storage_component(str(envelope_obj.get("conversation_id") or ""), "__conversation__")
+        target_dir = self._security_bucket_dir("guild_messages") / guild_component / channel_component / thread_component / conversation_component
         target_dir.mkdir(parents=True, exist_ok=True)
         target = target_dir / f"{message_id}.json"
         target.write_text(json.dumps({**payload, "message_id": message_id}, indent=2, ensure_ascii=False), encoding="utf-8")
         return {
             "message_id": message_id,
+            "conversation_id": envelope_obj.get("conversation_id"),
+            "conversation_kind": envelope_obj.get("conversation_kind"),
             "recorded_at": now,
             "guild_id": envelope_obj.get("guild_id"),
             "channel_id": envelope_obj.get("channel_id"),
@@ -3070,6 +3182,7 @@ class AtelierService:
     def list_guild_message_history(
         self,
         *,
+        conversation_id: Optional[str] = None,
         guild_id: Optional[str] = None,
         channel_id: Optional[str] = None,
         thread_id: Optional[str] = None,
@@ -3078,6 +3191,7 @@ class AtelierService:
         if self._repo is not None and hasattr(self._repo, "list_guild_message_envelope_records"):
             try:
                 rows = self._repo.list_guild_message_envelope_records(
+                    conversation_id=str(conversation_id).strip() if conversation_id else None,
                     guild_id=str(guild_id).strip() if guild_id else None,
                     channel_id=str(channel_id).strip() if channel_id else None,
                     thread_id=str(thread_id).strip() if thread_id else None,
@@ -3096,6 +3210,9 @@ class AtelierService:
             except Exception:
                 pass
         records = self._load_recursive_records("guild_messages")
+        if conversation_id:
+            conversation_id_norm = str(conversation_id).strip()
+            records = [item for item in records if str(cast(Mapping[str, Any], item.get("envelope") or {}).get("conversation_id") or "").strip() == conversation_id_norm]
         if guild_id:
             guild_id_norm = str(guild_id).strip()
             records = [item for item in records if str(cast(Mapping[str, Any], item.get("envelope") or {}).get("guild_id") or "").strip() == guild_id_norm]
@@ -3108,30 +3225,204 @@ class AtelierService:
         records.sort(key=lambda item: str(item.get("recorded_at") or ""), reverse=True)
         return records[: max(1, min(int(limit), 250))]
 
+    def upsert_guild_conversation(
+        self,
+        *,
+        conversation_id: str,
+        conversation_kind: str,
+        guild_id: str,
+        channel_id: Optional[str],
+        thread_id: Optional[str],
+        title: str,
+        participant_member_ids: Sequence[str],
+        participant_guild_ids: Sequence[str],
+        distribution_id: Optional[str],
+        security_session: Mapping[str, Any],
+        metadata: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        conversation_id_norm = str(conversation_id).strip()
+        guild_id_norm = str(guild_id).strip()
+        if conversation_id_norm == "":
+            raise ValueError("conversation_id_required")
+        if guild_id_norm == "":
+            raise ValueError("guild_id_required")
+        conversation_kind_norm = str(conversation_kind).strip() or "guild_channel"
+        participant_members = [str(item).strip() for item in participant_member_ids if str(item).strip()]
+        participant_guilds = [str(item).strip() for item in participant_guild_ids if str(item).strip()]
+        normalized_session = self._normalize_security_session(
+            security_session=security_session,
+            conversation_id=conversation_id_norm,
+            conversation_kind=conversation_kind_norm,
+            sender_member_id=participant_members[0] if participant_members else None,
+            recipient_member_id=participant_members[1] if len(participant_members) > 1 else None,
+            recipient_distribution_id=distribution_id,
+        )
+        now = datetime.now(timezone.utc).isoformat()
+        if self._repo is not None and hasattr(self._repo, "get_guild_conversation_record") and hasattr(self._repo, "save_guild_conversation_record"):
+            try:
+                existing = self._repo.get_guild_conversation_record(conversation_id_norm)
+                if existing is None:
+                    existing = GuildConversationRecord(conversation_id=conversation_id_norm, guild_id=guild_id_norm)
+                existing.conversation_kind = conversation_kind_norm
+                existing.guild_id = guild_id_norm
+                existing.channel_id = str(channel_id or "").strip() or None
+                existing.thread_id = str(thread_id or "").strip() or None
+                existing.title = str(title or "").strip()
+                existing.participant_member_ids_json = json.dumps(participant_members, ensure_ascii=False)
+                existing.participant_guild_ids_json = json.dumps(participant_guilds, ensure_ascii=False)
+                existing.distribution_id = str(distribution_id or "").strip()
+                existing.security_session_json = json.dumps(normalized_session, ensure_ascii=False)
+                existing.metadata_json = json.dumps(dict(metadata), ensure_ascii=False)
+                existing.updated_at = datetime.fromisoformat(now.replace("Z", "+00:00"))
+                saved = self._repo.save_guild_conversation_record(existing)
+                return {
+                    "conversation_id": saved.conversation_id,
+                    "conversation_kind": saved.conversation_kind,
+                    "guild_id": saved.guild_id,
+                    "channel_id": saved.channel_id,
+                    "thread_id": saved.thread_id,
+                    "title": saved.title,
+                    "participant_member_ids": participant_members,
+                    "participant_guild_ids": participant_guilds,
+                    "distribution_id": saved.distribution_id,
+                    "security_session": normalized_session,
+                    "metadata": dict(metadata),
+                    "status": saved.status,
+                    "updated_at": saved.updated_at.isoformat(),
+                    "storage_backend": "database",
+                }
+            except Exception:
+                pass
+        payload = {
+            "conversation_id": conversation_id_norm,
+            "conversation_kind": conversation_kind_norm,
+            "guild_id": guild_id_norm,
+            "channel_id": str(channel_id or "").strip() or None,
+            "thread_id": str(thread_id or "").strip() or None,
+            "title": str(title or "").strip(),
+            "participant_member_ids": participant_members,
+            "participant_guild_ids": participant_guilds,
+            "distribution_id": str(distribution_id or "").strip() or None,
+            "security_session": normalized_session,
+            "metadata": dict(metadata),
+            "status": "active",
+            "updated_at": now,
+        }
+        target = self._security_bucket_dir("guild_conversations") / f"{conversation_id_norm}.json"
+        target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        return {**payload, "storage_backend": "file"}
+
+    def get_guild_conversation(self, *, conversation_id: str) -> Mapping[str, Any]:
+        conversation_id_norm = str(conversation_id).strip()
+        if conversation_id_norm == "":
+            raise ValueError("conversation_id_required")
+        if self._repo is not None and hasattr(self._repo, "get_guild_conversation_record"):
+            try:
+                row = self._repo.get_guild_conversation_record(conversation_id_norm)
+                if row is not None:
+                    return {
+                        "conversation_id": row.conversation_id,
+                        "conversation_kind": row.conversation_kind,
+                        "guild_id": row.guild_id,
+                        "channel_id": row.channel_id,
+                        "thread_id": row.thread_id,
+                        "title": row.title,
+                        "participant_member_ids": json.loads(row.participant_member_ids_json),
+                        "participant_guild_ids": json.loads(row.participant_guild_ids_json),
+                        "distribution_id": row.distribution_id or None,
+                        "security_session": json.loads(row.security_session_json),
+                        "metadata": json.loads(row.metadata_json),
+                        "status": row.status,
+                        "updated_at": row.updated_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+            except Exception:
+                pass
+        target = self._security_bucket_dir("guild_conversations") / f"{conversation_id_norm}.json"
+        if not target.exists():
+            raise ValueError("conversation_not_found")
+        return json.loads(target.read_text(encoding="utf-8"))
+
+    def list_guild_conversations(
+        self,
+        *,
+        guild_id: Optional[str] = None,
+        conversation_kind: Optional[str] = None,
+        participant_member_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> Sequence[Mapping[str, Any]]:
+        if self._repo is not None and hasattr(self._repo, "list_guild_conversation_records"):
+            try:
+                rows = self._repo.list_guild_conversation_records(
+                    guild_id=str(guild_id).strip() if guild_id else None,
+                    conversation_kind=str(conversation_kind).strip() if conversation_kind else None,
+                    participant_member_id=str(participant_member_id).strip() if participant_member_id else None,
+                    limit=limit,
+                )
+                return [
+                    {
+                        "conversation_id": row.conversation_id,
+                        "conversation_kind": row.conversation_kind,
+                        "guild_id": row.guild_id,
+                        "channel_id": row.channel_id,
+                        "thread_id": row.thread_id,
+                        "title": row.title,
+                        "participant_member_ids": json.loads(row.participant_member_ids_json),
+                        "participant_guild_ids": json.loads(row.participant_guild_ids_json),
+                        "distribution_id": row.distribution_id or None,
+                        "security_session": json.loads(row.security_session_json),
+                        "metadata": json.loads(row.metadata_json),
+                        "status": row.status,
+                        "updated_at": row.updated_at.isoformat(),
+                        "storage_backend": "database",
+                    }
+                    for row in rows
+                ]
+            except Exception:
+                pass
+        records = self._load_bucket_records("guild_conversations")
+        if guild_id:
+            guild_id_norm = str(guild_id).strip()
+            records = [item for item in records if str(item.get("guild_id") or "").strip() == guild_id_norm]
+        if conversation_kind:
+            kind_norm = str(conversation_kind).strip()
+            records = [item for item in records if str(item.get("conversation_kind") or "").strip() == kind_norm]
+        if participant_member_id:
+            member_norm = str(participant_member_id).strip()
+            records = [
+                item for item in records
+                if isinstance(item.get("participant_member_ids"), list)
+                and member_norm in [str(value).strip() for value in cast(Sequence[Any], item.get("participant_member_ids") or [])]
+            ]
+        records.sort(key=lambda item: str(item.get("updated_at") or ""), reverse=True)
+        return records[: max(1, min(int(limit), 250))]
+
     def mix_entropy(
         self,
         *,
         wand_id: str,
-        temple_entropy_digest: Optional[str],
-        theatre_entropy_digest: Optional[str],
-        attestation_media_digests: Sequence[str],
-        temple_entropy_source: Optional[Mapping[str, Any]],
-        theatre_entropy_source: Optional[Mapping[str, Any]],
-        attestation_sources: Sequence[Mapping[str, Any]],
-        context: Mapping[str, Any],
+        wand_passkey_ward: Optional[str] = None,
+        temple_entropy_digest: Optional[str] = None,
+        theatre_entropy_digest: Optional[str] = None,
+        attestation_media_digests: Sequence[str] = (),
+        temple_entropy_source: Optional[Mapping[str, Any]] = None,
+        theatre_entropy_source: Optional[Mapping[str, Any]] = None,
+        attestation_sources: Sequence[Mapping[str, Any]] = (),
+        context: Optional[Mapping[str, Any]] = None,
     ) -> Mapping[str, Any]:
         wand_id_norm = str(wand_id).strip()
         if wand_id_norm == "":
             raise ValueError("wand_id_required")
         return self._entropy_mix_runtime(
             wand_id=wand_id_norm,
+            wand_passkey_ward=wand_passkey_ward,
             temple_entropy_digest=temple_entropy_digest,
             theatre_entropy_digest=theatre_entropy_digest,
             attestation_media_digests=attestation_media_digests,
             temple_entropy_source=temple_entropy_source,
             theatre_entropy_source=theatre_entropy_source,
             attestation_sources=attestation_sources,
-            context=context,
+            context=context or {},
         )
 
     def persist_wand_damage_attestation(
@@ -3706,8 +3997,11 @@ class AtelierService:
         base_url: str,
         transport_kind: str,
         public_key_ref: str,
-        guild_ids: Sequence[str],
-        metadata: Mapping[str, Any],
+        protocol_family: str = _GUILD_MESSAGE_PROTOCOL_FAMILY,
+        protocol_version: str = _GUILD_MESSAGE_PROTOCOL_VERSION,
+        supported_protocol_versions: Sequence[str] = _GUILD_MESSAGE_SUPPORTED_PROTOCOL_VERSIONS,
+        guild_ids: Sequence[str] = (),
+        metadata: Optional[Mapping[str, Any]] = None,
     ) -> Mapping[str, Any]:
         distribution_id_norm = str(distribution_id).strip()
         if distribution_id_norm == "":
@@ -3716,6 +4010,21 @@ class AtelierService:
         normalized_guild_ids = [
             str(item).strip() for item in guild_ids if str(item).strip() != ""
         ]
+        protocol_family_norm = str(protocol_family or self._GUILD_MESSAGE_PROTOCOL_FAMILY).strip() or self._GUILD_MESSAGE_PROTOCOL_FAMILY
+        protocol_version_norm = str(protocol_version or self._GUILD_MESSAGE_PROTOCOL_VERSION).strip() or self._GUILD_MESSAGE_PROTOCOL_VERSION
+        supported_versions = [
+            str(item).strip()
+            for item in supported_protocol_versions
+            if str(item).strip() != ""
+        ]
+        if protocol_version_norm not in supported_versions:
+            supported_versions.append(protocol_version_norm)
+        metadata_payload = dict(metadata or {})
+        metadata_payload["messaging_protocol"] = {
+            "family": protocol_family_norm,
+            "version": protocol_version_norm,
+            "supported_versions": sorted(set(supported_versions)),
+        }
         payload = {
             "distribution_id": distribution_id_norm,
             "display_name": str(display_name or "").strip(),
@@ -3723,7 +4032,7 @@ class AtelierService:
             "transport_kind": str(transport_kind or "https").strip() or "https",
             "public_key_ref": str(public_key_ref or "").strip(),
             "guild_ids": normalized_guild_ids,
-            "metadata": dict(metadata),
+            "metadata": metadata_payload,
             "status": "active",
             "created_at": now,
             "updated_at": now,
@@ -3738,7 +4047,7 @@ class AtelierService:
                 existing.transport_kind = str(transport_kind or "https").strip() or "https"
                 existing.public_key_ref = str(public_key_ref or "").strip()
                 existing.guild_ids_json = json.dumps(normalized_guild_ids, ensure_ascii=False)
-                existing.metadata_json = json.dumps(dict(metadata), ensure_ascii=False)
+                existing.metadata_json = json.dumps(metadata_payload, ensure_ascii=False)
                 existing.status = "active"
                 existing.updated_at = datetime.fromisoformat(now.replace("Z", "+00:00"))
                 saved = self._repo.save_distribution_registry_record(existing)
@@ -3819,12 +4128,21 @@ class AtelierService:
         public_key_ref = str(record.get("public_key_ref") or "").strip()
         if public_key_ref == "":
             raise ValueError("recipient_distribution_key_unavailable")
+        metadata_obj = record.get("metadata")
+        metadata = dict(cast(Mapping[str, Any], metadata_obj)) if isinstance(metadata_obj, Mapping) else {}
+        protocol_obj = metadata.get("messaging_protocol")
+        protocol = dict(cast(Mapping[str, Any], protocol_obj)) if isinstance(protocol_obj, Mapping) else {
+            "family": self._GUILD_MESSAGE_PROTOCOL_FAMILY,
+            "version": self._GUILD_MESSAGE_PROTOCOL_VERSION,
+            "supported_versions": list(self._GUILD_MESSAGE_SUPPORTED_PROTOCOL_VERSIONS),
+        }
         return {
             "distribution_id": str(record.get("distribution_id") or "").strip(),
             "display_name": str(record.get("display_name") or "").strip(),
             "base_url": str(record.get("base_url") or "").strip(),
             "transport_kind": str(record.get("transport_kind") or "").strip(),
             "public_key_ref": public_key_ref,
+            "messaging_protocol": protocol,
             "status": str(record.get("status") or "").strip(),
         }
 
@@ -3835,7 +4153,11 @@ class AtelierService:
         local_distribution_id: str,
         remote_public_key_ref: str,
         handshake_mode: str,
-        metadata: Mapping[str, Any],
+        protocol_family: str = _GUILD_MESSAGE_PROTOCOL_FAMILY,
+        local_protocol_version: str = _GUILD_MESSAGE_PROTOCOL_VERSION,
+        remote_protocol_version: str = _GUILD_MESSAGE_PROTOCOL_VERSION,
+        negotiated_protocol_version: str = _GUILD_MESSAGE_PROTOCOL_VERSION,
+        metadata: Optional[Mapping[str, Any]] = None,
     ) -> Mapping[str, Any]:
         record = self.get_distribution_registry_entry(distribution_id=distribution_id)
         distribution_id_norm = str(record.get("distribution_id") or "").strip()
@@ -3845,6 +4167,17 @@ class AtelierService:
         resolved_remote_key = str(remote_public_key_ref or record.get("public_key_ref") or "").strip()
         if resolved_remote_key == "":
             raise ValueError("remote_public_key_ref_required")
+        protocol_family_norm = str(protocol_family or self._GUILD_MESSAGE_PROTOCOL_FAMILY).strip() or self._GUILD_MESSAGE_PROTOCOL_FAMILY
+        local_protocol_version_norm = str(local_protocol_version or self._GUILD_MESSAGE_PROTOCOL_VERSION).strip() or self._GUILD_MESSAGE_PROTOCOL_VERSION
+        remote_protocol_version_norm = str(remote_protocol_version or self._GUILD_MESSAGE_PROTOCOL_VERSION).strip() or self._GUILD_MESSAGE_PROTOCOL_VERSION
+        negotiated_protocol_version_norm = str(negotiated_protocol_version or local_protocol_version_norm).strip() or local_protocol_version_norm
+        metadata_payload = dict(metadata or {})
+        metadata_payload["protocol_negotiation"] = {
+            "family": protocol_family_norm,
+            "local_version": local_protocol_version_norm,
+            "remote_version": remote_protocol_version_norm,
+            "negotiated_version": negotiated_protocol_version_norm,
+        }
         secret_bytes = secrets.token_bytes(32)
         secret_b64 = base64.b64encode(secret_bytes).decode("ascii")
         secret_digest = hashlib.sha256(secret_bytes).hexdigest()
@@ -3855,8 +4188,9 @@ class AtelierService:
                     "local_distribution_id": str(local_distribution_id or "").strip(),
                     "remote_public_key_ref": resolved_remote_key,
                     "handshake_mode": str(handshake_mode or "mutual_hmac").strip() or "mutual_hmac",
+                    "protocol_negotiation": metadata_payload["protocol_negotiation"],
                     "secret_digest": secret_digest,
-                    "metadata": dict(metadata),
+                    "metadata": metadata_payload,
                     "created_at": now,
                 },
                 sort_keys=True,
@@ -3872,7 +4206,7 @@ class AtelierService:
             "handshake_mode": str(handshake_mode or "mutual_hmac").strip() or "mutual_hmac",
             "shared_secret_b64": secret_b64,
             "shared_secret_digest": secret_digest,
-            "metadata": dict(metadata),
+            "metadata": metadata_payload,
             "status": "active",
             "created_at": now,
             "updated_at": now,
@@ -3887,7 +4221,7 @@ class AtelierService:
                     handshake_mode=str(handshake_mode or "mutual_hmac").strip() or "mutual_hmac",
                     shared_secret_b64=secret_b64,
                     shared_secret_digest=secret_digest,
-                    metadata_json=json.dumps(dict(metadata), ensure_ascii=False),
+                    metadata_json=json.dumps(metadata_payload, ensure_ascii=False),
                     status="active",
                     created_at=datetime.fromisoformat(now.replace("Z", "+00:00")),
                     updated_at=datetime.fromisoformat(now.replace("Z", "+00:00")),
@@ -3977,11 +4311,56 @@ class AtelierService:
                 }
             )
         handshake = next(iter(self.list_distribution_handshakes(distribution_id=distribution_id_norm, limit=1)), None)
+        key_descriptor = self.get_distribution_key_descriptor(distribution_id=distribution_id_norm)
+        protocol_summary = {
+            "distribution": key_descriptor.get("messaging_protocol") or {},
+            "handshake": (
+                dict(cast(Mapping[str, Any], (handshake or {}).get("metadata", {})).get("protocol_negotiation") or {})
+                if isinstance(handshake, Mapping)
+                else {}
+            ),
+            "local_required": {
+                "family": self._GUILD_MESSAGE_PROTOCOL_FAMILY,
+                "version": self._GUILD_MESSAGE_PROTOCOL_VERSION,
+                "supported_versions": list(self._GUILD_MESSAGE_SUPPORTED_PROTOCOL_VERSIONS),
+            },
+        }
         return {
             "distribution": distribution,
             "guilds": guilds,
-            "key_descriptor": self.get_distribution_key_descriptor(distribution_id=distribution_id_norm),
+            "key_descriptor": key_descriptor,
             "handshake": handshake,
+            "messaging_protocol": protocol_summary,
+        }
+
+    def _ensure_distribution_protocol_compatibility(self, *, distribution_id: str) -> Mapping[str, Any]:
+        capabilities = self.discover_distribution_capabilities(distribution_id=distribution_id)
+        protocol_obj = capabilities.get("messaging_protocol")
+        protocol_summary = dict(cast(Mapping[str, Any], protocol_obj)) if isinstance(protocol_obj, Mapping) else {}
+        distribution_protocol_obj = protocol_summary.get("distribution")
+        distribution_protocol = dict(cast(Mapping[str, Any], distribution_protocol_obj)) if isinstance(distribution_protocol_obj, Mapping) else {}
+        handshake_protocol_obj = protocol_summary.get("handshake")
+        handshake_protocol = dict(cast(Mapping[str, Any], handshake_protocol_obj)) if isinstance(handshake_protocol_obj, Mapping) else {}
+        family = str(distribution_protocol.get("family") or "").strip() or self._GUILD_MESSAGE_PROTOCOL_FAMILY
+        version = str(distribution_protocol.get("version") or "").strip() or self._GUILD_MESSAGE_PROTOCOL_VERSION
+        supported_versions_obj = distribution_protocol.get("supported_versions")
+        supported_versions = [
+            str(item).strip()
+            for item in cast(Sequence[Any], supported_versions_obj or [])
+            if str(item).strip() != ""
+        ]
+        if version not in supported_versions:
+            supported_versions.append(version)
+        if family != self._GUILD_MESSAGE_PROTOCOL_FAMILY:
+            raise ValueError("recipient_distribution_protocol_family_incompatible")
+        if self._GUILD_MESSAGE_PROTOCOL_VERSION not in supported_versions:
+            raise ValueError("recipient_distribution_protocol_version_unsupported")
+        negotiated_version = str(handshake_protocol.get("negotiated_version") or "").strip()
+        if negotiated_version and negotiated_version != self._GUILD_MESSAGE_PROTOCOL_VERSION:
+            raise ValueError("recipient_distribution_handshake_protocol_incompatible")
+        return {
+            "distribution": distribution_protocol,
+            "handshake": handshake_protocol,
         }
 
     def _get_distribution_handshake_secret(self, *, distribution_id: str) -> tuple[str, bytes]:

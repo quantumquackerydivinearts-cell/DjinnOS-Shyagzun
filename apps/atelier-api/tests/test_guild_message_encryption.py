@@ -83,6 +83,7 @@ def test_encrypt_and_decrypt_guild_message_roundtrip() -> None:
         channel_id="hall.notice",
         sender_id="player",
         wand_id="wand_001",
+        wand_passkey_ward="north-ash-ward",
         message_text="Meet in the hall at dusk.",
         thread_id="thread_001",
         recipient_distribution_id="distribution.remote.one",
@@ -98,6 +99,7 @@ def test_encrypt_and_decrypt_guild_message_roundtrip() -> None:
     result = svc.decrypt_guild_message(
         envelope=envelope,
         wand_id="wand_001",
+        wand_passkey_ward="north-ash-ward",
         temple_entropy_digest="temple_digest_123",
         theatre_entropy_digest="theatre_digest_456",
         attestation_media_digests=["abc", "def"],
@@ -108,6 +110,35 @@ def test_encrypt_and_decrypt_guild_message_roundtrip() -> None:
     )
     assert result["verified"] is True
     assert result["plaintext"] == "Meet in the hall at dusk."
+
+
+def test_decrypt_guild_message_fails_with_wrong_passkey_ward() -> None:
+    envelope = AtelierService._encrypt_guild_message_runtime(
+        guild_id="guild.alchemy",
+        channel_id="hall.notice",
+        sender_id="player",
+        wand_id="wand_001",
+        wand_passkey_ward="correct-ward",
+        message_text="Meet in the hall at dusk.",
+        temple_entropy_digest="temple_digest_123",
+        theatre_entropy_digest="theatre_digest_456",
+        attestation_media_digests=["abc", "def"],
+        metadata={"purpose": "guild_notice"},
+    )
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+    result = svc.decrypt_guild_message(
+        envelope=envelope,
+        wand_id="wand_001",
+        wand_passkey_ward="wrong-ward",
+        temple_entropy_digest="temple_digest_123",
+        theatre_entropy_digest="theatre_digest_456",
+        attestation_media_digests=["abc", "def"],
+        temple_entropy_source={},
+        theatre_entropy_source={},
+        attestation_sources=[],
+        metadata={"purpose": "guild_notice"},
+    )
+    assert result["verified"] is False
 
 
 def test_persist_wand_damage_attestation_writes_record() -> None:
@@ -227,7 +258,11 @@ def test_guild_message_history_and_revocation_gate() -> None:
         sender_id="player",
         wand_id="wand_001",
         message_text="cipher me",
+        conversation_id="conv_atelier_remote_001",
+        conversation_kind="guild_federated",
         thread_id="thread_001",
+        sender_member_id="player",
+        recipient_member_id="remote-player",
         recipient_distribution_id="distribution.remote.one",
         recipient_guild_id="guild.remote",
         recipient_channel_id="channel.remote",
@@ -276,7 +311,11 @@ def test_guild_message_history_and_revocation_gate() -> None:
             sender_id="player",
             wand_id="wand_001",
             message_text="blocked",
+            conversation_id="conv_atelier_local_001",
+            conversation_kind="guild_channel",
             thread_id="thread_001",
+            sender_member_id="player",
+            recipient_member_id=None,
             recipient_distribution_id=None,
             recipient_guild_id=None,
             recipient_channel_id=None,
@@ -548,6 +587,9 @@ def test_distribution_key_discovery_and_relay_status_update() -> None:
         base_url="https://remote.quantumquackery.org",
         transport_kind="https",
         public_key_ref="pk_remote_001",
+        protocol_family="guild_message_signal_artifice",
+        protocol_version="v1",
+        supported_protocol_versions=["v1"],
         guild_ids=["guild.remote"],
         metadata={"source": "test"},
     )
@@ -567,6 +609,10 @@ def test_distribution_key_discovery_and_relay_status_update() -> None:
         local_distribution_id="distribution.quantumquackery.main",
         remote_public_key_ref="pk_remote_001",
         handshake_mode="mutual_hmac",
+        protocol_family="guild_message_signal_artifice",
+        local_protocol_version="v1",
+        remote_protocol_version="v1",
+        negotiated_protocol_version="v1",
         metadata={"source": "test"},
     )
     assert handshake["distribution_id"] == "distribution.quantumquackery.remote"
@@ -574,6 +620,8 @@ def test_distribution_key_discovery_and_relay_status_update() -> None:
     assert descriptor["public_key_ref"] == "pk_remote_001"
     capabilities = svc.discover_distribution_capabilities(distribution_id="distribution.quantumquackery.remote")
     assert capabilities["guilds"][0]["channels"] == ["hall.remote", "hall.notice"]
+    assert capabilities["messaging_protocol"]["distribution"]["version"] == "v1"
+    assert capabilities["messaging_protocol"]["handshake"]["negotiated_version"] == "v1"
 
     envelope = svc.encrypt_guild_message(
         guild_id="guild.atelier",
@@ -581,7 +629,11 @@ def test_distribution_key_discovery_and_relay_status_update() -> None:
         sender_id="player",
         wand_id="wand_001",
         message_text="remote hello",
+        conversation_id="conv_remote_hello",
+        conversation_kind="guild_federated",
         thread_id="thread_001",
+        sender_member_id="player",
+        recipient_member_id="remote-player",
         recipient_distribution_id="distribution.quantumquackery.remote",
         recipient_guild_id="guild.remote",
         recipient_channel_id="hall.remote",
@@ -595,6 +647,8 @@ def test_distribution_key_discovery_and_relay_status_update() -> None:
         metadata={"purpose": "relay_test"},
     )
     assert envelope["metadata"]["recipient_distribution_key"]["public_key_ref"] == "pk_remote_001"
+    assert envelope["metadata"]["recipient_distribution_protocol"]["version"] == "v1"
+    assert envelope["metadata"]["recipient_distribution_handshake_protocol"]["negotiated_version"] == "v1"
     persisted = svc.persist_guild_message_envelope(envelope=envelope, metadata={"source": "test"})
     assert persisted["relay_status"] == "remote_pending"
     updated = svc.update_guild_message_relay_status(
@@ -607,5 +661,84 @@ def test_distribution_key_discovery_and_relay_status_update() -> None:
     assert updated["delivery_receipts"][0]["signature_family"] == "distribution_receipt_hmac_v1"
     history = svc.list_guild_message_history(guild_id="guild.atelier", channel_id="hall.general", thread_id="thread_001")
     assert history[0]["metadata"]["relay_status"] == "delivered_remote"
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)
+
+
+def test_encrypt_rejects_incompatible_distribution_protocol() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-distribution-protocol")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+
+    svc.register_distribution(
+        distribution_id="distribution.quantumquackery.remote",
+        display_name="Quantum Quackery Remote",
+        base_url="https://remote.quantumquackery.org",
+        transport_kind="https",
+        public_key_ref="pk_remote_001",
+        protocol_family="guild_message_signal_artifice",
+        protocol_version="v0",
+        supported_protocol_versions=["v0"],
+        guild_ids=["guild.remote"],
+        metadata={"source": "test"},
+    )
+
+    try:
+        svc.encrypt_guild_message(
+            guild_id="guild.atelier",
+            channel_id="hall.general",
+            sender_id="player",
+            wand_id="wand_001",
+            message_text="remote hello",
+            recipient_distribution_id="distribution.quantumquackery.remote",
+            temple_entropy_digest="temple_digest_123",
+            theatre_entropy_digest="theatre_digest_456",
+            attestation_media_digests=["abc"],
+            temple_entropy_source=_temple_source(),
+            theatre_entropy_source=_theatre_source(),
+            attestation_sources=[],
+            metadata={"purpose": "relay_test"},
+        )
+    except ValueError as exc:
+        assert str(exc) == "recipient_distribution_protocol_version_unsupported"
+    else:
+        raise AssertionError("expected protocol compatibility failure")
+
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)
+
+
+def test_upsert_and_list_guild_conversations_file_fallback() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-guild-conversations")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+
+    conversation = svc.upsert_guild_conversation(
+        conversation_id="conv_dm_quant_player",
+        conversation_kind="member_dm",
+        guild_id="guild.atelier",
+        channel_id="hall.direct",
+        thread_id=None,
+        title="Quant <> Player",
+        participant_member_ids=["quant", "player"],
+        participant_guild_ids=["guild.atelier"],
+        distribution_id=None,
+        security_session={"sender_identity_key_ref": "quant.identity", "recipient_identity_key_ref": "player.identity"},
+        metadata={"source": "test"},
+    )
+    assert conversation["conversation_kind"] == "member_dm"
+    assert conversation["security_session"]["schema_family"] == "signal_artifice_session"
+
+    loaded = svc.get_guild_conversation(conversation_id="conv_dm_quant_player")
+    assert loaded["title"] == "Quant <> Player"
+    records = svc.list_guild_conversations(guild_id="guild.atelier", participant_member_id="player")
+    assert any(item["conversation_id"] == "conv_dm_quant_player" for item in records)
+
     os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
     shutil.rmtree(tmp_path)

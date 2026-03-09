@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 from typing import Sequence
 
 from sqlalchemy import select, text
@@ -30,6 +31,7 @@ from .models import (
     RuntimePlanRun,
     Quote,
     Supplier,
+    GuildConversationRecord,
     GuildMessageEnvelopeRecord,
     DistributionRegistryRecord,
     DistributionHandshakeRecord,
@@ -434,12 +436,15 @@ class AtelierRepository:
     def list_guild_message_envelope_records(
         self,
         *,
+        conversation_id: str | None = None,
         guild_id: str | None = None,
         channel_id: str | None = None,
         thread_id: str | None = None,
         limit: int = 50,
     ) -> Sequence[GuildMessageEnvelopeRecord]:
         stmt = select(GuildMessageEnvelopeRecord)
+        if conversation_id is not None:
+            stmt = stmt.where(GuildMessageEnvelopeRecord.conversation_id == conversation_id)
         if guild_id is not None:
             stmt = stmt.where(GuildMessageEnvelopeRecord.guild_id == guild_id)
         if channel_id is not None:
@@ -461,6 +466,47 @@ class AtelierRepository:
         self._db.commit()
         self._db.refresh(row)
         return row
+
+    def get_guild_conversation_record(self, conversation_id: str) -> GuildConversationRecord | None:
+        return self._db.scalar(
+            select(GuildConversationRecord).where(GuildConversationRecord.conversation_id == conversation_id)
+        )
+
+    def save_guild_conversation_record(self, row: GuildConversationRecord) -> GuildConversationRecord:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_guild_conversation_records(
+        self,
+        *,
+        guild_id: str | None = None,
+        conversation_kind: str | None = None,
+        participant_member_id: str | None = None,
+        limit: int = 50,
+    ) -> Sequence[GuildConversationRecord]:
+        stmt = select(GuildConversationRecord)
+        if guild_id is not None:
+            stmt = stmt.where(GuildConversationRecord.guild_id == guild_id)
+        if conversation_kind is not None:
+            stmt = stmt.where(GuildConversationRecord.conversation_kind == conversation_kind)
+        stmt = stmt.order_by(GuildConversationRecord.updated_at.desc(), GuildConversationRecord.id.desc()).limit(
+            max(1, min(int(limit), 250))
+        )
+        rows = list(self._db.scalars(stmt).all())
+        if participant_member_id is None:
+            return rows
+        member_norm = participant_member_id.strip()
+        filtered: list[GuildConversationRecord] = []
+        for row in rows:
+            try:
+                members = json.loads(row.participant_member_ids_json)
+            except Exception:
+                members = []
+            if isinstance(members, list) and member_norm in [str(item).strip() for item in members]:
+                filtered.append(row)
+        return filtered
 
     def create_wand_damage_attestation_record(
         self,

@@ -251,11 +251,16 @@ class GuildMessageEnvelopeInput(BaseModel):
     nonce_b64: str
     mac_hex: str
     plaintext_digest: Optional[str] = None
+    conversation_id: Optional[str] = None
+    conversation_kind: Optional[str] = None
     thread_id: Optional[str] = None
+    sender_member_id: Optional[str] = None
+    recipient_member_id: Optional[str] = None
     recipient_distribution_id: Optional[str] = None
     recipient_guild_id: Optional[str] = None
     recipient_channel_id: Optional[str] = None
     recipient_actor_id: Optional[str] = None
+    security_session: Dict[str, Any] = Field(default_factory=dict)
     derivation: Dict[str, Any] = Field(default_factory=dict)
     entropy_mix: Dict[str, Any] = Field(default_factory=dict)
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -266,8 +271,13 @@ class GuildMessageEncryptInput(BaseModel):
     channel_id: str
     sender_id: str
     wand_id: str
+    wand_passkey_ward: Optional[str] = None
     message_text: str
+    conversation_id: Optional[str] = None
+    conversation_kind: Optional[str] = None
     thread_id: Optional[str] = None
+    sender_member_id: Optional[str] = None
+    recipient_member_id: Optional[str] = None
     recipient_distribution_id: Optional[str] = None
     recipient_guild_id: Optional[str] = None
     recipient_channel_id: Optional[str] = None
@@ -278,12 +288,14 @@ class GuildMessageEncryptInput(BaseModel):
     temple_entropy_source: Dict[str, Any] = Field(default_factory=dict)
     theatre_entropy_source: Dict[str, Any] = Field(default_factory=dict)
     attestation_sources: list[Dict[str, Any]] = Field(default_factory=list)
+    security_session: Dict[str, Any] = Field(default_factory=dict)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class GuildMessageDecryptInput(BaseModel):
     envelope: GuildMessageEnvelopeInput
     wand_id: str
+    wand_passkey_ward: Optional[str] = None
     temple_entropy_digest: Optional[str] = None
     theatre_entropy_digest: Optional[str] = None
     attestation_media_digests: list[str] = Field(default_factory=list)
@@ -304,8 +316,23 @@ class GuildMessageRelayStatusInput(BaseModel):
     receipt: Dict[str, Any] = Field(default_factory=dict)
 
 
+class GuildConversationUpsertInput(BaseModel):
+    conversation_id: str
+    conversation_kind: str = "guild_channel"
+    guild_id: str
+    channel_id: Optional[str] = None
+    thread_id: Optional[str] = None
+    title: str = ""
+    participant_member_ids: list[str] = Field(default_factory=list)
+    participant_guild_ids: list[str] = Field(default_factory=list)
+    distribution_id: Optional[str] = None
+    security_session: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class EntropyMixInput(BaseModel):
     wand_id: str
+    wand_passkey_ward: Optional[str] = None
     temple_entropy_digest: Optional[str] = None
     theatre_entropy_digest: Optional[str] = None
     attestation_media_digests: list[str] = Field(default_factory=list)
@@ -359,6 +386,9 @@ class DistributionRegistryInput(BaseModel):
     base_url: str = ""
     transport_kind: str = "https"
     public_key_ref: str = ""
+    protocol_family: str = "guild_message_signal_artifice"
+    protocol_version: str = "v1"
+    supported_protocol_versions: list[str] = Field(default_factory=lambda: ["v1"])
     guild_ids: list[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
@@ -368,6 +398,10 @@ class DistributionHandshakeInput(BaseModel):
     local_distribution_id: str = ""
     remote_public_key_ref: str = ""
     handshake_mode: str = "mutual_hmac"
+    protocol_family: str = "guild_message_signal_artifice"
+    local_protocol_version: str = "v1"
+    remote_protocol_version: str = "v1"
+    negotiated_protocol_version: str = "v1"
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -879,6 +913,7 @@ def mix_entropy(
     try:
         return svc.mix_entropy(
             wand_id=payload.wand_id,
+            wand_passkey_ward=payload.wand_passkey_ward,
             temple_entropy_digest=payload.temple_entropy_digest,
             theatre_entropy_digest=payload.theatre_entropy_digest,
             attestation_media_digests=payload.attestation_media_digests,
@@ -1064,6 +1099,9 @@ def register_distribution(
             base_url=payload.base_url,
             transport_kind=payload.transport_kind,
             public_key_ref=payload.public_key_ref,
+            protocol_family=payload.protocol_family,
+            protocol_version=payload.protocol_version,
+            supported_protocol_versions=payload.supported_protocol_versions,
             guild_ids=payload.guild_ids,
             metadata=payload.metadata,
         )
@@ -1148,6 +1186,10 @@ def register_distribution_handshake(
             local_distribution_id=payload.local_distribution_id,
             remote_public_key_ref=payload.remote_public_key_ref,
             handshake_mode=payload.handshake_mode,
+            protocol_family=payload.protocol_family,
+            local_protocol_version=payload.local_protocol_version,
+            remote_protocol_version=payload.remote_protocol_version,
+            negotiated_protocol_version=payload.negotiated_protocol_version,
             metadata=payload.metadata,
         )
     except ValueError as exc:
@@ -1198,8 +1240,13 @@ def encrypt_guild_message(
             channel_id=payload.channel_id,
             sender_id=payload.sender_id,
             wand_id=payload.wand_id,
+            wand_passkey_ward=payload.wand_passkey_ward,
             message_text=payload.message_text,
+            conversation_id=payload.conversation_id,
+            conversation_kind=payload.conversation_kind,
             thread_id=payload.thread_id,
+            sender_member_id=payload.sender_member_id,
+            recipient_member_id=payload.recipient_member_id,
             recipient_distribution_id=payload.recipient_distribution_id,
             recipient_guild_id=payload.recipient_guild_id,
             recipient_channel_id=payload.recipient_channel_id,
@@ -1210,6 +1257,7 @@ def encrypt_guild_message(
             temple_entropy_source=payload.temple_entropy_source,
             theatre_entropy_source=payload.theatre_entropy_source,
             attestation_sources=payload.attestation_sources,
+            security_session=payload.security_session,
             metadata=payload.metadata,
         )
     except ValueError as exc:
@@ -1230,6 +1278,7 @@ def decrypt_guild_message(
         return svc.decrypt_guild_message(
             envelope=payload.envelope.model_dump(),
             wand_id=payload.wand_id,
+            wand_passkey_ward=payload.wand_passkey_ward,
             temple_entropy_digest=payload.temple_entropy_digest,
             theatre_entropy_digest=payload.theatre_entropy_digest,
             attestation_media_digests=payload.attestation_media_digests,
@@ -1280,6 +1329,7 @@ def update_guild_message_relay_status(
 
 @app.get("/v1/guild/messages/history")
 def list_guild_messages(
+    conversation_id: Optional[str] = None,
     guild_id: Optional[str] = None,
     channel_id: Optional[str] = None,
     thread_id: Optional[str] = None,
@@ -1292,11 +1342,77 @@ def list_guild_messages(
     _enforce(ctx, "lesson.read")
     _enforce_role(role, "lesson.read")
     return svc.list_guild_message_history(
+        conversation_id=conversation_id,
         guild_id=guild_id,
         channel_id=channel_id,
         thread_id=thread_id,
         limit=limit,
     )
+
+
+@app.post("/v1/guild/conversations")
+def upsert_guild_conversation(
+    payload: GuildConversationUpsertInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.upsert_guild_conversation(
+            conversation_id=payload.conversation_id,
+            conversation_kind=payload.conversation_kind,
+            guild_id=payload.guild_id,
+            channel_id=payload.channel_id,
+            thread_id=payload.thread_id,
+            title=payload.title,
+            participant_member_ids=payload.participant_member_ids,
+            participant_guild_ids=payload.participant_guild_ids,
+            distribution_id=payload.distribution_id,
+            security_session=payload.security_session,
+            metadata=payload.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/guild/conversations")
+def list_guild_conversations(
+    guild_id: Optional[str] = None,
+    conversation_kind: Optional[str] = None,
+    participant_member_id: Optional[str] = None,
+    limit: int = 50,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[Mapping[str, Any]]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    return svc.list_guild_conversations(
+        guild_id=guild_id,
+        conversation_kind=conversation_kind,
+        participant_member_id=participant_member_id,
+        limit=limit,
+    )
+
+
+@app.get("/v1/guild/conversations/{conversation_id}")
+def get_guild_conversation(
+    conversation_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        return svc.get_guild_conversation(conversation_id=conversation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/v1/atelier/timeline")

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import sceneGraphDefaults from "../../../scene_graph_defaults.json";
 import { consumeInboxBatch } from "./engineInbox";
 import { applyRenderPack, createRenderPack, validateRenderPack } from "./rendererCore";
+import { GuildHallPanel } from "./panels/GuildHallPanel";
+import { MessagesPanel } from "./panels/MessagesPanel";
 
 function resolveRuntimeApiBase() {
   try {
@@ -6218,6 +6220,38 @@ export function App() {
     return { allowedSymbols, base, overrides, effective };
   }, [daisyUseWholeTongue, daisySymbolSequence, daisyArchetype, daisySymmetry, daisyRoleOverridesText]);
 
+  const guildProtocolStatus = useMemo(() => {
+    const protocol = distributionCapabilitiesOutput?.messaging_protocol;
+    const distributionProtocol = protocol?.distribution || {};
+    const handshakeProtocol = protocol?.handshake || {};
+    const requiredVersion = "v1";
+    const family = String(distributionProtocol?.family || "").trim();
+    const version = String(distributionProtocol?.version || "").trim();
+    const supportedVersions = Array.isArray(distributionProtocol?.supported_versions)
+      ? distributionProtocol.supported_versions.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const negotiatedVersion = String(handshakeProtocol?.negotiated_version || "").trim();
+    if (!String(guildRecipientDistributionId || "").trim()) {
+      return { level: "local", label: "Local Only", detail: "No remote distribution selected." };
+    }
+    if (!family) {
+      return { level: "unknown", label: "Unknown Protocol", detail: "Remote distribution has not advertised a messaging protocol." };
+    }
+    if (family !== "guild_message_signal_artifice") {
+      return { level: "error", label: "Family Mismatch", detail: `Remote family ${family} is incompatible.` };
+    }
+    if (supportedVersions.length > 0 && !supportedVersions.includes(requiredVersion)) {
+      return { level: "error", label: "Version Unsupported", detail: `Remote supports ${supportedVersions.join(", ")}, local requires ${requiredVersion}.` };
+    }
+    if (negotiatedVersion && negotiatedVersion !== requiredVersion) {
+      return { level: "warning", label: "Handshake Drift", detail: `Handshake negotiated ${negotiatedVersion}, local requires ${requiredVersion}.` };
+    }
+    if (!negotiatedVersion) {
+      return { level: "warning", label: "No Negotiated Version", detail: `Remote advertises ${version || requiredVersion}, but no handshake negotiation is recorded yet.` };
+    }
+    return { level: "ok", label: "Protocol Compatible", detail: `Remote ${family} ${version || requiredVersion}; handshake ${negotiatedVersion}.` };
+  }, [distributionCapabilitiesOutput, guildRecipientDistributionId]);
+
   const [publicName, setPublicName] = useState("");
   const [publicEmail, setPublicEmail] = useState("");
   const [publicDetails, setPublicDetails] = useState("");
@@ -6237,6 +6271,8 @@ export function App() {
   const [guildThreadId, setGuildThreadId] = useState("thread_001");
   const [guildSenderId, setGuildSenderId] = useState("player");
   const [guildWandId, setGuildWandId] = useState("wand_001");
+  const [guildSelectedRegistryWandId, setGuildSelectedRegistryWandId] = useState("wand_001");
+  const [guildWandPasskeyWard, setGuildWandPasskeyWard] = useState("");
   const [guildTempleEntropyDigest, setGuildTempleEntropyDigest] = useState("");
   const [guildTheatreEntropyDigest, setGuildTheatreEntropyDigest] = useState("");
   const [guildAttestationDigestsText, setGuildAttestationDigestsText] = useState("");
@@ -6254,6 +6290,23 @@ export function App() {
   const [guildDecryptOutput, setGuildDecryptOutput] = useState(null);
   const [guildPersistOutput, setGuildPersistOutput] = useState(null);
   const [guildMessageHistory, setGuildMessageHistory] = useState([]);
+  const [guildConversationId, setGuildConversationId] = useState("conv_guild_atelier_general");
+  const [guildConversationKind, setGuildConversationKind] = useState("guild_channel");
+  const [guildConversationTitle, setGuildConversationTitle] = useState("Atelier Guild General");
+  const [guildParticipantMemberIdsText, setGuildParticipantMemberIdsText] = useState('[\n  "player"\n]');
+  const [guildParticipantGuildIdsText, setGuildParticipantGuildIdsText] = useState('[\n  "guild.atelier"\n]');
+  const [guildSecuritySessionText, setGuildSecuritySessionText] = useState('{\n  "session_mode": "double_ratchet_like",\n  "sender_identity_key_ref": "player.identity",\n  "recipient_identity_key_ref": ""\n}');
+  const [guildSessionMode, setGuildSessionMode] = useState("double_ratchet_like");
+  const [guildSessionSenderIdentityKeyRef, setGuildSessionSenderIdentityKeyRef] = useState("player.identity");
+  const [guildSessionSenderSignedPreKeyRef, setGuildSessionSenderSignedPreKeyRef] = useState("");
+  const [guildSessionSenderOneTimePreKeyRef, setGuildSessionSenderOneTimePreKeyRef] = useState("");
+  const [guildSessionRecipientIdentityKeyRef, setGuildSessionRecipientIdentityKeyRef] = useState("");
+  const [guildSessionRecipientSignedPreKeyRef, setGuildSessionRecipientSignedPreKeyRef] = useState("");
+  const [guildSessionRecipientOneTimePreKeyRef, setGuildSessionRecipientOneTimePreKeyRef] = useState("");
+  const [guildSessionEpoch, setGuildSessionEpoch] = useState("1");
+  const [guildSessionSealedSender, setGuildSessionSealedSender] = useState(true);
+  const [guildConversationList, setGuildConversationList] = useState([]);
+  const [guildConversationOutput, setGuildConversationOutput] = useState(null);
   const [guildRelayStatus, setGuildRelayStatus] = useState("remote_pending");
   const [guildRelayReceiptText, setGuildRelayReceiptText] = useState('{\n  "relay_id": "relay_001"\n}');
   const [guildRegistryList, setGuildRegistryList] = useState([]);
@@ -6263,6 +6316,9 @@ export function App() {
   const [distributionBaseUrl, setDistributionBaseUrl] = useState("https://quantumquackery.org");
   const [distributionTransportKind, setDistributionTransportKind] = useState("https");
   const [distributionPublicKeyRef, setDistributionPublicKeyRef] = useState("");
+  const [distributionProtocolFamily, setDistributionProtocolFamily] = useState("guild_message_signal_artifice");
+  const [distributionProtocolVersion, setDistributionProtocolVersion] = useState("v1");
+  const [distributionSupportedProtocolVersionsText, setDistributionSupportedProtocolVersionsText] = useState('[\n  "v1"\n]');
   const [distributionGuildIdsText, setDistributionGuildIdsText] = useState('[\n  "guild.atelier"\n]');
   const [distributionMetadataText, setDistributionMetadataText] = useState('{\n  "source": "atelier.desktop.guild_hall"\n}');
   const [distributionRegistryList, setDistributionRegistryList] = useState([]);
@@ -6270,6 +6326,10 @@ export function App() {
   const [distributionCapabilitiesOutput, setDistributionCapabilitiesOutput] = useState(null);
   const [distributionHandshakeLocalId, setDistributionHandshakeLocalId] = useState("distribution.quantumquackery.main");
   const [distributionHandshakeMode, setDistributionHandshakeMode] = useState("mutual_hmac");
+  const [distributionHandshakeProtocolFamily, setDistributionHandshakeProtocolFamily] = useState("guild_message_signal_artifice");
+  const [distributionHandshakeLocalProtocolVersion, setDistributionHandshakeLocalProtocolVersion] = useState("v1");
+  const [distributionHandshakeRemoteProtocolVersion, setDistributionHandshakeRemoteProtocolVersion] = useState("v1");
+  const [distributionHandshakeNegotiatedProtocolVersion, setDistributionHandshakeNegotiatedProtocolVersion] = useState("v1");
   const [distributionHandshakeOutput, setDistributionHandshakeOutput] = useState(null);
   const [distributionHandshakeList, setDistributionHandshakeList] = useState([]);
   const [guildWandStatus, setGuildWandStatus] = useState(null);
@@ -6363,6 +6423,31 @@ export function App() {
     };
   };
 
+  const buildGuildSecuritySessionPayload = () => ({
+    session_mode: String(guildSessionMode || "").trim() || "double_ratchet_like",
+    sender_identity_key_ref: String(guildSessionSenderIdentityKeyRef || "").trim(),
+    sender_signed_pre_key_ref: String(guildSessionSenderSignedPreKeyRef || "").trim(),
+    sender_one_time_pre_key_ref: String(guildSessionSenderOneTimePreKeyRef || "").trim(),
+    recipient_identity_key_ref: String(guildSessionRecipientIdentityKeyRef || "").trim(),
+    recipient_signed_pre_key_ref: String(guildSessionRecipientSignedPreKeyRef || "").trim(),
+    recipient_one_time_pre_key_ref: String(guildSessionRecipientOneTimePreKeyRef || "").trim(),
+    session_epoch: clampInt(guildSessionEpoch, 1, 999999, 1),
+    sealed_sender: Boolean(guildSessionSealedSender),
+  });
+
+  const applyGuildSecuritySessionPayload = (payload) => {
+    const session = payload && typeof payload === "object" ? payload : {};
+    setGuildSessionMode(String(session.session_mode || "double_ratchet_like"));
+    setGuildSessionSenderIdentityKeyRef(String(session.sender_identity_key_ref || "player.identity"));
+    setGuildSessionSenderSignedPreKeyRef(String(session.sender_signed_pre_key_ref || ""));
+    setGuildSessionSenderOneTimePreKeyRef(String(session.sender_one_time_pre_key_ref || ""));
+    setGuildSessionRecipientIdentityKeyRef(String(session.recipient_identity_key_ref || ""));
+    setGuildSessionRecipientSignedPreKeyRef(String(session.recipient_signed_pre_key_ref || ""));
+    setGuildSessionRecipientOneTimePreKeyRef(String(session.recipient_one_time_pre_key_ref || ""));
+    setGuildSessionEpoch(String(session.session_epoch ?? 1));
+    setGuildSessionSealedSender(Boolean(session.sealed_sender ?? true));
+  };
+
   const fillTempleEntropySourcePreset = () => {
     setGuildTempleProvenanceId("garden.temple.main.north-bed.epoch1");
     setGuildTempleSourceType("garden_observation");
@@ -6395,6 +6480,28 @@ export function App() {
   }, [section]);
 
   useEffect(() => {
+    const parsed = parseObjectJson(guildSecuritySessionText, {});
+    applyGuildSecuritySessionPayload(parsed);
+  }, [guildSecuritySessionText]);
+
+  useEffect(() => {
+    const nextText = JSON.stringify(buildGuildSecuritySessionPayload(), null, 2);
+    if (nextText !== guildSecuritySessionText) {
+      setGuildSecuritySessionText(nextText);
+    }
+  }, [
+    guildSessionMode,
+    guildSessionSenderIdentityKeyRef,
+    guildSessionSenderSignedPreKeyRef,
+    guildSessionSenderOneTimePreKeyRef,
+    guildSessionRecipientIdentityKeyRef,
+    guildSessionRecipientSignedPreKeyRef,
+    guildSessionRecipientOneTimePreKeyRef,
+    guildSessionEpoch,
+    guildSessionSealedSender,
+  ]);
+
+  useEffect(() => {
     if (section !== "Guild Hall") {
       return;
     }
@@ -6406,6 +6513,9 @@ export function App() {
     });
     loadDistributionHandshakes().catch((error) => {
       console.error("distribution_handshake_autoload_failed", error);
+    });
+    loadGuildConversationList().catch((error) => {
+      console.error("guild_conversation_autoload_failed", error);
     });
   }, [section]);
 
@@ -12328,6 +12438,7 @@ export function App() {
       rememberProvenanceId("theatre", theatreEntropySource.provenance_id);
       const data = await apiCall("/v1/security/entropy/mix", "POST", {
         wand_id: guildWandId,
+        wand_passkey_ward: guildWandPasskeyWard || null,
         temple_entropy_digest: guildTempleEntropyDigest || null,
         theatre_entropy_digest: guildTheatreEntropyDigest || null,
         attestation_media_digests: attestationMediaDigests,
@@ -12357,6 +12468,15 @@ export function App() {
       const templeEntropySource = buildTempleEntropySourcePayload();
       const theatreEntropySource = buildTheatreEntropySourcePayload();
       const attestationSources = guildAttestationSourcesText.trim() ? JSON.parse(guildAttestationSourcesText) : [];
+      const participantMemberIds = (() => {
+        try {
+          const parsed = JSON.parse(guildParticipantMemberIdsText || "[]");
+          return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()).filter(Boolean) : [];
+        } catch {
+          return [];
+        }
+      })();
+      const securitySession = parseObjectJson(guildSecuritySessionText, {});
       const currentStatus = guildWandStatus?.wand_id === guildWandId ? guildWandStatus : await fetchWandStatus(guildWandId, setGuildWandStatus);
       if (currentStatus?.revoked) {
         throw new Error("wand_revoked");
@@ -12369,7 +12489,12 @@ export function App() {
         thread_id: guildThreadId || null,
         sender_id: guildSenderId,
         wand_id: guildWandId,
+        wand_passkey_ward: guildWandPasskeyWard || null,
         message_text: messageDraft,
+        conversation_id: guildConversationId || null,
+        conversation_kind: guildConversationKind || "guild_channel",
+        sender_member_id: participantMemberIds[0] || guildSenderId || null,
+        recipient_member_id: guildRecipientActorId || participantMemberIds[1] || null,
         recipient_distribution_id: guildRecipientDistributionId || null,
         recipient_guild_id: guildRecipientGuildId || null,
         recipient_channel_id: guildRecipientChannelId || null,
@@ -12380,6 +12505,7 @@ export function App() {
         temple_entropy_source: templeEntropySource,
         theatre_entropy_source: theatreEntropySource,
         attestation_sources: Array.isArray(attestationSources) ? attestationSources : [],
+        security_session: securitySession,
         metadata: {
           workspace_id: workspaceId,
           source: "atelier.desktop.guild_hall",
@@ -12430,6 +12556,7 @@ export function App() {
       const data = await apiCall("/v1/guild/messages/decrypt", "POST", {
         envelope: guildEncryptOutput,
         wand_id: guildWandId,
+        wand_passkey_ward: guildWandPasskeyWard || null,
         temple_entropy_digest: guildTempleEntropyDigest || null,
         theatre_entropy_digest: guildTheatreEntropyDigest || null,
         attestation_media_digests: attestationMediaDigests,
@@ -12448,16 +12575,99 @@ export function App() {
 
   const loadGuildMessageHistory = async () => {
     await runAction("guild_message_history", async () => {
-      const params = new URLSearchParams({
-        guild_id: guildId,
-        channel_id: guildChannelId,
-        limit: "20",
-      });
+      const params = new URLSearchParams({ limit: "20" });
+      if (guildConversationId) {
+        params.set("conversation_id", guildConversationId);
+      } else {
+        params.set("guild_id", guildId);
+        params.set("channel_id", guildChannelId);
+      }
       if (guildThreadId) {
         params.set("thread_id", guildThreadId);
       }
       const data = await apiCall(`/v1/guild/messages/history?${params.toString()}`, "GET");
       setGuildMessageHistory(Array.isArray(data) ? data : []);
+      return data;
+    });
+  };
+
+  const registerGuildConversation = async () => {
+    await runAction("guild_conversation_register", async () => {
+      const participantMemberIds = (() => {
+        try {
+          const parsed = JSON.parse(guildParticipantMemberIdsText || "[]");
+          return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()).filter(Boolean) : [];
+        } catch {
+          return [];
+        }
+      })();
+      const participantGuildIds = (() => {
+        try {
+          const parsed = JSON.parse(guildParticipantGuildIdsText || "[]");
+          return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()).filter(Boolean) : [];
+        } catch {
+          return [];
+        }
+      })();
+      const securitySession = parseObjectJson(guildSecuritySessionText, {});
+      const data = await apiCall("/v1/guild/conversations", "POST", {
+        conversation_id: String(guildConversationId || "").trim(),
+        conversation_kind: String(guildConversationKind || "").trim() || "guild_channel",
+        guild_id: String(guildId || "").trim(),
+        channel_id: String(guildChannelId || "").trim() || null,
+        thread_id: String(guildThreadId || "").trim() || null,
+        title: String(guildConversationTitle || "").trim(),
+        participant_member_ids: participantMemberIds,
+        participant_guild_ids: participantGuildIds,
+        distribution_id: String(guildRecipientDistributionId || guildDistributionId || "").trim() || null,
+        security_session: securitySession,
+        metadata: {
+          workspace_id: workspaceId,
+          source: "atelier.desktop.guild_hall",
+        },
+      });
+      setGuildConversationOutput(data);
+      await loadGuildConversationList();
+      return data;
+    });
+  };
+
+  const loadGuildConversationList = async () => {
+    await runAction("guild_conversation_list", async () => {
+      const params = new URLSearchParams({ limit: "50" });
+      if (guildId) {
+        params.set("guild_id", guildId);
+      }
+      if (guildConversationKind) {
+        params.set("conversation_kind", guildConversationKind);
+      }
+      const memberFilter = String(guildSenderId || "").trim();
+      if (memberFilter) {
+        params.set("participant_member_id", memberFilter);
+      }
+      const data = await apiCall(`/v1/guild/conversations?${params.toString()}`, "GET");
+      setGuildConversationList(Array.isArray(data) ? data : []);
+      return data;
+    });
+  };
+
+  const loadGuildConversation = async (conversationId = guildConversationId) => {
+    await runAction("guild_conversation_get", async () => {
+      const safeConversationId = String(conversationId || "").trim();
+      if (!safeConversationId) {
+        throw new Error("conversation_id_required");
+      }
+      const data = await apiCall(`/v1/guild/conversations/${encodeURIComponent(safeConversationId)}`, "GET");
+      setGuildConversationOutput(data);
+      setGuildConversationId(String(data?.conversation_id || safeConversationId));
+      setGuildConversationKind(String(data?.conversation_kind || "guild_channel"));
+      setGuildConversationTitle(String(data?.title || ""));
+      setGuildChannelId(String(data?.channel_id || guildChannelId));
+      setGuildThreadId(String(data?.thread_id || ""));
+      setGuildRecipientDistributionId(String(data?.distribution_id || guildRecipientDistributionId || ""));
+      setGuildParticipantMemberIdsText(JSON.stringify(data?.participant_member_ids || [], null, 2));
+      setGuildParticipantGuildIdsText(JSON.stringify(data?.participant_guild_ids || [], null, 2));
+      setGuildSecuritySessionText(JSON.stringify(data?.security_session || {}, null, 2));
       return data;
     });
   };
@@ -12561,12 +12771,25 @@ export function App() {
           return [];
         }
       })();
+      const supportedProtocolVersions = (() => {
+        try {
+          const parsed = JSON.parse(distributionSupportedProtocolVersionsText || "[]");
+          return Array.isArray(parsed)
+            ? parsed.map((item) => String(item || "").trim()).filter((item) => item !== "")
+            : [];
+        } catch {
+          return [];
+        }
+      })();
       const data = await apiCall("/v1/distributions/registry", "POST", {
         distribution_id: String(distributionId || "").trim(),
         display_name: String(distributionDisplayName || "").trim(),
         base_url: String(distributionBaseUrl || "").trim(),
         transport_kind: String(distributionTransportKind || "").trim() || "https",
         public_key_ref: String(distributionPublicKeyRef || "").trim(),
+        protocol_family: String(distributionProtocolFamily || "").trim() || "guild_message_signal_artifice",
+        protocol_version: String(distributionProtocolVersion || "").trim() || "v1",
+        supported_protocol_versions: supportedProtocolVersions,
         guild_ids: guildIds,
         metadata: parseObjectJson(distributionMetadataText, {}),
       });
@@ -12597,6 +12820,10 @@ export function App() {
       setDistributionBaseUrl(String(data?.base_url || ""));
       setDistributionTransportKind(String(data?.transport_kind || "https"));
       setDistributionPublicKeyRef(String(data?.public_key_ref || ""));
+      const messagingProtocol = data?.metadata?.messaging_protocol || {};
+      setDistributionProtocolFamily(String(messagingProtocol?.family || "guild_message_signal_artifice"));
+      setDistributionProtocolVersion(String(messagingProtocol?.version || "v1"));
+      setDistributionSupportedProtocolVersionsText(JSON.stringify(messagingProtocol?.supported_versions || ["v1"], null, 2));
       setDistributionGuildIdsText(JSON.stringify(data?.guild_ids || [], null, 2));
       setDistributionMetadataText(JSON.stringify(data?.metadata || {}, null, 2));
       if (!guildRecipientDistributionId) {
@@ -12625,6 +12852,10 @@ export function App() {
         local_distribution_id: String(distributionHandshakeLocalId || "").trim(),
         remote_public_key_ref: String(distributionPublicKeyRef || "").trim(),
         handshake_mode: String(distributionHandshakeMode || "").trim() || "mutual_hmac",
+        protocol_family: String(distributionHandshakeProtocolFamily || "").trim() || "guild_message_signal_artifice",
+        local_protocol_version: String(distributionHandshakeLocalProtocolVersion || "").trim() || "v1",
+        remote_protocol_version: String(distributionHandshakeRemoteProtocolVersion || "").trim() || "v1",
+        negotiated_protocol_version: String(distributionHandshakeNegotiatedProtocolVersion || "").trim() || "v1",
         metadata: {
           workspace_id: workspaceId,
           source: "atelier.desktop.guild_hall",
@@ -12654,6 +12885,7 @@ export function App() {
     if (!safeWandId) {
       throw new Error("wand_id_required");
     }
+    setGuildSelectedRegistryWandId(safeWandId);
     if (target === "both" || target === "temple") {
       setWandDamageWandId(safeWandId);
       await fetchWandStatus(safeWandId, setWandStatus);
@@ -16018,323 +16250,225 @@ export function App() {
     }
     if (section === "Guild Hall") {
       return (
-        <section className="panel guild-hall-shell">
-          <h2>Guild Hall</h2>
-          <p>Guild administration and message encryption derivation inputs.</p>
-          <div className="row">
-            <button className="action" onClick={listLessons}>Refresh Lessons</button>
-            <button className="action" onClick={listModules}>Refresh Modules</button>
-          </div>
-          <div className="guild-summary-strip">
-            <span className="badge">{`Guild: ${guildId || "unset"}`}</span>
-            <span className="badge">{`Profile: ${profileName || "Artisan"}`}</span>
-            <span className="badge">{`Home distribution: ${guildDistributionId || "unset"}`}</span>
-            <span className="badge">{`Remote target: ${guildRecipientDistributionId || "local"} / ${guildRecipientGuildId || "none"}`}</span>
-            <span className="badge">{`Wand: ${guildWandId || "unset"}`}</span>
-            <span className="badge">{`Wand status: ${String(guildWandStatus?.status || "unknown")}`}</span>
-            <span className="badge">{`Revoked: ${guildWandStatus?.revoked ? "yes" : "no"}`}</span>
-            <span className="badge">{`Relay: ${String(guildPersistOutput?.relay_status || guildMessageHistory?.[0]?.metadata?.relay_status || "idle")}`}</span>
-            <span className="badge">{`Handshakes: ${distributionHandshakeList.length}`}</span>
-          </div>
-
-          <div className="guild-hall-grid">
-            <section className="panel guild-subpanel">
-              <h3>Identity</h3>
-              <p className="guild-subcopy">Register the local guild and the distributions it can speak to.</p>
-              <div className="guild-subgroup">
-                <h4>Guild Registry</h4>
-                <div className="row">
-                  <input value={guildId} onChange={(e) => setGuildId(e.target.value)} placeholder="guild id" />
-                  <input value={guildDisplayName} onChange={(e) => setGuildDisplayName(e.target.value)} placeholder="guild display name" />
-                  <input value={guildDistributionId} onChange={(e) => setGuildDistributionId(e.target.value)} placeholder="distribution id" />
-                </div>
-                <div className="row">
-                  <button className="action" onClick={registerGuildRegistryEntry}>Register Guild</button>
-                  <button className="action" onClick={() => loadGuildRegistryEntry()}>Load Guild</button>
-                  <button className="action" onClick={loadGuildRegistryList}>Load Guild Registry</button>
-                </div>
-                <div className="row">
-                  <select value={guildId} onChange={(e) => setGuildId(e.target.value)}>
-                    <option value="">select registered guild</option>
-                    {guildRegistryList.map((item) => (
-                      <option key={`guild-reg-${String(item?.guild_id || "")}`} value={String(item?.guild_id || "")}>
-                        {`${String(item?.guild_id || "")} :: ${String(item?.display_name || "")}`}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="badge">{`Guild registry count: ${guildRegistryList.length}`}</span>
-                </div>
-              </div>
-              <div className="guild-subgroup">
-                <h4>Distribution Registry</h4>
-                <div className="row">
-                  <input value={distributionId} onChange={(e) => setDistributionId(e.target.value)} placeholder="distribution id" />
-                  <input value={distributionDisplayName} onChange={(e) => setDistributionDisplayName(e.target.value)} placeholder="distribution display name" />
-                  <input value={distributionBaseUrl} onChange={(e) => setDistributionBaseUrl(e.target.value)} placeholder="base url" />
-                </div>
-                <div className="row">
-                  <input value={distributionTransportKind} onChange={(e) => setDistributionTransportKind(e.target.value)} placeholder="transport kind" />
-                  <input value={distributionPublicKeyRef} onChange={(e) => setDistributionPublicKeyRef(e.target.value)} placeholder="public key ref" />
-                </div>
-                <div className="row">
-                  <textarea value={distributionGuildIdsText} onChange={(e) => setDistributionGuildIdsText(e.target.value)} placeholder="guild ids JSON array" rows={4} />
-                  <textarea value={distributionMetadataText} onChange={(e) => setDistributionMetadataText(e.target.value)} placeholder="distribution metadata JSON" rows={4} />
-                </div>
-                <div className="row">
-                  <button className="action" onClick={registerDistributionRegistryEntry}>Register Distribution</button>
-                  <button className="action" onClick={() => loadDistributionRegistryEntry()}>Load Distribution</button>
-                  <button className="action" onClick={loadDistributionRegistryList}>Load Distribution Registry</button>
-                </div>
-                <div className="row">
-                  <select value={distributionId} onChange={(e) => setDistributionId(e.target.value)}>
-                    <option value="">select registered distribution</option>
-                    {distributionRegistryList.map((item) => (
-                      <option key={`distribution-reg-${String(item?.distribution_id || "")}`} value={String(item?.distribution_id || "")}>
-                        {`${String(item?.distribution_id || "")} :: ${String(item?.display_name || "")}`}
-                      </option>
-                    ))}
-                  </select>
-                  <button className="action" onClick={() => {
-                    const next = String(distributionId || "").trim();
-                    if (next) {
-                      setGuildRecipientDistributionId(next);
-                    }
-                  }}>Use As Recipient Target</button>
-                  <span className="badge">{`Distribution registry count: ${distributionRegistryList.length}`}</span>
-                </div>
-              </div>
-            </section>
-
-            <section className="panel guild-subpanel">
-              <h3>Trust Fabric</h3>
-              <p className="guild-subcopy">Manage the artifact and handshake state that gates secure relay.</p>
-              <div className="guild-subgroup">
-                <h4>Distribution Handshake</h4>
-                <div className="row">
-                  <input value={distributionHandshakeLocalId} onChange={(e) => setDistributionHandshakeLocalId(e.target.value)} placeholder="local distribution id" />
-                  <input value={distributionHandshakeMode} onChange={(e) => setDistributionHandshakeMode(e.target.value)} placeholder="handshake mode" />
-                </div>
-                <div className="row">
-                  <button className="action" onClick={registerDistributionHandshake}>Register Handshake</button>
-                  <button className="action" onClick={() => loadDistributionCapabilities()}>Load Capabilities</button>
-                  <button className="action" onClick={() => loadDistributionHandshakes()}>Load Handshakes</button>
-                  <button className="action" onClick={loadMigrationStatus} disabled={!adminVerified || role !== "steward"}>Load Migration Status</button>
-                </div>
-              </div>
-              <div className="guild-subgroup">
-                <h4>Wand Registry</h4>
-                <div className="row">
-                  <input value={wandRegistryWandId} onChange={(e) => setWandRegistryWandId(e.target.value)} placeholder="wand id" />
-                  <input value={wandRegistryMakerId} onChange={(e) => setWandRegistryMakerId(e.target.value)} placeholder="maker id" />
-                  <input value={wandRegistryMakerDate} onChange={(e) => setWandRegistryMakerDate(e.target.value)} placeholder="maker date" />
-                  <input value={wandRegistryAtelierOrigin} onChange={(e) => setWandRegistryAtelierOrigin(e.target.value)} placeholder="atelier origin" />
-                </div>
-                <div className="row">
-                  <input value={wandRegistryStructuralFingerprint} onChange={(e) => setWandRegistryStructuralFingerprint(e.target.value)} placeholder="structural fingerprint" />
-                  <input value={wandRegistryCraftRecordHash} onChange={(e) => setWandRegistryCraftRecordHash(e.target.value)} placeholder="craft record hash" />
-                </div>
-                <div className="row">
-                  <button className="action" onClick={registerWandRegistryEntry} disabled={!wandRegistryMinimumReady}>Register Wand</button>
-                  <button className="action" onClick={() => loadWandRegistryEntry()}>Load Wand</button>
-                  <button className="action" onClick={loadWandRegistryList}>Load Registry</button>
-                </div>
-                <div className="row">
-                  <span className="badge">{wandRegistryMinimumReady ? "Registry minimum met" : "Register Wand requires wand id + maker id"}</span>
-                  <span className="badge">Optional: maker date, dimensions, material profile</span>
-                  <span className="badge">{`Registry count: ${wandRegistryList.length}`}</span>
-                </div>
-                <div className="row">
-                  <textarea value={wandRegistryMaterialProfileText} onChange={(e) => setWandRegistryMaterialProfileText(e.target.value)} placeholder="material profile JSON" rows={4} />
-                  <textarea value={wandRegistryDimensionsText} onChange={(e) => setWandRegistryDimensionsText(e.target.value)} placeholder="dimensions JSON" rows={4} />
-                </div>
-                <div className="row">
-                  <textarea value={wandRegistryOwnershipChainText} onChange={(e) => setWandRegistryOwnershipChainText(e.target.value)} placeholder="ownership chain JSON array" rows={4} />
-                  <textarea value={wandRegistryMetadataText} onChange={(e) => setWandRegistryMetadataText(e.target.value)} placeholder="wand metadata JSON" rows={4} />
-                </div>
-                <div className="row">
-                  <select value={wandRegistryWandId} onChange={(e) => setWandRegistryWandId(e.target.value)}>
-                    <option value="">select registered wand</option>
-                    {wandRegistryList.map((item) => (
-                      <option key={`wand-reg-${String(item?.wand_id || "")}`} value={String(item?.wand_id || "")}>{`${String(item?.wand_id || "")} :: ${String(item?.maker_id || "")}`}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            <section className="panel guild-subpanel panel-wide">
-              <h3>Delivery Pass</h3>
-              <p className="guild-subcopy">Set sender, artifact, remote target, entropy provenance, then derive and relay.</p>
-              <div className="guild-subgroup">
-                <h4>Thread and Sender</h4>
-                <div className="row">
-                  <input value={guildChannelId} onChange={(e) => setGuildChannelId(e.target.value)} placeholder="channel id" />
-                  <input value={guildThreadId} onChange={(e) => setGuildThreadId(e.target.value)} placeholder="thread id" />
-                  <input value={guildSenderId} onChange={(e) => setGuildSenderId(e.target.value)} placeholder="sender id" />
-                </div>
-                <div className="row">
-                  <input value={guildWandId} onChange={(e) => setGuildWandId(e.target.value)} placeholder="wand id" />
-                  <select value={guildWandId} onChange={(e) => setGuildWandId(e.target.value)}>
-                    <option value="">select registered wand</option>
-                    {wandRegistryList.map((item) => (
-                      <option key={`guild-wand-${String(item?.wand_id || "")}`} value={String(item?.wand_id || "")}>{`${String(item?.wand_id || "")} :: ${String(item?.maker_id || "")}`}</option>
-                    ))}
-                  </select>
-                  <button className="action" onClick={() => runAction("guild_use_registered_wand", () => applyRegisteredWandSelection(guildWandId, { target: "guild", loadEntry: true }))}>Use Registry Wand</button>
-                  <button className="action" onClick={loadGuildWandStatus}>Load Wand Status</button>
-                </div>
-              </div>
-              <div className="guild-subgroup">
-                <h4>Remote Target</h4>
-                <div className="row">
-                  <select value={guildRecipientDistributionId} onChange={(e) => setGuildRecipientDistributionId(e.target.value)}>
-                    <option value="">select recipient distribution</option>
-                    {distributionRegistryList.map((item) => (
-                      <option key={`guild-recipient-distribution-${String(item?.distribution_id || "")}`} value={String(item?.distribution_id || "")}>{`${String(item?.distribution_id || "")} :: ${String(item?.display_name || "")}`}</option>
-                    ))}
-                  </select>
-                  <select value={guildRecipientGuildId} onChange={(e) => setGuildRecipientGuildId(e.target.value)}>
-                    <option value="">select recipient guild</option>
-                    {(Array.isArray(distributionCapabilitiesOutput?.guilds) ? distributionCapabilitiesOutput.guilds : guildRegistryList).map((item) => (
-                      <option key={`guild-recipient-guild-${String(item?.guild_id || "")}`} value={String(item?.guild_id || "")}>{`${String(item?.guild_id || "")} :: ${String(item?.display_name || "")}`}</option>
-                    ))}
-                  </select>
-                  <select value={guildRecipientChannelId} onChange={(e) => setGuildRecipientChannelId(e.target.value)}>
-                    <option value="">select recipient channel</option>
-                    {(() => {
-                      const guilds = Array.isArray(distributionCapabilitiesOutput?.guilds) ? distributionCapabilitiesOutput.guilds : [];
-                      const selectedGuild = guilds.find((item) => String(item?.guild_id || "") === String(guildRecipientGuildId || "").trim());
-                      const channels = Array.isArray(selectedGuild?.channels) ? selectedGuild.channels : [];
-                      return channels.map((item) => (
-                        <option key={`guild-recipient-channel-${String(item || "")}`} value={String(item || "")}>{String(item || "")}</option>
-                      ));
-                    })()}
-                  </select>
-                  <input value={guildRecipientActorId} onChange={(e) => setGuildRecipientActorId(e.target.value)} placeholder="recipient actor id" />
-                </div>
-              </div>
-              <div className="guild-subgroup">
-                <h4>Entropy Provenance</h4>
-                <div className="row">
-                  <input value={guildTempleEntropyDigest} onChange={(e) => setGuildTempleEntropyDigest(e.target.value)} placeholder="temple entropy digest" />
-                  <input value={guildTheatreEntropyDigest} onChange={(e) => setGuildTheatreEntropyDigest(e.target.value)} placeholder="theatre entropy digest" />
-                </div>
-                <div className="row">
-                  <input value={guildTempleProvenanceId} onChange={(e) => setGuildTempleProvenanceId(e.target.value)} placeholder="temple provenance id" />
-                  <input value={guildTempleSourceType} onChange={(e) => setGuildTempleSourceType(e.target.value)} placeholder="temple source type" />
-                  <input value={guildTempleGardenId} onChange={(e) => setGuildTempleGardenId(e.target.value)} placeholder="garden id" />
-                  <input value={guildTemplePlotId} onChange={(e) => setGuildTemplePlotId(e.target.value)} placeholder="plot id" />
-                </div>
-                <div className="row">
-                  <input value={guildTheatreProvenanceId} onChange={(e) => setGuildTheatreProvenanceId(e.target.value)} placeholder="theatre provenance id" />
-                  <input value={guildTheatreSourceType} onChange={(e) => setGuildTheatreSourceType(e.target.value)} placeholder="theatre source type" />
-                  <input value={guildTheatrePerformanceId} onChange={(e) => setGuildTheatrePerformanceId(e.target.value)} placeholder="performance id" />
-                  <input value={guildTheatreUploadId} onChange={(e) => setGuildTheatreUploadId(e.target.value)} placeholder="upload id" />
-                </div>
-                <div className="row">
-                  <select value={guildTempleProvenanceId} onChange={(e) => setGuildTempleProvenanceId(e.target.value)}>
-                    <option value="">select temple provenance history</option>
-                    {guildTempleProvenanceHistory.map((item) => (
-                      <option key={`temple-prov-${item}`} value={item}>{item}</option>
-                    ))}
-                  </select>
-                  <select value={guildTheatreProvenanceId} onChange={(e) => setGuildTheatreProvenanceId(e.target.value)}>
-                    <option value="">select theatre provenance history</option>
-                    {guildTheatreProvenanceHistory.map((item) => (
-                      <option key={`theatre-prov-${item}`} value={item}>{item}</option>
-                    ))}
-                  </select>
-                  <button className="action" onClick={fillTempleEntropySourcePreset}>Temple Source Preset</button>
-                  <button className="action" onClick={fillTheatreEntropySourcePreset}>Theatre Source Preset</button>
-                </div>
-                <div className="row">
-                  <input value={guildAttestationDigestsText} onChange={(e) => setGuildAttestationDigestsText(e.target.value)} placeholder="attestation media digests, comma-separated" />
-                  <input value={guildAttestationSourcesText} onChange={(e) => setGuildAttestationSourcesText(e.target.value)} placeholder='attestation sources JSON array' />
-                </div>
-              </div>
-              <div className="guild-subgroup">
-                <h4>Relay Controls</h4>
-                <div className="row">
-                  <button className="action" onClick={deriveGuildEntropyMix}>Derive Entropy Mix</button>
-                  <button className="action" onClick={updateGuildMessageRelayStatus}>Update Relay Status</button>
-                  <button className="action" onClick={loadGuildMessageHistory}>Load Message History</button>
-                </div>
-                <div className="row">
-                  <input value={guildRelayStatus} onChange={(e) => setGuildRelayStatus(e.target.value)} placeholder="relay status" />
-                  <textarea value={guildRelayReceiptText} onChange={(e) => setGuildRelayReceiptText(e.target.value)} placeholder="relay receipt JSON" rows={3} />
-                </div>
-              </div>
-            </section>
-
-            <section className="panel guild-subpanel panel-wide">
-              <h3>Diagnostics</h3>
-              <p className="guild-subcopy">Keep raw payloads available, but out of the main workflow.</p>
-              <details className="guild-diagnostic">
-                <summary>Guild Registry State</summary>
-                <pre>{JSON.stringify(guildRegistryOutput || {}, null, 2)}</pre>
-                <pre>{JSON.stringify(guildRegistryList || [], null, 2)}</pre>
-              </details>
-              <details className="guild-diagnostic">
-                <summary>Distribution Registry and Capabilities</summary>
-                <pre>{JSON.stringify(distributionRegistryOutput || {}, null, 2)}</pre>
-                <pre>{JSON.stringify(distributionRegistryList || [], null, 2)}</pre>
-                <pre>{JSON.stringify(distributionCapabilitiesOutput || {}, null, 2)}</pre>
-              </details>
-              <details className="guild-diagnostic">
-                <summary>Handshake and Migration Status</summary>
-                <pre>{JSON.stringify(distributionHandshakeOutput || {}, null, 2)}</pre>
-                <pre>{JSON.stringify(distributionHandshakeList || [], null, 2)}</pre>
-                <pre>{JSON.stringify(migrationStatus || {}, null, 2)}</pre>
-              </details>
-              <details className="guild-diagnostic">
-                <summary>Wand Registry and Status</summary>
-                <pre>{JSON.stringify(wandRegistryOutput || {}, null, 2)}</pre>
-                <pre>{JSON.stringify(wandRegistryList || [], null, 2)}</pre>
-                <pre>{JSON.stringify(guildWandStatus || {}, null, 2)}</pre>
-              </details>
-              <details className="guild-diagnostic">
-                <summary>Entropy and Message Outputs</summary>
-                <pre>{JSON.stringify(guildEntropyMixOutput || {}, null, 2)}</pre>
-                <pre>{JSON.stringify(guildEncryptOutput || {}, null, 2)}</pre>
-                <pre>{JSON.stringify(guildPersistOutput || {}, null, 2)}</pre>
-                <pre>{JSON.stringify(guildMessageHistory || [], null, 2)}</pre>
-              </details>
-              <details className="guild-diagnostic">
-                <summary>Temple and Theatre Source Payloads</summary>
-                <pre>{JSON.stringify(buildTempleEntropySourcePayload(), null, 2)}</pre>
-                <pre>{JSON.stringify(buildTheatreEntropySourcePayload(), null, 2)}</pre>
-              </details>
-            </section>
-          </div>
-        </section>
+        <GuildHallPanel
+          listLessons={listLessons}
+          listModules={listModules}
+          guildId={guildId}
+          setGuildId={setGuildId}
+          profileName={profileName}
+          guildDistributionId={guildDistributionId}
+          setGuildDistributionId={setGuildDistributionId}
+          guildRecipientDistributionId={guildRecipientDistributionId}
+          setGuildRecipientDistributionId={setGuildRecipientDistributionId}
+          guildRecipientGuildId={guildRecipientGuildId}
+          guildRecipientChannelId={guildRecipientChannelId}
+          guildRecipientActorId={guildRecipientActorId}
+          setGuildRecipientGuildId={setGuildRecipientGuildId}
+          setGuildRecipientChannelId={setGuildRecipientChannelId}
+          setGuildRecipientActorId={setGuildRecipientActorId}
+          guildWandId={guildWandId}
+          setGuildWandId={setGuildWandId}
+          guildSelectedRegistryWandId={guildSelectedRegistryWandId}
+          setGuildSelectedRegistryWandId={setGuildSelectedRegistryWandId}
+          guildWandPasskeyWard={guildWandPasskeyWard}
+          setGuildWandPasskeyWard={setGuildWandPasskeyWard}
+          guildWandStatus={guildWandStatus}
+          guildPersistOutput={guildPersistOutput}
+          guildMessageHistory={guildMessageHistory}
+          distributionHandshakeList={distributionHandshakeList}
+          guildDisplayName={guildDisplayName}
+          setGuildDisplayName={setGuildDisplayName}
+          registerGuildRegistryEntry={registerGuildRegistryEntry}
+          loadGuildRegistryEntry={loadGuildRegistryEntry}
+          loadGuildRegistryList={loadGuildRegistryList}
+          guildRegistryList={guildRegistryList}
+          distributionId={distributionId}
+          setDistributionId={setDistributionId}
+          distributionDisplayName={distributionDisplayName}
+          setDistributionDisplayName={setDistributionDisplayName}
+          distributionBaseUrl={distributionBaseUrl}
+          setDistributionBaseUrl={setDistributionBaseUrl}
+          distributionTransportKind={distributionTransportKind}
+          setDistributionTransportKind={setDistributionTransportKind}
+          distributionPublicKeyRef={distributionPublicKeyRef}
+          setDistributionPublicKeyRef={setDistributionPublicKeyRef}
+          distributionProtocolFamily={distributionProtocolFamily}
+          setDistributionProtocolFamily={setDistributionProtocolFamily}
+          distributionProtocolVersion={distributionProtocolVersion}
+          setDistributionProtocolVersion={setDistributionProtocolVersion}
+          distributionSupportedProtocolVersionsText={distributionSupportedProtocolVersionsText}
+          setDistributionSupportedProtocolVersionsText={setDistributionSupportedProtocolVersionsText}
+          distributionGuildIdsText={distributionGuildIdsText}
+          setDistributionGuildIdsText={setDistributionGuildIdsText}
+          distributionMetadataText={distributionMetadataText}
+          setDistributionMetadataText={setDistributionMetadataText}
+          registerDistributionRegistryEntry={registerDistributionRegistryEntry}
+          loadDistributionRegistryEntry={loadDistributionRegistryEntry}
+          loadDistributionRegistryList={loadDistributionRegistryList}
+          distributionRegistryList={distributionRegistryList}
+          distributionHandshakeLocalId={distributionHandshakeLocalId}
+          setDistributionHandshakeLocalId={setDistributionHandshakeLocalId}
+          distributionHandshakeMode={distributionHandshakeMode}
+          setDistributionHandshakeMode={setDistributionHandshakeMode}
+          distributionHandshakeProtocolFamily={distributionHandshakeProtocolFamily}
+          setDistributionHandshakeProtocolFamily={setDistributionHandshakeProtocolFamily}
+          distributionHandshakeLocalProtocolVersion={distributionHandshakeLocalProtocolVersion}
+          setDistributionHandshakeLocalProtocolVersion={setDistributionHandshakeLocalProtocolVersion}
+          distributionHandshakeRemoteProtocolVersion={distributionHandshakeRemoteProtocolVersion}
+          setDistributionHandshakeRemoteProtocolVersion={setDistributionHandshakeRemoteProtocolVersion}
+          distributionHandshakeNegotiatedProtocolVersion={distributionHandshakeNegotiatedProtocolVersion}
+          setDistributionHandshakeNegotiatedProtocolVersion={setDistributionHandshakeNegotiatedProtocolVersion}
+          registerDistributionHandshake={registerDistributionHandshake}
+          loadDistributionCapabilities={loadDistributionCapabilities}
+          loadDistributionHandshakes={loadDistributionHandshakes}
+          loadMigrationStatus={loadMigrationStatus}
+          adminVerified={adminVerified}
+          role={role}
+          wandRegistryWandId={wandRegistryWandId}
+          setWandRegistryWandId={setWandRegistryWandId}
+          wandRegistryMakerId={wandRegistryMakerId}
+          setWandRegistryMakerId={setWandRegistryMakerId}
+          wandRegistryMakerDate={wandRegistryMakerDate}
+          setWandRegistryMakerDate={setWandRegistryMakerDate}
+          wandRegistryAtelierOrigin={wandRegistryAtelierOrigin}
+          setWandRegistryAtelierOrigin={setWandRegistryAtelierOrigin}
+          wandRegistryStructuralFingerprint={wandRegistryStructuralFingerprint}
+          setWandRegistryStructuralFingerprint={setWandRegistryStructuralFingerprint}
+          wandRegistryCraftRecordHash={wandRegistryCraftRecordHash}
+          setWandRegistryCraftRecordHash={setWandRegistryCraftRecordHash}
+          registerWandRegistryEntry={registerWandRegistryEntry}
+          wandRegistryMinimumReady={wandRegistryMinimumReady}
+          loadWandRegistryEntry={loadWandRegistryEntry}
+          loadWandRegistryList={loadWandRegistryList}
+          wandRegistryList={wandRegistryList}
+          wandRegistryMaterialProfileText={wandRegistryMaterialProfileText}
+          setWandRegistryMaterialProfileText={setWandRegistryMaterialProfileText}
+          wandRegistryDimensionsText={wandRegistryDimensionsText}
+          setWandRegistryDimensionsText={setWandRegistryDimensionsText}
+          wandRegistryOwnershipChainText={wandRegistryOwnershipChainText}
+          setWandRegistryOwnershipChainText={setWandRegistryOwnershipChainText}
+          wandRegistryMetadataText={wandRegistryMetadataText}
+          setWandRegistryMetadataText={setWandRegistryMetadataText}
+          guildChannelId={guildChannelId}
+          setGuildChannelId={setGuildChannelId}
+          guildThreadId={guildThreadId}
+          setGuildThreadId={setGuildThreadId}
+          guildSenderId={guildSenderId}
+          setGuildSenderId={setGuildSenderId}
+          guildConversationId={guildConversationId}
+          setGuildConversationId={setGuildConversationId}
+          guildConversationKind={guildConversationKind}
+          setGuildConversationKind={setGuildConversationKind}
+          guildConversationTitle={guildConversationTitle}
+          setGuildConversationTitle={setGuildConversationTitle}
+          guildParticipantMemberIdsText={guildParticipantMemberIdsText}
+          setGuildParticipantMemberIdsText={setGuildParticipantMemberIdsText}
+          guildParticipantGuildIdsText={guildParticipantGuildIdsText}
+          setGuildParticipantGuildIdsText={setGuildParticipantGuildIdsText}
+          guildSecuritySessionText={guildSecuritySessionText}
+          setGuildSecuritySessionText={setGuildSecuritySessionText}
+          guildSessionMode={guildSessionMode}
+          setGuildSessionMode={setGuildSessionMode}
+          guildSessionSenderIdentityKeyRef={guildSessionSenderIdentityKeyRef}
+          setGuildSessionSenderIdentityKeyRef={setGuildSessionSenderIdentityKeyRef}
+          guildSessionSenderSignedPreKeyRef={guildSessionSenderSignedPreKeyRef}
+          setGuildSessionSenderSignedPreKeyRef={setGuildSessionSenderSignedPreKeyRef}
+          guildSessionSenderOneTimePreKeyRef={guildSessionSenderOneTimePreKeyRef}
+          setGuildSessionSenderOneTimePreKeyRef={setGuildSessionSenderOneTimePreKeyRef}
+          guildSessionRecipientIdentityKeyRef={guildSessionRecipientIdentityKeyRef}
+          setGuildSessionRecipientIdentityKeyRef={setGuildSessionRecipientIdentityKeyRef}
+          guildSessionRecipientSignedPreKeyRef={guildSessionRecipientSignedPreKeyRef}
+          setGuildSessionRecipientSignedPreKeyRef={setGuildSessionRecipientSignedPreKeyRef}
+          guildSessionRecipientOneTimePreKeyRef={guildSessionRecipientOneTimePreKeyRef}
+          setGuildSessionRecipientOneTimePreKeyRef={setGuildSessionRecipientOneTimePreKeyRef}
+          guildSessionEpoch={guildSessionEpoch}
+          setGuildSessionEpoch={setGuildSessionEpoch}
+          guildSessionSealedSender={guildSessionSealedSender}
+          setGuildSessionSealedSender={setGuildSessionSealedSender}
+          guildConversationList={guildConversationList}
+          guildConversationOutput={guildConversationOutput}
+          registerGuildConversation={registerGuildConversation}
+          loadGuildConversation={loadGuildConversation}
+          loadGuildConversationList={loadGuildConversationList}
+          runAction={runAction}
+          applyRegisteredWandSelection={applyRegisteredWandSelection}
+          loadGuildWandStatus={loadGuildWandStatus}
+          distributionCapabilitiesOutput={distributionCapabilitiesOutput}
+          guildProtocolStatus={guildProtocolStatus}
+          guildTempleEntropyDigest={guildTempleEntropyDigest}
+          setGuildTempleEntropyDigest={setGuildTempleEntropyDigest}
+          guildTheatreEntropyDigest={guildTheatreEntropyDigest}
+          setGuildTheatreEntropyDigest={setGuildTheatreEntropyDigest}
+          guildTempleProvenanceId={guildTempleProvenanceId}
+          setGuildTempleProvenanceId={setGuildTempleProvenanceId}
+          guildTempleSourceType={guildTempleSourceType}
+          setGuildTempleSourceType={setGuildTempleSourceType}
+          guildTempleGardenId={guildTempleGardenId}
+          setGuildTempleGardenId={setGuildTempleGardenId}
+          guildTemplePlotId={guildTemplePlotId}
+          setGuildTemplePlotId={setGuildTemplePlotId}
+          guildTheatreProvenanceId={guildTheatreProvenanceId}
+          setGuildTheatreProvenanceId={setGuildTheatreProvenanceId}
+          guildTheatreSourceType={guildTheatreSourceType}
+          setGuildTheatreSourceType={setGuildTheatreSourceType}
+          guildTheatrePerformanceId={guildTheatrePerformanceId}
+          setGuildTheatrePerformanceId={setGuildTheatrePerformanceId}
+          guildTheatreUploadId={guildTheatreUploadId}
+          setGuildTheatreUploadId={setGuildTheatreUploadId}
+          guildTempleProvenanceHistory={guildTempleProvenanceHistory}
+          guildTheatreProvenanceHistory={guildTheatreProvenanceHistory}
+          fillTempleEntropySourcePreset={fillTempleEntropySourcePreset}
+          fillTheatreEntropySourcePreset={fillTheatreEntropySourcePreset}
+          guildAttestationDigestsText={guildAttestationDigestsText}
+          setGuildAttestationDigestsText={setGuildAttestationDigestsText}
+          guildAttestationSourcesText={guildAttestationSourcesText}
+          setGuildAttestationSourcesText={setGuildAttestationSourcesText}
+          deriveGuildEntropyMix={deriveGuildEntropyMix}
+          updateGuildMessageRelayStatus={updateGuildMessageRelayStatus}
+          loadGuildMessageHistory={loadGuildMessageHistory}
+          guildRelayStatus={guildRelayStatus}
+          setGuildRelayStatus={setGuildRelayStatus}
+          guildRelayReceiptText={guildRelayReceiptText}
+          setGuildRelayReceiptText={setGuildRelayReceiptText}
+          guildRegistryOutput={guildRegistryOutput}
+          distributionRegistryOutput={distributionRegistryOutput}
+          distributionHandshakeOutput={distributionHandshakeOutput}
+          migrationStatus={migrationStatus}
+          wandRegistryOutput={wandRegistryOutput}
+          guildEntropyMixOutput={guildEntropyMixOutput}
+          guildEncryptOutput={guildEncryptOutput}
+          buildTempleEntropySourcePayload={buildTempleEntropySourcePayload}
+          buildTheatreEntropySourcePayload={buildTheatreEntropySourcePayload}
+        />
       );
     }
 
     if (section === "Messages") {
       return (
-        <section className="panel">
-          <h2>Messages</h2>
-          <p>Guild message drafting with wand, temple, and theatre derived envelope generation.</p>
-          <div className="row">
-            <input value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} placeholder="message text" />
-            <button className="action" onClick={encryptGuildMessage} disabled={guildWandStatus?.revoked === true}>Encrypt via Guild Hall</button>
-            <button className="action" onClick={decryptGuildMessage}>Decrypt Current Envelope</button>
-          </div>
-          <div className="row">
-            <span className="badge">{`Guild: ${guildId}`}</span>
-            <span className="badge">{`Channel: ${guildChannelId}`}</span>
-            <span className="badge">{`Wand: ${guildWandId}`}</span>
-            <span className="badge">{`Revocation: ${guildWandStatus?.revoked ? "blocked" : "clear"}`}</span>
-            <span className="badge">{`Status: ${String(guildWandStatus?.status || "unknown")}`}</span>
-            <span className="badge">{`Remote: ${guildRecipientDistributionId || "none"} / ${guildRecipientGuildId || "none"}`}</span>
-            <span className="badge">{`Relay: ${String(guildPersistOutput?.relay_status || guildMessageHistory?.[0]?.metadata?.relay_status || "unknown")}`}</span>
-          </div>
-          <pre>{JSON.stringify(guildDecryptOutput || {}, null, 2)}</pre>
-          <pre>{JSON.stringify(guildMessageHistory || [], null, 2)}</pre>
-          <pre>{JSON.stringify(messageLog, null, 2)}</pre>
-        </section>
+        <MessagesPanel
+          messageDraft={messageDraft}
+          setMessageDraft={setMessageDraft}
+          encryptGuildMessage={encryptGuildMessage}
+          decryptGuildMessage={decryptGuildMessage}
+          guildWandStatus={guildWandStatus}
+          guildId={guildId}
+          guildChannelId={guildChannelId}
+          guildWandId={guildWandId}
+          guildWandPasskeyWard={guildWandPasskeyWard}
+          guildConversationId={guildConversationId}
+          guildConversationKind={guildConversationKind}
+          guildConversationTitle={guildConversationTitle}
+          guildRecipientActorId={guildRecipientActorId}
+          guildRecipientDistributionId={guildRecipientDistributionId}
+          guildRecipientGuildId={guildRecipientGuildId}
+          guildPersistOutput={guildPersistOutput}
+          guildMessageHistory={guildMessageHistory}
+          guildDecryptOutput={guildDecryptOutput}
+          messageLog={messageLog}
+        />
       );
     }
+
     if (section === "Studio Hub") {
       return (
         <>

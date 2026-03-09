@@ -91,6 +91,21 @@ body {
   font-size: 12px;
   font-weight: 600;
 }
+.badge-ok {
+  border-color: #8bb39d;
+  background: #edf8f0;
+  color: #23583a;
+}
+.badge-warn {
+  border-color: #d0b36b;
+  background: #fff7e3;
+  color: #7b5d14;
+}
+.badge-error {
+  border-color: #cb8e8e;
+  background: #fff0f0;
+  color: #7a2323;
+}
 .tools-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
