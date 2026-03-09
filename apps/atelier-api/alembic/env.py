@@ -42,6 +42,19 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Older databases may have Alembic's default varchar(32) revision column,
+        # which is too small for this project's revision ids. Widen it before
+        # Alembic attempts to write a newer revision.
+        if connection.dialect.name == "postgresql":
+            try:
+                connection.exec_driver_sql(
+                    "ALTER TABLE alembic_version "
+                    "ALTER COLUMN version_num TYPE VARCHAR(128)"
+                )
+            except Exception:
+                # If the table does not exist yet or the type is already wide
+                # enough, let normal migration execution continue.
+                pass
         context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
 
         with context.begin_transaction():
