@@ -6528,6 +6528,18 @@ export function App() {
   }, [section]);
 
   useEffect(() => {
+    if (section !== "Foyer") {
+      return;
+    }
+    loadServiceReadiness().catch((error) => {
+      console.error("foyer_service_readiness_autoload_failed", error);
+    });
+    loadFederationHealth().catch((error) => {
+      console.error("foyer_federation_health_autoload_failed", error);
+    });
+  }, [section]);
+
+  useEffect(() => {
     const selectedGuild = guildRegistryList.find((item) => String(item?.guild_id || "") === String(guildRecipientGuildId || "").trim());
     if (!selectedGuild) {
       return;
@@ -13012,6 +13024,13 @@ export function App() {
     });
   };
 
+  const foyerReadiness = serviceReadinessOutput && typeof serviceReadinessOutput === "object" ? serviceReadinessOutput : {};
+  const foyerReadinessStatus = String(foyerReadiness.status || "unknown");
+  const foyerFederation = federationHealthOutput && typeof federationHealthOutput === "object" ? federationHealthOutput : {};
+  const foyerFederationStatus = String(foyerFederation.status || "unknown");
+  const foyerFederationTarget = Array.isArray(foyerFederation.targets) && foyerFederation.targets.length > 0 ? foyerFederation.targets[0] : null;
+  const foyerFederationTrust = String(foyerFederationTarget?.trust_grade || "unknown");
+
   const runShygazunCorrect = async () => {
     await runAction("shygazun_correct", async () => {
       const sourceText = String(shygazunTranslateSourceText || "").trim();
@@ -13444,6 +13463,23 @@ export function App() {
                 <strong>atelier-api.quantumquackery.com</strong>
                 <span>Kernel host</span>
               </a>
+            </div>
+            <div className="row">
+              <button className="action" onClick={loadServiceReadiness}>Refresh Readiness</button>
+              <button className="action" onClick={() => loadFederationHealth()}>Refresh Federation</button>
+            </div>
+            <div className="row">
+              <span className={`badge ${foyerReadinessStatus === "ready" ? "badge-ok" : foyerReadinessStatus === "not_ready" ? "badge-warn" : ""}`}>{`Readiness: ${foyerReadinessStatus}`}</span>
+              <span className={`badge ${String(foyerReadiness?.database?.status || "") === "up" ? "badge-ok" : String(foyerReadiness?.database?.status || "") === "down" ? "badge-error" : ""}`}>{`DB: ${String(foyerReadiness?.database?.status || "unknown")}`}</span>
+              <span className={`badge ${String(foyerReadiness?.kernel?.status || "") === "up" ? "badge-ok" : String(foyerReadiness?.kernel?.status || "") === "down" ? "badge-error" : ""}`}>{`Kernel: ${String(foyerReadiness?.kernel?.status || "unknown")}`}</span>
+              <span className={`badge ${String(foyerReadiness?.migrations?.status || "") === "up" ? "badge-ok" : String(foyerReadiness?.migrations?.status || "") === "down" ? "badge-error" : ""}`}>{`Migrations: ${String(foyerReadiness?.migrations?.status || "unknown")}`}</span>
+              <span className={`badge ${String(foyerReadiness?.config?.status || "") === "up" ? "badge-ok" : String(foyerReadiness?.config?.status || "") === "warning" ? "badge-warn" : ""}`}>{`Config: ${String(foyerReadiness?.config?.status || "unknown")}`}</span>
+            </div>
+            <div className="row">
+              <span className={`badge ${foyerFederationStatus === "ok" ? "badge-ok" : foyerFederationStatus === "degraded" ? "badge-warn" : ""}`}>{`Federation: ${foyerFederationStatus}`}</span>
+              <span className="badge">{`Targets: ${Number(foyerFederation?.target_count || 0)}`}</span>
+              <span className="badge">{`Active trust: ${Number(foyerFederation?.active_trust_count || 0)}`}</span>
+              <span className={`badge ${foyerFederationTrust === "active" ? "badge-ok" : foyerFederationTrust === "unreachable" || foyerFederationTrust === "untrusted" ? "badge-error" : foyerFederationTrust === "key_known" || foyerFederationTrust === "key_only" ? "badge-warn" : ""}`}>{`Current trust: ${foyerFederationTrust}`}</span>
             </div>
           </section>
           <section className="panel">
