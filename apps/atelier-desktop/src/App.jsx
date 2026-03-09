@@ -13028,6 +13028,41 @@ export function App() {
     };
   };
 
+  const buildProbeHttpErrorPayload = async (scope, response) => {
+    const text = await response.text();
+    const parsed = parseSafeJson(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return {
+        status: "error",
+        scope,
+        category:
+          response.status === 404
+            ? "route_missing"
+            : response.status === 401 || response.status === 403
+              ? "auth_blocked"
+              : response.status >= 500
+                ? "server_error"
+                : "request_failed",
+        http_status: response.status,
+        detail: parsed,
+      };
+    }
+    return {
+      status: "error",
+      scope,
+      category:
+        response.status === 404
+          ? "route_missing"
+          : response.status === 401 || response.status === 403
+            ? "auth_blocked"
+            : response.status >= 500
+              ? "server_error"
+              : "request_failed",
+      http_status: response.status,
+      detail: String(text || "").trim() || `http_${response.status}`,
+    };
+  };
+
   const loadServiceReadiness = async () => {
     await runAction("service_readiness", async () => {
       try {
@@ -13035,7 +13070,24 @@ export function App() {
           method: "GET",
           headers: buildHeaders(role, caps, adminGateToken),
         });
-        const data = parseSafeJson(await response.text());
+        const text = await response.text();
+        const data = parseSafeJson(text);
+        if (!response.ok || !(data && typeof data === "object" && !Array.isArray(data))) {
+          const failure = response.ok
+            ? {
+                status: "error",
+                scope: "ready",
+                category: "invalid_response",
+                detail: String(text || "").trim() || "non_json_ready_response",
+              }
+            : await buildProbeHttpErrorPayload("ready", {
+                ...response,
+                text: async () => text,
+              });
+          setOutput(JSON.stringify(failure, null, 2));
+          setServiceReadinessOutput(failure);
+          throw new Error(JSON.stringify(failure));
+        }
         setOutput(JSON.stringify(data, null, 2));
         setServiceReadinessOutput(data);
         return data;
