@@ -7,6 +7,7 @@ import os
 @dataclass(frozen=True)
 class Settings:
     kernel_base_url: str
+    kernel_internal_base_url: str
     database_url: str
     admin_gate_code: str
     admin_gate_bypass: bool
@@ -15,6 +16,8 @@ class Settings:
     required_capability_header: str
     required_actor_header: str
     cors_allowed_origins: tuple[str, ...]
+    kernel_connect_retries: int
+    kernel_connect_backoff_ms: int
 
 
 def _parse_origins(raw: str) -> tuple[str, ...]:
@@ -30,6 +33,7 @@ def _parse_bool(raw: str) -> bool:
 def load_settings() -> Settings:
     return Settings(
         kernel_base_url=os.getenv("KERNEL_BASE_URL", "http://127.0.0.1:8000"),
+        kernel_internal_base_url=os.getenv("KERNEL_INTERNAL_BASE_URL", "").strip(),
         database_url=os.getenv(
             "DATABASE_URL",
             "postgresql+psycopg://atelier:atelier@127.0.0.1:5432/atelier",
@@ -46,4 +50,6 @@ def load_settings() -> Settings:
                 "http://127.0.0.1:5173,http://localhost:5173,capacitor://localhost,http://localhost",
             )
         ),
+        kernel_connect_retries=max(1, int(os.getenv("KERNEL_CONNECT_RETRIES", "4").strip() or "4")),
+        kernel_connect_backoff_ms=max(0, int(os.getenv("KERNEL_CONNECT_BACKOFF_MS", "400").strip() or "400")),
     )

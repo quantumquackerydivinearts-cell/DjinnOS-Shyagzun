@@ -71,9 +71,12 @@ mkdir -p "$(dirname "$ENV_FILE")"
 if [[ ! -f "$ENV_FILE" ]]; then
   cat > "$ENV_FILE" <<'EOF'
 KERNEL_BASE_URL=http://127.0.0.1:8000
+KERNEL_INTERNAL_BASE_URL=
 DATABASE_URL=postgresql+psycopg://atelier:atelier@127.0.0.1:5432/atelier
 ADMIN_GATE_CODE=CHANGE_ME
 CORS_ALLOWED_ORIGINS=https://quantumquackery.com,https://www.quantumquackery.com,https://quantumquackery.org,https://www.quantumquackery.org,capacitor://localhost,http://localhost
+KERNEL_CONNECT_RETRIES=4
+KERNEL_CONNECT_BACKOFF_MS=400
 EOF
 fi
 chown root:"$APP_GROUP" "$ENV_FILE"

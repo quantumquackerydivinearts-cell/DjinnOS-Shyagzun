@@ -25,7 +25,7 @@ Then edit env file:
 sudo nano /etc/djinnos/atelier-api.env
 ```
 
-Set real values (DB URL, admin gate code, CORS). If your public site is on `quantumquackery.org` and the service host is `atelier-api.quantumquackery.com`, include both origins in `CORS_ALLOWED_ORIGINS`.
+Set real values (DB URL, admin gate code, CORS). If your public site is on `quantumquackery.org` and the service host is `atelier-api.quantumquackery.com`, include both origins in `CORS_ALLOWED_ORIGINS`. If the API talks to the kernel over a private/internal network, set `KERNEL_INTERNAL_BASE_URL` and leave `KERNEL_BASE_URL` as the public fallback.
 
 Restart API:
 
@@ -53,4 +53,10 @@ curl -sSf https://atelier-api.quantumquackery.com/ready
 
 ## Render note
 
-If you deploy this API on Render, set a real `DATABASE_URL`. The default local fallback points to `127.0.0.1`, which does not exist on Render and will leave `/ready` failing and `/health` degraded.
+If you deploy this API on Render, set a real `DATABASE_URL`. The default local fallback points to `127.0.0.1`, which does not exist on Render and will leave `/ready` failing and `/health` degraded. For multi-service deployments, also consider setting:
+
+- `KERNEL_INTERNAL_BASE_URL` for private service-to-service calls
+- `KERNEL_CONNECT_RETRIES`
+- `KERNEL_CONNECT_BACKOFF_MS`
+
+The API now prefers `KERNEL_INTERNAL_BASE_URL` when present, retries kernel probes with backoff, and logs a startup kernel probe result without failing process startup.

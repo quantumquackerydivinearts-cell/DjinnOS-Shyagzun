@@ -24,6 +24,9 @@ Required headers on protected routes:
 Environment variable:
 
 - `DATABASE_URL` (default: `postgresql+psycopg://atelier:atelier@127.0.0.1:5432/atelier`)
+- `KERNEL_INTERNAL_BASE_URL` (optional internal/private URL for API -> kernel service calls)
+- `KERNEL_CONNECT_RETRIES` (default: `4`)
+- `KERNEL_CONNECT_BACKOFF_MS` (default: `400`)
 
 Run migration:
 

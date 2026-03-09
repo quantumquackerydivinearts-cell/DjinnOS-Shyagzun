@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 from typing import Any, Dict, Mapping, Optional, Protocol, Sequence, cast
 
 import requests
@@ -12,6 +13,8 @@ class KernelClient(Protocol):
     def place(self, raw: str, *, context: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]: ...
 
     def observe(self) -> ObserveResponse: ...
+
+    def health_status(self) -> Mapping[str, Any]: ...
 
     def events(self) -> Sequence[KernelEventObj]: ...
 
@@ -53,6 +56,18 @@ class KernelClient(Protocol):
 @dataclass
 class HttpKernelClient:
     base_url: str
+    retry_attempts: int = 4
+    retry_backoff_ms: int = 400
+
+    def __post_init__(self) -> None:
+        self.base_url = str(self.base_url or "").rstrip("/")
+        self.retry_attempts = max(1, int(self.retry_attempts or 1))
+        self.retry_backoff_ms = max(0, int(self.retry_backoff_ms or 0))
+
+    def _sleep_backoff(self, attempt_index: int) -> None:
+        if attempt_index <= 0 or self.retry_backoff_ms <= 0:
+            return
+        time.sleep((self.retry_backoff_ms * attempt_index) / 1000.0)
 
     def _call(
         self,
@@ -62,26 +77,54 @@ class HttpKernelClient:
         body: Optional[Mapping[str, Any]] = None,
     ) -> Mapping[str, Any]:
         url = f"{self.base_url}{path}"
-        resp = requests.request(method=method, url=url, json=dict(body) if body is not None else None, timeout=20)
-        if resp.status_code != 200:
-            raise RuntimeError(f"kernel_http_error:{resp.status_code}:{path}")
-        data: Any = resp.json()
-        if not isinstance(data, dict):
-            raise RuntimeError(f"kernel_http_shape_error:{path}")
-        return cast(Mapping[str, Any], data)
+        last_error: Optional[Exception] = None
+        for attempt in range(self.retry_attempts):
+            try:
+                resp = requests.request(method=method, url=url, json=dict(body) if body is not None else None, timeout=20)
+                if resp.status_code == 200:
+                    data: Any = resp.json()
+                    if not isinstance(data, dict):
+                        raise RuntimeError(f"kernel_http_shape_error:{path}")
+                    return cast(Mapping[str, Any], data)
+                if resp.status_code >= 500 and attempt + 1 < self.retry_attempts:
+                    self._sleep_backoff(attempt + 1)
+                    continue
+                raise RuntimeError(f"kernel_http_error:{resp.status_code}:{path}")
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt + 1 >= self.retry_attempts:
+                    raise RuntimeError(f"kernel_unreachable:{path}:{exc}") from exc
+                self._sleep_backoff(attempt + 1)
+        if last_error is not None:
+            raise RuntimeError(f"kernel_unreachable:{path}:{last_error}") from last_error
+        raise RuntimeError(f"kernel_http_error:unknown:{path}")
 
     def _call_list(self, method: str, path: str) -> Sequence[Mapping[str, Any]]:
         url = f"{self.base_url}{path}"
-        resp = requests.request(method=method, url=url, timeout=20)
-        if resp.status_code != 200:
-            raise RuntimeError(f"kernel_http_error:{resp.status_code}:{path}")
-        data: Any = resp.json()
-        if not isinstance(data, list):
-            raise RuntimeError(f"kernel_http_shape_error:{path}")
-        for item in data:
-            if not isinstance(item, dict):
-                raise RuntimeError(f"kernel_http_shape_error:{path}")
-        return cast(Sequence[Mapping[str, Any]], data)
+        last_error: Optional[Exception] = None
+        for attempt in range(self.retry_attempts):
+            try:
+                resp = requests.request(method=method, url=url, timeout=20)
+                if resp.status_code == 200:
+                    data: Any = resp.json()
+                    if not isinstance(data, list):
+                        raise RuntimeError(f"kernel_http_shape_error:{path}")
+                    for item in data:
+                        if not isinstance(item, dict):
+                            raise RuntimeError(f"kernel_http_shape_error:{path}")
+                    return cast(Sequence[Mapping[str, Any]], data)
+                if resp.status_code >= 500 and attempt + 1 < self.retry_attempts:
+                    self._sleep_backoff(attempt + 1)
+                    continue
+                raise RuntimeError(f"kernel_http_error:{resp.status_code}:{path}")
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt + 1 >= self.retry_attempts:
+                    raise RuntimeError(f"kernel_unreachable:{path}:{exc}") from exc
+                self._sleep_backoff(attempt + 1)
+        if last_error is not None:
+            raise RuntimeError(f"kernel_unreachable:{path}:{last_error}") from last_error
+        raise RuntimeError(f"kernel_http_error:unknown:{path}")
 
     def place(self, raw: str, *, context: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]:
         return self._call("POST", "/place", body={"raw": raw, "context": dict(context or {})})
@@ -89,6 +132,9 @@ class HttpKernelClient:
     def observe(self) -> ObserveResponse:
         data = self._call("POST", "/observe", body={})
         return cast(ObserveResponse, data)
+
+    def health_status(self) -> Mapping[str, Any]:
+        return self._call("GET", "/health")
 
     def events(self) -> Sequence[KernelEventObj]:
         return cast(Sequence[KernelEventObj], self._call_list("GET", "/events"))

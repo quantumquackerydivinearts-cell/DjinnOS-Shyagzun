@@ -2451,11 +2451,20 @@ class AtelierService:
             return {"status": "down", "detail": str(exc)}
 
     def _kernel_health_status(self) -> Mapping[str, Any]:
+        settings = load_settings()
         try:
-            self._kernel.observe(actor_id="healthcheck", workshop_id="system")
-            return {"status": "up"}
+            health = self._kernel.health_status(actor_id="healthcheck", workshop_id="system")
+            return {
+                "status": "up",
+                "base_url": str(settings.kernel_internal_base_url or settings.kernel_base_url or "").strip() or None,
+                "health": dict(health) if isinstance(health, Mapping) else {"raw": health},
+            }
         except Exception as exc:
-            return {"status": "down", "detail": str(exc)}
+            return {
+                "status": "down",
+                "detail": str(exc),
+                "base_url": str(settings.kernel_internal_base_url or settings.kernel_base_url or "").strip() or None,
+            }
 
     def _migration_health_status(self) -> Mapping[str, Any]:
         try:
@@ -2471,11 +2480,14 @@ class AtelierService:
         settings = load_settings()
         database_url = str(settings.database_url or "").strip()
         kernel_base_url = str(settings.kernel_base_url or "").strip()
+        kernel_internal_base_url = str(settings.kernel_internal_base_url or "").strip()
         admin_gate_code = str(settings.admin_gate_code or "").strip()
         auth_token_secret = str(settings.auth_token_secret or "").strip()
         issues: list[str] = []
         if not kernel_base_url:
             issues.append("kernel_base_url_missing")
+        elif "onrender.com" in kernel_base_url and not kernel_internal_base_url:
+            issues.append("kernel_internal_base_url_missing")
         if not database_url:
             issues.append("database_url_missing")
         elif "127.0.0.1:5432" in database_url or database_url.endswith("@127.0.0.1:5432/atelier"):
@@ -2488,6 +2500,9 @@ class AtelierService:
             "status": "up" if not issues else "warning",
             "issues": issues,
             "kernel_base_url": kernel_base_url,
+            "kernel_internal_base_url": kernel_internal_base_url or None,
+            "kernel_connect_retries": settings.kernel_connect_retries,
+            "kernel_connect_backoff_ms": settings.kernel_connect_backoff_ms,
         }
 
     def get_readiness_status(self) -> Mapping[str, Any]:

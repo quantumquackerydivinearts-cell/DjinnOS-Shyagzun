@@ -188,6 +188,16 @@ _akinenwun_dictionary = AkinenwunDictionary()
 _lesson_registry = load_lesson_registry()
 
 
+@app.get("/health")
+def health() -> Mapping[str, Any]:
+    return {
+        "status": "ok",
+        "service": "kernel",
+        "field_id": _field.field_id,
+        "lesson_count": len(_lesson_registry.lessons()),
+    }
+
+
 def _assert_field_id_or_default(field_id: Optional[str]) -> str:
     if field_id is None:
         return _field.field_id

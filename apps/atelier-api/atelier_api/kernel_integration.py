@@ -42,6 +42,10 @@ class KernelIntegrationService:
         self._stamp("observe", actor_id, workshop_id)
         return self._client.observe()
 
+    def health_status(self, *, actor_id: str, workshop_id: str) -> Mapping[str, Any]:
+        self._stamp("health_status", actor_id, workshop_id)
+        return self._client.health_status()
+
     def timeline(self, *, actor_id: str, workshop_id: str) -> Sequence[KernelEventObj]:
         self._stamp("timeline", actor_id, workshop_id)
         return self._client.events()

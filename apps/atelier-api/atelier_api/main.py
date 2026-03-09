@@ -462,7 +462,12 @@ def _capability_context(
 
 def _kernel_client() -> KernelClient:
     settings: Settings = load_settings()
-    return HttpKernelClient(base_url=settings.kernel_base_url)
+    kernel_url = settings.kernel_internal_base_url or settings.kernel_base_url
+    return HttpKernelClient(
+        base_url=kernel_url,
+        retry_attempts=settings.kernel_connect_retries,
+        retry_backoff_ms=settings.kernel_connect_backoff_ms,
+    )
 
 
 def _repository(db: Session = Depends(get_db)) -> AtelierRepository:
@@ -584,6 +589,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def startup_probe_dependencies() -> None:
+    settings = load_settings()
+    kernel_url = settings.kernel_internal_base_url or settings.kernel_base_url
+    kernel = HttpKernelClient(
+        base_url=kernel_url,
+        retry_attempts=settings.kernel_connect_retries,
+        retry_backoff_ms=settings.kernel_connect_backoff_ms,
+    )
+    try:
+        payload = kernel.health_status()
+        print(
+            f"[startup] kernel_probe ok base={kernel_url} "
+            f"status={payload.get('status', 'unknown')}"
+        )
+    except Exception as exc:
+        print(f"[startup] kernel_probe degraded base={kernel_url} detail={exc}")
 
 
 @app.get("/health")
