@@ -6220,38 +6220,6 @@ export function App() {
     return { allowedSymbols, base, overrides, effective };
   }, [daisyUseWholeTongue, daisySymbolSequence, daisyArchetype, daisySymmetry, daisyRoleOverridesText]);
 
-  const guildProtocolStatus = useMemo(() => {
-    const protocol = distributionCapabilitiesOutput?.messaging_protocol;
-    const distributionProtocol = protocol?.distribution || {};
-    const handshakeProtocol = protocol?.handshake || {};
-    const requiredVersion = "v1";
-    const family = String(distributionProtocol?.family || "").trim();
-    const version = String(distributionProtocol?.version || "").trim();
-    const supportedVersions = Array.isArray(distributionProtocol?.supported_versions)
-      ? distributionProtocol.supported_versions.map((item) => String(item || "").trim()).filter(Boolean)
-      : [];
-    const negotiatedVersion = String(handshakeProtocol?.negotiated_version || "").trim();
-    if (!String(guildRecipientDistributionId || "").trim()) {
-      return { level: "local", label: "Local Only", detail: "No remote distribution selected." };
-    }
-    if (!family) {
-      return { level: "unknown", label: "Unknown Protocol", detail: "Remote distribution has not advertised a messaging protocol." };
-    }
-    if (family !== "guild_message_signal_artifice") {
-      return { level: "error", label: "Family Mismatch", detail: `Remote family ${family} is incompatible.` };
-    }
-    if (supportedVersions.length > 0 && !supportedVersions.includes(requiredVersion)) {
-      return { level: "error", label: "Version Unsupported", detail: `Remote supports ${supportedVersions.join(", ")}, local requires ${requiredVersion}.` };
-    }
-    if (negotiatedVersion && negotiatedVersion !== requiredVersion) {
-      return { level: "warning", label: "Handshake Drift", detail: `Handshake negotiated ${negotiatedVersion}, local requires ${requiredVersion}.` };
-    }
-    if (!negotiatedVersion) {
-      return { level: "warning", label: "No Negotiated Version", detail: `Remote advertises ${version || requiredVersion}, but no handshake negotiation is recorded yet.` };
-    }
-    return { level: "ok", label: "Protocol Compatible", detail: `Remote ${family} ${version || requiredVersion}; handshake ${negotiatedVersion}.` };
-  }, [distributionCapabilitiesOutput, guildRecipientDistributionId]);
-
   const [publicName, setPublicName] = useState("");
   const [publicEmail, setPublicEmail] = useState("");
   const [publicDetails, setPublicDetails] = useState("");
@@ -6382,6 +6350,38 @@ export function App() {
   const wandRegistryMinimumReady =
     String(wandRegistryWandId || "").trim() !== "" &&
     String(wandRegistryMakerId || "").trim() !== "";
+
+  const guildProtocolStatus = useMemo(() => {
+    const protocol = distributionCapabilitiesOutput?.messaging_protocol;
+    const distributionProtocol = protocol?.distribution || {};
+    const handshakeProtocol = protocol?.handshake || {};
+    const requiredVersion = "v1";
+    const family = String(distributionProtocol?.family || "").trim();
+    const version = String(distributionProtocol?.version || "").trim();
+    const supportedVersions = Array.isArray(distributionProtocol?.supported_versions)
+      ? distributionProtocol.supported_versions.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const negotiatedVersion = String(handshakeProtocol?.negotiated_version || "").trim();
+    if (!String(guildRecipientDistributionId || "").trim()) {
+      return { level: "local", label: "Local Only", detail: "No remote distribution selected." };
+    }
+    if (!family) {
+      return { level: "unknown", label: "Unknown Protocol", detail: "Remote distribution has not advertised a messaging protocol." };
+    }
+    if (family !== "guild_message_signal_artifice") {
+      return { level: "error", label: "Family Mismatch", detail: `Remote family ${family} is incompatible.` };
+    }
+    if (supportedVersions.length > 0 && !supportedVersions.includes(requiredVersion)) {
+      return { level: "error", label: "Version Unsupported", detail: `Remote supports ${supportedVersions.join(", ")}, local requires ${requiredVersion}.` };
+    }
+    if (negotiatedVersion && negotiatedVersion !== requiredVersion) {
+      return { level: "warning", label: "Handshake Drift", detail: `Handshake negotiated ${negotiatedVersion}, local requires ${requiredVersion}.` };
+    }
+    if (!negotiatedVersion) {
+      return { level: "warning", label: "No Negotiated Version", detail: `Remote advertises ${version || requiredVersion}, but no handshake negotiation is recorded yet.` };
+    }
+    return { level: "ok", label: "Protocol Compatible", detail: `Remote ${family} ${version || requiredVersion}; handshake ${negotiatedVersion}.` };
+  }, [distributionCapabilitiesOutput, guildRecipientDistributionId]);
 
   const buildTempleEntropySourcePayload = () => {
     const provenanceId = String(guildTempleProvenanceId || "").trim();
