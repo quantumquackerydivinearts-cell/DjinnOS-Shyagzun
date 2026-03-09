@@ -2534,7 +2534,30 @@ class AtelierService:
         targets: list[Mapping[str, Any]] = []
         distribution_records: list[Mapping[str, Any]]
         if distribution_id:
-            distribution_records = [self.get_distribution_registry_entry(distribution_id=distribution_id)]
+            try:
+                distribution_records = [self.get_distribution_registry_entry(distribution_id=distribution_id)]
+            except ValueError as exc:
+                if str(exc) != "distribution_not_found":
+                    raise
+                distribution_id_norm = str(distribution_id or "").strip() or "unknown_distribution"
+                return {
+                    "status": "degraded",
+                    "local_protocol": local_protocol,
+                    "readiness": self.get_readiness_status(),
+                    "target_count": 1,
+                    "active_trust_count": 0,
+                    "error_count": 1,
+                    "targets": [
+                        {
+                            "distribution_id": distribution_id_norm,
+                            "display_name": distribution_id_norm,
+                            "base_url": None,
+                            "status": "error",
+                            "trust_grade": "unreachable",
+                            "detail": "distribution_not_found",
+                        }
+                    ],
+                }
         else:
             distribution_records = list(self.list_distribution_registry(limit=limit))
         for record in distribution_records:

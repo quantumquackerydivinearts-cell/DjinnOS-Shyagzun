@@ -123,3 +123,40 @@ def test_federation_health_returns_aggregate_summary() -> None:
         assert payload["targets"][0]["trust_grade"] == "active"
     finally:
         app.dependency_overrides.pop(_atelier_service, None)
+
+
+class _MissingDistributionService(_HealthyService):
+    def get_federation_health(self, *, distribution_id=None, limit=25) -> dict[str, object]:
+        return {
+            "status": "degraded",
+            "local_protocol": {"family": "guild_message_signal_artifice", "version": "v1", "supported_versions": ["v1"]},
+            "readiness": self.get_readiness_status(),
+            "target_count": 1,
+            "active_trust_count": 0,
+            "error_count": 1,
+            "targets": [
+                {
+                    "distribution_id": distribution_id or "distribution.remote",
+                    "display_name": distribution_id or "distribution.remote",
+                    "base_url": None,
+                    "status": "error",
+                    "trust_grade": "unreachable",
+                    "detail": "distribution_not_found",
+                }
+            ],
+        }
+
+
+def test_federation_health_returns_degraded_summary_when_distribution_missing() -> None:
+    app.dependency_overrides[_atelier_service] = lambda: _MissingDistributionService()
+    try:
+        client = TestClient(app)
+        response = client.get("/v1/federation/health?distribution_id=distribution.quantumquackery.main")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] == "degraded"
+        assert payload["error_count"] == 1
+        assert payload["targets"][0]["distribution_id"] == "distribution.quantumquackery.main"
+        assert payload["targets"][0]["detail"] == "distribution_not_found"
+    finally:
+        app.dependency_overrides.pop(_atelier_service, None)
