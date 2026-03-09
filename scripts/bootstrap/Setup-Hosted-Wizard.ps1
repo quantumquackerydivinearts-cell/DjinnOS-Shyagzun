@@ -113,7 +113,7 @@ $form.Controls.Add($lblApi)
 $txtApi = New-Object System.Windows.Forms.TextBox
 $txtApi.Location = New-Object System.Drawing.Point(20, 328)
 $txtApi.Size = New-Object System.Drawing.Size(700, 28)
-$txtApi.Text = "http://127.0.0.1:9000"
+$txtApi.Text = "https://djinnos-shyagzun-atelier-api.onrender.com"
 $form.Controls.Add($txtApi)
 
 $lblKernel = New-Object System.Windows.Forms.Label
@@ -125,7 +125,7 @@ $form.Controls.Add($lblKernel)
 $txtKernel = New-Object System.Windows.Forms.TextBox
 $txtKernel.Location = New-Object System.Drawing.Point(20, 388)
 $txtKernel.Size = New-Object System.Drawing.Size(700, 28)
-$txtKernel.Text = "http://127.0.0.1:8000"
+$txtKernel.Text = "https://atelier-api.quantumquackery.com"
 $form.Controls.Add($txtKernel)
 
 $chkOverwrite = New-Object System.Windows.Forms.CheckBox

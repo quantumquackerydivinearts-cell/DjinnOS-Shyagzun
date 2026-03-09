@@ -23,6 +23,10 @@ Wizard install:
 4) Enter your hosted API and kernel URLs.
 5) Click Install Hosted Suite.
 
+Current hosted defaults:
+- API: https://djinnos-shyagzun-atelier-api.onrender.com
+- Kernel: https://atelier-api.quantumquackery.com
+
 Default install folder:
 - %LOCALAPPDATA%\KosLabyrnth\Atelier-Hosted
 
