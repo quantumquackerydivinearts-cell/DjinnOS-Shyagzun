@@ -12865,6 +12865,67 @@ export function App() {
     });
   };
 
+  const ensureLocalDistributionRegistryEntry = async (registryDistributionId) => {
+    const safeDistributionId = String(registryDistributionId || "").trim();
+    if (!safeDistributionId) {
+      return null;
+    }
+    const localDistributionIds = new Set(
+      [distributionId, guildDistributionId]
+        .map((value) => String(value || "").trim())
+        .filter((value) => value !== "")
+    );
+    if (!localDistributionIds.has(safeDistributionId)) {
+      return null;
+    }
+    try {
+      return await apiCall(`/v1/distributions/registry/${encodeURIComponent(safeDistributionId)}`, "GET");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes("distribution_not_found") && !message.includes("\"detail\":\"Not Found\"")) {
+        throw error;
+      }
+    }
+    const guildIds = (() => {
+      try {
+        const parsed = JSON.parse(distributionGuildIdsText || "[]");
+        return Array.isArray(parsed)
+          ? parsed.map((item) => String(item || "").trim()).filter((item) => item !== "")
+          : [];
+      } catch {
+        return [];
+      }
+    })();
+    const supportedProtocolVersions = (() => {
+      try {
+        const parsed = JSON.parse(distributionSupportedProtocolVersionsText || "[]");
+        return Array.isArray(parsed)
+          ? parsed.map((item) => String(item || "").trim()).filter((item) => item !== "")
+          : [];
+      } catch {
+        return [];
+      }
+    })();
+    const created = await apiCall("/v1/distributions/registry", "POST", {
+      distribution_id: safeDistributionId,
+      display_name: String(distributionDisplayName || profileName || safeDistributionId).trim(),
+      base_url:
+        safeDistributionId === String(distributionId || "").trim()
+          ? String(distributionBaseUrl || API_BASE).trim()
+          : String(API_BASE || "").trim(),
+      transport_kind: String(distributionTransportKind || "").trim() || "https",
+      public_key_ref: String(distributionPublicKeyRef || "").trim(),
+      protocol_family: String(distributionProtocolFamily || "").trim() || "guild_message_signal_artifice",
+      protocol_version: String(distributionProtocolVersion || "").trim() || "v1",
+      supported_protocol_versions: supportedProtocolVersions,
+      guild_ids: guildIds,
+      metadata: parseObjectJson(distributionMetadataText, {}),
+    });
+    setDistributionRegistryOutput(created);
+    await loadDistributionRegistryList();
+    return created;
+  };
+
   const registerDistributionHandshake = async () => {
     await runAction("distribution_handshake_register", async () => {
       const data = await apiCall("/v1/distributions/handshakes", "POST", {
@@ -13104,6 +13165,9 @@ export function App() {
     await runAction("federation_health", async () => {
       try {
         const safeDistributionId = String(targetDistributionId || "").trim();
+        if (safeDistributionId) {
+          await ensureLocalDistributionRegistryEntry(safeDistributionId);
+        }
         const query = safeDistributionId
           ? `?distribution_id=${encodeURIComponent(safeDistributionId)}&limit=25`
           : "?limit=25";
