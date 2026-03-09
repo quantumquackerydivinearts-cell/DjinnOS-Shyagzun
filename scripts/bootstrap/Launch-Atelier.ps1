@@ -517,7 +517,7 @@ try {
                 $apiOut = Join-Path $metaDir ("api.out." + $apiAttemptIndex + ".log")
                 $apiErr = Join-Path $metaDir ("api.err." + $apiAttemptIndex + ".log")
                 $sqlitePath = (Join-Path $apiDir "atelier_local.db") -replace "\\", "/"
-                $apiCmd = "`$env:DATABASE_URL='sqlite:///$sqlitePath'; `$env:KERNEL_BASE_URL='$kernelBase'; `$env:PYTHONPATH='$installRoot;$apiDir'; $pythonCommand -m uvicorn atelier_api.main:app --host $apiHost --port $candidateApiPort --app-dir '$apiDir'"
+                $apiCmd = "`$env:DATABASE_URL='sqlite:///$sqlitePath'; `$env:KERNEL_BASE_URL='$kernelBase'; `$env:PYTHONPATH='$installRoot;$apiDir'; $pythonCommand -m alembic upgrade head; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; $pythonCommand -m uvicorn atelier_api.main:app --host $apiHost --port $candidateApiPort --app-dir '$apiDir'"
                 $apiProc = Start-BackgroundPowerShell -WorkingDirectory $apiDir -Command $apiCmd -StdOutLog $apiOut -StdErrLog $apiErr
                 ("[" + (Get-Date).ToString("s") + "] api attempt " + $apiAttemptIndex + " pid: " + $apiProc.Id + " port=" + $candidateApiPort) | Out-File -FilePath $launchLog -Append -Encoding utf8
 

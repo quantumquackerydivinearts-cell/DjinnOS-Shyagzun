@@ -86,7 +86,7 @@ if (-not (Test-HttpReady -Url "http://${KernelHost}:${KernelPort}/events" -Timeo
 
 Write-Host "Starting API service on ${ApiHost}:${ApiPort}"
 $sqlitePath = (Join-Path $apiRepo "atelier_local.db") -replace "\\", "/"
-$apiCmd = "`$env:DATABASE_URL='sqlite:///$sqlitePath'; `$env:KERNEL_BASE_URL='http://${KernelHost}:${KernelPort}'; `$env:PYTHONPATH='$repoRoot;$apiRepo'; python -m uvicorn atelier_api.main:app --host $ApiHost --port $ApiPort --app-dir '$apiRepo'"
+$apiCmd = "`$env:DATABASE_URL='sqlite:///$sqlitePath'; `$env:KERNEL_BASE_URL='http://${KernelHost}:${KernelPort}'; `$env:PYTHONPATH='$repoRoot;$apiRepo'; python -m alembic upgrade head; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; python -m uvicorn atelier_api.main:app --host $ApiHost --port $ApiPort --app-dir '$apiRepo'"
 $apiProc = Start-ShellProcess -Title "Atelier API" -Workdir $apiRepo -Command $apiCmd
 
 if (-not (Test-HttpReady -Url "http://${ApiHost}:${ApiPort}/health" -TimeoutSec 90)) {
