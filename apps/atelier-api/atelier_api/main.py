@@ -611,20 +611,18 @@ def health(svc: AtelierService = Depends(_atelier_service)) -> JSONResponse:
 
 
 @app.get("/ready")
-def ready(svc: AtelierService = Depends(_atelier_service)) -> Dict[str, str]:
-    try:
-        svc.health()
-    except Exception as exc:
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "not_ready",
-                "api": "up",
-                "database": "down",
-                "detail": str(exc),
-            },
-        ) from exc
-    return {"status": "ready", "api": "up", "database": "up"}
+def ready(svc: AtelierService = Depends(_atelier_service)) -> JSONResponse:
+    status = svc.get_readiness_status()
+    return JSONResponse(status_code=200 if status.get("status") == "ready" else 503, content=dict(status))
+
+
+@app.get("/v1/federation/health")
+def federation_health(
+    distribution_id: Optional[str] = None,
+    limit: int = 25,
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    return svc.get_federation_health(distribution_id=distribution_id, limit=limit)
 
 
 @app.get("/public/privacy/manifest")

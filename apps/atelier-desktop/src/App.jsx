@@ -6292,6 +6292,8 @@ export function App() {
   const [distributionRegistryList, setDistributionRegistryList] = useState([]);
   const [distributionRegistryOutput, setDistributionRegistryOutput] = useState(null);
   const [distributionCapabilitiesOutput, setDistributionCapabilitiesOutput] = useState(null);
+  const [serviceReadinessOutput, setServiceReadinessOutput] = useState(null);
+  const [federationHealthOutput, setFederationHealthOutput] = useState(null);
   const [distributionHandshakeLocalId, setDistributionHandshakeLocalId] = useState("distribution.quantumquackery.main");
   const [distributionHandshakeMode, setDistributionHandshakeMode] = useState("mutual_hmac");
   const [distributionHandshakeProtocolFamily, setDistributionHandshakeProtocolFamily] = useState("guild_message_signal_artifice");
@@ -6516,6 +6518,12 @@ export function App() {
     });
     loadGuildConversationList().catch((error) => {
       console.error("guild_conversation_autoload_failed", error);
+    });
+    loadServiceReadiness().catch((error) => {
+      console.error("service_readiness_autoload_failed", error);
+    });
+    loadFederationHealth().catch((error) => {
+      console.error("federation_health_autoload_failed", error);
     });
   }, [section]);
 
@@ -12979,6 +12987,31 @@ export function App() {
     });
   };
 
+  const loadServiceReadiness = async () => {
+    await runAction("service_readiness", async () => {
+      const response = await fetch(`${API_BASE}/ready`, {
+        method: "GET",
+        headers: buildHeaders(role, caps, adminGateToken),
+      });
+      const data = parseSafeJson(await response.text());
+      setOutput(JSON.stringify(data, null, 2));
+      setServiceReadinessOutput(data);
+      return data;
+    });
+  };
+
+  const loadFederationHealth = async (targetDistributionId = guildRecipientDistributionId || distributionId) => {
+    await runAction("federation_health", async () => {
+      const safeDistributionId = String(targetDistributionId || "").trim();
+      const query = safeDistributionId
+        ? `?distribution_id=${encodeURIComponent(safeDistributionId)}&limit=25`
+        : "?limit=25";
+      const data = await apiCall(`/v1/federation/health${query}`, "GET");
+      setFederationHealthOutput(data);
+      return data;
+    });
+  };
+
   const runShygazunCorrect = async () => {
     await runAction("shygazun_correct", async () => {
       const sourceText = String(shygazunTranslateSourceText || "").trim();
@@ -16354,6 +16387,8 @@ export function App() {
           loadDistributionCapabilities={loadDistributionCapabilities}
           loadDistributionHandshakes={loadDistributionHandshakes}
           loadMigrationStatus={loadMigrationStatus}
+          loadServiceReadiness={loadServiceReadiness}
+          loadFederationHealth={loadFederationHealth}
           adminVerified={adminVerified}
           role={role}
           wandRegistryWandId={wandRegistryWandId}
@@ -16466,6 +16501,8 @@ export function App() {
           distributionRegistryOutput={distributionRegistryOutput}
           distributionHandshakeOutput={distributionHandshakeOutput}
           migrationStatus={migrationStatus}
+          serviceReadinessOutput={serviceReadinessOutput}
+          federationHealthOutput={federationHealthOutput}
           wandRegistryOutput={wandRegistryOutput}
           guildEntropyMixOutput={guildEntropyMixOutput}
           guildEncryptOutput={guildEncryptOutput}

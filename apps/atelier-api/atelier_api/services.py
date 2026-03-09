@@ -222,6 +222,7 @@ from .rendering_schemas import (
     RendererAssetDiagnosticsInput,
     RendererAssetDiagnosticsOut,
 )
+from .config import load_settings
 from .kernel_integration import KernelIntegrationService
 from .market_logic import get_realm_coin, get_realm_market, list_realm_coins, list_realm_markets
 from .pygame_worker import PygameWorkerManager, get_pygame_worker_manager
@@ -2441,6 +2442,138 @@ class AtelierService:
 
     def health(self) -> None:
         self._require_repo().ping()
+
+    def _database_health_status(self) -> Mapping[str, Any]:
+        try:
+            self.health()
+            return {"status": "up"}
+        except Exception as exc:
+            return {"status": "down", "detail": str(exc)}
+
+    def _kernel_health_status(self) -> Mapping[str, Any]:
+        try:
+            self._kernel.observe(actor_id="healthcheck", workshop_id="system")
+            return {"status": "up"}
+        except Exception as exc:
+            return {"status": "down", "detail": str(exc)}
+
+    def _migration_health_status(self) -> Mapping[str, Any]:
+        try:
+            status = dict(self.get_migration_status())
+            return {
+                "status": "up" if bool(status.get("up_to_date")) else "down",
+                **status,
+            }
+        except Exception as exc:
+            return {"status": "down", "detail": str(exc)}
+
+    def _config_health_status(self) -> Mapping[str, Any]:
+        settings = load_settings()
+        database_url = str(settings.database_url or "").strip()
+        kernel_base_url = str(settings.kernel_base_url or "").strip()
+        admin_gate_code = str(settings.admin_gate_code or "").strip()
+        auth_token_secret = str(settings.auth_token_secret or "").strip()
+        issues: list[str] = []
+        if not kernel_base_url:
+            issues.append("kernel_base_url_missing")
+        if not database_url:
+            issues.append("database_url_missing")
+        elif "127.0.0.1:5432" in database_url or database_url.endswith("@127.0.0.1:5432/atelier"):
+            issues.append("database_url_local_default")
+        if not admin_gate_code or admin_gate_code in ("CHANGE_ME", "STEWARD_DEV_GATE"):
+            issues.append("admin_gate_code_default")
+        if not auth_token_secret or auth_token_secret == "DEV_ONLY_CHANGE_ME":
+            issues.append("auth_token_secret_default")
+        return {
+            "status": "up" if not issues else "warning",
+            "issues": issues,
+            "kernel_base_url": kernel_base_url,
+        }
+
+    def get_readiness_status(self) -> Mapping[str, Any]:
+        database = self._database_health_status()
+        kernel = self._kernel_health_status()
+        migrations = self._migration_health_status()
+        config = self._config_health_status()
+        ready = (
+            str(database.get("status")) == "up"
+            and str(kernel.get("status")) == "up"
+            and str(migrations.get("status")) == "up"
+            and str(config.get("status")) in ("up",)
+        )
+        return {
+            "status": "ready" if ready else "not_ready",
+            "api": {"status": "up"},
+            "database": database,
+            "kernel": kernel,
+            "migrations": migrations,
+            "config": config,
+        }
+
+    def get_federation_health(self, *, distribution_id: Optional[str] = None, limit: int = 25) -> Mapping[str, Any]:
+        local_protocol = {
+            "family": self._GUILD_MESSAGE_PROTOCOL_FAMILY,
+            "version": self._GUILD_MESSAGE_PROTOCOL_VERSION,
+            "supported_versions": list(self._GUILD_MESSAGE_SUPPORTED_PROTOCOL_VERSIONS),
+        }
+        targets: list[Mapping[str, Any]] = []
+        distribution_records: list[Mapping[str, Any]]
+        if distribution_id:
+            distribution_records = [self.get_distribution_registry_entry(distribution_id=distribution_id)]
+        else:
+            distribution_records = list(self.list_distribution_registry(limit=limit))
+        for record in distribution_records:
+            distribution_id_norm = str(record.get("distribution_id") or "").strip()
+            if not distribution_id_norm:
+                continue
+            summary: dict[str, Any] = {
+                "distribution_id": distribution_id_norm,
+                "display_name": str(record.get("display_name") or "").strip() or distribution_id_norm,
+                "base_url": str(record.get("base_url") or "").strip() or None,
+                "status": "unknown",
+                "trust_grade": "unknown",
+            }
+            try:
+                capabilities = self.discover_distribution_capabilities(distribution_id=distribution_id_norm)
+                summary["capabilities"] = capabilities
+                summary["status"] = "reachable"
+                key_descriptor = capabilities.get("key_descriptor") if isinstance(capabilities, Mapping) else None
+                handshake = capabilities.get("handshake") if isinstance(capabilities, Mapping) else None
+                messaging_protocol = capabilities.get("messaging_protocol") if isinstance(capabilities, Mapping) else None
+                summary["key_present"] = bool(isinstance(key_descriptor, Mapping) and key_descriptor.get("public_key_ref"))
+                summary["handshake_active"] = bool(isinstance(handshake, Mapping) and handshake.get("handshake_id"))
+                try:
+                    self._ensure_distribution_protocol_compatibility(distribution_id=distribution_id_norm)
+                    summary["protocol_compatible"] = True
+                except Exception as exc:
+                    summary["protocol_compatible"] = False
+                    summary["protocol_detail"] = str(exc)
+                if summary["key_present"] and summary["handshake_active"] and summary.get("protocol_compatible"):
+                    summary["trust_grade"] = "active"
+                elif summary["key_present"] and summary.get("protocol_compatible"):
+                    summary["trust_grade"] = "key_known"
+                elif summary["key_present"]:
+                    summary["trust_grade"] = "key_only"
+                else:
+                    summary["trust_grade"] = "untrusted"
+                if isinstance(messaging_protocol, Mapping):
+                    summary["messaging_protocol"] = dict(messaging_protocol)
+            except Exception as exc:
+                summary["status"] = "error"
+                summary["trust_grade"] = "unreachable"
+                summary["detail"] = str(exc)
+            targets.append(summary)
+        active_count = sum(1 for item in targets if str(item.get("trust_grade")) == "active")
+        error_count = sum(1 for item in targets if str(item.get("status")) == "error")
+        return {
+            "status": "ok" if error_count == 0 else "degraded",
+            "local_protocol": local_protocol,
+            "readiness": self.get_readiness_status(),
+            "target_count": len(targets),
+            "active_trust_count": active_count,
+            "error_count": error_count,
+            "targets": targets,
+        }
 
     def emit_placement(
         self,

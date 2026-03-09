@@ -71,6 +71,8 @@ export function GuildHallPanel(props) {
     loadDistributionCapabilities,
     loadDistributionHandshakes,
     loadMigrationStatus,
+    loadServiceReadiness,
+    loadFederationHealth,
     adminVerified,
     role,
     wandRegistryWandId,
@@ -183,12 +185,33 @@ export function GuildHallPanel(props) {
     distributionRegistryOutput,
     distributionHandshakeOutput,
     migrationStatus,
+    serviceReadinessOutput,
+    federationHealthOutput,
     wandRegistryOutput,
     guildEntropyMixOutput,
     guildEncryptOutput,
     buildTempleEntropySourcePayload,
     buildTheatreEntropySourcePayload,
   } = props;
+
+  const readiness = serviceReadinessOutput && typeof serviceReadinessOutput === "object" ? serviceReadinessOutput : {};
+  const readinessStatus = String(readiness.status || "unknown");
+  const readinessBadgeClass =
+    readinessStatus === "ready" ? "badge-ok" : readinessStatus === "not_ready" ? "badge-warn" : "";
+  const federation = federationHealthOutput && typeof federationHealthOutput === "object" ? federationHealthOutput : {};
+  const federationStatus = String(federation.status || "unknown");
+  const federationBadgeClass =
+    federationStatus === "ok" ? "badge-ok" : federationStatus === "degraded" ? "badge-warn" : "";
+  const currentFederationTarget = Array.isArray(federation.targets) && federation.targets.length > 0 ? federation.targets[0] : null;
+  const currentFederationTrust = String(currentFederationTarget?.trust_grade || "unknown");
+  const currentFederationTrustClass =
+    currentFederationTrust === "active"
+      ? "badge-ok"
+      : currentFederationTrust === "unreachable" || currentFederationTrust === "untrusted"
+        ? "badge-error"
+        : currentFederationTrust === "key_known" || currentFederationTrust === "key_only"
+          ? "badge-warn"
+          : "";
 
   return (
     <section className="panel guild-hall-shell">
@@ -213,6 +236,11 @@ export function GuildHallPanel(props) {
         <span className="badge">{`Relay: ${String(guildPersistOutput?.relay_status || guildMessageHistory?.[0]?.metadata?.relay_status || "idle")}`}</span>
         <span className="badge">{`Handshakes: ${distributionHandshakeList.length}`}</span>
         <span className={`badge ${guildProtocolStatus?.level === "ok" ? "badge-ok" : guildProtocolStatus?.level === "error" ? "badge-error" : guildProtocolStatus?.level === "warning" ? "badge-warn" : ""}`}>{`${guildProtocolStatus?.label || "Protocol Unknown"}`}</span>
+        <span className={`badge ${readinessBadgeClass}`}>{`Ready: ${readinessStatus}`}</span>
+        <span className={`badge ${String(readiness?.database?.status || "") === "up" ? "badge-ok" : String(readiness?.database?.status || "") === "down" ? "badge-error" : ""}`}>{`DB: ${String(readiness?.database?.status || "unknown")}`}</span>
+        <span className={`badge ${String(readiness?.kernel?.status || "") === "up" ? "badge-ok" : String(readiness?.kernel?.status || "") === "down" ? "badge-error" : ""}`}>{`Kernel: ${String(readiness?.kernel?.status || "unknown")}`}</span>
+        <span className={`badge ${federationBadgeClass}`}>{`Federation: ${federationStatus}`}</span>
+        <span className={`badge ${currentFederationTrustClass}`}>{`Trust: ${currentFederationTrust}`}</span>
       </div>
 
       <div className="guild-hall-grid">
@@ -305,11 +333,24 @@ export function GuildHallPanel(props) {
               <button className="action" onClick={registerDistributionHandshake}>Register Handshake</button>
               <button className="action" onClick={() => loadDistributionCapabilities()}>Load Capabilities</button>
               <button className="action" onClick={() => loadDistributionHandshakes()}>Load Handshakes</button>
+              <button className="action" onClick={loadServiceReadiness}>Load Readiness</button>
+              <button className="action" onClick={() => loadFederationHealth()}>Load Federation Health</button>
               <button className="action" onClick={loadMigrationStatus} disabled={!adminVerified || role !== "steward"}>Load Migration Status</button>
             </div>
             <div className="row">
               <span className={`badge ${guildProtocolStatus?.level === "ok" ? "badge-ok" : guildProtocolStatus?.level === "error" ? "badge-error" : guildProtocolStatus?.level === "warning" ? "badge-warn" : ""}`}>{guildProtocolStatus?.label || "Protocol Unknown"}</span>
               <span className="badge">{guildProtocolStatus?.detail || "Load remote capabilities to assess protocol compatibility."}</span>
+            </div>
+            <div className="row">
+              <span className={`badge ${readinessBadgeClass}`}>{`Service readiness: ${readinessStatus}`}</span>
+              <span className={`badge ${String(readiness?.migrations?.status || "") === "up" ? "badge-ok" : String(readiness?.migrations?.status || "") === "down" ? "badge-error" : ""}`}>{`Migrations: ${String(readiness?.migrations?.status || "unknown")}`}</span>
+              <span className={`badge ${String(readiness?.config?.status || "") === "up" ? "badge-ok" : String(readiness?.config?.status || "") === "warning" ? "badge-warn" : ""}`}>{`Config: ${String(readiness?.config?.status || "unknown")}`}</span>
+            </div>
+            <div className="row">
+              <span className={`badge ${federationBadgeClass}`}>{`Federation health: ${federationStatus}`}</span>
+              <span className="badge">{`Targets: ${Number(federation?.target_count || 0)}`}</span>
+              <span className="badge">{`Active trust: ${Number(federation?.active_trust_count || 0)}`}</span>
+              <span className={`badge ${currentFederationTrustClass}`}>{`Current trust: ${currentFederationTrust}`}</span>
             </div>
           </div>
           <div className="guild-subgroup">
@@ -557,6 +598,8 @@ export function GuildHallPanel(props) {
             <pre>{JSON.stringify(distributionHandshakeOutput || {}, null, 2)}</pre>
             <pre>{JSON.stringify(distributionHandshakeList || [], null, 2)}</pre>
             <pre>{JSON.stringify(migrationStatus || {}, null, 2)}</pre>
+            <pre>{JSON.stringify(serviceReadinessOutput || {}, null, 2)}</pre>
+            <pre>{JSON.stringify(federationHealthOutput || {}, null, 2)}</pre>
           </details>
           <details className="guild-diagnostic">
             <summary>Wand Registry and Status</summary>
