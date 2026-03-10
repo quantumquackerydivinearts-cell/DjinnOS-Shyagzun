@@ -641,6 +641,25 @@ def _shop_landing_html(settings: Settings) -> str:
       color: var(--muted);
       line-height: 1.5;
     }}
+    .card .price {{
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }}
+    .card .tags {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }}
+    .tag {{
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }}
     footer {{
       text-align: center;
       padding: 24px;
@@ -3666,22 +3685,3 @@ def public_commission_inquiry(
     svc: AtelierService = Depends(_atelier_service),
 ) -> LeadOut:
     return svc.create_public_inquiry(payload)
-    .card .price {{
-      font-weight: 700;
-      color: var(--accent);
-      margin-bottom: 10px;
-    }}
-    .card .tags {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 12px;
-    }}
-    .tag {{
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      padding: 4px 8px;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      color: var(--muted);
-    }}
