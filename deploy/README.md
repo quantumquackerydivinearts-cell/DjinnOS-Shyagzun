@@ -27,6 +27,12 @@ sudo nano /etc/djinnos/atelier-api.env
 
 Set real values (DB URL, admin gate code, CORS). If your public site is on `quantumquackery.org` and the service host is `atelier-api.quantumquackery.com`, include both origins in `CORS_ALLOWED_ORIGINS`. If the API talks to the kernel over a private/internal network, set `KERNEL_INTERNAL_BASE_URL` and leave `KERNEL_BASE_URL` as the public fallback.
 
+If you are serving the shop landing page from a new subdomain (for example `shop.quantumquackery.org`), point that DNS record to the API host and set:
+
+- `PUBLIC_WEBSITE_URL` (for the main site)
+- `PUBLIC_ATELIER_URL` (for the Atelier host)
+- Add the shop subdomain to `CORS_ALLOWED_ORIGINS` if your frontend will call the API.
+
 Restart API:
 
 ```bash
