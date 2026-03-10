@@ -123,8 +123,26 @@ def main() -> int:
             metrics["go"] = False
 
     if not args.skip_build:
-        ok, output = _run_command(["npm.cmd", "run", "build"], cwd=DESKTOP_DIR)
-        add_check("renderer_build", ok, {"command": "npm.cmd run build", "cwd": str(DESKTOP_DIR), "output_tail": output[-1000:]})
+        ok, output = _run_command(
+            [
+                "C:\\windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                "npm.cmd run build",
+            ],
+            cwd=DESKTOP_DIR,
+        )
+        add_check(
+            "renderer_build",
+            ok,
+            {
+                "command": "powershell -Command npm.cmd run build",
+                "cwd": str(DESKTOP_DIR),
+                "output_tail": output[-1000:],
+            },
+        )
 
     main_bundle = _find_main_bundle_js()
     worker_bundle = _find_worker_bundle_js()

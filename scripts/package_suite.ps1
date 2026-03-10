@@ -2,7 +2,8 @@ param(
     [string]$Version = "",
     [ValidateSet("local", "hosted")]
     [string]$Target = "local",
-    [switch]$SkipGoNoGo
+    [switch]$SkipGoNoGo,
+    [switch]$SkipRebuild
 )
 
 Set-StrictMode -Version Latest
@@ -44,6 +45,61 @@ $pythonCommand = ""
 
 $goNoGoScript = Join-Path $repoRoot "scripts\production_go_no_go.py"
 $goNoGoMetrics = Join-Path $repoRoot "reports\production_go_no_go.metrics.json"
+$desktopAppRoot = Join-Path $repoRoot "apps\atelier-desktop"
+$desktopPackedDir = Join-Path $desktopAppRoot "release\desktop\win-unpacked"
+$desktopZip = Join-Path $repoRoot "apps\atelier-desktop\release\QuantumQuackeryAtelier-win32-x64.zip"
+$apiAppRoot = Join-Path $repoRoot "apps\atelier-api"
+$apiZip = Join-Path $repoRoot "apps\atelier-api\release\atelier-api-bundle.zip"
+
+function New-ApiBundleZip {
+    param(
+        [string]$ApiRoot,
+        [string]$OutZip
+    )
+
+    $staging = Join-Path ([System.IO.Path]::GetTempPath()) ("atelier-api-bundle-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $staging | Out-Null
+    try {
+        Copy-Item -Recurse -Force (Join-Path $ApiRoot "alembic") (Join-Path $staging "alembic")
+        Copy-Item -Recurse -Force (Join-Path $ApiRoot "atelier_api") (Join-Path $staging "atelier_api")
+        Copy-Item -Force (Join-Path $ApiRoot "alembic.ini") (Join-Path $staging "alembic.ini")
+        Copy-Item -Force (Join-Path $ApiRoot "requirements.txt") (Join-Path $staging "requirements.txt")
+        if (Test-Path $OutZip) { Remove-Item -Force $OutZip }
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::CreateFromDirectory($staging, $OutZip)
+    } finally {
+        if (Test-Path $staging) {
+            Remove-Item -Recurse -Force $staging
+        }
+    }
+}
+
+if (-not $SkipRebuild) {
+    Write-Host "Rebuilding desktop release directory..."
+    Push-Location $desktopAppRoot
+    try {
+        npm.cmd run pack:desktop:dir
+        if ($LASTEXITCODE -ne 0) {
+            throw "Desktop directory pack failed."
+        }
+    } finally {
+        Pop-Location
+    }
+
+    if (-not (Test-Path $desktopPackedDir)) {
+        throw "Desktop packed directory not found at $desktopPackedDir"
+    }
+
+    Write-Host "Refreshing desktop zip artifact..."
+    if (Test-Path $desktopZip) {
+        Remove-Item -Force $desktopZip
+    }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($desktopPackedDir, $desktopZip)
+
+    Write-Host "Refreshing API bundle zip..."
+    New-ApiBundleZip -ApiRoot $apiAppRoot -OutZip $apiZip
+}
 
 if (-not $SkipGoNoGo) {
     if ([string]::IsNullOrWhiteSpace($pythonCommand)) {
@@ -53,7 +109,7 @@ if (-not $SkipGoNoGo) {
         throw "Go/No-Go script not found at $goNoGoScript"
     }
     Write-Host "Running production go/no-go gate..."
-    & $pythonCommand $goNoGoScript
+    & $pythonCommand $goNoGoScript --skip-build
     if ($LASTEXITCODE -ne 0) {
         throw "Production go/no-go gate failed. Packaging aborted."
     }
@@ -61,9 +117,6 @@ if (-not $SkipGoNoGo) {
         throw "Go/No-Go metrics not found at $goNoGoMetrics"
     }
 }
-
-$desktopZip = Join-Path $repoRoot "apps\atelier-desktop\release\QuantumQuackeryAtelier-win32-x64.zip"
-$apiZip = Join-Path $repoRoot "apps\atelier-api\release\atelier-api-bundle.zip"
 $kernelRepo = Join-Path $repoRoot "DjinnOS-Shyagzun"
 $kernelSourceDir = Join-Path $kernelRepo "shygazun"
 $kernelBundleZip = Join-Path $releaseRoot "kernel-runtime-bundle.zip"
