@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Literal, Mapping, Optional, cast
 
 from fastapi import FastAPI, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.responses import RedirectResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 
@@ -924,7 +923,25 @@ def shop_section_root(request: Request) -> str:
         section_id = "digital"
     notice = request.query_params.get("submitted")
     return _shop_section_html(section_id, notice=notice)
+@app.post("/public/shop/leads")
+def public_shop_lead(payload: dict) -> Response:
+    # store lead in your CRM/DB
+    ...
 
+@app.post("/public/shop/quotes")  
+def public_shop_quote(payload: dict) -> Response:
+    # store quote request in your DB
+    ...
+
+@app.get("/public/shop/items")
+def public_shop_items(workspace_id: str, section_id: str) -> Response:
+    # return items for this section from your DB
+    ...
+
+@app.post("/public/shop/checkout-session")
+def public_shop_checkout(payload: dict) -> Response:
+    # create Stripe checkout session, return {"url": stripe_url}
+    ...
 
 @app.post("/shop/lead", response_class=HTMLResponse)
 def shop_lead(

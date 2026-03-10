@@ -8,9 +8,10 @@ import stripe
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+import os
 
 from .business_schemas import (
     ArtisanBootstrapInput,
@@ -172,6 +173,9 @@ from .business_schemas import (
     BreathKoGenerateInput,
     BreathKoListOut,
     BreathKoOut,
+    PublicShopLeadRequest,
+    PublicShopQuoteRequest,
+    PublicShopCheckoutRequest,
 )
 from .rendering_schemas import (
     RendererTablesInput,
@@ -201,7 +205,7 @@ from .workshop import (
     enforce_place_scope,
     parse_scopes,
 )
-
+from .shop_endpoints import register_shop_routes
 
 class PlaceInput(BaseModel):
     raw: str
@@ -1035,7 +1039,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+register_shop_routes(app)
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)
