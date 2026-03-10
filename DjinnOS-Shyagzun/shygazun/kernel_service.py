@@ -357,7 +357,7 @@ def _shop_sections() -> list[dict[str, str | list[str]]]:
             "price": "Scheduled Sessions",
             "tags": ["Strategy", "Architecture", "Operations"],
             "summary": "Schedule advisory sessions by type and duration, with intake details captured up front.",
-            "cta": "Book via Atelier",
+            "cta": "Open Consultations",
         },
         {
             "id": "licenses",
@@ -365,7 +365,7 @@ def _shop_sections() -> list[dict[str, str | list[str]]]:
             "price": "Software Licenses",
             "tags": ["Subscription", "Perpetual"],
             "summary": "SaaS subscription or one-time license delivery with automated account provisioning.",
-            "cta": "License Access",
+            "cta": "Open Licenses",
         },
         {
             "id": "catalog",
@@ -373,7 +373,7 @@ def _shop_sections() -> list[dict[str, str | list[str]]]:
             "price": "Catalog Goods",
             "tags": ["Inventory", "Shipping"],
             "summary": "Catalog-based orders with inventory tracking, fulfillment, and shipping updates.",
-            "cta": "Browse Catalog",
+            "cta": "Open Catalog",
         },
         {
             "id": "custom-orders",
@@ -381,7 +381,7 @@ def _shop_sections() -> list[dict[str, str | list[str]]]:
             "price": "Quote First",
             "tags": ["Request", "Quote", "Approve", "Pay"],
             "summary": "Quote-first flow: request, review, approve, and finalize payment.",
-            "cta": "Request a Quote",
+            "cta": "Open Custom Orders",
         },
         {
             "id": "digital",
@@ -389,7 +389,7 @@ def _shop_sections() -> list[dict[str, str | list[str]]]:
             "price": "Instant Delivery",
             "tags": ["Downloads", "Access Links"],
             "summary": "Instant delivery on purchase with secure access links.",
-            "cta": "Access Library",
+            "cta": "Open Digital Library",
         },
         {
             "id": "land-assessments",
@@ -397,15 +397,29 @@ def _shop_sections() -> list[dict[str, str | list[str]]]:
             "price": "Guild Verified",
             "tags": ["Members Free", "Non-members Paid"],
             "summary": "Guild members book free assessments; non-members book paid slots with location intake.",
-            "cta": "Request Assessment",
+            "cta": "Open Assessments",
         },
     ]
 
 
+def _shop_link_overrides() -> dict[str, str]:
+    return {
+        "consultations": os.getenv("SHOP_LINK_CONSULTATIONS", "").strip(),
+        "licenses": os.getenv("SHOP_LINK_LICENSES", "").strip(),
+        "catalog": os.getenv("SHOP_LINK_CATALOG", "").strip(),
+        "custom-orders": os.getenv("SHOP_LINK_CUSTOM_ORDERS", "").strip(),
+        "digital": os.getenv("SHOP_LINK_DIGITAL", "").strip(),
+        "land-assessments": os.getenv("SHOP_LINK_LAND_ASSESSMENTS", "").strip(),
+    }
+
+
 def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str) -> str:
+    link_overrides = _shop_link_overrides()
     cards: list[str] = []
     for section in _shop_sections():
         tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
+        override = link_overrides.get(section["id"], "")
+        cta_url = override or f"{atelier_url.rstrip('/')}/"
         cards.append(
             f"""<section class="card">
         <div>
@@ -414,7 +428,10 @@ def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str) -> st
           <div class="tags">{tags}</div>
           <p>{section['summary']}</p>
         </div>
-        <a class="btn" href="/shop/{section['id']}">{section['cta']}</a>
+        <div class="cta-row">
+          <a class="btn" href="/shop/{section['id']}">Details</a>
+          <a class="btn primary" href="{cta_url}" rel="noopener">{section['cta']}</a>
+        </div>
       </section>"""
         )
     return "\n".join(cards)
@@ -429,6 +446,8 @@ def _shop_section_html(section_id: str) -> str:
     if section is None:
         raise HTTPException(status_code=404, detail="shop_section_not_found")
     tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
+    override = _shop_link_overrides().get(section_id, "")
+    cta_url = override or f"{atelier_url.rstrip('/')}/"
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -531,7 +550,7 @@ def _shop_section_html(section_id: str) -> str:
       <div class="tags">{tags}</div>
       <p>{section['summary']}</p>
       <div class="cta-row">
-        <a class="btn primary" href="{atelier_url}" rel="noopener">{section['cta']}</a>
+        <a class="btn primary" href="{cta_url}" rel="noopener">{section['cta']}</a>
         <a class="btn" href="/shop">Back to Shop</a>
         <a class="btn secondary" href="{website_url}" rel="noopener">Visit Quantum Quackery</a>
         <a class="btn" href="{docs_url}" rel="noopener">API Docs</a>
