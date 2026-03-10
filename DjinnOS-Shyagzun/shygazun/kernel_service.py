@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Mapping, Optional, cast
 
 from fastapi import FastAPI, HTTPException, Response
+from fastapi.responses import HTMLResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 
@@ -178,6 +180,248 @@ def _json_response(payload: object, status_code: int = 200) -> Response:
     return Response(content=body, status_code=status_code, media_type="application/json")
 
 
+def _shop_landing_html() -> str:
+    website_url = os.getenv("PUBLIC_WEBSITE_URL", "https://www.quantumquackery.org").strip()
+    atelier_url = os.getenv("PUBLIC_ATELIER_URL", "https://atelier-api.quantumquackery.com").strip()
+    docs_url = f"{atelier_url.rstrip('/')}/docs"
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Phoenix AMS-CRM Shop</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      --ink: #111827;
+      --muted: #6b7280;
+      --accent: #0f766e;
+      --accent-2: #14532d;
+      --surface: #ffffff;
+      --surface-2: #f5f5f4;
+      --border: #e5e7eb;
+    }}
+    * {{
+      box-sizing: border-box;
+    }}
+    body {{
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #f8fafc 0%, #eef2f6 50%, #f8fafc 100%);
+    }}
+    header {{
+      padding: 64px 24px 28px;
+      text-align: center;
+    }}
+    header h1 {{
+      margin: 0 0 10px;
+      font-size: 2.6rem;
+      letter-spacing: 0.01em;
+    }}
+    .eyebrow {{
+      display: inline-block;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }}
+    header p {{
+      margin: 0 auto;
+      max-width: 760px;
+      font-size: 1.05rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }}
+    .cta-row {{
+      margin-top: 24px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }}
+    .btn {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      color: var(--ink);
+      background: var(--surface);
+    }}
+    .btn.primary {{
+      background: var(--accent);
+      color: #ffffff;
+      border-color: transparent;
+    }}
+    .btn.secondary {{
+      background: var(--accent-2);
+      color: #ffffff;
+      border-color: transparent;
+    }}
+    main {{
+      padding: 24px;
+      max-width: 1100px;
+      margin: 0 auto 64px;
+    }}
+    .grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+    }}
+    .card {{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      min-height: 210px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+    }}
+    .card h3 {{
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+    }}
+    .card p {{
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.5;
+    }}
+    .card .price {{
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }}
+    .card .tags {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }}
+    .tag {{
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }}
+    footer {{
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Phoenix AMS-CRM Shop</div>
+    <h1>Service, Software, and Custom Work</h1>
+    <p>
+      Book consultations, request land assessments, purchase Phoenix AMS-CRM licenses,
+      and commission bespoke builds. The Atelier handles secure provisioning and
+      guild-aware pricing.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="{atelier_url}" rel="noopener">Open Atelier</a>
+      <a class="btn secondary" href="{website_url}" rel="noopener">Visit Quantum Quackery</a>
+      <a class="btn" href="{docs_url}" rel="noopener">API Docs</a>
+    </div>
+  </header>
+  <main>
+    <div class="grid">
+      <section class="card">
+        <div>
+          <h3>Service Consultations</h3>
+          <div class="price">Scheduled Sessions</div>
+          <div class="tags">
+            <span class="tag">Strategy</span>
+            <span class="tag">Architecture</span>
+            <span class="tag">Operations</span>
+          </div>
+          <p>Schedule advisory sessions by type and duration, with intake details captured up front.</p>
+        </div>
+        <a class="btn" href="{atelier_url}" rel="noopener">Book via Atelier</a>
+      </section>
+      <section class="card">
+        <div>
+          <h3>Phoenix AMS-CRM Licenses</h3>
+          <div class="price">Software Licenses</div>
+          <div class="tags">
+            <span class="tag">Subscription</span>
+            <span class="tag">Perpetual</span>
+          </div>
+          <p>SaaS subscription or one-time license delivery with automated account provisioning.</p>
+        </div>
+        <a class="btn" href="{atelier_url}" rel="noopener">License Access</a>
+      </section>
+      <section class="card">
+        <div>
+          <h3>Physical Goods</h3>
+          <div class="price">Catalog Goods</div>
+          <div class="tags">
+            <span class="tag">Inventory</span>
+            <span class="tag">Shipping</span>
+          </div>
+          <p>Catalog-based orders with inventory tracking, fulfillment, and shipping updates.</p>
+        </div>
+        <a class="btn" href="{atelier_url}" rel="noopener">Browse Catalog</a>
+      </section>
+      <section class="card">
+        <div>
+          <h3>Custom Orders</h3>
+          <div class="price">Quote First</div>
+          <div class="tags">
+            <span class="tag">Request</span>
+            <span class="tag">Quote</span>
+            <span class="tag">Approve</span>
+            <span class="tag">Pay</span>
+          </div>
+          <p>Quote-first flow: request, review, approve, and finalize payment.</p>
+        </div>
+        <a class="btn" href="{docs_url}" rel="noopener">Quote Intake</a>
+      </section>
+      <section class="card">
+        <div>
+          <h3>Digital Products</h3>
+          <div class="price">Instant Delivery</div>
+          <div class="tags">
+            <span class="tag">Downloads</span>
+            <span class="tag">Access Links</span>
+          </div>
+          <p>Instant delivery on purchase with secure access links.</p>
+        </div>
+        <a class="btn" href="{atelier_url}" rel="noopener">Access Library</a>
+      </section>
+      <section class="card">
+        <div>
+          <h3>Land Assessments</h3>
+          <div class="price">Guild Verified</div>
+          <div class="tags">
+            <span class="tag">Members Free</span>
+            <span class="tag">Non-members Paid</span>
+          </div>
+          <p>Guild members book free assessments; non-members book paid slots with location intake.</p>
+        </div>
+        <a class="btn" href="{atelier_url}" rel="noopener">Request Assessment</a>
+      </section>
+    </div>
+  </main>
+  <footer>
+    Phoenix AMS-CRM is powered by the Atelier. Secure provisioning and guild membership
+    verification occur inside the Atelier experience.
+  </footer>
+</body>
+</html>"""
+
+
 app = FastAPI()
 
 _field = InMemoryField(field_id="F0", clock=Clock(tick=0, causal_epoch="0"))
@@ -186,6 +430,12 @@ _kernel = Kernel(field=_field, registers=_registers)
 _state = RuntimeState()
 _akinenwun_dictionary = AkinenwunDictionary()
 _lesson_registry = load_lesson_registry()
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/shop", response_class=HTMLResponse)
+def shop_landing() -> str:
+    return _shop_landing_html()
 
 
 @app.get("/health")
