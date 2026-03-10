@@ -227,7 +227,6 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 213,11010101,Cannabis,Suy,Conscious temporal action / the act of mind deliberately moving through or shaping time
 """
 
-
 def _parse_rows(csv_text: str) -> tuple[ShygazunByteEntry, ...]:
     rows: list[ShygazunByteEntry] = []
     lines = [line.strip() for line in csv_text.splitlines() if line.strip()]
