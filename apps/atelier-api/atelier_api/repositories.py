@@ -30,6 +30,7 @@ from .models import (
     PlayerState,
     RuntimePlanRun,
     Quote,
+    ShopItem,
     Supplier,
     GuildConversationRecord,
     GuildMessageEnvelopeRecord,
@@ -186,6 +187,40 @@ class AtelierRepository:
 
     def get_artisan_account(self, artisan_id: str) -> ArtisanAccount | None:
         return self._db.scalar(select(ArtisanAccount).where(ArtisanAccount.artisan_id == artisan_id))
+
+    def list_shop_items(
+        self,
+        *,
+        workspace_id: str,
+        artisan_id: str | None = None,
+        section_id: str | None = None,
+        include_hidden: bool = True,
+    ) -> Sequence[ShopItem]:
+        stmt = select(ShopItem).where(ShopItem.workspace_id == workspace_id)
+        if artisan_id:
+            stmt = stmt.where(ShopItem.artisan_id == artisan_id)
+        if section_id:
+            stmt = stmt.where(ShopItem.section_id == section_id)
+        if not include_hidden:
+            stmt = stmt.where(ShopItem.visible.is_(True))
+        return self._db.scalars(stmt.order_by(ShopItem.created_at.desc())).all()
+
+    def get_shop_item(self, *, workspace_id: str, item_id: str) -> ShopItem | None:
+        return self._db.scalar(
+            select(ShopItem).where(ShopItem.workspace_id == workspace_id, ShopItem.id == item_id)
+        )
+
+    def create_shop_item(self, row: ShopItem) -> ShopItem:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def update_shop_item(self, row: ShopItem) -> ShopItem:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
 
     def upsert_artisan_account(
         self,

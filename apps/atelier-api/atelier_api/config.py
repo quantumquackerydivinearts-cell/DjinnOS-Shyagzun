@@ -20,6 +20,7 @@ class Settings:
     kernel_connect_backoff_ms: int
     public_website_url: str
     public_atelier_url: str
+    shop_workspace_id: str
 
 
 def _parse_origins(raw: str) -> tuple[str, ...]:
@@ -56,4 +57,5 @@ def load_settings() -> Settings:
         kernel_connect_backoff_ms=max(0, int(os.getenv("KERNEL_CONNECT_BACKOFF_MS", "400").strip() or "400")),
         public_website_url=os.getenv("PUBLIC_WEBSITE_URL", "https://www.quantumquackery.org").strip(),
         public_atelier_url=os.getenv("PUBLIC_ATELIER_URL", "https://atelier-api.quantumquackery.com").strip(),
+        shop_workspace_id=os.getenv("SHOP_WORKSPACE_ID", "").strip(),
     )

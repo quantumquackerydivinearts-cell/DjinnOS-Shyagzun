@@ -266,6 +266,49 @@ class PublicCommissionQuoteOut(BaseModel):
     created_at: datetime
 
 
+class ShopItemCreate(BaseModel):
+    workspace_id: str
+    section_id: str
+    title: str
+    summary: str = ""
+    price_label: str = ""
+    tags: list[str] = Field(default_factory=list)
+    link_url: str = ""
+
+
+class ShopItemUpdate(BaseModel):
+    section_id: str | None = None
+    title: str | None = None
+    summary: str | None = None
+    price_label: str | None = None
+    tags: list[str] | None = None
+    link_url: str | None = None
+
+
+class ShopItemVisibilityUpdate(BaseModel):
+    visible: bool
+
+
+class ShopItemOut(BaseModel):
+    id: str
+    workspace_id: str
+    artisan_id: str
+    artisan_profile_name: str
+    artisan_profile_email: str
+    section_id: str
+    title: str
+    summary: str
+    price_label: str
+    tags: list[str]
+    link_url: str
+    visible: bool
+    steward_approved: bool
+    approved_by: str
+    approved_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class AtelierProfileInput(BaseModel):
     profile_name: str
     profile_email: str

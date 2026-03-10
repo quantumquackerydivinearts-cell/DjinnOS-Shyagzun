@@ -265,6 +265,30 @@ class CharacterDictionaryEntry(Base):
     metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
+
+class ShopItem(Base):
+    __tablename__ = "shop_items"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    artisan_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    artisan_profile_name: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    artisan_profile_email: Mapped[str] = mapped_column(String(320), nullable=False, default="")
+    section_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    price_label: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    tags_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    link_url: Mapped[str] = mapped_column(String(400), nullable=False, default="")
+    visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    steward_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    approved_by: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
     workspace: Mapped[Workspace] = relationship()
 
 

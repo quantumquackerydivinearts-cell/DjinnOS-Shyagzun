@@ -73,6 +73,10 @@ from .business_schemas import (
     PublicCommissionQuoteOut,
     QuoteCreate,
     QuoteOut,
+    ShopItemCreate,
+    ShopItemOut,
+    ShopItemUpdate,
+    ShopItemVisibilityUpdate,
     HeadlessQuestEmitInput,
     HeadlessQuestEmitOut,
     MeditationEmitInput,
@@ -247,6 +251,7 @@ from .models import (
     NamedQuest,
     Order,
     Quote,
+    ShopItem,
     Supplier,
     PlayerState,
     RuntimePlanRun,
@@ -11713,6 +11718,151 @@ class AtelierService:
         )
         out = self._require_repo().create_lead(row)
         return LeadOut.model_validate(out, from_attributes=True)
+
+    @staticmethod
+    def _shop_tags_from_json(raw: str) -> list[str]:
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+        if isinstance(parsed, list):
+            return [str(item) for item in parsed if str(item).strip() != ""]
+        return []
+
+    @staticmethod
+    def _shop_tags_to_json(tags: list[str]) -> str:
+        clean = [str(tag).strip() for tag in tags if str(tag).strip() != ""]
+        return json.dumps(clean, ensure_ascii=False, separators=(",", ":"))
+
+    @classmethod
+    def _shop_item_out(cls, row: ShopItem) -> ShopItemOut:
+        return ShopItemOut(
+            id=row.id,
+            workspace_id=row.workspace_id,
+            artisan_id=row.artisan_id,
+            artisan_profile_name=row.artisan_profile_name,
+            artisan_profile_email=row.artisan_profile_email,
+            section_id=row.section_id,
+            title=row.title,
+            summary=row.summary,
+            price_label=row.price_label,
+            tags=cls._shop_tags_from_json(row.tags_json),
+            link_url=row.link_url,
+            visible=row.visible,
+            steward_approved=row.steward_approved,
+            approved_by=row.approved_by,
+            approved_at=row.approved_at,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+    def list_shop_items(
+        self,
+        *,
+        workspace_id: str,
+        artisan_id: str | None = None,
+        section_id: str | None = None,
+        include_hidden: bool = True,
+    ) -> Sequence[ShopItemOut]:
+        rows = self._require_repo().list_shop_items(
+            workspace_id=workspace_id,
+            artisan_id=artisan_id,
+            section_id=section_id,
+            include_hidden=include_hidden,
+        )
+        return [self._shop_item_out(row) for row in rows]
+
+    def create_shop_item(
+        self,
+        *,
+        payload: ShopItemCreate,
+        artisan_id: str,
+        workshop_id: str,
+    ) -> ShopItemOut:
+        repo = self._require_repo()
+        artisan = repo.get_artisan_account(artisan_id)
+        if artisan is None:
+            raise ValueError("artisan_not_found")
+        if artisan.workshop_id != workshop_id:
+            raise ValueError("artisan_workshop_mismatch")
+        now = datetime.utcnow()
+        row = ShopItem(
+            workspace_id=payload.workspace_id,
+            artisan_id=artisan_id,
+            artisan_profile_name=artisan.profile_name,
+            artisan_profile_email=artisan.profile_email,
+            section_id=payload.section_id.strip().lower(),
+            title=payload.title.strip(),
+            summary=payload.summary.strip(),
+            price_label=payload.price_label.strip(),
+            tags_json=self._shop_tags_to_json(payload.tags),
+            link_url=payload.link_url.strip(),
+            visible=False,
+            steward_approved=False,
+            approved_by="",
+            approved_at=None,
+            created_at=now,
+            updated_at=now,
+        )
+        saved = repo.create_shop_item(row)
+        return self._shop_item_out(saved)
+
+    def update_shop_item(
+        self,
+        *,
+        workspace_id: str,
+        item_id: str,
+        payload: ShopItemUpdate,
+        artisan_id: str,
+        is_steward: bool,
+    ) -> ShopItemOut:
+        repo = self._require_repo()
+        row = repo.get_shop_item(workspace_id=workspace_id, item_id=item_id)
+        if row is None:
+            raise ValueError("shop_item_not_found")
+        if not is_steward and row.artisan_id != artisan_id:
+            raise ValueError("shop_item_forbidden")
+
+        if payload.section_id is not None:
+            row.section_id = payload.section_id.strip().lower()
+        if payload.title is not None:
+            row.title = payload.title.strip()
+        if payload.summary is not None:
+            row.summary = payload.summary.strip()
+        if payload.price_label is not None:
+            row.price_label = payload.price_label.strip()
+        if payload.tags is not None:
+            row.tags_json = self._shop_tags_to_json(payload.tags)
+        if payload.link_url is not None:
+            row.link_url = payload.link_url.strip()
+        row.updated_at = datetime.utcnow()
+        saved = repo.update_shop_item(row)
+        return self._shop_item_out(saved)
+
+    def set_shop_item_visibility(
+        self,
+        *,
+        workspace_id: str,
+        item_id: str,
+        payload: ShopItemVisibilityUpdate,
+        steward_id: str,
+    ) -> ShopItemOut:
+        repo = self._require_repo()
+        row = repo.get_shop_item(workspace_id=workspace_id, item_id=item_id)
+        if row is None:
+            raise ValueError("shop_item_not_found")
+        row.visible = payload.visible
+        if payload.visible:
+            row.steward_approved = True
+            row.approved_by = steward_id
+            row.approved_at = datetime.utcnow()
+        else:
+            row.steward_approved = False
+            row.approved_by = steward_id
+            row.approved_at = datetime.utcnow()
+        row.updated_at = datetime.utcnow()
+        saved = repo.update_shop_item(row)
+        return self._shop_item_out(saved)
 
     def list_public_commission_quotes(self, workspace_id: str) -> Sequence[PublicCommissionQuoteOut]:
         rows = self._require_repo().list_public_quotes(workspace_id=workspace_id)

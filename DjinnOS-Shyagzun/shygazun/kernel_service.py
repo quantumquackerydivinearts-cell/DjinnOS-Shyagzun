@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Mapping, Optional, cast
 
@@ -349,6 +351,27 @@ def _shop_landing_html() -> str:
 </html>"""
 
 
+def _fetch_shop_items(section_id: str) -> list[dict[str, object]]:
+    base_url = os.getenv("SHOP_CONTENT_API_URL", "").strip()
+    workspace_id = os.getenv("SHOP_WORKSPACE_ID", "").strip()
+    if base_url == "" or workspace_id == "":
+        return []
+    query = urllib.parse.urlencode({"workspace_id": workspace_id, "section_id": section_id})
+    url = f"{base_url.rstrip('/')}/public/shop/items?{query}"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            payload = resp.read().decode("utf-8")
+    except Exception:
+        return []
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return []
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    return []
+
+
 def _shop_sections() -> list[dict[str, str | list[str]]]:
     return [
         {
@@ -437,6 +460,32 @@ def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str) -> st
     return "\n".join(cards)
 
 
+def _shop_items_html(items: list[dict[str, object]]) -> str:
+    if not items:
+        return "<p>No items are listed in this section yet.</p>"
+    cards: list[str] = []
+    for item in items:
+        title = str(item.get("title") or "Untitled").strip()
+        summary = str(item.get("summary") or "").strip()
+        price_label = str(item.get("price_label") or "").strip()
+        link_url = str(item.get("link_url") or "").strip() or "#"
+        tags_obj = item.get("tags")
+        tags_list = tags_obj if isinstance(tags_obj, list) else []
+        tags = "".join(f'<span class="tag">{str(tag)}</span>' for tag in tags_list)
+        cards.append(
+            f"""<div class="card">
+      <h3>{title}</h3>
+      <div class="price">{price_label}</div>
+      <div class="tags">{tags}</div>
+      <p>{summary}</p>
+      <div class="cta-row">
+        <a class="btn primary" href="{link_url}" rel="noopener">Open</a>
+      </div>
+    </div>"""
+        )
+    return f'<div class="grid">{"".join(cards)}</div>'
+
+
 def _shop_section_html(section_id: str) -> str:
     website_url = os.getenv("PUBLIC_WEBSITE_URL", "https://www.quantumquackery.org").strip()
     atelier_url = os.getenv("PUBLIC_ATELIER_URL", "https://atelier-api.quantumquackery.com").strip()
@@ -448,6 +497,7 @@ def _shop_section_html(section_id: str) -> str:
     tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
     override = _shop_link_overrides().get(section_id, "")
     cta_url = override or f"{atelier_url.rstrip('/')}/"
+    items_html = _shop_items_html(_fetch_shop_items(section_id))
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -555,6 +605,9 @@ def _shop_section_html(section_id: str) -> str:
         <a class="btn secondary" href="{website_url}" rel="noopener">Visit Quantum Quackery</a>
         <a class="btn" href="{docs_url}" rel="noopener">API Docs</a>
       </div>
+    </div>
+    <div style="margin-top:24px;">
+      {items_html}
     </div>
   </main>
 </body>

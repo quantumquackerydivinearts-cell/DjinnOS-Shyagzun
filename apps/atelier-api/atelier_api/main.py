@@ -146,6 +146,10 @@ from .business_schemas import (
     PublicCommissionQuoteOut,
     QuoteCreate,
     QuoteOut,
+    ShopItemCreate,
+    ShopItemOut,
+    ShopItemUpdate,
+    ShopItemVisibilityUpdate,
     HeadlessQuestEmitInput,
     HeadlessQuestEmitOut,
     MeditationEmitInput,
@@ -697,6 +701,27 @@ def _shop_landing_html(settings: Settings) -> str:
 </html>"""
 
 
+def _shop_items_html(items: Sequence[ShopItemOut]) -> str:
+    if not items:
+        return "<p>No items are listed in this section yet.</p>"
+    cards: list[str] = []
+    for item in items:
+        tags = "".join(f'<span class="tag">{tag}</span>' for tag in item.tags)
+        link = item.link_url.strip() or "#"
+        cards.append(
+            f"""<div class="card">
+      <h3>{item.title}</h3>
+      <div class="price">{item.price_label}</div>
+      <div class="tags">{tags}</div>
+      <p>{item.summary}</p>
+      <div class="cta-row">
+        <a class="btn primary" href="{link}" rel="noopener">Open</a>
+      </div>
+    </div>"""
+        )
+    return f'<div class="grid">{"".join(cards)}</div>'
+
+
 def _shop_sections() -> list[dict[str, str | list[str]]]:
     return [
         {
@@ -785,7 +810,7 @@ def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str) -> st
     return "\n".join(cards)
 
 
-def _shop_section_html(section_id: str, settings: Settings) -> str:
+def _shop_section_html(section_id: str, settings: Settings, items: Sequence[ShopItemOut]) -> str:
     website_url = settings.public_website_url or "https://www.quantumquackery.org"
     atelier_url = settings.public_atelier_url or "https://atelier-api.quantumquackery.com"
     docs_url = f"{atelier_url.rstrip('/')}/docs"
@@ -796,6 +821,7 @@ def _shop_section_html(section_id: str, settings: Settings) -> str:
     tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
     override = _shop_link_overrides().get(section_id, "")
     cta_url = override or f"{atelier_url.rstrip('/')}/"
+    items_html = _shop_items_html(items)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -904,6 +930,9 @@ def _shop_section_html(section_id: str, settings: Settings) -> str:
         <a class="btn" href="{docs_url}" rel="noopener">API Docs</a>
       </div>
     </div>
+    <div style="margin-top:24px;">
+      {items_html}
+    </div>
   </main>
 </body>
 </html>"""
@@ -979,8 +1008,20 @@ def shop_landing(settings: Settings = Depends(_settings)) -> str:
 
 
 @app.get("/shop/{section_id}", response_class=HTMLResponse)
-def shop_section(section_id: str, settings: Settings = Depends(_settings)) -> str:
-    return _shop_section_html(section_id, settings)
+def shop_section(
+    section_id: str,
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> str:
+    workspace_id = settings.shop_workspace_id
+    items: Sequence[ShopItemOut] = []
+    if workspace_id:
+        items = svc.list_shop_items(
+            workspace_id=workspace_id,
+            section_id=section_id,
+            include_hidden=False,
+        )
+    return _shop_section_html(section_id, settings, items)
 
 
 @app.on_event("startup")
@@ -3815,12 +3856,111 @@ def create_supplier(
     return svc.create_supplier(payload)
 
 
+@app.get("/v1/shop/items")
+def list_shop_items(
+    workspace_id: str,
+    section_id: Optional[str] = None,
+    artisan_id: Optional[str] = None,
+    include_hidden: bool = False,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[ShopItemOut]:
+    _enforce(ctx, "shop.read")
+    _enforce_role(role, "shop.read")
+    is_steward = role.role == ROLE_STEWARD
+    if not is_steward:
+        artisan_id = workshop.identity.artisan_id
+        include_hidden = False
+    return svc.list_shop_items(
+        workspace_id=workspace_id,
+        artisan_id=artisan_id,
+        section_id=section_id,
+        include_hidden=include_hidden,
+    )
+
+
+@app.post("/v1/shop/items")
+def create_shop_item(
+    payload: ShopItemCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ShopItemOut:
+    _enforce(ctx, "shop.write")
+    _enforce_role(role, "shop.write")
+    return svc.create_shop_item(
+        payload=payload,
+        artisan_id=workshop.identity.artisan_id,
+        workshop_id=workshop.identity.workshop_id,
+    )
+
+
+@app.patch("/v1/shop/items/{item_id}")
+def update_shop_item(
+    item_id: str,
+    workspace_id: str,
+    payload: ShopItemUpdate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ShopItemOut:
+    _enforce(ctx, "shop.write")
+    _enforce_role(role, "shop.write")
+    is_steward = role.role == ROLE_STEWARD
+    return svc.update_shop_item(
+        workspace_id=workspace_id,
+        item_id=item_id,
+        payload=payload,
+        artisan_id=workshop.identity.artisan_id,
+        is_steward=is_steward,
+    )
+
+
+@app.post("/v1/shop/items/{item_id}/visibility")
+def set_shop_item_visibility(
+    item_id: str,
+    workspace_id: str,
+    payload: ShopItemVisibilityUpdate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ShopItemOut:
+    _enforce(ctx, "shop.admin")
+    _enforce_role(role, "shop.admin")
+    if role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required")
+    return svc.set_shop_item_visibility(
+        workspace_id=workspace_id,
+        item_id=item_id,
+        payload=payload,
+        steward_id=workshop.identity.artisan_id,
+    )
+
+
 @app.get("/public/commission-hall/quotes")
 def public_commission_quotes(
     workspace_id: str,
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[PublicCommissionQuoteOut]:
     return svc.list_public_commission_quotes(workspace_id=workspace_id)
+
+
+@app.get("/public/shop/items")
+def public_shop_items(
+    workspace_id: str,
+    section_id: Optional[str] = None,
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[ShopItemOut]:
+    return svc.list_shop_items(
+        workspace_id=workspace_id,
+        section_id=section_id,
+        include_hidden=False,
+    )
 
 
 @app.post("/public/commission-hall/inquiries")
