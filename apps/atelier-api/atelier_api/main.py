@@ -532,6 +532,7 @@ def _shop_landing_html(settings: Settings) -> str:
     website_url = settings.public_website_url or "https://www.quantumquackery.org"
     atelier_url = settings.public_atelier_url or "https://atelier-api.quantumquackery.com"
     docs_url = f"{atelier_url.rstrip('/')}/docs"
+    cards_html = _shop_cards_html(atelier_url=atelier_url, docs_url=docs_url, website_url=website_url)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -685,87 +686,206 @@ def _shop_landing_html(settings: Settings) -> str:
   </header>
   <main>
     <div class="grid">
-      <section class="card">
-        <div>
-          <h3>Service Consultations</h3>
-          <div class="price">Scheduled Sessions</div>
-          <div class="tags">
-            <span class="tag">Strategy</span>
-            <span class="tag">Architecture</span>
-            <span class="tag">Operations</span>
-          </div>
-          <p>Schedule advisory sessions by type and duration, with intake details captured up front.</p>
-        </div>
-        <a class="btn" href="{atelier_url}" rel="noopener">Book via Atelier</a>
-      </section>
-      <section class="card">
-        <div>
-          <h3>Phoenix AMS-CRM Licenses</h3>
-          <div class="price">Software Licenses</div>
-          <div class="tags">
-            <span class="tag">Subscription</span>
-            <span class="tag">Perpetual</span>
-          </div>
-          <p>SaaS subscription or one-time license delivery with automated account provisioning.</p>
-        </div>
-        <a class="btn" href="{atelier_url}" rel="noopener">License Access</a>
-      </section>
-      <section class="card">
-        <div>
-          <h3>Physical Goods</h3>
-          <div class="price">Catalog Goods</div>
-          <div class="tags">
-            <span class="tag">Inventory</span>
-            <span class="tag">Shipping</span>
-          </div>
-          <p>Catalog-based orders with inventory tracking, fulfillment, and shipping updates.</p>
-        </div>
-        <a class="btn" href="{atelier_url}" rel="noopener">Browse Catalog</a>
-      </section>
-      <section class="card">
-        <div>
-          <h3>Custom Orders</h3>
-          <div class="price">Quote First</div>
-          <div class="tags">
-            <span class="tag">Request</span>
-            <span class="tag">Quote</span>
-            <span class="tag">Approve</span>
-            <span class="tag">Pay</span>
-          </div>
-          <p>Quote-first flow: request, review, approve, and finalize payment.</p>
-        </div>
-        <a class="btn" href="{docs_url}" rel="noopener">Quote Intake</a>
-      </section>
-      <section class="card">
-        <div>
-          <h3>Digital Products</h3>
-          <div class="price">Instant Delivery</div>
-          <div class="tags">
-            <span class="tag">Downloads</span>
-            <span class="tag">Access Links</span>
-          </div>
-          <p>Instant delivery on purchase with secure access links.</p>
-        </div>
-        <a class="btn" href="{atelier_url}" rel="noopener">Access Library</a>
-      </section>
-      <section class="card">
-        <div>
-          <h3>Land Assessments</h3>
-          <div class="price">Guild Verified</div>
-          <div class="tags">
-            <span class="tag">Members Free</span>
-            <span class="tag">Non-members Paid</span>
-          </div>
-          <p>Guild members book free assessments; non-members book paid slots with location intake.</p>
-        </div>
-        <a class="btn" href="{atelier_url}" rel="noopener">Request Assessment</a>
-      </section>
+      {cards_html}
     </div>
   </main>
   <footer>
     Phoenix AMS-CRM is powered by the Atelier. Secure provisioning and guild membership
     verification occur inside the Atelier experience.
   </footer>
+</body>
+</html>"""
+
+
+def _shop_sections() -> list[dict[str, str | list[str]]]:
+    return [
+        {
+            "id": "consultations",
+            "title": "Service Consultations",
+            "price": "Scheduled Sessions",
+            "tags": ["Strategy", "Architecture", "Operations"],
+            "summary": "Schedule advisory sessions by type and duration, with intake details captured up front.",
+            "cta": "Book via Atelier",
+        },
+        {
+            "id": "licenses",
+            "title": "Phoenix AMS-CRM Licenses",
+            "price": "Software Licenses",
+            "tags": ["Subscription", "Perpetual"],
+            "summary": "SaaS subscription or one-time license delivery with automated account provisioning.",
+            "cta": "License Access",
+        },
+        {
+            "id": "catalog",
+            "title": "Physical Goods",
+            "price": "Catalog Goods",
+            "tags": ["Inventory", "Shipping"],
+            "summary": "Catalog-based orders with inventory tracking, fulfillment, and shipping updates.",
+            "cta": "Browse Catalog",
+        },
+        {
+            "id": "custom-orders",
+            "title": "Custom Orders",
+            "price": "Quote First",
+            "tags": ["Request", "Quote", "Approve", "Pay"],
+            "summary": "Quote-first flow: request, review, approve, and finalize payment.",
+            "cta": "Request a Quote",
+        },
+        {
+            "id": "digital",
+            "title": "Digital Products",
+            "price": "Instant Delivery",
+            "tags": ["Downloads", "Access Links"],
+            "summary": "Instant delivery on purchase with secure access links.",
+            "cta": "Access Library",
+        },
+        {
+            "id": "land-assessments",
+            "title": "Land Assessments",
+            "price": "Guild Verified",
+            "tags": ["Members Free", "Non-members Paid"],
+            "summary": "Guild members book free assessments; non-members book paid slots with location intake.",
+            "cta": "Request Assessment",
+        },
+    ]
+
+
+def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str) -> str:
+    cards: list[str] = []
+    for section in _shop_sections():
+        tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
+        cards.append(
+            f"""<section class="card">
+        <div>
+          <h3>{section['title']}</h3>
+          <div class="price">{section['price']}</div>
+          <div class="tags">{tags}</div>
+          <p>{section['summary']}</p>
+        </div>
+        <a class="btn" href="/shop/{section['id']}">{section['cta']}</a>
+      </section>"""
+        )
+    return "\n".join(cards)
+
+
+def _shop_section_html(section_id: str, settings: Settings) -> str:
+    website_url = settings.public_website_url or "https://www.quantumquackery.org"
+    atelier_url = settings.public_atelier_url or "https://atelier-api.quantumquackery.com"
+    docs_url = f"{atelier_url.rstrip('/')}/docs"
+    section_map = {item["id"]: item for item in _shop_sections()}
+    section = section_map.get(section_id)
+    if section is None:
+        raise HTTPException(status_code=404, detail="shop_section_not_found")
+    tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{section['title']} | Phoenix AMS-CRM Shop</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      --ink: #111827;
+      --muted: #6b7280;
+      --accent: #0f766e;
+      --accent-2: #14532d;
+      --surface: #ffffff;
+      --surface-2: #f5f5f4;
+      --border: #e5e7eb;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #f8fafc 0%, #eef2f6 50%, #f8fafc 100%);
+    }}
+    main {{
+      padding: 48px 24px 64px;
+      max-width: 920px;
+      margin: 0 auto;
+    }}
+    .card {{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }}
+    h1 {{
+      margin: 0 0 12px;
+      font-size: 2.2rem;
+    }}
+    p {{
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.6;
+    }}
+    .price {{
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }}
+    .tags {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+    }}
+    .tag {{
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }}
+    .cta-row {{
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }}
+    .btn {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      color: var(--ink);
+      background: var(--surface);
+    }}
+    .btn.primary {{
+      background: var(--accent);
+      color: #ffffff;
+      border-color: transparent;
+    }}
+    .btn.secondary {{
+      background: var(--accent-2);
+      color: #ffffff;
+      border-color: transparent;
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <h1>{section['title']}</h1>
+      <div class="price">{section['price']}</div>
+      <div class="tags">{tags}</div>
+      <p>{section['summary']}</p>
+      <div class="cta-row">
+        <a class="btn primary" href="{atelier_url}" rel="noopener">{section['cta']}</a>
+        <a class="btn" href="/shop">Back to Shop</a>
+        <a class="btn secondary" href="{website_url}" rel="noopener">Visit Quantum Quackery</a>
+        <a class="btn" href="{docs_url}" rel="noopener">API Docs</a>
+      </div>
+    </div>
+  </main>
 </body>
 </html>"""
 
@@ -837,6 +957,11 @@ app.add_middleware(
 @app.get("/shop", response_class=HTMLResponse)
 def shop_landing(settings: Settings = Depends(_settings)) -> str:
     return _shop_landing_html(settings)
+
+
+@app.get("/shop/{section_id}", response_class=HTMLResponse)
+def shop_section(section_id: str, settings: Settings = Depends(_settings)) -> str:
+    return _shop_section_html(section_id, settings)
 
 
 @app.on_event("startup")
