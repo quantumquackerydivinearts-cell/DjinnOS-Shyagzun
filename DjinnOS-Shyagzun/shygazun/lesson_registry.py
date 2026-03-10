@@ -167,6 +167,7 @@ class LessonRegistry:
             "source_text": projection["source_text"],
             "authoritative_projection": projection.get("authoritative_projection"),
             "composed_features": projection["composed_features"],
+            "semantic_ir": projection["semantic_ir"],
             "byte_table_trace": projection["byte_table_trace"],
             "structural_verifications": projection["structural_verifications"],
             "code_surface": cast(Mapping[str, Any], projection["surface_lowerings"])["code_surface"],
@@ -315,6 +316,7 @@ class LessonRegistry:
                 "authority_level": "lesson_exact_match",
             }
         projection["trust_contract"] = _derive_trust_contract(projection)
+        projection["semantic_ir"] = _derive_semantic_ir(projection)
         return projection
 
     def _index_pronoun_lesson(self, lesson: LessonRecord) -> None:
@@ -981,6 +983,118 @@ def _derive_trust_contract(projection: Mapping[str, Any]) -> dict[str, Any]:
                 or composed_features.get("anatomy_axes") is not None
                 or composed_features.get("embodiment_mode") is not None
             ),
+        },
+    }
+
+
+def normalize_summary_values(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        normalized = value.strip()
+        return [normalized] if normalized else []
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        summary: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            normalized = str(item).strip()
+            if normalized == "" or normalized in seen:
+                continue
+            seen.add(normalized)
+            summary.append(normalized)
+        return summary
+    normalized = str(value).strip()
+    return [normalized] if normalized else []
+
+
+def _derive_semantic_ir(projection: Mapping[str, Any]) -> dict[str, Any]:
+    source_text = str(projection.get("source_text") or "")
+    tokens_obj = projection.get("tokens")
+    tokens = cast(Sequence[Mapping[str, Any]], tokens_obj) if isinstance(tokens_obj, Sequence) else tuple()
+    composed_features_obj = projection.get("composed_features")
+    composed_features = cast(Mapping[str, Any], composed_features_obj) if isinstance(composed_features_obj, Mapping) else {}
+    structural_obj = projection.get("structural_verifications")
+    structural_verifications = cast(Sequence[Mapping[str, Any]], structural_obj) if isinstance(structural_obj, Sequence) else tuple()
+    authoritative_projection_obj = projection.get("authoritative_projection")
+    authoritative_projection = (
+        cast(Mapping[str, Any], authoritative_projection_obj)
+        if isinstance(authoritative_projection_obj, Mapping)
+        else {}
+    )
+    trust_obj = projection.get("trust_contract")
+    trust_contract = cast(Mapping[str, Any], trust_obj) if isinstance(trust_obj, Mapping) else {}
+    lowerings_obj = projection.get("surface_lowerings")
+    lowerings = cast(Mapping[str, Any], lowerings_obj) if isinstance(lowerings_obj, Mapping) else {}
+    code_surface = cast(Mapping[str, Any], lowerings.get("code_surface") or {})
+    placement_graph = cast(Mapping[str, Any], lowerings.get("placement_graph") or {})
+
+    semantic_tokens: list[dict[str, Any]] = []
+    for index, token in enumerate(tokens):
+        feature_bundle_obj = token.get("feature_bundle")
+        feature_bundle = cast(Mapping[str, Any], feature_bundle_obj) if isinstance(feature_bundle_obj, Mapping) else {}
+        semantic_tokens.append(
+            {
+                "index": index,
+                "surface": str(token.get("token") or ""),
+                "kind": str(token.get("kind") or ""),
+                "symbols": list(_effective_symbols(token)),
+                "bytes": list(_effective_decimals(token)),
+                "semantic_roles": list(
+                    dict.fromkeys(
+                        [
+                            str(token.get("semantic_role") or ""),
+                            str(token.get("pattern_role") or ""),
+                        ]
+                    )
+                ),
+                "features": dict(feature_bundle),
+            }
+        )
+
+    verified_regimes = [
+        {
+            "lesson_id": str(item.get("lesson_id") or ""),
+            "regime_id": str(item.get("regime_id") or ""),
+            "description": str(item.get("description") or ""),
+        }
+        for item in structural_verifications
+        if bool(item.get("verified"))
+    ]
+
+    axes = normalize_summary_values(composed_features.get("axis"))
+    tongue_projection = normalize_summary_values(composed_features.get("tongue_projection"))
+    temporal_topology = normalize_summary_values(composed_features.get("time_topology"))
+    space_operator = normalize_summary_values(composed_features.get("space_operator"))
+    network_role = normalize_summary_values(composed_features.get("network_role"))
+    cluster_role = normalize_summary_values(composed_features.get("cluster_role"))
+    chirality = normalize_summary_values(composed_features.get("chirality"))
+
+    return {
+        "ir_version": "semantic_ir.v1",
+        "source_text": source_text,
+        "source_mode": str(projection.get("projection_mode") or "lesson_constrained_bilingual"),
+        "tokens": semantic_tokens,
+        "semantics": {
+            "axes": axes,
+            "tongue_projection": tongue_projection,
+            "chirality": chirality,
+            "temporal_topology": temporal_topology,
+            "space_operator": space_operator,
+            "network_role": network_role,
+            "cluster_role": cluster_role,
+            "commit_authority": bool(composed_features.get("commit_authority")),
+            "composed_features": dict(composed_features),
+        },
+        "authority": {
+            "applied_lessons": list(cast(Sequence[str], projection.get("applied_lessons") or [])),
+            "projection": dict(authoritative_projection),
+            "verified_regimes": verified_regimes,
+            "trust": dict(trust_contract),
+        },
+        "execution": {
+            "code_surface": dict(code_surface),
+            "placement_graph": dict(placement_graph),
+            "downstream_readiness": dict(cast(Mapping[str, Any], trust_contract.get("downstream_readiness") or {})),
         },
     }
 

@@ -11,6 +11,7 @@ from .shygazun_compiler import (
     ShygazunIR,
     compile_akinenwun_to_ir,
     derive_bilingual_cobra_surface,
+    derive_semantic_runtime_dispatch,
     default_symbol_inventory,
     derive_djinn_layer_references,
 )
@@ -191,6 +192,7 @@ def build_scene_graph_from_cobra(
         normalized_meta["djinn_layer_references"] = derive_djinn_layer_references(meta=normalized_meta, ir=ir_obj)
         if akinenwun:
             normalized_meta["bilingual_cobra_surface"] = bilingual_registry_surface(akinenwun)
+            normalized_meta["semantic_runtime_dispatch"] = derive_semantic_runtime_dispatch(akinenwun)
         nodes.append(
             {
                 "id": str(entity["id"]),

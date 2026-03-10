@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import importlib.util
+import importlib
 from pathlib import Path
 import re
 import sys
@@ -89,11 +90,26 @@ class BilingualCobraSurface(TypedDict, total=False):
     source_text: str
     authoritative_projection: Optional[Dict[str, Any]]
     composed_features: Dict[str, Any]
+    semantic_ir: Dict[str, Any]
+    semantic_runtime_dispatch: Dict[str, Any]
     byte_table_trace: Dict[str, Any]
     structural_verifications: List[Dict[str, Any]]
     code_surface: Dict[str, Any]
     placement_graph: Dict[str, Any]
     trust_contract: Dict[str, Any]
+
+
+class SemanticRuntimeDispatch(TypedDict, total=False):
+    dispatch_version: str
+    source_text: str
+    dispatch_channel: str
+    persistence_mode: str
+    consensus_mode: str
+    topology_hint: str
+    space_operators: List[str]
+    axes: List[str]
+    trust_grade: str
+    requires_commit_authority: bool
 
 
 @dataclass(frozen=True)
@@ -183,16 +199,12 @@ def _load_inventory_from_nested_repo() -> Optional[SymbolInventory]:
 def _load_lesson_registry_from_nested_repo() -> Optional[LessonRegistryPort]:
     root = Path(__file__).resolve().parents[1]
     package_root = root / "DjinnOS-Shyagzun"
-    module_path = root / "DjinnOS-Shyagzun" / "shygazun" / "lesson_registry.py"
+    module_path = package_root / "shygazun" / "lesson_registry.py"
     if not module_path.exists():
         return None
     try:
         sys.path.insert(0, str(package_root))
-        spec = importlib.util.spec_from_file_location("nested_shygazun_lesson_registry", str(module_path))
-        if spec is None or spec.loader is None:
-            return None
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        module = importlib.import_module("shygazun.lesson_registry")
         load_lesson_registry = getattr(module, "load_lesson_registry", None)
         if load_lesson_registry is None:
             return None
@@ -205,20 +217,20 @@ def _load_lesson_registry_from_nested_repo() -> Optional[LessonRegistryPort]:
 
 
 def default_symbol_inventory() -> SymbolInventory:
-    loaded = _load_inventory_from_shygazun_module()
+    loaded = _load_inventory_from_nested_repo()
     if loaded is not None:
         return loaded
-    loaded = _load_inventory_from_nested_repo()
+    loaded = _load_inventory_from_shygazun_module()
     if loaded is not None:
         return loaded
     raise RuntimeError("shygazun_symbol_inventory_unavailable")
 
 
 def default_lesson_registry() -> Optional[LessonRegistryPort]:
-    loaded = _load_lesson_registry_from_shygazun_module()
+    loaded = _load_lesson_registry_from_nested_repo()
     if loaded is not None:
         return loaded
-    return _load_lesson_registry_from_nested_repo()
+    return _load_lesson_registry_from_shygazun_module()
 
 
 def _material_properties_for_symbol(symbol: str, meaning: Optional[str]) -> Dict[str, Any]:
@@ -777,9 +789,114 @@ def derive_bilingual_cobra_surface(
     if normalized == "":
         return None
     try:
-        return registry.cobra_surface(normalized)
+        payload = dict(cast(Mapping[str, Any], registry.cobra_surface(normalized)))
+        payload["semantic_runtime_dispatch"] = _derive_runtime_dispatch_from_surface(cast(BilingualCobraSurface, payload))
+        return cast(BilingualCobraSurface, payload)
     except Exception:
         return None
+
+
+def _normalized_dispatch_values(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        normalized = value.strip()
+        return [normalized] if normalized else []
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        out: List[str] = []
+        seen: set[str] = set()
+        for item in value:
+            normalized = str(item).strip()
+            if normalized == "" or normalized in seen:
+                continue
+            seen.add(normalized)
+            out.append(normalized)
+        return out
+    normalized = str(value).strip()
+    return [normalized] if normalized else []
+
+
+def _derive_runtime_dispatch_from_surface(surface: BilingualCobraSurface) -> Optional[SemanticRuntimeDispatch]:
+    semantic_ir = cast(Mapping[str, Any], surface.get("semantic_ir") or {})
+    semantics = cast(Mapping[str, Any], semantic_ir.get("semantics") or {})
+    composed_features = cast(Mapping[str, Any], semantics.get("composed_features") or {})
+    network_roles = _normalized_dispatch_values(semantics.get("network_role"))
+    cluster_roles = _normalized_dispatch_values(semantics.get("cluster_role"))
+    storage_primitives = _normalized_dispatch_values(composed_features.get("storage_primitive"))
+    systems_states = _normalized_dispatch_values(composed_features.get("systems_state"))
+    topology_hints = _normalized_dispatch_values(semantics.get("temporal_topology"))
+    topology_hints.extend(item for item in _normalized_dispatch_values(composed_features.get("systems_state")) if item not in topology_hints)
+    space_operators = _normalized_dispatch_values(semantics.get("space_operator"))
+    axes = _normalized_dispatch_values(semantics.get("axes"))
+    requires_commit_authority = bool(semantics.get("commit_authority"))
+
+    if not (
+        network_roles
+        or cluster_roles
+        or storage_primitives
+        or topology_hints
+        or space_operators
+        or axes
+        or requires_commit_authority
+    ):
+        return None
+
+    dispatch_channel = "local"
+    if "gateway" in network_roles:
+        dispatch_channel = "gateway"
+    elif "stream" in network_roles:
+        dispatch_channel = "stream"
+    elif "packet" in network_roles:
+        dispatch_channel = "packet"
+    elif "event_emit" in network_roles:
+        dispatch_channel = "event"
+
+    persistence_mode = "ephemeral"
+    if "persistent_object" in storage_primitives:
+        persistence_mode = "persistent"
+    elif "database_cluster" in storage_primitives:
+        persistence_mode = "database_cluster"
+    elif "snapshot_archive" in storage_primitives:
+        persistence_mode = "archive"
+    elif "directory_bundle" in storage_primitives:
+        persistence_mode = "directory"
+    elif "cache" in storage_primitives:
+        persistence_mode = "cache"
+    elif "volatile_buffer" in storage_primitives:
+        persistence_mode = "buffered"
+
+    consensus_mode = "none"
+    if "authoritative_commit" in cluster_roles or requires_commit_authority:
+        consensus_mode = "authoritative_commit"
+    elif "consensus" in cluster_roles:
+        consensus_mode = "consensus"
+    elif cluster_roles:
+        consensus_mode = cluster_roles[0]
+
+    trust_contract = cast(Mapping[str, Any], surface.get("trust_contract") or {})
+    return {
+        "dispatch_version": "semantic_dispatch.v1",
+        "source_text": str(surface.get("source_text") or ""),
+        "dispatch_channel": dispatch_channel,
+        "persistence_mode": persistence_mode,
+        "consensus_mode": consensus_mode,
+        "topology_hint": topology_hints[0] if topology_hints else "none",
+        "space_operators": space_operators,
+        "axes": axes,
+        "trust_grade": str(trust_contract.get("grade") or "unknown"),
+        "requires_commit_authority": requires_commit_authority,
+    }
+
+
+def derive_semantic_runtime_dispatch(
+    source_text: str,
+    *,
+    lesson_registry: Optional[LessonRegistryPort] = None,
+) -> Optional[SemanticRuntimeDispatch]:
+    surface = derive_bilingual_cobra_surface(source_text, lesson_registry=lesson_registry)
+    if surface is None:
+        return None
+    return _derive_runtime_dispatch_from_surface(surface)
 
 
 def cobra_to_placement_payloads(
@@ -830,6 +947,7 @@ def cobra_to_placement_payloads(
                     "frontier_policy": constraints["frontier_policy"],
                     "djinn_layer_references": djinn_refs,
                     "bilingual_cobra_surface": bilingual_surface,
+                    "semantic_runtime_dispatch": _derive_runtime_dispatch_from_surface(bilingual_surface) if bilingual_surface is not None else None,
                 },
             }
         )

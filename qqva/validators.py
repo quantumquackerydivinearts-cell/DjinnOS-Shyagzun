@@ -111,6 +111,7 @@ def validate_cobra_content(
         if bilingual_surface is not None:
             trust = bilingual_surface.get("trust_contract", {})
             readiness = trust.get("downstream_readiness", {}) if isinstance(trust, dict) else {}
+            semantic_dispatch = bilingual_surface.get("semantic_runtime_dispatch")
             if isinstance(readiness, dict):
                 if readiness.get("code_surface_safe") is not True:
                     warnings.append(f"bilingual_code_surface_not_safe:{entity_id}")
@@ -118,6 +119,11 @@ def validate_cobra_content(
                     warnings.append(f"bilingual_placement_graph_not_safe:{entity_id}")
                 if readiness.get("anatomy_surface_safe") is not True:
                     warnings.append(f"bilingual_anatomy_surface_not_safe:{entity_id}")
+            if isinstance(semantic_dispatch, dict):
+                persistence_mode = str(semantic_dispatch.get("persistence_mode") or "")
+                consensus_mode = str(semantic_dispatch.get("consensus_mode") or "")
+                if persistence_mode in {"persistent", "database_cluster", "archive"} and consensus_mode == "none":
+                    warnings.append(f"semantic_dispatch_missing_commit_mode:{entity_id}")
 
     stats["entities"] = len(entities)
     stats["unresolved_count"] = len(unresolved_total)

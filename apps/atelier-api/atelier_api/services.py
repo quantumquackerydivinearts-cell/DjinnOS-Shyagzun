@@ -38,6 +38,7 @@ _ensure_repo_root_on_path()
 
 from qqva.world_stream import WorldStreamController
 from qqva.aster_colors import resolve_aster_color
+from qqva.shygazun_compiler import derive_semantic_runtime_dispatch
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
@@ -2900,6 +2901,41 @@ class AtelierService:
         return b"".join(blocks)[:length]
 
     @staticmethod
+    def _semantic_relay_status(dispatch: Mapping[str, Any], *, remote: bool) -> str:
+        channel = str(dispatch.get("dispatch_channel") or "local")
+        if remote:
+            if channel == "gateway":
+                return "gateway_pending"
+            if channel == "stream":
+                return "stream_buffered"
+            if channel == "packet":
+                return "packet_pending"
+            if channel == "event":
+                return "event_pending"
+            return "remote_pending"
+        if channel == "stream":
+            return "stream_local"
+        if channel == "packet":
+            return "packet_local"
+        if channel == "event":
+            return "event_local"
+        return "local_only"
+
+    @staticmethod
+    def _semantic_storage_bucket(dispatch: Mapping[str, Any]) -> str:
+        persistence_mode = str(dispatch.get("persistence_mode") or "ephemeral")
+        mapping = {
+            "persistent": "persistent",
+            "database_cluster": "database_cluster",
+            "archive": "archive",
+            "directory": "directory",
+            "cache": "cache",
+            "buffered": "buffered",
+            "ephemeral": "ephemeral",
+        }
+        return mapping.get(persistence_mode, "ephemeral")
+
+    @staticmethod
     def _normalize_security_session(
         *,
         security_session: Optional[Mapping[str, Any]],
@@ -3099,6 +3135,12 @@ class AtelierService:
                 "recipient_distribution_protocol": recipient_protocol["distribution"],
                 "recipient_distribution_handshake_protocol": recipient_protocol["handshake"],
             }
+        semantic_dispatch = derive_semantic_runtime_dispatch(message_text_norm)
+        if semantic_dispatch is not None:
+            recipient_metadata = {
+                **recipient_metadata,
+                "semantic_runtime_dispatch": dict(semantic_dispatch),
+            }
         return self._encrypt_guild_message_runtime(
             guild_id=guild_id_norm,
             channel_id=channel_id_norm,
@@ -3211,12 +3253,25 @@ class AtelierService:
     ) -> Mapping[str, Any]:
         envelope_obj = dict(envelope)
         now = datetime.now(timezone.utc).isoformat()
-        relay_status = "remote_pending" if str(envelope_obj.get("recipient_distribution_id") or "").strip() else "local_only"
+        envelope_metadata = cast(Mapping[str, Any], envelope_obj.get("metadata") or {}) if isinstance(envelope_obj.get("metadata"), Mapping) else {}
+        metadata_payload = dict(metadata)
+        semantic_dispatch_obj = metadata_payload.get("semantic_runtime_dispatch") or envelope_metadata.get("semantic_runtime_dispatch")
+        semantic_dispatch = cast(Mapping[str, Any], semantic_dispatch_obj) if isinstance(semantic_dispatch_obj, Mapping) else {}
+        relay_status = (
+            self._semantic_relay_status(
+                semantic_dispatch,
+                remote=bool(str(envelope_obj.get("recipient_distribution_id") or "").strip()),
+            )
+            if semantic_dispatch
+            else ("remote_pending" if str(envelope_obj.get("recipient_distribution_id") or "").strip() else "local_only")
+        )
         persisted_metadata = {
-            **dict(metadata),
+            **metadata_payload,
             "relay_status": relay_status,
             "delivery_receipts": list(dict(metadata).get("delivery_receipts") or []),
         }
+        if semantic_dispatch:
+            persisted_metadata["semantic_runtime_dispatch"] = dict(semantic_dispatch)
         payload = {
             "envelope": envelope_obj,
             "metadata": persisted_metadata,
@@ -3248,6 +3303,7 @@ class AtelierService:
                     "thread_id": envelope_obj.get("thread_id"),
                     "relay_status": relay_status,
                     "delivery_receipts": [],
+                    "semantic_storage_bucket": self._semantic_storage_bucket(semantic_dispatch) if semantic_dispatch else "database",
                     "storage_backend": "database",
                 }
             except Exception:
@@ -3256,7 +3312,8 @@ class AtelierService:
         channel_component = self._safe_storage_component(str(envelope_obj.get("channel_id") or ""), "channel")
         thread_component = self._safe_storage_component(str(envelope_obj.get("thread_id") or ""), "__root__")
         conversation_component = self._safe_storage_component(str(envelope_obj.get("conversation_id") or ""), "__conversation__")
-        target_dir = self._security_bucket_dir("guild_messages") / guild_component / channel_component / thread_component / conversation_component
+        semantic_bucket = self._semantic_storage_bucket(semantic_dispatch) if semantic_dispatch else "default"
+        target_dir = self._security_bucket_dir("guild_messages") / semantic_bucket / guild_component / channel_component / thread_component / conversation_component
         target_dir.mkdir(parents=True, exist_ok=True)
         target = target_dir / f"{message_id}.json"
         target.write_text(json.dumps({**payload, "message_id": message_id}, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -3270,6 +3327,7 @@ class AtelierService:
             "thread_id": envelope_obj.get("thread_id"),
             "relay_status": relay_status,
             "delivery_receipts": [],
+            "semantic_storage_bucket": semantic_bucket,
             "storage_path": str(target.relative_to(self._security_state_dir())),
             "storage_backend": "file",
         }

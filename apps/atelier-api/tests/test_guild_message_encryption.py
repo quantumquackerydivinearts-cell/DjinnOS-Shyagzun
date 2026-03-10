@@ -77,6 +77,22 @@ def test_encrypt_guild_message_runtime_emits_envelope() -> None:
     assert derivation["theatre_entropy_digest"] == hashlib.sha256(b"theatre_digest_456").hexdigest()
 
 
+def test_encrypt_guild_message_derives_semantic_dispatch_metadata() -> None:
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+    envelope = svc.encrypt_guild_message(
+        guild_id="guild.alchemy",
+        channel_id="hall.notice",
+        sender_id="player",
+        wand_id="wand_001",
+        message_text="Soa Myk Kysael",
+        metadata={"purpose": "semantic_dispatch"},
+    )
+    semantic_dispatch = envelope["metadata"]["semantic_runtime_dispatch"]
+    assert semantic_dispatch["dispatch_channel"] == "packet"
+    assert semantic_dispatch["persistence_mode"] == "persistent"
+    assert semantic_dispatch["consensus_mode"] == "authoritative_commit"
+
+
 def test_encrypt_and_decrypt_guild_message_roundtrip() -> None:
     envelope = AtelierService._encrypt_guild_message_runtime(
         guild_id="guild.alchemy",
@@ -331,6 +347,28 @@ def test_guild_message_history_and_revocation_gate() -> None:
         assert False, "expected wand_revoked"
     except ValueError as exc:
         assert str(exc) == "wand_revoked"
+    os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
+    shutil.rmtree(tmp_path)
+
+
+def test_persist_guild_message_envelope_uses_semantic_storage_bucket() -> None:
+    tmp_path = Path("c:/DjinnOS/.tmp-test-semantic-storage")
+    if tmp_path.exists():
+        shutil.rmtree(tmp_path)
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    os.environ["ATELIER_SECURITY_STATE_DIR"] = str(tmp_path)
+    svc = AtelierService(repo=None, kernel=None)  # type: ignore[arg-type]
+    envelope = svc.encrypt_guild_message(
+        guild_id="guild.alchemy",
+        channel_id="hall.notice",
+        sender_id="player",
+        wand_id="wand_001",
+        message_text="Soa Myk Kysael",
+        metadata={"purpose": "semantic_storage"},
+    )
+    persisted = svc.persist_guild_message_envelope(envelope=envelope, metadata={"purpose": "semantic_storage"})
+    assert persisted["semantic_storage_bucket"] == "persistent"
+    assert "guild_messages\\persistent\\" in str(persisted["storage_path"]) or "guild_messages/persistent/" in str(persisted["storage_path"])
     os.environ.pop("ATELIER_SECURITY_STATE_DIR", None)
     shutil.rmtree(tmp_path)
 

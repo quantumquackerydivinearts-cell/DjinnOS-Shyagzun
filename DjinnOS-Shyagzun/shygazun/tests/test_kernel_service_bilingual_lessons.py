@@ -189,9 +189,14 @@ def test_bilingual_project_derives_aster_chirality_topology_and_space_ops() -> N
     assert features["space_operator"] == "assign"
     code_surface = payload["surface_lowerings"]["code_surface"]
     placement_graph = payload["surface_lowerings"]["placement_graph"]
+    semantic_ir = payload["semantic_ir"]
     assert code_surface["entity_traits"]["chirality"] == "right"
     assert placement_graph["projection_hints"]["time_topology"] == "linear"
     assert placement_graph["projection_hints"]["space_operator"] == "assign"
+    assert semantic_ir["ir_version"] == "semantic_ir.v1"
+    assert semantic_ir["semantics"]["chirality"] == ["right"]
+    assert semantic_ir["semantics"]["temporal_topology"] == ["linear"]
+    assert semantic_ir["semantics"]["space_operator"] == ["assign"]
 
 
 def test_bilingual_project_derives_grapevine_systems_features() -> None:
@@ -214,6 +219,9 @@ def test_bilingual_project_derives_grapevine_systems_features() -> None:
         assert cluster_role in {"consensus", "authoritative_commit"}
     assert features["commit_authority"] is True
     assert payload["surface_lowerings"]["code_surface"]["entity_traits"]["commit_authority"] is True
+    semantic_ir = payload["semantic_ir"]
+    assert "packet" in semantic_ir["semantics"]["network_role"]
+    assert semantic_ir["semantics"]["commit_authority"] is True
 
 
 def test_bilingual_project_derives_cannabis_axis_projection_modes() -> None:
@@ -230,7 +238,10 @@ def test_bilingual_project_derives_cannabis_axis_projection_modes() -> None:
     assert features["tongue_projection"] == "lotus"
     assert features["cannabis_mode"] == "nounal"
     placement_graph = payload["surface_lowerings"]["placement_graph"]
+    semantic_ir = payload["semantic_ir"]
     assert "lotus" in placement_graph["projection_hints"]["tongue_projection"]
+    assert semantic_ir["semantics"]["axes"] == ["mind", "space", "time"]
+    assert semantic_ir["semantics"]["tongue_projection"] == ["lotus"]
 
 
 def test_bilingual_project_emits_byte_table_trace_and_semantic_trace() -> None:
@@ -254,6 +265,8 @@ def test_bilingual_cobra_surface_emits_machine_ready_payload() -> None:
     assert payload["code_surface"]["entity_traits"]["animacy"] == "animate"
     assert payload["placement_graph"]["projection_hints"]["animate"] is True
     assert payload["trust_contract"]["downstream_readiness"]["code_surface_safe"] is True
+    assert payload["semantic_ir"]["execution"]["downstream_readiness"]["code_surface_safe"] is True
+    assert payload["semantic_ir"]["authority"]["projection"]["english"] == "We love whales"
 
 
 def test_bilingual_teach_validate_accepts_canonical_lessons() -> None:
