@@ -15,7 +15,7 @@ from shygazun.kernel.constants.byte_table import (
 
 
 def test_byte_row_count_and_gaps() -> None:
-    assert len(SHYGAZUN_BYTE_ROWS) == 180
+    assert len(SHYGAZUN_BYTE_ROWS) == 210
     assert 124 not in SHYGAZUN_BYTE_TABLE
     assert 125 not in SHYGAZUN_BYTE_TABLE
     assert 126 not in SHYGAZUN_BYTE_TABLE
@@ -29,11 +29,11 @@ def test_first_and_last_rows_locked() -> None:
     assert first["symbol"] == "Ty"
     assert first["meaning"] == "Earth Initiator / material beginning"
 
-    last = byte_entry(183)
-    assert last["binary"] == "10110111"
-    assert last["tongue"] == "Grapevine"
-    assert last["symbol"] == "Kysael"
-    assert last["meaning"] == "Authoritative commit"
+    last = byte_entry(213)
+    assert last["binary"] == "11010101"
+    assert last["tongue"] == "Cannabis"
+    assert last["symbol"] == "Suy"
+    assert last["meaning"] == "Conscious temporal action / the act of mind deliberately moving through or shaping time"
 
 
 def test_commas_in_meaning_are_preserved() -> None:
@@ -43,7 +43,7 @@ def test_commas_in_meaning_are_preserved() -> None:
 
 def test_order_is_decimal_ascending() -> None:
     assert SHYGAZUN_BYTE_ORDER[0] == 0
-    assert SHYGAZUN_BYTE_ORDER[-1] == 183
+    assert SHYGAZUN_BYTE_ORDER[-1] == 213
     assert SHYGAZUN_BYTE_ORDER.index(123) < SHYGAZUN_BYTE_ORDER.index(128)
 
 
@@ -75,6 +75,7 @@ def test_tongue_grouping_is_stable() -> None:
         "AppleBlossom",
         "Aster",
         "Grapevine",
+        "Cannabis",
     }
     lotus = tongue_rows("Lotus")
     assert lotus[0]["decimal"] == 0
