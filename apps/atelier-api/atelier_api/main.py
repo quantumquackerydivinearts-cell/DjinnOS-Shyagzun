@@ -1629,6 +1629,29 @@ def get_registered_distribution(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@app.get("/public/distributions/registry")
+def public_distribution_registry(
+    distribution_id: str,
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    try:
+        record = svc.get_distribution_registry_entry(distribution_id=distribution_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    status = str(record.get("status") or "").strip()
+    if status.lower() != "active":
+        raise HTTPException(status_code=404, detail="distribution_inactive")
+    metadata_obj = record.get("metadata")
+    metadata = dict(metadata_obj) if isinstance(metadata_obj, Mapping) else {}
+    return {
+        "distribution_id": str(record.get("distribution_id") or "").strip(),
+        "display_name": str(record.get("display_name") or "").strip(),
+        "base_url": str(record.get("base_url") or "").strip(),
+        "status": status,
+        "shop_workspace_id": str(metadata.get("shop_workspace_id") or "").strip(),
+    }
+
+
 @app.get("/v1/distributions/registry/{distribution_id}/key-discovery")
 def get_distribution_key_discovery(
     distribution_id: str,

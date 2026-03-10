@@ -33,6 +33,8 @@ If you are serving the shop landing page from a new subdomain (for example `shop
 - `PUBLIC_ATELIER_URL` (for the Atelier host)
 - `SHOP_WORKSPACE_ID` (workspace that owns shop content)
 - `SHOP_CONTENT_API_URL` (API base URL for pulling shop content from the kernel)
+- `SHOP_DISTRIBUTION_ID` (optional: fetch shop base URL/workspace from the distribution registry)
+- `SHOP_REGISTRY_URL` (optional: base URL hosting `/public/distributions/registry`)
 - Add the shop subdomain to `CORS_ALLOWED_ORIGINS` if your frontend will call the API.
 
 Restart API:

@@ -354,6 +354,29 @@ def _shop_landing_html() -> str:
 def _fetch_shop_items(section_id: str) -> list[dict[str, object]]:
     base_url = os.getenv("SHOP_CONTENT_API_URL", "").strip()
     workspace_id = os.getenv("SHOP_WORKSPACE_ID", "").strip()
+    registry_url = os.getenv("SHOP_REGISTRY_URL", "").strip()
+    distribution_id = os.getenv("SHOP_DISTRIBUTION_ID", "").strip()
+
+    if distribution_id:
+        registry_base = registry_url or base_url
+        if registry_base:
+            query = urllib.parse.urlencode({"distribution_id": distribution_id})
+            url = f"{registry_base.rstrip('/')}/public/distributions/registry?{query}"
+            try:
+                with urllib.request.urlopen(url, timeout=5) as resp:
+                    payload = resp.read().decode("utf-8")
+            except Exception:
+                payload = ""
+            if payload:
+                try:
+                    record = json.loads(payload)
+                except json.JSONDecodeError:
+                    record = None
+                if isinstance(record, dict):
+                    status = str(record.get("status") or "").strip().lower()
+                    if status == "active":
+                        base_url = str(record.get("base_url") or "").strip() or base_url
+                        workspace_id = str(record.get("shop_workspace_id") or "").strip() or workspace_id
     if base_url == "" or workspace_id == "":
         return []
     query = urllib.parse.urlencode({"workspace_id": workspace_id, "section_id": section_id})
