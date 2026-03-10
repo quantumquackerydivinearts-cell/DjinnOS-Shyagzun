@@ -195,6 +195,36 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 181,10110101,Grapevine,Kysha,Consensus choir
 182,10110110,Grapevine,Kyom,Replica / masked follower
 183,10110111,Grapevine,Kysael,Authoritative commit
+184,10111000,Cannabis,At,Grounded awareness / consciousness of material presence (Lotus seen through Mind — the felt sense of being here, embodied, in a specific moment of earth)
+185,10111001,Cannabis,Ar,Chromatic perception / awareness of energetic quality (Rose through Mind — the direct experience of frequency, color as felt rather than measured)
+186,10111010,Cannabis,Av,Relational consciousness / awareness of connection and structure (Sakura through Mind — knowing where you stand in relation to other things)
+187,10111011,Cannabis,Azr,Structural intuition / felt sense of how things are assembled (Daisy through Mind — the bodily knowledge of mechanism and form)
+188,10111100,Cannabis,Af,Transformative awareness / consciousness of change in process (AppleBlossom through Mind — feeling a phase transition as it happens)
+189,10111101,Cannabis,An,Chiral discernment / awareness of handedness and temporal direction (Aster through Mind — the sense of which way time is turning)
+190,10111110,Cannabis,Od,Unspecified mental signal / noise without narrative (Grapevine dark through Mind)
+191,10111111,Cannabis,Ox,Of the quality of unconscious transmission (operator shadow as adjective)
+192,11000000,Cannabis,Om,In the manner of unconscious transmission (operator shadow as adverb)
+193,11000001,Cannabis,Soa*,Conscious persistence / the act of mind making something durable
+194,11000010,Cannabis,It,Grounded locality / the spatial fact of material presence (Lotus through Space — where something is in the most concrete sense, its place in the earth)
+195,11000011,Cannabis,Ir,Spectral field / the spatial distribution of energetic frequency (Rose through Space — color and energy as they occupy and define space around them)
+196,11000100,Cannabis,Iv,Relational geometry / the spatial structure of connection (Sakura through Space — the actual distances and orientations between things in relation)
+197,11000101,Cannabis,Izr,Structural volume / the space a form occupies and articulates (Daisy through Space — the three dimensional reality of how something is assembled)
+198,11000110,Cannabis,If,Transitional space / the spatial site of transformation (AppleBlossom through Space — the place where phase change happens, the crucible, the threshold)
+199,11000111,Cannabis,In,Chiral orientation / handedness as spatial phenomenon (Aster through Space — which way something faces in space, its mirror distinction)
+200,11001000,Cannabis,Ed,Unspecified spatial signal / network without location (Grapevine dark through Space)
+201,11001001,Cannabis,Ex,Of the quality of unlocated transmission (operator shadow as adjective)
+202,11001010,Cannabis,Em,In the manner of unlocated transmission (operator shadow as adverb)
+203,11001011,Cannabis,Sei,Conscious spatial action / the act of mind deliberately occupying or shaping space
+204,11001100,Cannabis,Yt,Grounded duration / the temporal weight of material existence (Lotus through Time — how long something has been here, its age as felt reality)
+205,11001101,Cannabis,Yr,Spectral timing / the frequency and rhythm of energetic cycles (Rose through Time — color and energy as they pulse and recur)
+206,11001110,Cannabis,Yv,Relational temporality / the timing of meeting and parting (Sakura through Time — when things come together and separate, the rhythm of relation)
+207,11001111,Cannabis,Yzr,Structural time / the temporal unfolding of form and assembly (Daisy through Time — how a structure develops, grows, completes itself)
+208,11010000,Cannabis,Yf,Transformative time / the duration of phase change (AppleBlossom through Time — how long transformation takes, the timing of alchemical process)
+209,11010001,Cannabis,Yn,Chiral time / the direction and handedness of temporal flow (Aster through Time — which way time is moving, linear or looped, folded or frozen)
+210,11010010,Cannabis,Ud,Unspecified temporal signal / propagation without sequence (Grapevine dark through Time)
+211,11010011,Cannabis,Ux,Of the quality of unsequenced transmission (operator shadow as adjective)
+212,11010100,Cannabis,Um,In the manner of unsequenced transmission (operator shadow as adverb)
+213,11010101,Cannabis,Suy,Conscious temporal action / the act of mind deliberately moving through or shaping time
 """
 
 
