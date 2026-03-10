@@ -57,6 +57,8 @@ const NAV_ITEMS = [
   "Clients",
   "Quotes",
   "Orders",
+  "Contracts",
+  "Ledger",
   "Commission Hall",
   "Suppliers",
   "Inventory",
@@ -91,10 +93,15 @@ function capabilitiesForRole(role) {
       "quote.write",
       "order.read",
       "order.write",
+      "contract.read",
+      "contract.write",
+      "contract.admin",
       "supplier.read",
       "supplier.write",
       "inventory.read",
-      "inventory.write"
+      "inventory.write",
+      "ledger.read",
+      "ledger.write"
     ];
   }
   if (role === "senior_artisan") {
@@ -120,6 +127,8 @@ function capabilitiesForRole(role) {
       "quote.write",
       "order.read",
       "order.write",
+      "contract.read",
+      "contract.write",
       "supplier.read",
       "supplier.write",
       "inventory.read",
@@ -146,6 +155,8 @@ function capabilitiesForRole(role) {
       "quote.read",
       "quote.write",
       "order.read",
+      "contract.read",
+      "contract.write",
       "supplier.read",
       "supplier.write",
       "inventory.read",
@@ -164,6 +175,7 @@ function capabilitiesForRole(role) {
     "client.read",
     "quote.read",
     "order.read",
+    "contract.read",
     "supplier.read",
     "inventory.read"
   ];
@@ -265,6 +277,16 @@ function buildShygazunSemanticSummary(projectOutput) {
 
 function downloadJson(filename, data) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadText(filename, text, type = "text/plain") {
+  const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -5954,6 +5976,7 @@ export function App() {
 
   const [leadName, setLeadName] = useState("");
   const [leadEmail, setLeadEmail] = useState("");
+  const [leadPhone, setLeadPhone] = useState("");
   const [leadDetails, setLeadDetails] = useState("");
   const [leads, setLeads] = useState([]);
   const [leadFilter, setLeadFilter] = useState("");
@@ -5976,6 +5999,22 @@ export function App() {
   const [orderCurrency, setOrderCurrency] = useState("USD");
   const [orders, setOrders] = useState([]);
   const [orderFilter, setOrderFilter] = useState("");
+  const [contracts, setContracts] = useState([]);
+  const [contractTitle, setContractTitle] = useState("");
+  const [contractCategory, setContractCategory] = useState("consultations");
+  const [contractPartyName, setContractPartyName] = useState("");
+  const [contractPartyEmail, setContractPartyEmail] = useState("");
+  const [contractPartyPhone, setContractPartyPhone] = useState("");
+  const [contractArtisanId, setContractArtisanId] = useState("");
+  const [contractAmount, setContractAmount] = useState("");
+  const [contractCurrency, setContractCurrency] = useState("USD");
+  const [contractTerms, setContractTerms] = useState("");
+  const [contractNotes, setContractNotes] = useState("");
+  const [contractSelectedId, setContractSelectedId] = useState("");
+  const [contractFilter, setContractFilter] = useState("");
+  const [ledgerEntries, setLedgerEntries] = useState([]);
+  const [ledgerMonth, setLedgerMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [ledgerSummary, setLedgerSummary] = useState(null);
 
   const [supplierName, setSupplierName] = useState("");
   const [supplierContact, setSupplierContact] = useState("");
@@ -6370,6 +6409,8 @@ export function App() {
   const [distributionMetadataText, setDistributionMetadataText] = useState('{\n  "source": "atelier.desktop.guild_hall",\n  "website_url": "https://www.quantumquackery.org",\n  "api_url": "https://djinnos-shyagzun-atelier-api.onrender.com",\n  "kernel_url": "https://atelier-api.quantumquackery.com"\n}');
   const [distributionRegistryList, setDistributionRegistryList] = useState([]);
   const [distributionRegistryOutput, setDistributionRegistryOutput] = useState(null);
+  const [distributionShopWorkspaceId, setDistributionShopWorkspaceId] = useState("");
+  const [distributionShopWorkspaceStatus, setDistributionShopWorkspaceStatus] = useState(null);
   const [distributionCapabilitiesOutput, setDistributionCapabilitiesOutput] = useState(null);
   const [serviceReadinessOutput, setServiceReadinessOutput] = useState(null);
   const [federationHealthOutput, setFederationHealthOutput] = useState(null);
@@ -6820,10 +6861,11 @@ export function App() {
       { label: "Clients", value: clients.length },
       { label: "Quotes", value: quotes.length },
       { label: "Orders", value: orders.length },
+      { label: "Contracts", value: contracts.length },
       { label: "Suppliers", value: suppliers.length },
       { label: "Inventory", value: inventoryItems.length }
     ],
-    [contacts, bookings, lessons, modules, leads, clients, quotes, orders, suppliers, inventoryItems]
+    [contacts, bookings, lessons, modules, leads, clients, quotes, orders, contracts, suppliers, inventoryItems]
   );
   const studioSelectedFile = useMemo(
     () => studioFiles.find((file) => file.id === studioSelectedFileId) || null,
@@ -7047,6 +7089,21 @@ export function App() {
     return data;
   }
 
+  async function apiCallRaw(path, method, body, tokenOverride) {
+    const token = tokenOverride === undefined ? adminGateToken : tokenOverride;
+    const response = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: buildHeaders(role, caps, token),
+      body: body === null ? undefined : JSON.stringify(body)
+    });
+    const text = await response.text();
+    setOutput(text);
+    if (!response.ok) {
+      throw new Error(text || `Request failed ${response.status}`);
+    }
+    return text;
+  }
+
   async function kernelCall(path, method, body) {
     const response = await fetch(`${KERNEL_BASE}${path}`, {
       method,
@@ -7232,6 +7289,7 @@ export function App() {
   const listClients = makeList(`/v1/clients?workspace_id=${encodeURIComponent(workspaceId)}`, setClients, "clients_list");
   const listQuotes = makeList(`/v1/quotes?workspace_id=${encodeURIComponent(workspaceId)}`, setQuotes, "quotes_list");
   const listOrders = makeList(`/v1/orders?workspace_id=${encodeURIComponent(workspaceId)}`, setOrders, "orders_list");
+  const listContracts = makeList(`/v1/contracts?workspace_id=${encodeURIComponent(workspaceId)}`, setContracts, "contracts_list");
   const listSuppliers = makeList(`/v1/suppliers?workspace_id=${encodeURIComponent(workspaceId)}`, setSuppliers, "suppliers_list");
   const listInventory = makeList(`/v1/inventory?workspace_id=${encodeURIComponent(workspaceId)}`, setInventoryItems, "inventory_list");
   const loadPublicQuotes = async () =>
@@ -7240,6 +7298,160 @@ export function App() {
       setPublicQuotes(data);
       return data;
     });
+
+  const loadLedgerEntries = async () =>
+    runAction("ledger_entries", async () => {
+      const data = await apiCall(`/v1/ledger/entries?workspace_id=${encodeURIComponent(workspaceId)}`, "GET", null);
+      setLedgerEntries(Array.isArray(data) ? data : []);
+      return data;
+    });
+
+  const loadLedgerSummary = async () =>
+    runAction("ledger_summary", async () => {
+      const data = await apiCall(
+        `/v1/ledger/payouts/summary?workspace_id=${encodeURIComponent(workspaceId)}&month=${encodeURIComponent(ledgerMonth)}`,
+        "GET",
+        null
+      );
+      setLedgerSummary(data);
+      return data;
+    });
+
+  const runLedgerPayouts = async (dryRun) =>
+    runAction("ledger_payout_run", async () => {
+      const data = await apiCall(
+        `/v1/ledger/payouts/run?workspace_id=${encodeURIComponent(workspaceId)}&month=${encodeURIComponent(ledgerMonth)}&dry_run=${
+          dryRun ? "true" : "false"
+        }`,
+        "POST",
+        null
+      );
+      setLedgerSummary(data);
+      return data;
+    });
+
+  const exportLedgerCsv = async () => {
+    const text = await apiCallRaw(
+      `/v1/ledger/payouts/export?workspace_id=${encodeURIComponent(workspaceId)}&month=${encodeURIComponent(ledgerMonth)}`,
+      "GET",
+      null
+    );
+    downloadText(`payouts-${ledgerMonth}.csv`, text, "text/csv");
+  };
+
+  const exportLedger1099 = async () => {
+    const text = await apiCallRaw(
+      `/v1/ledger/payouts/1099?workspace_id=${encodeURIComponent(workspaceId)}&month=${encodeURIComponent(ledgerMonth)}`,
+      "GET",
+      null
+    );
+    downloadText(`payouts-1099-${ledgerMonth}.csv`, text, "text/csv");
+  };
+
+  const createContract = async () =>
+    createEntity(
+      "contracts_create",
+      "/v1/contracts",
+      {
+        workspace_id: workspaceId,
+        title: contractTitle,
+        category: contractCategory,
+        party_name: contractPartyName,
+        party_email: contractPartyEmail || null,
+        party_phone: contractPartyPhone || null,
+        artisan_id: contractArtisanId || null,
+        amount_cents: Number.parseInt(contractAmount || "0", 10),
+        currency: contractCurrency,
+        terms: contractTerms,
+        notes: contractNotes,
+      },
+      () => {
+        setContractTitle("");
+        setContractPartyName("");
+        setContractPartyEmail("");
+        setContractPartyPhone("");
+        setContractArtisanId("");
+        setContractAmount("");
+        setContractTerms("");
+        setContractNotes("");
+      },
+      listContracts
+    );
+
+  const updateContract = async () => {
+    const safeId = String(contractSelectedId || "").trim();
+    if (!safeId) {
+      throw new Error("contract_id_required");
+    }
+    return runAction("contracts_update", async () => {
+      const data = await apiCall(
+        `/v1/contracts/${encodeURIComponent(safeId)}?workspace_id=${encodeURIComponent(workspaceId)}`,
+        "PATCH",
+        {
+          title: contractTitle || null,
+          category: contractCategory || null,
+          party_name: contractPartyName || null,
+          party_email: contractPartyEmail || null,
+          party_phone: contractPartyPhone || null,
+          artisan_id: contractArtisanId || null,
+          amount_cents: contractAmount ? Number.parseInt(contractAmount || "0", 10) : null,
+          currency: contractCurrency || null,
+          terms: contractTerms || null,
+          notes: contractNotes || null,
+        }
+      );
+      await listContracts();
+      return data;
+    });
+  };
+
+  const validateContract = async () => {
+    const safeId = String(contractSelectedId || "").trim();
+    if (!safeId) {
+      throw new Error("contract_id_required");
+    }
+    return runAction("contracts_validate", async () => {
+      const data = await apiCall(
+        `/v1/contracts/${encodeURIComponent(safeId)}/validate?workspace_id=${encodeURIComponent(workspaceId)}`,
+        "POST",
+        null
+      );
+      await listContracts();
+      return data;
+    });
+  };
+
+  const cancelContract = async () => {
+    const safeId = String(contractSelectedId || "").trim();
+    if (!safeId) {
+      throw new Error("contract_id_required");
+    }
+    return runAction("contracts_cancel", async () => {
+      const data = await apiCall(
+        `/v1/contracts/${encodeURIComponent(safeId)}/cancel?workspace_id=${encodeURIComponent(workspaceId)}`,
+        "POST",
+        null
+      );
+      await listContracts();
+      return data;
+    });
+  };
+
+  const processContract = async () => {
+    const safeId = String(contractSelectedId || "").trim();
+    if (!safeId) {
+      throw new Error("contract_id_required");
+    }
+    return runAction("contracts_process", async () => {
+      const data = await apiCall(
+        `/v1/contracts/${encodeURIComponent(safeId)}/process?workspace_id=${encodeURIComponent(workspaceId)}`,
+        "POST",
+        null
+      );
+      await listContracts();
+      return data;
+    });
+  };
   const loadPrivacyManifest = async () =>
     runAction("privacy_manifest_load", async () => {
       const data = await publicApiCall("/public/privacy/manifest", "GET", null);
@@ -7249,19 +7461,20 @@ export function App() {
 
   async function loadOrganizationOverview() {
     await runAction("organization_overview", async () => {
-      await Promise.all([
-        listContacts(),
-        listBookings(),
-        listLessons(),
-        listLessonProgress(),
-        listModules(),
-        listLeads(),
-        listClients(),
-        listQuotes(),
-        listOrders(),
-        listSuppliers(),
-        listInventory()
-      ]);
+        await Promise.all([
+          listContacts(),
+          listBookings(),
+          listLessons(),
+          listLessonProgress(),
+          listModules(),
+          listLeads(),
+          listClients(),
+          listQuotes(),
+          listOrders(),
+          listContracts(),
+          listSuppliers(),
+          listInventory()
+        ]);
       return {};
     });
   }
@@ -10068,6 +10281,7 @@ export function App() {
   const filteredClients = filtered(clients, clientFilter, ["full_name", "email", "status"]);
   const filteredQuotes = filtered(quotes, quoteFilter, ["title", "status", "currency"]);
   const filteredOrders = filtered(orders, orderFilter, ["title", "status", "currency"]);
+  const filteredContracts = filtered(contracts, contractFilter, ["title", "status", "category", "party_name"]);
   const filteredSuppliers = filtered(suppliers, supplierFilter, ["supplier_name", "contact_name", "contact_email"]);
   const filteredInventory = filtered(inventoryItems, inventoryFilter, ["sku", "name", "currency"]);
   const rendererEngineState = useMemo(() => {
@@ -12992,9 +13206,36 @@ export function App() {
       setDistributionSupportedProtocolVersionsText(JSON.stringify(messagingProtocol?.supported_versions || ["v1"], null, 2));
       setDistributionGuildIdsText(JSON.stringify(data?.guild_ids || [], null, 2));
       setDistributionMetadataText(JSON.stringify(data?.metadata || {}, null, 2));
+      setDistributionShopWorkspaceId(String(data?.metadata?.shop_workspace_id || ""));
       if (!guildRecipientDistributionId) {
         setGuildRecipientDistributionId(String(data?.distribution_id || safeDistributionId));
       }
+      return data;
+    });
+  };
+
+  const saveDistributionShopWorkspace = async () => {
+    await runAction("distribution_registry_set_shop_workspace", async () => {
+      setDistributionShopWorkspaceStatus({ status: "saving" });
+      const safeDistributionId = String(distributionId || "").trim();
+      if (!safeDistributionId) {
+        setDistributionShopWorkspaceStatus({ status: "error", detail: "distribution_id_required" });
+        throw new Error("distribution_id_required");
+      }
+      const shopWorkspaceId = String(distributionShopWorkspaceId || "").trim();
+      if (!shopWorkspaceId) {
+        setDistributionShopWorkspaceStatus({ status: "error", detail: "shop_workspace_id_required" });
+        throw new Error("shop_workspace_id_required");
+      }
+      const data = await apiCall(
+        `/v1/distributions/registry/${encodeURIComponent(safeDistributionId)}/shop-workspace`,
+        "PUT",
+        { shop_workspace_id: shopWorkspaceId }
+      );
+      setDistributionRegistryOutput(data);
+      await loadDistributionRegistryEntry(safeDistributionId);
+      await loadDistributionRegistryList();
+      setDistributionShopWorkspaceStatus({ status: "ok", detail: `Saved ${shopWorkspaceId}` });
       return data;
     });
   };
@@ -14174,7 +14415,34 @@ export function App() {
           <div className="row">
             <input value={leadName} onChange={(e) => setLeadName(e.target.value)} placeholder="lead name" />
             <input value={leadEmail} onChange={(e) => setLeadEmail(e.target.value)} placeholder="lead email" />
-            <button className="action" onClick={() => createEntity("leads_create", "/v1/leads", { workspace_id: workspaceId, full_name: leadName, email: leadEmail || null, details: leadDetails, status: "new", source: "internal" }, () => { setLeadName(""); setLeadEmail(""); setLeadDetails(""); }, listLeads)}>Create</button>
+            <input value={leadPhone} onChange={(e) => setLeadPhone(e.target.value)} placeholder="lead phone" />
+            <button
+              className="action"
+              onClick={() =>
+                createEntity(
+                  "leads_create",
+                  "/v1/leads",
+                  {
+                    workspace_id: workspaceId,
+                    full_name: leadName,
+                    email: leadEmail || null,
+                    phone: leadPhone || null,
+                    details: leadDetails,
+                    status: "new",
+                    source: "internal"
+                  },
+                  () => {
+                    setLeadName("");
+                    setLeadEmail("");
+                    setLeadPhone("");
+                    setLeadDetails("");
+                  },
+                  listLeads
+                )
+              }
+            >
+              Create
+            </button>
             <button className="action" onClick={listLeads}>Refresh</button>
           </div>
           <div className="row"><input value={leadDetails} onChange={(e) => setLeadDetails(e.target.value)} placeholder="lead details" /><input value={leadFilter} onChange={(e) => setLeadFilter(e.target.value)} placeholder="filter leads" /></div>
@@ -14238,6 +14506,79 @@ export function App() {
           </div>
           <div className="row"><input value={orderFilter} onChange={(e) => setOrderFilter(e.target.value)} placeholder="filter orders" /></div>
           <pre>{JSON.stringify(filteredOrders, null, 2)}</pre>
+        </section>
+      );
+    }
+    if (section === "Contracts") {
+      return (
+        <section className="panel">
+          <h2>Contracts</h2>
+          <div className="row">
+            <input value={contractTitle} onChange={(e) => setContractTitle(e.target.value)} placeholder="contract title" />
+            <select value={contractCategory} onChange={(e) => setContractCategory(e.target.value)}>
+              <option value="consultations">consultations</option>
+              <option value="licenses">licenses</option>
+              <option value="catalog">catalog</option>
+              <option value="custom-orders">custom-orders</option>
+              <option value="digital">digital</option>
+              <option value="land-assessments">land-assessments</option>
+              <option value="general">general</option>
+            </select>
+            <input value={contractPartyName} onChange={(e) => setContractPartyName(e.target.value)} placeholder="party name" />
+            <input value={contractPartyEmail} onChange={(e) => setContractPartyEmail(e.target.value)} placeholder="party email" />
+          </div>
+          <div className="row">
+            <input value={contractPartyPhone} onChange={(e) => setContractPartyPhone(e.target.value)} placeholder="party phone" />
+            <input value={contractArtisanId} onChange={(e) => setContractArtisanId(e.target.value)} placeholder="artisan id (optional)" />
+            <input value={contractAmount} onChange={(e) => setContractAmount(e.target.value)} placeholder="amount cents" />
+            <input value={contractCurrency} onChange={(e) => setContractCurrency(e.target.value)} placeholder="currency" />
+          </div>
+          <div className="row">
+            <textarea value={contractTerms} onChange={(e) => setContractTerms(e.target.value)} placeholder="terms" rows={4} />
+            <textarea value={contractNotes} onChange={(e) => setContractNotes(e.target.value)} placeholder="notes" rows={4} />
+          </div>
+          <div className="row">
+            <button className="action" onClick={createContract}>Create</button>
+            <button className="action" onClick={updateContract}>Update</button>
+            <button className="action" onClick={listContracts}>Refresh</button>
+          </div>
+          <div className="row">
+            <select value={contractSelectedId} onChange={(e) => setContractSelectedId(e.target.value)}>
+              <option value="">select contract</option>
+              {contracts.map((item) => (
+                <option key={`contract-${String(item?.id || "")}`} value={String(item?.id || "")}>
+                  {`${String(item?.id || "")} :: ${String(item?.title || "")}`}
+                </option>
+              ))}
+            </select>
+            <button className="action" onClick={validateContract} disabled={!adminVerified || role !== "steward"}>Validate</button>
+            <button className="action" onClick={cancelContract} disabled={!adminVerified || role !== "steward"}>Cancel</button>
+            <button className="action" onClick={processContract} disabled={!adminVerified || role !== "steward"}>Process</button>
+          </div>
+          <div className="row">
+            <input value={contractFilter} onChange={(e) => setContractFilter(e.target.value)} placeholder="filter contracts" />
+          </div>
+          <pre>{JSON.stringify(filteredContracts, null, 2)}</pre>
+        </section>
+      );
+    }
+    if (section === "Ledger") {
+      return (
+        <section className="panel">
+          <h2>Ledger</h2>
+          <div className="row">
+            <input value={ledgerMonth} onChange={(e) => setLedgerMonth(e.target.value)} placeholder="YYYY-MM" />
+            <button className="action" onClick={loadLedgerEntries} disabled={!adminVerified || role !== "steward"}>Load Entries</button>
+            <button className="action" onClick={loadLedgerSummary} disabled={!adminVerified || role !== "steward"}>Load Summary</button>
+            <button className="action" onClick={() => runLedgerPayouts(true)} disabled={!adminVerified || role !== "steward"}>Dry Run Payouts</button>
+            <button className="action" onClick={() => runLedgerPayouts(false)} disabled={!adminVerified || role !== "steward"}>Run Payouts</button>
+          </div>
+          <div className="row">
+            <button className="action" onClick={exportLedgerCsv} disabled={!adminVerified || role !== "steward"}>Export CSV</button>
+            <button className="action" onClick={exportLedger1099} disabled={!adminVerified || role !== "steward"}>Export 1099 CSV</button>
+          </div>
+          <pre>{JSON.stringify(ledgerSummary || {}, null, 2)}</pre>
+          <pre>{JSON.stringify(ledgerEntries, null, 2)}</pre>
         </section>
       );
     }
@@ -16727,6 +17068,10 @@ export function App() {
           setDistributionGuildIdsText={setDistributionGuildIdsText}
           distributionMetadataText={distributionMetadataText}
           setDistributionMetadataText={setDistributionMetadataText}
+          distributionShopWorkspaceId={distributionShopWorkspaceId}
+          setDistributionShopWorkspaceId={setDistributionShopWorkspaceId}
+          saveDistributionShopWorkspace={saveDistributionShopWorkspace}
+          distributionShopWorkspaceStatus={distributionShopWorkspaceStatus}
           registerDistributionRegistryEntry={registerDistributionRegistryEntry}
           loadDistributionRegistryEntry={loadDistributionRegistryEntry}
           loadDistributionRegistryList={loadDistributionRegistryList}

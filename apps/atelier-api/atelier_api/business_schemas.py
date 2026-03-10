@@ -119,6 +119,7 @@ class LeadCreate(BaseModel):
     workspace_id: str
     full_name: str
     email: str | None = None
+    phone: str | None = None
     details: str = ""
     status: str = "new"
     source: str = "internal"
@@ -129,6 +130,7 @@ class LeadOut(BaseModel):
     workspace_id: str
     full_name: str
     email: str | None
+    phone: str | None
     details: str
     status: str
     source: str
@@ -305,6 +307,92 @@ class ShopItemOut(BaseModel):
     steward_approved: bool
     approved_by: str
     approved_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PublicShopLeadRequest(BaseModel):
+    full_name: str
+    email: str | None = None
+    phone: str | None = None
+    details: str = ""
+    section_id: str = "general"
+
+
+class PublicShopQuoteRequest(BaseModel):
+    full_name: str
+    email: str | None = None
+    phone: str | None = None
+    details: str = ""
+    section_id: str = "custom-orders"
+    title: str | None = None
+
+
+class PublicShopCheckoutRequest(BaseModel):
+    section_id: str
+    quantity: int = 1
+    artisan_id: str | None = None
+    item_id: str | None = None
+
+
+class LedgerEntryOut(BaseModel):
+    id: str
+    workspace_id: str
+    account_type: str
+    owner_id: str | None
+    amount_cents: int
+    currency: str
+    section_id: str | None
+    reference_type: str | None
+    reference_id: str | None
+    metadata: dict[str, object]
+    created_at: datetime
+
+
+class ContractCreate(BaseModel):
+    workspace_id: str
+    title: str
+    category: str = "general"
+    party_name: str
+    party_email: str | None = None
+    party_phone: str | None = None
+    artisan_id: str | None = None
+    amount_cents: int = 0
+    currency: str = "USD"
+    terms: str = ""
+    notes: str = ""
+
+
+class ContractUpdate(BaseModel):
+    title: str | None = None
+    category: str | None = None
+    party_name: str | None = None
+    party_email: str | None = None
+    party_phone: str | None = None
+    artisan_id: str | None = None
+    amount_cents: int | None = None
+    currency: str | None = None
+    terms: str | None = None
+    notes: str | None = None
+
+
+class ContractOut(BaseModel):
+    id: str
+    workspace_id: str
+    title: str
+    category: str
+    party_name: str
+    party_email: str | None
+    party_phone: str | None
+    artisan_id: str | None
+    amount_cents: int
+    currency: str
+    status: str
+    terms: str
+    notes: str
+    validated_at: datetime | None
+    cancelled_at: datetime | None
+    processed_at: datetime | None
     created_at: datetime
     updated_at: datetime
 

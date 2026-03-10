@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Mapping, Optional, cast
 
-from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Form, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 
@@ -185,8 +187,9 @@ def _json_response(payload: object, status_code: int = 200) -> Response:
 def _shop_landing_html() -> str:
     website_url = os.getenv("PUBLIC_WEBSITE_URL", "https://www.quantumquackery.org").strip()
     atelier_url = os.getenv("PUBLIC_ATELIER_URL", "https://atelier-api.quantumquackery.com").strip()
+    shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or atelier_url)
     docs_url = f"{atelier_url.rstrip('/')}/docs"
-    cards_html = _shop_cards_html(atelier_url=atelier_url, docs_url=docs_url, website_url=website_url)
+    cards_html = _shop_cards_html(atelier_url=atelier_url, docs_url=docs_url, website_url=website_url, shop_url=shop_url)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -459,13 +462,22 @@ def _shop_link_overrides() -> dict[str, str]:
     }
 
 
-def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str) -> str:
+def _shop_checkout_url(shop_url: str, section_id: str) -> str:
+    env_key = f"SHOP_CHECKOUT_{section_id.replace('-', '_').upper()}"
+    override = os.getenv(env_key, "").strip()
+    if override:
+        return override
+    return f"{shop_url.rstrip('/')}/shop/checkout?section={section_id}"
+
+
+def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str, shop_url: str) -> str:
     link_overrides = _shop_link_overrides()
     cards: list[str] = []
     for section in _shop_sections():
         tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
         override = link_overrides.get(section["id"], "")
         cta_url = override or f"{atelier_url.rstrip('/')}/"
+        details_url = f"{shop_url.rstrip('/')}/{section['id']}"
         cards.append(
             f"""<section class="card">
         <div>
@@ -475,7 +487,7 @@ def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str) -> st
           <p>{section['summary']}</p>
         </div>
         <div class="cta-row">
-          <a class="btn" href="/shop/{section['id']}">Details</a>
+          <a class="btn" href="{details_url}">Details</a>
           <a class="btn primary" href="{cta_url}" rel="noopener">{section['cta']}</a>
         </div>
       </section>"""
@@ -509,9 +521,61 @@ def _shop_items_html(items: list[dict[str, object]]) -> str:
     return f'<div class="grid">{"".join(cards)}</div>'
 
 
-def _shop_section_html(section_id: str) -> str:
+def _shop_intake_html(section_id: str) -> str:
+    section = str(section_id or "general")
+    lead_label = "Request a consultation" if section in ("consultations", "land-assessments") else "Request details"
+    quote_enabled = section == "custom-orders"
+    timestamp = int(time.time())
+    quote_block = ""
+    if quote_enabled:
+        quote_block = f"""
+      <div class="card" style="margin-top: 18px;">
+        <h3>Request a custom quote</h3>
+        <p>Tell us what you need and we will draft a quote in the Atelier.</p>
+        <form method="post" action="/shop/quote" class="intake-form">
+          <input type="hidden" name="section_id" value="{section}" />
+          <input type="hidden" name="ts" value="{timestamp}" />
+          <input class="hp" name="company" tabindex="-1" autocomplete="off" />
+          <div class="row">
+            <input name="full_name" placeholder="Full name" required />
+            <input name="email" placeholder="Email" type="email" />
+          </div>
+          <div class="row">
+            <input name="phone" placeholder="Phone" />
+            <input name="title" placeholder="Project title" />
+          </div>
+          <textarea name="details" placeholder="Describe the request" rows="4"></textarea>
+          <button class="btn primary" type="submit">Send quote request</button>
+        </form>
+      </div>
+      """
+    return f"""
+    <div class="card" style="margin-top: 24px;">
+      <h3>{lead_label}</h3>
+      <p>We will capture this as a lead inside the Atelier so the team can respond quickly.</p>
+      <form method="post" action="/shop/lead" class="intake-form">
+        <input type="hidden" name="section_id" value="{section}" />
+        <input type="hidden" name="ts" value="{timestamp}" />
+        <input class="hp" name="company" tabindex="-1" autocomplete="off" />
+        <div class="row">
+          <input name="full_name" placeholder="Full name" required />
+          <input name="email" placeholder="Email" type="email" />
+        </div>
+        <div class="row">
+          <input name="phone" placeholder="Phone" />
+        </div>
+        <textarea name="details" placeholder="How can we help?" rows="4"></textarea>
+        <button class="btn primary" type="submit">Send request</button>
+      </form>
+    </div>
+    {quote_block}
+    """
+
+
+def _shop_section_html(section_id: str, notice: str | None = None) -> str:
     website_url = os.getenv("PUBLIC_WEBSITE_URL", "https://www.quantumquackery.org").strip()
     atelier_url = os.getenv("PUBLIC_ATELIER_URL", "https://atelier-api.quantumquackery.com").strip()
+    shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or atelier_url)
     docs_url = f"{atelier_url.rstrip('/')}/docs"
     section_map = {item["id"]: item for item in _shop_sections()}
     section = section_map.get(section_id)
@@ -520,7 +584,17 @@ def _shop_section_html(section_id: str) -> str:
     tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
     override = _shop_link_overrides().get(section_id, "")
     cta_url = override or f"{atelier_url.rstrip('/')}/"
+    checkout_url = _shop_checkout_url(shop_url, section_id)
     items_html = _shop_items_html(_fetch_shop_items(section_id))
+    intake_html = _shop_intake_html(section_id)
+    notice_text = ""
+    if notice == "lead":
+        notice_text = "Request received. The Atelier team will follow up shortly."
+    elif notice == "quote":
+        notice_text = "Quote request received. We will draft and respond soon."
+    elif notice:
+        notice_text = str(notice)
+    notice_html = f'<div class="notice">{notice_text}</div>' if notice_text else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -585,12 +659,44 @@ def _shop_section_html(section_id: str) -> str:
       font-size: 0.75rem;
       color: var(--muted);
     }}
-    .cta-row {{
-      margin-top: 18px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }}
+      .cta-row {{
+        margin-top: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }}
+      .intake-form {{
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }}
+      .intake-form .row {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }}
+      .intake-form input,
+      .intake-form textarea {{
+        flex: 1 1 220px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        font-family: inherit;
+      }}
+      .hp {{
+        display: none !important;
+        visibility: hidden;
+      }}
+      .notice {{
+        margin-top: 18px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: #ecfdf3;
+        color: #166534;
+        font-weight: 600;
+      }}
     .btn {{
       display: inline-flex;
       align-items: center;
@@ -617,24 +723,169 @@ def _shop_section_html(section_id: str) -> str:
 </head>
 <body>
   <main>
-    <div class="card">
-      <h1>{section['title']}</h1>
-      <div class="price">{section['price']}</div>
-      <div class="tags">{tags}</div>
-      <p>{section['summary']}</p>
-      <div class="cta-row">
-        <a class="btn primary" href="{cta_url}" rel="noopener">{section['cta']}</a>
-        <a class="btn" href="/shop">Back to Shop</a>
-        <a class="btn secondary" href="{website_url}" rel="noopener">Visit Quantum Quackery</a>
-        <a class="btn" href="{docs_url}" rel="noopener">API Docs</a>
+      <div class="card">
+        <h1>{section['title']}</h1>
+        <div class="price">{section['price']}</div>
+        <div class="tags">{tags}</div>
+        <p>{section['summary']}</p>
+        {notice_html}
+        <div class="cta-row">
+          <a class="btn primary" href="{cta_url}" rel="noopener">{section['cta']}</a>
+          {f'<a class="btn" href="{checkout_url}" rel="noopener">Checkout</a>' if checkout_url else ""}
+          <a class="btn" href="{shop_url.rstrip('/')}/shop">Back to Shop</a>
+          <a class="btn secondary" href="{website_url}" rel="noopener">Visit Quantum Quackery</a>
+          <a class="btn" href="{docs_url}" rel="noopener">API Docs</a>
+        </div>
       </div>
-    </div>
-    <div style="margin-top:24px;">
-      {items_html}
-    </div>
-  </main>
-</body>
+      <div style="margin-top:24px;">
+        {items_html}
+      </div>
+      {intake_html}
+    </main>
+  </body>
+    </html>"""
+
+
+def _normalize_shop_base(value: str) -> str:
+    normalized = value.rstrip("/")
+    if normalized.endswith("/shop"):
+        return normalized[: -len("/shop")]
+    return normalized
+
+
+def _shop_api_base() -> str:
+    return os.getenv("SHOP_CONTENT_API_URL", "").strip() or os.getenv(
+        "PUBLIC_ATELIER_URL", "https://atelier-api.quantumquackery.com"
+    ).strip()
+
+
+def _submit_shop_payload(path: str, payload: dict[str, object]) -> tuple[bool, str]:
+    url = f"{_shop_api_base().rstrip('/')}{path}"
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=8) as response:
+            body = response.read().decode("utf-8", errors="ignore")
+            return True, body or "ok"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _request_checkout_url(section_id: str) -> tuple[bool, str]:
+    ok, body = _submit_shop_payload("/public/shop/checkout-session", {"section_id": section_id, "quantity": 1})
+    if not ok:
+        return False, body
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return False, "invalid_checkout_response"
+    url = str(payload.get("url") or "").strip()
+    if not url:
+        return False, "checkout_url_missing"
+    return True, url
+
+
+def _shop_submission_html(*, ok: bool, title: str, detail: str) -> str:
+    atelier_url = os.getenv("PUBLIC_ATELIER_URL", "https://atelier-api.quantumquackery.com").strip()
+    shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or atelier_url)
+    return f"""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} | Phoenix AMS-CRM Shop</title>
+    <style>
+      :root {{
+        color-scheme: light;
+        --ink: #111827;
+        --muted: #6b7280;
+        --accent: #0f766e;
+        --surface: #ffffff;
+        --border: #e5e7eb;
+      }}
+      body {{
+        margin: 0;
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+        background: #f8fafc;
+      }}
+      main {{
+        max-width: 760px;
+        margin: 48px auto;
+        padding: 24px;
+      }}
+      .card {{
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      }}
+      .status {{
+        font-weight: 700;
+        color: { "#0f766e" if ok else "#b91c1c" };
+      }}
+      .btn {{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 16px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        border: 1px solid var(--border);
+        color: var(--ink);
+        background: var(--surface);
+        margin-top: 16px;
+      }}
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="card">
+        <h1 class="status">{title}</h1>
+        <p>{detail}</p>
+        <a class="btn" href="{shop_url.rstrip('/')}/shop">Back to Shop</a>
+      </div>
+    </main>
+  </body>
 </html>"""
+
+
+def _check_shop_rate_limit(client_id: str, *, window_seconds: int = 600, max_hits: int = 5) -> bool:
+    now = time.time()
+    bucket = _shop_rate_limits.setdefault(client_id, [])
+    bucket[:] = [ts for ts in bucket if now - ts < window_seconds]
+    if len(bucket) >= max_hits:
+        return False
+    bucket.append(now)
+    return True
+
+
+def _validate_shop_submission(
+    *,
+    request: Request,
+    honeypot: str,
+    ts: str,
+    section_id: str,
+) -> tuple[bool, str]:
+    if honeypot.strip():
+        return False, "submission_blocked"
+    try:
+        submitted_at = int(ts)
+    except ValueError:
+        return False, "submission_invalid_timestamp"
+    now = int(time.time())
+    if submitted_at > now or now - submitted_at < 2:
+        return False, "submission_too_fast"
+    if now - submitted_at > 86400:
+        return False, "submission_expired"
+    client_id = request.client.host if request.client else "unknown"
+    rate_key = f"{client_id}:{section_id}"
+    if not _check_shop_rate_limit(rate_key):
+        return False, "rate_limited"
+    return True, "ok"
 
 
 app = FastAPI()
@@ -645,12 +896,101 @@ _kernel = Kernel(field=_field, registers=_registers)
 _state = RuntimeState()
 _akinenwun_dictionary = AkinenwunDictionary()
 _lesson_registry = load_lesson_registry()
+_shop_rate_limits: dict[str, list[float]] = {}
 
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)
-def shop_landing() -> str:
+def shop_landing(request: Request, section: Optional[str] = None) -> str:
+    notice = request.query_params.get("submitted")
+    if section:
+        return _shop_section_html(str(section), notice=notice)
     return _shop_landing_html()
+
+
+@app.get("/consultations", response_class=HTMLResponse)
+@app.get("/licenses", response_class=HTMLResponse)
+@app.get("/catalog", response_class=HTMLResponse)
+@app.get("/physical-goods", response_class=HTMLResponse)
+@app.get("/custom-orders", response_class=HTMLResponse)
+@app.get("/digital", response_class=HTMLResponse)
+@app.get("/digital-products", response_class=HTMLResponse)
+@app.get("/land-assessments", response_class=HTMLResponse)
+def shop_section_root(request: Request) -> str:
+    section_id = request.url.path.lstrip("/")
+    if section_id == "physical-goods":
+        section_id = "catalog"
+    if section_id == "digital-products":
+        section_id = "digital"
+    notice = request.query_params.get("submitted")
+    return _shop_section_html(section_id, notice=notice)
+
+
+@app.post("/shop/lead", response_class=HTMLResponse)
+def shop_lead(
+    request: Request,
+    full_name: str = Form(...),
+    email: str = Form(""),
+    phone: str = Form(""),
+    details: str = Form(""),
+    section_id: str = Form("general"),
+    ts: str = Form(""),
+    company: str = Form(""),
+) -> str:
+    valid, reason = _validate_shop_submission(request=request, honeypot=company, ts=ts, section_id=section_id)
+    if not valid:
+        return _shop_submission_html(ok=False, title="Request failed", detail=reason)
+    payload = {
+        "full_name": full_name,
+        "email": email or None,
+        "phone": phone or None,
+        "details": details or "",
+        "section_id": section_id or "general",
+    }
+    ok, detail = _submit_shop_payload("/public/shop/leads", payload)
+    if ok:
+        return RedirectResponse(url=f"/{section_id}?submitted=lead", status_code=303)
+    return _shop_submission_html(ok=ok, title="Request failed", detail=detail)
+
+
+@app.post("/shop/quote", response_class=HTMLResponse)
+def shop_quote(
+    request: Request,
+    full_name: str = Form(...),
+    email: str = Form(""),
+    phone: str = Form(""),
+    title: str = Form(""),
+    details: str = Form(""),
+    section_id: str = Form("custom-orders"),
+    ts: str = Form(""),
+    company: str = Form(""),
+) -> str:
+    valid, reason = _validate_shop_submission(request=request, honeypot=company, ts=ts, section_id=section_id)
+    if not valid:
+        return _shop_submission_html(ok=False, title="Quote request failed", detail=reason)
+    payload = {
+        "full_name": full_name,
+        "email": email or None,
+        "phone": phone or None,
+        "title": title or None,
+        "details": details or "",
+        "section_id": section_id or "custom-orders",
+    }
+    ok, detail = _submit_shop_payload("/public/shop/quotes", payload)
+    if ok:
+        return RedirectResponse(url=f"/{section_id}?submitted=quote", status_code=303)
+    return _shop_submission_html(ok=ok, title="Quote request failed", detail=detail)
+
+
+@app.get("/shop/checkout")
+def shop_checkout(section: str) -> Response:
+    section_id = str(section or "").strip()
+    if not section_id:
+        return _shop_submission_html(ok=False, title="Checkout failed", detail="section_required")
+    ok, detail = _request_checkout_url(section_id)
+    if ok:
+        return RedirectResponse(url=detail, status_code=303)
+    return _shop_submission_html(ok=False, title="Checkout failed", detail=detail)
 
 
 @app.get("/shop/{section_id}", response_class=HTMLResponse)

@@ -59,6 +59,7 @@ from .business_schemas import (
     ContactOut,
     LeadCreate,
     LeadOut,
+    LedgerEntryOut,
     InventoryItemCreate,
     InventoryItemOut,
     LessonCreate,
@@ -73,6 +74,9 @@ from .business_schemas import (
     PublicCommissionQuoteOut,
     QuoteCreate,
     QuoteOut,
+    ContractCreate,
+    ContractUpdate,
+    ContractOut,
     ShopItemCreate,
     ShopItemOut,
     ShopItemUpdate,
@@ -242,6 +246,7 @@ from .models import (
     InventoryItem,
     JournalEntry,
     Lead,
+    LedgerEntry,
     LayerEdge,
     LayerEvent,
     LayerNode,
@@ -250,6 +255,7 @@ from .models import (
     LearningModule,
     NamedQuest,
     Order,
+    Contract,
     Quote,
     ShopItem,
     Supplier,
@@ -271,6 +277,14 @@ from .models import (
 from .repositories import AtelierRepository
 from .validators import build_scene_graph_content_from_cobra, validate_cobra_content, validate_json_content, validate_scene_realm
 from .types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse
+
+
+def _safe_parse_json(raw: str) -> dict[str, object]:
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
+    except json.JSONDecodeError:
+        return {}
 
 
 class AtelierService:
@@ -4808,6 +4822,7 @@ class AtelierService:
             workspace_id=payload.workspace_id,
             full_name=payload.full_name,
             email=payload.email,
+            phone=payload.phone,
             details=payload.details,
             status=payload.status,
             source=payload.source,
@@ -4866,6 +4881,306 @@ class AtelierService:
         )
         out = self._require_repo().create_order(row)
         return OrderOut.model_validate(out, from_attributes=True)
+
+    def list_contracts(self, workspace_id: str) -> Sequence[ContractOut]:
+        rows = self._require_repo().list_contracts(workspace_id=workspace_id)
+        return [ContractOut.model_validate(row, from_attributes=True) for row in rows]
+
+    def create_contract(self, payload: ContractCreate) -> ContractOut:
+        now = datetime.utcnow()
+        row = Contract(
+            workspace_id=payload.workspace_id,
+            title=payload.title,
+            category=payload.category,
+            party_name=payload.party_name,
+            party_email=payload.party_email,
+            party_phone=payload.party_phone,
+            artisan_id=payload.artisan_id,
+            amount_cents=payload.amount_cents,
+            currency=payload.currency,
+            status="draft",
+            terms=payload.terms,
+            notes=payload.notes,
+            created_at=now,
+            updated_at=now,
+        )
+        out = self._require_repo().create_contract(row)
+        return ContractOut.model_validate(out, from_attributes=True)
+
+    def update_contract(self, *, workspace_id: str, contract_id: str, payload: ContractUpdate) -> ContractOut:
+        repo = self._require_repo()
+        row = repo.get_contract(workspace_id=workspace_id, contract_id=contract_id)
+        if row is None:
+            raise ValueError("contract_not_found")
+        if payload.title is not None:
+            row.title = payload.title
+        if payload.category is not None:
+            row.category = payload.category
+        if payload.party_name is not None:
+            row.party_name = payload.party_name
+        if payload.party_email is not None:
+            row.party_email = payload.party_email
+        if payload.party_phone is not None:
+            row.party_phone = payload.party_phone
+        if payload.artisan_id is not None:
+            row.artisan_id = payload.artisan_id
+        if payload.amount_cents is not None:
+            row.amount_cents = payload.amount_cents
+        if payload.currency is not None:
+            row.currency = payload.currency
+        if payload.terms is not None:
+            row.terms = payload.terms
+        if payload.notes is not None:
+            row.notes = payload.notes
+        row.updated_at = datetime.utcnow()
+        saved = repo.update_contract(row)
+        return ContractOut.model_validate(saved, from_attributes=True)
+
+    def validate_contract(self, *, workspace_id: str, contract_id: str) -> ContractOut:
+        repo = self._require_repo()
+        row = repo.get_contract(workspace_id=workspace_id, contract_id=contract_id)
+        if row is None:
+            raise ValueError("contract_not_found")
+        if row.status == "cancelled":
+            raise ValueError("contract_cancelled")
+        if row.status == "processed":
+            raise ValueError("contract_processed")
+        row.status = "validated"
+        row.validated_at = datetime.utcnow()
+        row.updated_at = row.validated_at
+        saved = repo.update_contract(row)
+        return ContractOut.model_validate(saved, from_attributes=True)
+
+    def cancel_contract(self, *, workspace_id: str, contract_id: str) -> ContractOut:
+        repo = self._require_repo()
+        row = repo.get_contract(workspace_id=workspace_id, contract_id=contract_id)
+        if row is None:
+            raise ValueError("contract_not_found")
+        if row.status == "processed":
+            raise ValueError("contract_processed")
+        row.status = "cancelled"
+        row.cancelled_at = datetime.utcnow()
+        row.updated_at = row.cancelled_at
+        saved = repo.update_contract(row)
+        return ContractOut.model_validate(saved, from_attributes=True)
+
+    def process_contract(self, *, workspace_id: str, contract_id: str) -> ContractOut:
+        repo = self._require_repo()
+        row = repo.get_contract(workspace_id=workspace_id, contract_id=contract_id)
+        if row is None:
+            raise ValueError("contract_not_found")
+        if row.status != "validated":
+            raise ValueError("contract_not_validated")
+        row.status = "processed"
+        row.processed_at = datetime.utcnow()
+        row.updated_at = row.processed_at
+        saved = repo.update_contract(row)
+        return ContractOut.model_validate(saved, from_attributes=True)
+
+    def list_ledger_entries(
+        self,
+        workspace_id: str,
+        account_type: str | None = None,
+        owner_id: str | None = None,
+    ) -> Sequence[LedgerEntryOut]:
+        rows = self._require_repo().list_ledger_entries(
+            workspace_id=workspace_id,
+            account_type=account_type,
+            owner_id=owner_id,
+        )
+        outputs: list[LedgerEntryOut] = []
+        for row in rows:
+            outputs.append(
+                LedgerEntryOut(
+                    id=row.id,
+                    workspace_id=row.workspace_id,
+                    account_type=row.account_type,
+                    owner_id=row.owner_id,
+                    amount_cents=row.amount_cents,
+                    currency=row.currency,
+                    section_id=row.section_id,
+                    reference_type=row.reference_type,
+                    reference_id=row.reference_id,
+                    metadata=_safe_parse_json(row.metadata_json),
+                    created_at=row.created_at,
+                )
+            )
+        return outputs
+
+    def summarize_artisan_payouts(
+        self,
+        workspace_id: str,
+        month: str,
+    ) -> dict[str, object]:
+        payables = self._require_repo().list_ledger_entries(
+            workspace_id=workspace_id,
+            account_type="artisan_payable",
+            owner_id=None,
+        )
+        payouts = self._require_repo().list_ledger_entries(
+            workspace_id=workspace_id,
+            account_type="artisan_payout",
+            owner_id=None,
+        )
+        by_owner: dict[str, dict[str, int]] = {}
+        for row in payables:
+            created = row.created_at
+            if created.strftime("%Y-%m") != month:
+                continue
+            owner = row.owner_id or "unassigned"
+            record = by_owner.setdefault(owner, {"payable_cents": 0, "paid_cents": 0})
+            record["payable_cents"] += int(row.amount_cents)
+        for row in payouts:
+            created = row.created_at
+            if created.strftime("%Y-%m") != month:
+                continue
+            owner = row.owner_id or "unassigned"
+            record = by_owner.setdefault(owner, {"payable_cents": 0, "paid_cents": 0})
+            record["paid_cents"] += int(row.amount_cents)
+        results = []
+        for owner, record in by_owner.items():
+            remaining = max(0, record["payable_cents"] - record["paid_cents"])
+            results.append(
+                {
+                    "artisan_id": owner,
+                    "payable_cents": record["payable_cents"],
+                    "paid_cents": record["paid_cents"],
+                    "remaining_cents": remaining,
+                }
+            )
+        return {"month": month, "currency": "USD", "payouts": results}
+
+    def run_monthly_payouts(
+        self,
+        workspace_id: str,
+        month: str,
+        *,
+        dry_run: bool = False,
+    ) -> dict[str, object]:
+        summary = self.summarize_artisan_payouts(workspace_id=workspace_id, month=month)
+        payouts = summary.get("payouts", [])
+        created_entries: list[LedgerEntry] = []
+        if not dry_run and isinstance(payouts, list):
+            for payout in payouts:
+                if not isinstance(payout, dict):
+                    continue
+                artisan_id = str(payout.get("artisan_id") or "unassigned")
+                remaining = int(payout.get("remaining_cents") or 0)
+                if remaining <= 0:
+                    continue
+                created_entries.append(
+                    LedgerEntry(
+                        workspace_id=workspace_id,
+                        account_type="artisan_payout",
+                        owner_id=artisan_id,
+                        amount_cents=remaining,
+                        currency="USD",
+                        section_id=None,
+                        reference_type="monthly_payout",
+                        reference_id=f"{month}:{artisan_id}",
+                        metadata_json=json.dumps({"month": month}),
+                    )
+                )
+            if created_entries:
+                self._require_repo().create_ledger_entries(created_entries)
+        summary["payout_created"] = len(created_entries)
+        summary["dry_run"] = dry_run
+        return summary
+
+    def record_shop_sale_ledger(
+        self,
+        *,
+        workspace_id: str,
+        section_id: str,
+        artisan_id: str | None,
+        currency: str,
+        gross_cents: int,
+        fee_cents: int,
+        tax_cents: int,
+        commission_cents: int,
+        net_cents: int,
+        reference_type: str,
+        reference_id: str,
+        metadata: dict[str, object],
+    ) -> Sequence[LedgerEntryOut]:
+        if self._require_repo().ledger_reference_exists(reference_id):
+            return []
+        net_after_tax = max(0, net_cents - tax_cents)
+        artisan_due = max(0, net_after_tax - commission_cents)
+        entries = [
+            LedgerEntry(
+                workspace_id=workspace_id,
+                account_type="platform_cash",
+                owner_id=None,
+                amount_cents=max(0, net_cents),
+                currency=currency,
+                section_id=section_id,
+                reference_type=reference_type,
+                reference_id=reference_id,
+                metadata_json=json.dumps({"gross_cents": gross_cents, **metadata}),
+            ),
+            LedgerEntry(
+                workspace_id=workspace_id,
+                account_type="processor_fees",
+                owner_id=None,
+                amount_cents=max(0, fee_cents),
+                currency=currency,
+                section_id=section_id,
+                reference_type=reference_type,
+                reference_id=reference_id,
+                metadata_json=json.dumps(metadata),
+            ),
+            LedgerEntry(
+                workspace_id=workspace_id,
+                account_type="tax_liability",
+                owner_id=None,
+                amount_cents=max(0, tax_cents),
+                currency=currency,
+                section_id=section_id,
+                reference_type=reference_type,
+                reference_id=reference_id,
+                metadata_json=json.dumps(metadata),
+            ),
+            LedgerEntry(
+                workspace_id=workspace_id,
+                account_type="platform_revenue",
+                owner_id=None,
+                amount_cents=max(0, commission_cents),
+                currency=currency,
+                section_id=section_id,
+                reference_type=reference_type,
+                reference_id=reference_id,
+                metadata_json=json.dumps(metadata),
+            ),
+            LedgerEntry(
+                workspace_id=workspace_id,
+                account_type="artisan_payable",
+                owner_id=artisan_id,
+                amount_cents=max(0, artisan_due),
+                currency=currency,
+                section_id=section_id,
+                reference_type=reference_type,
+                reference_id=reference_id,
+                metadata_json=json.dumps(metadata),
+            ),
+        ]
+        created = self._require_repo().create_ledger_entries(entries)
+        return [
+            LedgerEntryOut(
+                id=row.id,
+                workspace_id=row.workspace_id,
+                account_type=row.account_type,
+                owner_id=row.owner_id,
+                amount_cents=row.amount_cents,
+                currency=row.currency,
+                section_id=row.section_id,
+                reference_type=row.reference_type,
+                reference_id=row.reference_id,
+                metadata=_safe_parse_json(row.metadata_json),
+                created_at=row.created_at,
+            )
+            for row in created
+        ]
 
     def list_inventory_items(self, workspace_id: str) -> Sequence[InventoryItemOut]:
         rows = self._require_repo().list_inventory_items(workspace_id=workspace_id)
@@ -11826,6 +12141,13 @@ class AtelierService:
             include_hidden=include_hidden,
         )
         return [self._shop_item_out(row) for row in rows]
+
+    def get_shop_item(self, *, workspace_id: str, item_id: str) -> ShopItemOut:
+        repo = self._require_repo()
+        row = repo.get_shop_item(workspace_id=workspace_id, item_id=item_id)
+        if row is None:
+            raise ValueError("shop_item_not_found")
+        return self._shop_item_out(row)
 
     def create_shop_item(
         self,

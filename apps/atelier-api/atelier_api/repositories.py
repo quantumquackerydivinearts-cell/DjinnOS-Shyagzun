@@ -15,6 +15,7 @@ from .models import (
     InventoryItem,
     JournalEntry,
     Lead,
+    LedgerEntry,
     LayerEdge,
     LayerEvent,
     LayerNode,
@@ -23,6 +24,7 @@ from .models import (
     LearningModule,
     NamedQuest,
     Order,
+    Contract,
     Realm,
     Scene,
     WorldRegion,
@@ -118,6 +120,33 @@ class AtelierRepository:
         self._db.refresh(row)
         return row
 
+    def create_ledger_entries(self, rows: Sequence[LedgerEntry]) -> Sequence[LedgerEntry]:
+        self._db.add_all(list(rows))
+        self._db.commit()
+        for row in rows:
+            self._db.refresh(row)
+        return rows
+
+    def list_ledger_entries(
+        self,
+        workspace_id: str,
+        account_type: str | None = None,
+        owner_id: str | None = None,
+    ) -> Sequence[LedgerEntry]:
+        query = select(LedgerEntry).where(LedgerEntry.workspace_id == workspace_id)
+        if account_type:
+            query = query.where(LedgerEntry.account_type == account_type)
+        if owner_id:
+            query = query.where(LedgerEntry.owner_id == owner_id)
+        return self._db.scalars(query.order_by(LedgerEntry.created_at.desc())).all()
+
+    def ledger_reference_exists(self, reference_id: str) -> bool:
+        if not reference_id:
+            return False
+        return self._db.scalars(
+            select(LedgerEntry.id).where(LedgerEntry.reference_id == reference_id).limit(1)
+        ).first() is not None
+
     def list_clients(self, workspace_id: str) -> Sequence[Client]:
         return self._db.scalars(select(Client).where(Client.workspace_id == workspace_id)).all()
 
@@ -148,6 +177,24 @@ class AtelierRepository:
         return self._db.scalars(select(Order).where(Order.workspace_id == workspace_id)).all()
 
     def create_order(self, row: Order) -> Order:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_contracts(self, workspace_id: str) -> Sequence[Contract]:
+        return self._db.scalars(select(Contract).where(Contract.workspace_id == workspace_id)).all()
+
+    def get_contract(self, *, workspace_id: str, contract_id: str) -> Contract | None:
+        return self._db.scalar(select(Contract).where(Contract.workspace_id == workspace_id, Contract.id == contract_id))
+
+    def create_contract(self, row: Contract) -> Contract:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def update_contract(self, row: Contract) -> Contract:
         self._db.add(row)
         self._db.commit()
         self._db.refresh(row)

@@ -53,6 +53,10 @@ export function GuildHallPanel(props) {
     setDistributionGuildIdsText,
     distributionMetadataText,
     setDistributionMetadataText,
+    distributionShopWorkspaceId,
+    setDistributionShopWorkspaceId,
+    saveDistributionShopWorkspace,
+    distributionShopWorkspaceStatus,
     registerDistributionRegistryEntry,
     loadDistributionRegistryEntry,
     loadDistributionRegistryList,
@@ -214,6 +218,17 @@ export function GuildHallPanel(props) {
         : currentFederationTrust === "key_known" || currentFederationTrust === "key_only"
           ? "badge-warn"
           : "";
+  const shopWorkspaceStatus = distributionShopWorkspaceStatus && typeof distributionShopWorkspaceStatus === "object"
+    ? distributionShopWorkspaceStatus
+    : null;
+  const shopWorkspaceBadgeClass =
+    shopWorkspaceStatus?.status === "ok"
+      ? "badge-ok"
+      : shopWorkspaceStatus?.status === "error"
+        ? "badge-error"
+        : shopWorkspaceStatus?.status === "saving"
+          ? "badge-warn"
+          : "";
 
   return (
     <section className="panel guild-hall-shell">
@@ -288,14 +303,30 @@ export function GuildHallPanel(props) {
               <input value={distributionProtocolFamily} onChange={(e) => setDistributionProtocolFamily(e.target.value)} placeholder="protocol family" />
               <input value={distributionProtocolVersion} onChange={(e) => setDistributionProtocolVersion(e.target.value)} placeholder="protocol version" />
             </div>
-            <div className="row">
-              <textarea value={distributionSupportedProtocolVersionsText} onChange={(e) => setDistributionSupportedProtocolVersionsText(e.target.value)} placeholder="supported protocol versions JSON array" rows={4} />
-              <textarea value={distributionGuildIdsText} onChange={(e) => setDistributionGuildIdsText(e.target.value)} placeholder="guild ids JSON array" rows={4} />
-              <textarea value={distributionMetadataText} onChange={(e) => setDistributionMetadataText(e.target.value)} placeholder="distribution metadata JSON" rows={4} />
-            </div>
-            <div className="row">
-              <button className="action" onClick={registerDistributionRegistryEntry}>Register Distribution</button>
-              <button className="action" onClick={() => loadDistributionRegistryEntry()}>Load Distribution</button>
+              <div className="row">
+                <textarea value={distributionSupportedProtocolVersionsText} onChange={(e) => setDistributionSupportedProtocolVersionsText(e.target.value)} placeholder="supported protocol versions JSON array" rows={4} />
+                <textarea value={distributionGuildIdsText} onChange={(e) => setDistributionGuildIdsText(e.target.value)} placeholder="guild ids JSON array" rows={4} />
+                <textarea value={distributionMetadataText} onChange={(e) => setDistributionMetadataText(e.target.value)} placeholder="distribution metadata JSON" rows={4} />
+              </div>
+              <div className="row">
+                <input value={distributionShopWorkspaceId} onChange={(e) => setDistributionShopWorkspaceId(e.target.value)} placeholder="shop workspace id" />
+                <button className="action" onClick={saveDistributionShopWorkspace} disabled={!adminVerified || role !== "steward"}>
+                  Set Shop Workspace
+                </button>
+                <button
+                  className="action"
+                  onClick={() => setDistributionShopWorkspaceId(String(distributionRegistryOutput?.metadata?.shop_workspace_id || ""))}
+                >
+                  Load From Registry
+                </button>
+                <span className="badge">{`Current shop workspace: ${String(distributionRegistryOutput?.metadata?.shop_workspace_id || "none")}`}</span>
+                {shopWorkspaceStatus ? (
+                  <span className={`badge ${shopWorkspaceBadgeClass}`}>{shopWorkspaceStatus.detail || shopWorkspaceStatus.status}</span>
+                ) : null}
+              </div>
+              <div className="row">
+                <button className="action" onClick={registerDistributionRegistryEntry}>Register Distribution</button>
+                <button className="action" onClick={() => loadDistributionRegistryEntry()}>Load Distribution</button>
               <button className="action" onClick={loadDistributionRegistryList}>Load Distribution Registry</button>
             </div>
             <div className="row">

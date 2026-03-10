@@ -142,6 +142,7 @@ class Lead(Base):
     workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
     details: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(40), nullable=False, default="new")
     source: Mapped[str] = mapped_column(String(60), nullable=False, default="internal")
@@ -201,6 +202,49 @@ class Order(Base):
     workspace: Mapped[Workspace] = relationship()
     quote: Mapped[Quote | None] = relationship()
     client: Mapped[Client | None] = relationship()
+
+
+class Contract(Base):
+    __tablename__ = "contracts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    category: Mapped[str] = mapped_column(String(60), nullable=False, default="general")
+    party_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    party_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    party_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    artisan_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    amount_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="USD")
+    status: Mapped[str] = mapped_column(String(40), nullable=False, default="draft")
+    terms: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+
+
+class LedgerEntry(Base):
+    __tablename__ = "ledger_entries"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    account_type: Mapped[str] = mapped_column(String(60), nullable=False)
+    owner_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="USD")
+    section_id: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    reference_type: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    reference_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
 
 
 class Supplier(Base):

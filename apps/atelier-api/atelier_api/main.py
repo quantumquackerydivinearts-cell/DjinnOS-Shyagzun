@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from typing import Any, Dict, Mapping, Optional, Sequence
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+import stripe
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -142,6 +145,9 @@ from .business_schemas import (
     ModuleOut,
     OrderCreate,
     OrderOut,
+    ContractCreate,
+    ContractUpdate,
+    ContractOut,
     PublicCommissionInquiryCreate,
     PublicCommissionQuoteOut,
     QuoteCreate,
@@ -150,6 +156,10 @@ from .business_schemas import (
     ShopItemOut,
     ShopItemUpdate,
     ShopItemVisibilityUpdate,
+    PublicShopLeadRequest,
+    PublicShopQuoteRequest,
+    PublicShopCheckoutRequest,
+    LedgerEntryOut,
     HeadlessQuestEmitInput,
     HeadlessQuestEmitOut,
     MeditationEmitInput,
@@ -539,8 +549,9 @@ def _settings() -> Settings:
 def _shop_landing_html(settings: Settings) -> str:
     website_url = settings.public_website_url or "https://www.quantumquackery.org"
     atelier_url = settings.public_atelier_url or "https://atelier-api.quantumquackery.com"
+    shop_url = _normalize_shop_base(settings.public_shop_url or atelier_url)
     docs_url = f"{atelier_url.rstrip('/')}/docs"
-    cards_html = _shop_cards_html(atelier_url=atelier_url, docs_url=docs_url, website_url=website_url)
+    cards_html = _shop_cards_html(atelier_url=atelier_url, docs_url=docs_url, website_url=website_url, shop_url=shop_url)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -790,13 +801,14 @@ def _shop_link_overrides() -> dict[str, str]:
     }
 
 
-def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str) -> str:
+def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str, shop_url: str) -> str:
     link_overrides = _shop_link_overrides()
     cards: list[str] = []
     for section in _shop_sections():
         tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
         override = link_overrides.get(section["id"], "")
         cta_url = override or f"{atelier_url.rstrip('/')}/"
+        details_url = f"{shop_url.rstrip('/')}/{section['id']}"
         cards.append(
             f"""<section class="card">
         <div>
@@ -806,7 +818,7 @@ def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str) -> st
           <p>{section['summary']}</p>
         </div>
         <div class="cta-row">
-          <a class="btn" href="/shop/{section['id']}">Details</a>
+          <a class="btn" href="{details_url}">Details</a>
           <a class="btn primary" href="{cta_url}" rel="noopener">{section['cta']}</a>
         </div>
       </section>"""
@@ -817,6 +829,7 @@ def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str) -> st
 def _shop_section_html(section_id: str, settings: Settings, items: Sequence[ShopItemOut]) -> str:
     website_url = settings.public_website_url or "https://www.quantumquackery.org"
     atelier_url = settings.public_atelier_url or "https://atelier-api.quantumquackery.com"
+    shop_url = _normalize_shop_base(settings.public_shop_url or atelier_url)
     docs_url = f"{atelier_url.rstrip('/')}/docs"
     section_map = {item["id"]: item for item in _shop_sections()}
     section = section_map.get(section_id)
@@ -929,7 +942,7 @@ def _shop_section_html(section_id: str, settings: Settings, items: Sequence[Shop
       <p>{section['summary']}</p>
       <div class="cta-row">
         <a class="btn primary" href="{cta_url}" rel="noopener">{section['cta']}</a>
-        <a class="btn" href="/shop">Back to Shop</a>
+        <a class="btn" href="{shop_url.rstrip('/')}/shop">Back to Shop</a>
         <a class="btn secondary" href="{website_url}" rel="noopener">Visit Quantum Quackery</a>
         <a class="btn" href="{docs_url}" rel="noopener">API Docs</a>
       </div>
@@ -939,7 +952,26 @@ def _shop_section_html(section_id: str, settings: Settings, items: Sequence[Shop
     </div>
   </main>
 </body>
-</html>"""
+    </html>"""
+
+
+def _normalize_shop_base(value: str) -> str:
+    normalized = (value or "").rstrip("/")
+    if normalized.endswith("/shop"):
+        return normalized[: -len("/shop")]
+    return normalized
+
+
+def _stripe_price_for_section(settings: Settings, section_id: str) -> str:
+    return str(settings.stripe_prices.get(section_id, "")).strip()
+
+
+def _commission_rate_for_section(settings: Settings, section_id: str) -> float:
+    return float(settings.commission_rates.get(section_id, 0.0))
+
+
+def _tax_rate_for_section(settings: Settings, section_id: str) -> float:
+    return float(settings.tax_rates.get(section_id, 0.0))
 
 
 def _enforce(ctx: CapabilityContext, capability: str) -> None:
@@ -1007,8 +1039,51 @@ app.add_middleware(
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)
-def shop_landing(settings: Settings = Depends(_settings)) -> str:
+def shop_landing(
+    section: Optional[str] = None,
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> str:
+    if section:
+        workspace_id = settings.shop_workspace_id
+        items: Sequence[ShopItemOut] = []
+        if workspace_id:
+            items = svc.list_shop_items(
+                workspace_id=workspace_id,
+                section_id=section,
+                include_hidden=False,
+            )
+        return _shop_section_html(section, settings, items)
     return _shop_landing_html(settings)
+
+
+@app.get("/consultations", response_class=HTMLResponse)
+@app.get("/licenses", response_class=HTMLResponse)
+@app.get("/catalog", response_class=HTMLResponse)
+@app.get("/physical-goods", response_class=HTMLResponse)
+@app.get("/custom-orders", response_class=HTMLResponse)
+@app.get("/digital", response_class=HTMLResponse)
+@app.get("/digital-products", response_class=HTMLResponse)
+@app.get("/land-assessments", response_class=HTMLResponse)
+def shop_section_root(
+    request: Request,
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> str:
+    section_id = request.url.path.lstrip("/")
+    if section_id == "physical-goods":
+        section_id = "catalog"
+    if section_id == "digital-products":
+        section_id = "digital"
+    workspace_id = settings.shop_workspace_id
+    items: Sequence[ShopItemOut] = []
+    if workspace_id:
+        items = svc.list_shop_items(
+            workspace_id=workspace_id,
+            section_id=section_id,
+            include_hidden=False,
+        )
+    return _shop_section_html(section_id, settings, items)
 
 
 @app.get("/shop/{section_id}", response_class=HTMLResponse)
@@ -2237,6 +2312,190 @@ def list_orders(
     _enforce(ctx, "order.read")
     _enforce_role(role, "order.read")
     return svc.list_orders(workspace_id=workspace_id)
+
+
+@app.get("/v1/contracts")
+def list_contracts(
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[ContractOut]:
+    _enforce(ctx, "contract.read")
+    _enforce_role(role, "contract.read")
+    return svc.list_contracts(workspace_id=workspace_id)
+
+
+@app.post("/v1/contracts")
+def create_contract(
+    payload: ContractCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ContractOut:
+    _enforce(ctx, "contract.write")
+    _enforce_role(role, "contract.write")
+    return svc.create_contract(payload)
+
+
+@app.patch("/v1/contracts/{contract_id}")
+def update_contract(
+    contract_id: str,
+    payload: ContractUpdate,
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ContractOut:
+    _enforce(ctx, "contract.write")
+    _enforce_role(role, "contract.write")
+    return svc.update_contract(workspace_id=workspace_id, contract_id=contract_id, payload=payload)
+
+
+@app.post("/v1/contracts/{contract_id}/validate")
+def validate_contract(
+    contract_id: str,
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ContractOut:
+    _enforce(ctx, "contract.admin")
+    _enforce_role(role, "contract.admin")
+    return svc.validate_contract(workspace_id=workspace_id, contract_id=contract_id)
+
+
+@app.post("/v1/contracts/{contract_id}/cancel")
+def cancel_contract(
+    contract_id: str,
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ContractOut:
+    _enforce(ctx, "contract.admin")
+    _enforce_role(role, "contract.admin")
+    return svc.cancel_contract(workspace_id=workspace_id, contract_id=contract_id)
+
+
+@app.post("/v1/contracts/{contract_id}/process")
+def process_contract(
+    contract_id: str,
+    workspace_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ContractOut:
+    _enforce(ctx, "contract.admin")
+    _enforce_role(role, "contract.admin")
+    return svc.process_contract(workspace_id=workspace_id, contract_id=contract_id)
+
+
+@app.get("/v1/ledger/entries")
+def list_ledger_entries(
+    workspace_id: str,
+    account_type: Optional[str] = None,
+    owner_id: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[LedgerEntryOut]:
+    _enforce(ctx, "ledger.read")
+    _enforce_role(role, "ledger.read")
+    return svc.list_ledger_entries(workspace_id=workspace_id, account_type=account_type, owner_id=owner_id)
+
+
+@app.get("/v1/ledger/payouts/summary")
+def ledger_payout_summary(
+    workspace_id: str,
+    month: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> JSONResponse:
+    _enforce(ctx, "ledger.read")
+    _enforce_role(role, "ledger.read")
+    if not re.match(r"^\d{4}-\d{2}$", month):
+        raise HTTPException(status_code=400, detail="month_format_required")
+    return JSONResponse(svc.summarize_artisan_payouts(workspace_id=workspace_id, month=month))
+
+
+@app.post("/v1/ledger/payouts/run")
+def ledger_payout_run(
+    workspace_id: str,
+    month: str,
+    dry_run: bool = False,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> JSONResponse:
+    _enforce(ctx, "ledger.write")
+    _enforce_role(role, "ledger.write")
+    if not re.match(r"^\d{4}-\d{2}$", month):
+        raise HTTPException(status_code=400, detail="month_format_required")
+    return JSONResponse(svc.run_monthly_payouts(workspace_id=workspace_id, month=month, dry_run=dry_run))
+
+
+@app.get("/v1/ledger/payouts/export")
+def ledger_payout_export(
+    workspace_id: str,
+    month: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Response:
+    _enforce(ctx, "ledger.read")
+    _enforce_role(role, "ledger.read")
+    if not re.match(r"^\d{4}-\d{2}$", month):
+        raise HTTPException(status_code=400, detail="month_format_required")
+    summary = svc.summarize_artisan_payouts(workspace_id=workspace_id, month=month)
+    rows = summary.get("payouts", [])
+    lines = ["artisan_id,payable_cents,paid_cents,remaining_cents"]
+    if isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            lines.append(
+                f"{row.get('artisan_id','')},{row.get('payable_cents',0)},{row.get('paid_cents',0)},{row.get('remaining_cents',0)}"
+            )
+    content = "\n".join(lines)
+    return Response(content=content, media_type="text/csv")
+
+
+@app.get("/v1/ledger/payouts/1099")
+def ledger_payout_1099(
+    workspace_id: str,
+    month: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Response:
+    _enforce(ctx, "ledger.read")
+    _enforce_role(role, "ledger.read")
+    if not re.match(r"^\d{4}-\d{2}$", month):
+        raise HTTPException(status_code=400, detail="month_format_required")
+    summary = svc.summarize_artisan_payouts(workspace_id=workspace_id, month=month)
+    rows = summary.get("payouts", [])
+    year = month.split("-")[0]
+    lines = ["recipient_id,tax_year,paid_cents,currency"]
+    if isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            lines.append(f"{row.get('artisan_id','')},{year},{row.get('paid_cents',0)},USD")
+    content = "\n".join(lines)
+    return Response(content=content, media_type="text/csv")
 
 
 @app.post("/v1/orders")
@@ -4011,6 +4270,187 @@ def public_shop_items(
         section_id=section_id,
         include_hidden=False,
     )
+
+
+@app.post("/public/shop/checkout-session")
+def public_shop_checkout_session(
+    payload: PublicShopCheckoutRequest,
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> JSONResponse:
+    section_id = str(payload.section_id or "").strip()
+    artisan_id = payload.artisan_id
+    item_id = payload.item_id
+    if item_id:
+        if not settings.shop_workspace_id:
+            raise HTTPException(status_code=503, detail="shop_workspace_not_configured")
+        try:
+            item = svc.get_shop_item(workspace_id=settings.shop_workspace_id, item_id=item_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        artisan_id = item.artisan_id
+        section_id = item.section_id
+    if not section_id:
+        raise HTTPException(status_code=400, detail="section_id_required")
+    price_id = _stripe_price_for_section(settings, section_id)
+    if not price_id:
+        raise HTTPException(status_code=404, detail="checkout_not_configured")
+    if not settings.stripe_secret_key:
+        raise HTTPException(status_code=503, detail="stripe_not_configured")
+    stripe.api_key = settings.stripe_secret_key
+    shop_url = _normalize_shop_base(settings.public_shop_url or settings.public_atelier_url)
+    success_url = settings.stripe_success_url or f"{shop_url}/shop?checkout=success"
+    cancel_url = settings.stripe_cancel_url or f"{shop_url}/shop?checkout=cancel"
+    quantity = max(1, int(payload.quantity or 1))
+    metadata = {"section_id": section_id}
+    if artisan_id:
+        metadata["artisan_id"] = artisan_id
+    if item_id:
+        metadata["item_id"] = item_id
+    try:
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[{"price": price_id, "quantity": quantity}],
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata=metadata,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"stripe_error:{exc}") from exc
+    return JSONResponse({"status": "ok", "url": session.url})
+
+
+@app.post("/webhooks/stripe")
+async def stripe_webhook(
+    request: Request,
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> JSONResponse:
+    if not settings.stripe_webhook_secret:
+        raise HTTPException(status_code=503, detail="stripe_webhook_not_configured")
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, settings.stripe_webhook_secret)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"invalid_signature:{exc}") from exc
+    if event["type"] != "checkout.session.completed":
+        return JSONResponse({"status": "ignored"})
+    if not settings.shop_workspace_id:
+        raise HTTPException(status_code=503, detail="shop_workspace_not_configured")
+    session = event["data"]["object"]
+    section_id = str(session.get("metadata", {}).get("section_id") or "").strip() or "unknown"
+    artisan_id = str(session.get("metadata", {}).get("artisan_id") or "").strip() or None
+    item_id = str(session.get("metadata", {}).get("item_id") or "").strip() or None
+    amount_total = int(session.get("amount_total") or 0)
+    currency = str(session.get("currency") or "usd").upper()
+    payment_intent = session.get("payment_intent")
+    if amount_total <= 0:
+        return JSONResponse({"status": "ignored"})
+    fee_cents = 0
+    if payment_intent:
+        try:
+            intent = stripe.PaymentIntent.retrieve(payment_intent, expand=["charges.data.balance_transaction"])
+            charges = intent.get("charges", {}).get("data", [])
+            if charges:
+                balance_txn = charges[0].get("balance_transaction")
+                if isinstance(balance_txn, dict):
+                    fee_cents = int(balance_txn.get("fee") or 0)
+        except Exception:
+            fee_cents = 0
+    tax_rate = _tax_rate_for_section(settings, section_id)
+    tax_cents = int(round(amount_total * tax_rate))
+    net_cents = max(0, amount_total - fee_cents)
+    commission_rate = _commission_rate_for_section(settings, section_id)
+    commission_cents = int(round(max(0, net_cents - tax_cents) * commission_rate))
+    metadata = {
+        "stripe_session_id": session.get("id"),
+        "stripe_payment_intent": payment_intent,
+        "stripe_customer": session.get("customer"),
+        "item_id": item_id,
+    }
+    svc.record_shop_sale_ledger(
+        workspace_id=settings.shop_workspace_id,
+        section_id=section_id,
+        artisan_id=artisan_id,
+        currency=currency,
+        gross_cents=amount_total,
+        fee_cents=fee_cents,
+        tax_cents=tax_cents,
+        commission_cents=commission_cents,
+        net_cents=net_cents,
+        reference_type="stripe_checkout",
+        reference_id=str(session.get("id") or ""),
+        metadata=metadata,
+    )
+    return JSONResponse({"status": "ok"})
+
+
+@app.post("/public/shop/leads")
+def public_shop_lead(
+    payload: PublicShopLeadRequest,
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> JSONResponse:
+    workspace_id = settings.shop_workspace_id
+    if not workspace_id:
+        raise HTTPException(status_code=503, detail="shop_workspace_not_configured")
+    section_id = str(payload.section_id or "general").strip() or "general"
+    details = payload.details or ""
+    if payload.phone:
+        details = f"{details}\nphone: {payload.phone}".strip()
+    lead = svc.create_lead(
+        LeadCreate(
+            workspace_id=workspace_id,
+            full_name=payload.full_name.strip(),
+            email=payload.email,
+            phone=payload.phone,
+            details=details,
+            status="new",
+            source=f"shop:{section_id}",
+        )
+    )
+    return JSONResponse({"status": "ok", "lead_id": lead.id})
+
+
+@app.post("/public/shop/quotes")
+def public_shop_quote(
+    payload: PublicShopQuoteRequest,
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> JSONResponse:
+    workspace_id = settings.shop_workspace_id
+    if not workspace_id:
+        raise HTTPException(status_code=503, detail="shop_workspace_not_configured")
+    section_id = str(payload.section_id or "custom-orders").strip() or "custom-orders"
+    details = payload.details or ""
+    if payload.phone:
+        details = f"{details}\nphone: {payload.phone}".strip()
+    lead = svc.create_lead(
+        LeadCreate(
+            workspace_id=workspace_id,
+            full_name=payload.full_name.strip(),
+            email=payload.email,
+            phone=payload.phone,
+            details=details,
+            status="new",
+            source=f"shop:{section_id}",
+        )
+    )
+    title = (payload.title or f"Quote request: {section_id}").strip()
+    quote = svc.create_quote(
+        QuoteCreate(
+            workspace_id=workspace_id,
+            lead_id=lead.id,
+            title=title,
+            amount_cents=0,
+            currency="USD",
+            status="request",
+            is_public=False,
+            notes=details,
+        )
+    )
+    return JSONResponse({"status": "ok", "lead_id": lead.id, "quote_id": quote.id})
 
 
 @app.post("/public/commission-hall/inquiries")

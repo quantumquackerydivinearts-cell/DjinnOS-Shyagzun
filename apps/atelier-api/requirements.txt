@@ -6,4 +6,5 @@ alembic
 psycopg[binary]
 pydantic
 jsonschema
+stripe
 
