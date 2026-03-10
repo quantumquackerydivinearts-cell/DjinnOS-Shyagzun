@@ -1,0 +1,68 @@
+{
+  "lesson_id": "grapevine_systems_semantics_v1",
+  "tier": 203,
+  "lesson_type": "feature_aliases",
+  "title": "Grapevine encodes native systems, transport, and consensus roles",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 163, "binary": "10100011", "tongue": "Grapevine", "symbol": "Myk", "meaning": "Messenger / packet" },
+      { "decimal": 169, "binary": "10101001", "tongue": "Grapevine", "symbol": "Myrun", "meaning": "Sacred march / stream" },
+      { "decimal": 168, "binary": "10101000", "tongue": "Grapevine", "symbol": "Mekha", "meaning": "Herald / gateway" },
+      { "decimal": 181, "binary": "10110101", "tongue": "Grapevine", "symbol": "Kysha", "meaning": "Consensus choir" },
+      { "decimal": 183, "binary": "10110111", "tongue": "Grapevine", "symbol": "Kysael", "meaning": "Authoritative commit" }
+    ]
+  },
+  "aliases": [
+    {
+      "token": "Myk",
+      "english_alias": "packet",
+      "literal_gloss": "Messenger / packet",
+      "features": {
+        "network_role": "packet"
+      }
+    },
+    {
+      "token": "Myrun",
+      "english_alias": "stream",
+      "literal_gloss": "Sacred march / stream",
+      "features": {
+        "network_role": "stream"
+      }
+    },
+    {
+      "token": "Mekha",
+      "english_alias": "gateway",
+      "literal_gloss": "Herald / gateway",
+      "features": {
+        "network_role": "gateway"
+      }
+    },
+    {
+      "token": "Kysha",
+      "english_alias": "consensus",
+      "literal_gloss": "Consensus choir",
+      "features": {
+        "cluster_role": "consensus"
+      }
+    },
+    {
+      "token": "Kysael",
+      "english_alias": "authoritative commit",
+      "literal_gloss": "Authoritative commit",
+      "features": {
+        "cluster_role": "authoritative_commit",
+        "commit_authority": true
+      }
+    }
+  ],
+  "constraints": {
+    "authoritative_claims": [
+      "Grapevine is a native systems/computation tongue rather than an external metaphor layer.",
+      "Transport, gateway, consensus, and commit roles should remain structurally machine-usable."
+    ],
+    "forbidden_english": [
+      "Treating Grapevine as decorative lore vocabulary with no runtime consequence"
+    ]
+  }
+}

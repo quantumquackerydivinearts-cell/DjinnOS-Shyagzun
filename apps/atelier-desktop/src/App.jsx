@@ -196,6 +196,38 @@ function parseSafeJson(text) {
   }
 }
 
+function normalizeSummaryValues(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => item !== null && item !== undefined && item !== "");
+  }
+  if (value === null || value === undefined || value === "") {
+    return [];
+  }
+  return [value];
+}
+
+function buildShygazunSemanticSummary(projectOutput) {
+  if (!projectOutput || typeof projectOutput !== "object") {
+    return null;
+  }
+  const composedFeatures = projectOutput.composed_features;
+  if (!composedFeatures || typeof composedFeatures !== "object") {
+    return null;
+  }
+  return {
+    chirality: normalizeSummaryValues(composedFeatures.chirality),
+    timeTopology: normalizeSummaryValues(composedFeatures.time_topology),
+    spaceOperator: normalizeSummaryValues(composedFeatures.space_operator),
+    networkRole: normalizeSummaryValues(composedFeatures.network_role),
+    clusterRole: normalizeSummaryValues(composedFeatures.cluster_role),
+    axis: normalizeSummaryValues(composedFeatures.axis),
+    tongueProjection: normalizeSummaryValues(composedFeatures.tongue_projection),
+    cannabisMode: normalizeSummaryValues(composedFeatures.cannabis_mode),
+    authorityLevel: projectOutput.authoritative_projection?.authority_level || "none",
+    trustGrade: projectOutput.trust_contract?.grade || "unknown"
+  };
+}
+
 function downloadJson(filename, data) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -5618,6 +5650,7 @@ export function App() {
   const [shygazunTranslateDirection, setShygazunTranslateDirection] = useState("auto");
   const [shygazunTranslateOutput, setShygazunTranslateOutput] = useState(null);
   const [shygazunInterpretOutput, setShygazunInterpretOutput] = useState(null);
+  const [shygazunProjectOutput, setShygazunProjectOutput] = useState(null);
   const [shygazunCorrectOutput, setShygazunCorrectOutput] = useState(null);
   const [moduleCatalog, setModuleCatalog] = useState([]);
   const [moduleSelectedId, setModuleSelectedId] = useState("module.shygazun.interpret");
@@ -5635,6 +5668,7 @@ export function App() {
   const [sceneKitSelectedRoomId, setSceneKitSelectedRoomId] = useState("room.town_square");
   const [sceneKitSelectedChunkId, setSceneKitSelectedChunkId] = useState("chunk.market_crossroads");
   const [sceneKitSelectedFeatureId, setSceneKitSelectedFeatureId] = useState("feature.scene.storm_morning");
+  const shygazunSemanticSummary = buildShygazunSemanticSummary(shygazunProjectOutput);
   const [sceneKitOutput, setSceneKitOutput] = useState(null);
   const [labCoherence, setLabCoherence] = useState({
     last_check_at: "",
@@ -12611,6 +12645,18 @@ export function App() {
     });
   };
 
+  const runShygazunProject = async () => {
+    await runAction("shygazun_project", async () => {
+      const sourceText = String(shygazunTranslateSourceText || "").trim();
+      if (!sourceText) {
+        throw new Error("source_text_required");
+      }
+      const data = await kernelCall("/v0.1/shygazun/project", "POST", { source_text: sourceText });
+      setShygazunProjectOutput(data || {});
+      return data;
+    });
+  };
+
   const registerGuildConversation = async () => {
     await runAction("guild_conversation_register", async () => {
       const participantMemberIds = (() => {
@@ -15290,6 +15336,7 @@ export function App() {
                 </select>
                 <button className="action" onClick={() => setShygazunTranslateSourceText(rendererCobra)}>Use Cobra Source</button>
                 <button className="action" onClick={() => setShygazunTranslateSourceText(contentValidatePayload)}>Use Validate Payload</button>
+                <button className="action" onClick={runShygazunProject}>Kernel Project</button>
                 <button className="action" onClick={runShygazunInterpret}>Interpret</button>
                 <button className="action" onClick={runShygazunTranslate}>Translate</button>
                 <button className="action" onClick={runShygazunCorrect}>Canonical Correct</button>
@@ -15300,6 +15347,21 @@ export function App() {
                 onChange={(e) => setShygazunTranslateSourceText(e.target.value)}
                 placeholder="source text for translation"
               />
+              {shygazunSemanticSummary ? (
+                <div className="row">
+                  <span className="badge">{`Authority: ${shygazunSemanticSummary.authorityLevel}`}</span>
+                  <span className="badge">{`Trust: ${shygazunSemanticSummary.trustGrade}`}</span>
+                  <span className="badge">{`Aster chirality: ${(shygazunSemanticSummary.chirality || []).join(", ") || "n/a"}`}</span>
+                  <span className="badge">{`Time topology: ${(shygazunSemanticSummary.timeTopology || []).join(", ") || "n/a"}`}</span>
+                  <span className="badge">{`Space op: ${(shygazunSemanticSummary.spaceOperator || []).join(", ") || "n/a"}`}</span>
+                  <span className="badge">{`Network role: ${(shygazunSemanticSummary.networkRole || []).join(", ") || "n/a"}`}</span>
+                  <span className="badge">{`Cluster role: ${(shygazunSemanticSummary.clusterRole || []).join(", ") || "n/a"}`}</span>
+                  <span className="badge">{`Axis: ${(shygazunSemanticSummary.axis || []).join(", ") || "n/a"}`}</span>
+                  <span className="badge">{`Projection: ${(shygazunSemanticSummary.tongueProjection || []).join(", ") || "n/a"}`}</span>
+                  <span className="badge">{`Cannabis mode: ${(shygazunSemanticSummary.cannabisMode || []).join(", ") || "n/a"}`}</span>
+                </div>
+              ) : null}
+              <pre>{JSON.stringify(shygazunProjectOutput || {}, null, 2)}</pre>
               <pre>{JSON.stringify(shygazunInterpretOutput || {}, null, 2)}</pre>
               <pre>{JSON.stringify(shygazunTranslateOutput || {}, null, 2)}</pre>
               <pre>{JSON.stringify(shygazunCorrectOutput || {}, null, 2)}</pre>

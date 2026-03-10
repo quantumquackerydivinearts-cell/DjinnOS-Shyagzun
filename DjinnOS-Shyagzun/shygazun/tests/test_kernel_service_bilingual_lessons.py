@@ -10,7 +10,7 @@ def test_lessons_endpoint_returns_canonical_lessons() -> None:
     response = client.get("/v0.1/shygazun/lessons")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["count"] >= 6
+    assert payload["count"] >= 11
     lesson_ids = {lesson["lesson_id"] for lesson in payload["lessons"]}
     assert "pronoun_aliases_sextal_wu_v1" in lesson_ids
     assert "directional_projection_over_surface_order_v1" in lesson_ids
@@ -20,6 +20,9 @@ def test_lessons_endpoint_returns_canonical_lessons() -> None:
     assert "anatomy_body_spirit_axes_v1" in lesson_ids
     assert "creature_form_regimes_v1" in lesson_ids
     assert "time_word_process_bias_v1" in lesson_ids
+    assert "aster_chirality_topology_v1" in lesson_ids
+    assert "grapevine_systems_semantics_v1" in lesson_ids
+    assert "cannabis_axis_semantics_v1" in lesson_ids
 
 
 def test_bilingual_project_resolves_pronoun_alias_from_lesson_registry() -> None:
@@ -172,6 +175,62 @@ def test_bilingual_project_derives_time_word_process_bias() -> None:
     assert verification["verified"] is True
     assert payload["composed_features"]["stem_likelihood"] == "verbal"
     assert payload["composed_features"]["process_bias"] == "high"
+
+
+def test_bilingual_project_derives_aster_chirality_topology_and_space_ops() -> None:
+    client = TestClient(app)
+    response = client.post("/v0.1/shygazun/project", json={"source_text": "Ry Si Ep"})
+    assert response.status_code == 200
+    payload = response.json()
+    features = payload["composed_features"]
+    assert features["chirality"] == "right"
+    assert features["chiral_color_vector"] == "red"
+    assert features["time_topology"] == "linear"
+    assert features["space_operator"] == "assign"
+    code_surface = payload["surface_lowerings"]["code_surface"]
+    placement_graph = payload["surface_lowerings"]["placement_graph"]
+    assert code_surface["entity_traits"]["chirality"] == "right"
+    assert placement_graph["projection_hints"]["time_topology"] == "linear"
+    assert placement_graph["projection_hints"]["space_operator"] == "assign"
+
+
+def test_bilingual_project_derives_grapevine_systems_features() -> None:
+    client = TestClient(app)
+    response = client.post("/v0.1/shygazun/project", json={"source_text": "Myk Myrun Kysha Kysael"})
+    assert response.status_code == 200
+    payload = response.json()
+    features = payload["composed_features"]
+    network_role = features["network_role"]
+    cluster_role = features["cluster_role"]
+    if isinstance(network_role, list):
+        assert "packet" in network_role
+        assert "stream" in network_role
+    else:
+        assert network_role in {"packet", "stream"}
+    if isinstance(cluster_role, list):
+        assert "consensus" in cluster_role
+        assert "authoritative_commit" in cluster_role
+    else:
+        assert cluster_role in {"consensus", "authoritative_commit"}
+    assert features["commit_authority"] is True
+    assert payload["surface_lowerings"]["code_surface"]["entity_traits"]["commit_authority"] is True
+
+
+def test_bilingual_project_derives_cannabis_axis_projection_modes() -> None:
+    client = TestClient(app)
+    response = client.post("/v0.1/shygazun/project", json={"source_text": "At It Yt"})
+    assert response.status_code == 200
+    payload = response.json()
+    features = payload["composed_features"]
+    axis = features["axis"]
+    assert isinstance(axis, list)
+    assert "mind" in axis
+    assert "space" in axis
+    assert "time" in axis
+    assert features["tongue_projection"] == "lotus"
+    assert features["cannabis_mode"] == "nounal"
+    placement_graph = payload["surface_lowerings"]["placement_graph"]
+    assert "lotus" in placement_graph["projection_hints"]["tongue_projection"]
 
 
 def test_bilingual_project_emits_byte_table_trace_and_semantic_trace() -> None:

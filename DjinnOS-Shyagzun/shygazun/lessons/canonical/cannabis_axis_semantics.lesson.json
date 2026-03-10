@@ -1,0 +1,85 @@
+{
+  "lesson_id": "cannabis_axis_semantics_v1",
+  "tier": 203,
+  "lesson_type": "feature_aliases",
+  "title": "Cannabis projects tongues through mind, space, and time axes",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 184, "binary": "10111000", "tongue": "Cannabis", "symbol": "At", "meaning": "Grounded awareness / consciousness of material presence (Lotus seen through Mind — the felt sense of being here, embodied, in a specific moment of earth)" },
+      { "decimal": 194, "binary": "11000010", "tongue": "Cannabis", "symbol": "It", "meaning": "Grounded locality / the spatial fact of material presence (Lotus through Space — where something is in the most concrete sense, its place in the earth)" },
+      { "decimal": 204, "binary": "11001100", "tongue": "Cannabis", "symbol": "Yt", "meaning": "Grounded duration / the temporal weight of material existence (Lotus through Time — how long something has been here, its age as felt reality)" },
+      { "decimal": 193, "binary": "11000001", "tongue": "Cannabis", "symbol": "Soa*", "meaning": "Conscious persistence / the act of mind making something durable" },
+      { "decimal": 203, "binary": "11001011", "tongue": "Cannabis", "symbol": "Sei", "meaning": "Conscious spatial action / the act of mind deliberately occupying or shaping space" },
+      { "decimal": 213, "binary": "11010101", "tongue": "Cannabis", "symbol": "Suy", "meaning": "Conscious temporal action / the act of mind deliberately moving through or shaping time" }
+    ]
+  },
+  "aliases": [
+    {
+      "token": "At",
+      "english_alias": "lotus mind",
+      "literal_gloss": "Lotus through Mind",
+      "features": {
+        "axis": "mind",
+        "tongue_projection": "lotus",
+        "cannabis_mode": "nounal"
+      }
+    },
+    {
+      "token": "It",
+      "english_alias": "lotus space",
+      "literal_gloss": "Lotus through Space",
+      "features": {
+        "axis": "space",
+        "tongue_projection": "lotus",
+        "cannabis_mode": "nounal"
+      }
+    },
+    {
+      "token": "Yt",
+      "english_alias": "lotus time",
+      "literal_gloss": "Lotus through Time",
+      "features": {
+        "axis": "time",
+        "tongue_projection": "lotus",
+        "cannabis_mode": "nounal"
+      }
+    },
+    {
+      "token": "Soa*",
+      "english_alias": "conscious persistence",
+      "literal_gloss": "Conscious persistence",
+      "features": {
+        "axis": "mind",
+        "cannabis_mode": "conscious_action"
+      }
+    },
+    {
+      "token": "Sei",
+      "english_alias": "conscious spatial action",
+      "literal_gloss": "Conscious spatial action",
+      "features": {
+        "axis": "space",
+        "cannabis_mode": "conscious_action"
+      }
+    },
+    {
+      "token": "Suy",
+      "english_alias": "conscious temporal action",
+      "literal_gloss": "Conscious temporal action",
+      "features": {
+        "axis": "time",
+        "cannabis_mode": "conscious_action"
+      }
+    }
+  ],
+  "constraints": {
+    "authoritative_claims": [
+      "Cannabis acts as a tongue-through-axis semantic pedagogy layer.",
+      "Axis and tongue projection must remain explicit rather than flattened into ordinary glossing."
+    ],
+    "forbidden_english": [
+      "Treating Cannabis tokens as unrelated vocabulary items with no axis semantics"
+    ]
+  }
+}

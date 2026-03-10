@@ -1,0 +1,79 @@
+{
+  "lesson_id": "aster_chirality_topology_v1",
+  "tier": 203,
+  "lesson_type": "feature_aliases",
+  "title": "Aster carries chirality, time topology, and space operators",
+  "authority": {
+    "byte_table_version": "byte_table.py",
+    "citations": [
+      { "decimal": 128, "binary": "10000000", "tongue": "Aster", "symbol": "Ry", "meaning": "Right-chiral red" },
+      { "decimal": 135, "binary": "10000111", "tongue": "Aster", "symbol": "Ra", "meaning": "Left-chiral red" },
+      { "decimal": 142, "binary": "10001110", "tongue": "Aster", "symbol": "Si", "meaning": "Linear time" },
+      { "decimal": 143, "binary": "10001111", "tongue": "Aster", "symbol": "Su", "meaning": "Loop time" },
+      { "decimal": 148, "binary": "10010100", "tongue": "Aster", "symbol": "Ep", "meaning": "Assign space" },
+      { "decimal": 155, "binary": "10011011", "tongue": "Aster", "symbol": "Hoz", "meaning": "Unbind space" }
+    ]
+  },
+  "aliases": [
+    {
+      "token": "Ry",
+      "english_alias": "right red",
+      "literal_gloss": "Right-chiral red",
+      "features": {
+        "chirality": "right",
+        "chiral_color_vector": "red"
+      }
+    },
+    {
+      "token": "Ra",
+      "english_alias": "left red",
+      "literal_gloss": "Left-chiral red",
+      "features": {
+        "chirality": "left",
+        "chiral_color_vector": "red"
+      }
+    },
+    {
+      "token": "Si",
+      "english_alias": "linear time",
+      "literal_gloss": "Linear time",
+      "features": {
+        "time_topology": "linear"
+      }
+    },
+    {
+      "token": "Su",
+      "english_alias": "loop time",
+      "literal_gloss": "Loop time",
+      "features": {
+        "time_topology": "loop"
+      }
+    },
+    {
+      "token": "Ep",
+      "english_alias": "assign space",
+      "literal_gloss": "Assign space",
+      "features": {
+        "space_operator": "assign"
+      }
+    },
+    {
+      "token": "Hoz",
+      "english_alias": "unbind space",
+      "literal_gloss": "Unbind space",
+      "features": {
+        "space_operator": "unbind"
+      }
+    }
+  ],
+  "constraints": {
+    "authoritative_claims": [
+      "Aster tokens may carry operator-level semantics rather than purely descriptive semantics.",
+      "Chirality, time topology, and space operators must be preserved as machine-usable features."
+    ],
+    "forbidden_english": [
+      "Flattening Aster chirality into ordinary color labels",
+      "Reducing Aster time forms to generic tense labels"
+    ]
+  }
+}

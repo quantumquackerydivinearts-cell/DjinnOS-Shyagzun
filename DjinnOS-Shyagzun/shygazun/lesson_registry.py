@@ -848,6 +848,15 @@ def _derive_surface_lowerings(
             "processual": composed_features.get("processual"),
             "anatomy_derivation": composed_features.get("anatomy_derivation"),
             "validation_mode": composed_features.get("validation_mode"),
+            "chirality": composed_features.get("chirality"),
+            "time_topology": composed_features.get("time_topology"),
+            "space_operator": composed_features.get("space_operator"),
+            "network_role": composed_features.get("network_role"),
+            "cluster_role": composed_features.get("cluster_role"),
+            "commit_authority": composed_features.get("commit_authority"),
+            "axis": composed_features.get("axis"),
+            "tongue_projection": composed_features.get("tongue_projection"),
+            "cannabis_mode": composed_features.get("cannabis_mode"),
         },
     }
 
@@ -867,6 +876,21 @@ def _derive_surface_lowerings(
             ),
             "anatomy_derivation": composed_features.get("anatomy_derivation"),
             "validation_mode": composed_features.get("validation_mode"),
+            "time_topology": composed_features.get("time_topology"),
+            "space_operator": composed_features.get("space_operator"),
+            "network_role": composed_features.get("network_role"),
+            "cluster_role": composed_features.get("cluster_role"),
+            "commit_authority": composed_features.get("commit_authority"),
+            "axis": (
+                cast(list[Any], composed_features.get("axis"))
+                if isinstance(composed_features.get("axis"), list)
+                else ([composed_features.get("axis")] if composed_features.get("axis") is not None else [])
+            ),
+            "tongue_projection": (
+                cast(list[Any], composed_features.get("tongue_projection"))
+                if isinstance(composed_features.get("tongue_projection"), list)
+                else ([composed_features.get("tongue_projection")] if composed_features.get("tongue_projection") is not None else [])
+            ),
         },
     }
 
@@ -1032,7 +1056,165 @@ def _derive_intrinsic_feature_bundle(decimals: Sequence[int]) -> dict[str, Any]:
         features.setdefault("cluster_logic", "explicit")
     if any("Whenever" in meaning or "Never" in meaning or "Now" in meaning for meaning in meanings):
         features.setdefault("temporal_frame", "active")
+    _derive_aster_feature_bundle(symbols, features)
+    _derive_grapevine_feature_bundle(symbols, features)
+    _derive_cannabis_feature_bundle(symbols, features)
     return features
+
+
+def _derive_aster_feature_bundle(symbols: set[str], features: dict[str, Any]) -> None:
+    right_chiral = {
+        "Ry": "red",
+        "Oth": "orange",
+        "Le": "yellow",
+        "Gi": "green",
+        "Fe": "blue",
+        "Ky": "indigo",
+        "Alz": "violet",
+    }
+    left_chiral = {
+        "Ra": "red",
+        "Tho": "orange",
+        "Lu": "yellow",
+        "Ge": "green",
+        "Fo": "blue",
+        "Kw": "indigo",
+        "Dr": "violet",
+    }
+    time_topology = {
+        "Si": "linear",
+        "Su": "loop",
+        "Os": "exponential",
+        "Se": "logarithmic",
+        "Sy": "fold",
+        "As": "frozen",
+    }
+    space_operator = {
+        "Ep": "assign",
+        "Gwev": "save",
+        "Ifa": "parse",
+        "Ier": "loop",
+        "San": "push",
+        "Enno": "delete",
+        "Yl": "run",
+        "Hoz": "unbind",
+    }
+
+    chirality_values: list[str] = []
+    chiral_palette: list[str] = []
+    for symbol, color in right_chiral.items():
+        if symbol in symbols:
+            chirality_values.append("right")
+            chiral_palette.append(color)
+    for symbol, color in left_chiral.items():
+        if symbol in symbols:
+            chirality_values.append("left")
+            chiral_palette.append(color)
+    if chirality_values:
+        deduped = list(dict.fromkeys(chirality_values))
+        features["chirality"] = deduped[0] if len(deduped) == 1 else deduped
+        if chiral_palette:
+            palette = list(dict.fromkeys(chiral_palette))
+            features["chiral_color_vector"] = palette[0] if len(palette) == 1 else palette
+
+    topology_values = [value for symbol, value in time_topology.items() if symbol in symbols]
+    if topology_values:
+        deduped = list(dict.fromkeys(topology_values))
+        features["time_topology"] = deduped[0] if len(deduped) == 1 else deduped
+
+    operator_values = [value for symbol, value in space_operator.items() if symbol in symbols]
+    if operator_values:
+        deduped = list(dict.fromkeys(operator_values))
+        features["space_operator"] = deduped[0] if len(deduped) == 1 else deduped
+
+
+def _derive_grapevine_feature_bundle(symbols: set[str], features: dict[str, Any]) -> None:
+    storage_primitives = {
+        "Sa": "root_volume",
+        "Soa": "persistent_object",
+        "Syr": "volatile_buffer",
+        "Seth": "directory_bundle",
+        "Samos": "database_cluster",
+        "Sava": "snapshot_archive",
+        "Sael": "cache",
+    }
+    network_roles = {
+        "Myk": "packet",
+        "Myr": "route",
+        "Mio": "hop",
+        "Mek": "event_emit",
+        "Mavo": "metadata",
+        "Mekha": "gateway",
+        "Myrun": "stream",
+    }
+    systems_states = {
+        "Dyf": "nondeterminism",
+        "Dyo": "load_spike",
+        "Dyth": "packet_loss",
+        "Dyska": "concurrency",
+        "Dyne": "broadcast",
+        "Dyran": "overflow",
+        "Dyso": "overload_threshold",
+    }
+    cluster_roles = {
+        "Kyf": "cluster_node",
+        "Kyl": "coordinator",
+        "Kyra": "semaphore",
+        "Kyvos": "ring_topology",
+        "Kysha": "consensus",
+        "Kyom": "replica",
+        "Kysael": "authoritative_commit",
+    }
+
+    for feature_key, mapping in (
+        ("storage_primitive", storage_primitives),
+        ("network_role", network_roles),
+        ("systems_state", systems_states),
+        ("cluster_role", cluster_roles),
+    ):
+        values = [value for symbol, value in mapping.items() if symbol in symbols]
+        if values:
+            deduped = list(dict.fromkeys(values))
+            features[feature_key] = deduped[0] if len(deduped) == 1 else deduped
+    if "Kysael" in symbols:
+        features["commit_authority"] = True
+
+
+def _derive_cannabis_feature_bundle(symbols: set[str], features: dict[str, Any]) -> None:
+    axis_mappings = {
+        "mind": {"At", "Ar", "Av", "Azr", "Af", "An", "Od", "Ox", "Om", "Soa*"},
+        "space": {"It", "Ir", "Iv", "Izr", "If", "In", "Ed", "Ex", "Em", "Sei"},
+        "time": {"Yt", "Yr", "Yv", "Yzr", "Yf", "Yn", "Ud", "Ux", "Um", "Suy"},
+    }
+    tongue_mappings = {
+        "lotus": {"At", "It", "Yt"},
+        "rose": {"Ar", "Ir", "Yr"},
+        "sakura": {"Av", "Iv", "Yv"},
+        "daisy": {"Azr", "Izr", "Yzr"},
+        "appleblossom": {"Af", "If", "Yf"},
+        "aster": {"An", "In", "Yn"},
+        "grapevine_dark": {"Od", "Ed", "Ud", "Ox", "Ex", "Ux", "Om", "Em", "Um"},
+    }
+    mode_mappings = {
+        "nounal": {
+            "At", "Ar", "Av", "Azr", "Af", "An", "Od",
+            "It", "Ir", "Iv", "Izr", "If", "In", "Ed",
+            "Yt", "Yr", "Yv", "Yzr", "Yf", "Yn", "Ud",
+        },
+        "adjectival": {"Ox", "Ex", "Ux"},
+        "adverbial": {"Om", "Em", "Um"},
+        "conscious_action": {"Soa*", "Sei", "Suy"},
+    }
+
+    for feature_key, mapping in (
+        ("axis", axis_mappings),
+        ("tongue_projection", tongue_mappings),
+        ("cannabis_mode", mode_mappings),
+    ):
+        values = [value for value, mapped_symbols in mapping.items() if symbols.intersection(mapped_symbols)]
+        if values:
+            deduped = list(dict.fromkeys(values))
+            features[feature_key] = deduped[0] if len(deduped) == 1 else deduped
 
 
 def _token_matches_slot(token_obj: Mapping[str, Any], slot: ProjectionSlot) -> bool:
