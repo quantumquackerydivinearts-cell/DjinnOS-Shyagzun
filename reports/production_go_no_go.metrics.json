@@ -1,23 +1,23 @@
 {
   "id": "production_go_no_go.metrics.v1",
   "budgets_id": "production_budgets.v1",
-  "go": true,
+  "go": false,
   "checks": [
     {
       "name": "renderer_build",
-      "ok": true,
+      "ok": false,
       "detail": {
         "command": "npm -C apps/atelier-desktop run build",
-        "output_tail": "> atelier-desktop@0.1.0 build\n> vite build\n\n\u001b[36mvite v5.4.21 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u00e2\u0153\u201c\u001b[39m 34 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/\u001b[22m\u001b[32mindex.html                           \u001b[39m\u001b[1m\u001b[2m  0.43 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u00e2\u201d\u201a gzip:   0.29 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/labComputeWorker-CYz6SRMp.js  \u001b[39m\u001b[1m\u001b[2m  4.38 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[35massets/index-BBtHqgJk.css            \u001b[39m\u001b[1m\u001b[2m  9.45 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u00e2\u201d\u201a gzip:   2.46 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/index-D_E-lxl9.js             \u001b[39m\u001b[1m\u001b[2m485.27 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u00e2\u201d\u201a gzip: 133.44 kB\u001b[22m\n\u001b[32m\u00e2\u0153\u201c built in 2.26s\u001b[39m\n\n\u001b[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.\u001b[39m"
+        "output_tail": "ternal/child_process:421:11)\n    at Object.spawn (node:child_process:796:9)\n    at ensureServiceIsRunning (C:\\DjinnOS\\apps\\atelier-desktop\\node_modules\\esbuild\\lib\\main.js:1982:29)\n    at build (C:\\DjinnOS\\apps\\atelier-desktop\\node_modules\\esbuild\\lib\\main.js:1880:26)\n    at bundleConfigFile (file:///C:/DjinnOS/apps/atelier-desktop/node_modules/vite/dist/node/chunks/config.js:35808:23)\n    at bundleAndLoadConfigFile (file:///C:/DjinnOS/apps/atelier-desktop/node_modules/vite/dist/node/chunks/config.js:35795:24)\n    at loadConfigFromFile (file:///C:/DjinnOS/apps/atelier-desktop/node_modules/vite/dist/node/chunks/config.js:35764:179)\n    at resolveConfig (file:///C:/DjinnOS/apps/atelier-desktop/node_modules/vite/dist/node/chunks/config.js:35413:28)\n    at resolveConfigToBuild (file:///C:/DjinnOS/apps/atelier-desktop/node_modules/vite/dist/node/chunks/config.js:33443:9)\n    at createBuilder (file:///C:/DjinnOS/apps/atelier-desktop/node_modules/vite/dist/node/chunks/config.js:33875:25)\u001b[39m"
       }
     },
     {
       "name": "renderer_bundle_budget",
       "ok": true,
       "detail": {
-        "main_bundle": "apps\\atelier-desktop\\dist\\assets\\index-D_E-lxl9.js",
-        "main_bundle_bytes": 485269,
-        "main_bundle_gzip_bytes": 133335,
+        "main_bundle": "apps\\atelier-desktop\\dist\\assets\\index-JKNJjZuk.js",
+        "main_bundle_bytes": 436499,
+        "main_bundle_gzip_bytes": 109464,
         "worker_bundle": "apps\\atelier-desktop\\dist\\assets\\labComputeWorker-CYz6SRMp.js",
         "worker_bundle_bytes": 4377,
         "budget": {
@@ -58,7 +58,7 @@
       "name": "python_compile_qqva",
       "ok": true,
       "detail": {
-        "output_tail": "Listing 'qqva'...\nListing 'qqva\\\\qqva'..."
+        "output_tail": "Listing 'qqva'...\nListing 'qqva\\\\qqva'...\nListing 'qqva\\\\tests'..."
       }
     },
     {
@@ -121,7 +121,7 @@
   ],
   "summary": {
     "check_count": 14,
-    "failed_count": 0,
-    "go": true
+    "failed_count": 1,
+    "go": false
   }
 }
