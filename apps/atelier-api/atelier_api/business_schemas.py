@@ -266,23 +266,28 @@ class PublicCommissionQuoteOut(BaseModel):
     created_at: datetime
 
 
-class ArtisanAccessIssueInput(BaseModel):
+class AtelierProfileInput(BaseModel):
     profile_name: str
     profile_email: str
+    profile_timezone: str = "UTC"
 
 
-class ArtisanAccessVerifyInput(BaseModel):
-    profile_name: str
-    profile_email: str
+class AtelierProfileOut(AtelierProfileInput):
+    pass
+
+
+class ArtisanAccessIssueInput(AtelierProfileInput):
+    pass
+
+
+class ArtisanAccessVerifyInput(AtelierProfileInput):
     artisan_code: str
 
 
-class ArtisanAccessStatusOut(BaseModel):
+class ArtisanAccessStatusOut(AtelierProfileOut):
     artisan_id: str
     role: str
     workshop_id: str
-    profile_name: str
-    profile_email: str
     artisan_access_verified: bool
 
 
@@ -291,11 +296,9 @@ class ArtisanAccessIssueOut(BaseModel):
     status: ArtisanAccessStatusOut
 
 
-class ArtisanBootstrapInput(BaseModel):
+class ArtisanBootstrapInput(AtelierProfileInput):
     gate_code: str
     artisan_id: str
-    profile_name: str
-    profile_email: str
 
 
 class HeadlessQuestStep(BaseModel):

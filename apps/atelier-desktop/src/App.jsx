@@ -206,6 +206,41 @@ function normalizeSummaryValues(value) {
   return [value];
 }
 
+function normalizeProfileText(value, fallback = "") {
+  const normalized = String(value || "").trim();
+  return normalized || fallback;
+}
+
+function buildProfilePayload(profileName, profileEmail, profileTimezone) {
+  return {
+    profile_name: normalizeProfileText(profileName, "Artisan"),
+    profile_email: normalizeProfileText(profileEmail),
+    profile_timezone: normalizeProfileText(profileTimezone, "UTC"),
+  };
+}
+
+function profileIsComplete(profileName, profileEmail) {
+  return Boolean(normalizeProfileText(profileName) && normalizeProfileText(profileEmail));
+}
+
+function slugProfileIdentity(value, fallback = "artisan") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.+|\.+$/g, "");
+  return normalized || fallback;
+}
+
+function deriveProfileMemberId(profileName, profileEmail) {
+  const email = normalizeProfileText(profileEmail);
+  if (email) {
+    const [localPart] = email.split("@");
+    return slugProfileIdentity(localPart, "artisan");
+  }
+  return slugProfileIdentity(profileName, "artisan");
+}
+
 function buildShygazunSemanticSummary(projectOutput) {
   if (!projectOutput || typeof projectOutput !== "object") {
     return null;
@@ -5883,6 +5918,8 @@ export function App() {
   const [profileTimezone, setProfileTimezone] = useState(
     () => localStorage.getItem("atelier.profile_tz") || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
   );
+  const [entryAuthModalOpen, setEntryAuthModalOpen] = useState(true);
+  const [entryAuthMode, setEntryAuthMode] = useState("register");
   const [artisanAccessInput, setArtisanAccessInput] = useState("");
   const [artisanAccessVerified, setArtisanAccessVerified] = useState(false);
   const [artisanIssuedCode, setArtisanIssuedCode] = useState("");
@@ -6309,6 +6346,14 @@ export function App() {
   const [guildSessionSealedSender, setGuildSessionSealedSender] = useState(true);
   const [guildConversationList, setGuildConversationList] = useState([]);
   const [guildConversationOutput, setGuildConversationOutput] = useState(null);
+  const activeProfilePayload = useMemo(
+    () => buildProfilePayload(profileName, profileEmail, profileTimezone),
+    [profileName, profileEmail, profileTimezone]
+  );
+  const activeProfileMemberId = useMemo(
+    () => deriveProfileMemberId(profileName, profileEmail),
+    [profileName, profileEmail]
+  );
   const [guildRelayStatus, setGuildRelayStatus] = useState("remote_pending");
   const [guildRelayReceiptText, setGuildRelayReceiptText] = useState('{\n  "relay_id": "relay_001"\n}');
   const [guildRegistryList, setGuildRegistryList] = useState([]);
@@ -6461,7 +6506,7 @@ export function App() {
 
   const buildGuildSecuritySessionPayload = () => ({
     session_mode: String(guildSessionMode || "").trim() || "double_ratchet_like",
-    sender_identity_key_ref: String(guildSessionSenderIdentityKeyRef || "").trim(),
+    sender_identity_key_ref: String(guildSessionSenderIdentityKeyRef || `${activeProfileMemberId}.identity`).trim(),
     sender_signed_pre_key_ref: String(guildSessionSenderSignedPreKeyRef || "").trim(),
     sender_one_time_pre_key_ref: String(guildSessionSenderOneTimePreKeyRef || "").trim(),
     recipient_identity_key_ref: String(guildSessionRecipientIdentityKeyRef || "").trim(),
@@ -6474,7 +6519,7 @@ export function App() {
   const applyGuildSecuritySessionPayload = (payload) => {
     const session = payload && typeof payload === "object" ? payload : {};
     setGuildSessionMode(String(session.session_mode || "double_ratchet_like"));
-    setGuildSessionSenderIdentityKeyRef(String(session.sender_identity_key_ref || "player.identity"));
+    setGuildSessionSenderIdentityKeyRef(String(session.sender_identity_key_ref || `${activeProfileMemberId}.identity`));
     setGuildSessionSenderSignedPreKeyRef(String(session.sender_signed_pre_key_ref || ""));
     setGuildSessionSenderOneTimePreKeyRef(String(session.sender_one_time_pre_key_ref || ""));
     setGuildSessionRecipientIdentityKeyRef(String(session.recipient_identity_key_ref || ""));
@@ -6535,7 +6580,41 @@ export function App() {
     guildSessionRecipientOneTimePreKeyRef,
     guildSessionEpoch,
     guildSessionSealedSender,
+    activeProfileMemberId,
   ]);
+
+  useEffect(() => {
+    setGuildSenderId((prev) => {
+      const current = String(prev || "").trim();
+      if (!current || current === "player") {
+        return activeProfileMemberId;
+      }
+      return prev;
+    });
+    setGuildParticipantMemberIdsText((prev) => {
+      let parsed = [];
+      try {
+        parsed = JSON.parse(prev || "[]");
+      } catch {
+        parsed = [];
+      }
+      if (!Array.isArray(parsed)) {
+        parsed = [];
+      }
+      const normalized = parsed.map((item) => String(item || "").trim()).filter(Boolean);
+      if (normalized.length === 0 || (normalized.length === 1 && normalized[0] === "player")) {
+        return JSON.stringify([activeProfileMemberId], null, 2);
+      }
+      return prev;
+    });
+    setGuildSessionSenderIdentityKeyRef((prev) => {
+      const current = String(prev || "").trim();
+      if (!current || current === "player.identity") {
+        return `${activeProfileMemberId}.identity`;
+      }
+      return prev;
+    });
+  }, [activeProfileMemberId]);
 
   useEffect(() => {
     if (section !== "Guild Hall") {
@@ -8793,6 +8872,12 @@ export function App() {
   async function fetchArtisanAccessStatus() {
     await runAction("artisan_access_status", async () => {
       const data = await apiCall("/v1/access/artisan-id/status", "GET", null);
+      if (typeof data.profile_name === "string" && data.profile_name.trim()) {
+        setProfileName(data.profile_name);
+      }
+      if (typeof data.profile_email === "string" && data.profile_email.trim()) {
+        setProfileEmail(data.profile_email);
+      }
       setArtisanAccessVerified(Boolean(data.artisan_access_verified));
       return data;
     });
@@ -8800,10 +8885,7 @@ export function App() {
 
   async function issueArtisanAccessCode() {
     await runAction("artisan_access_issue", async () => {
-      const data = await apiCall("/v1/access/artisan-id/issue", "POST", {
-        profile_name: profileName,
-        profile_email: profileEmail
-      });
+      const data = await apiCall("/v1/access/artisan-id/issue", "POST", buildProfilePayload(profileName, profileEmail, profileTimezone));
       const issued = typeof data.artisan_code === "string" ? data.artisan_code : "";
       setArtisanIssuedCode(issued);
       setArtisanAccessInput(issued);
@@ -8815,10 +8897,15 @@ export function App() {
   async function verifyArtisanAccess() {
     await runAction("artisan_access_verify", async () => {
       const data = await apiCall("/v1/access/artisan-id/verify", "POST", {
-        profile_name: profileName,
-        profile_email: profileEmail,
+        ...buildProfilePayload(profileName, profileEmail, profileTimezone),
         artisan_code: artisanAccessInput
       });
+      if (typeof data.profile_name === "string" && data.profile_name.trim()) {
+        setProfileName(data.profile_name);
+      }
+      if (typeof data.profile_email === "string" && data.profile_email.trim()) {
+        setProfileEmail(data.profile_email);
+      }
       setArtisanAccessVerified(Boolean(data.artisan_access_verified));
       return data;
     });
@@ -12504,8 +12591,10 @@ export function App() {
           channel_id: guildChannelId,
           thread_id: guildThreadId || null,
           sender_id: guildSenderId,
+          sender_member_id: guildSenderId || activeProfileMemberId,
           workspace_id: workspaceId,
           source: "atelier.desktop.guild_hall",
+          profile: activeProfilePayload,
         },
       });
       setGuildEntropyMixOutput(data);
@@ -12531,6 +12620,8 @@ export function App() {
         }
       })();
       const securitySession = parseObjectJson(guildSecuritySessionText, {});
+      const senderMemberId = participantMemberIds[0] || guildSenderId || activeProfileMemberId || null;
+      const recipientMemberId = guildRecipientActorId || participantMemberIds[1] || null;
       const currentStatus = guildWandStatus?.wand_id === guildWandId ? guildWandStatus : await fetchWandStatus(guildWandId, setGuildWandStatus);
       if (currentStatus?.revoked) {
         throw new Error("wand_revoked");
@@ -12547,8 +12638,8 @@ export function App() {
         message_text: messageDraft,
         conversation_id: guildConversationId || null,
         conversation_kind: guildConversationKind || "guild_channel",
-        sender_member_id: participantMemberIds[0] || guildSenderId || null,
-        recipient_member_id: guildRecipientActorId || participantMemberIds[1] || null,
+        sender_member_id: senderMemberId,
+        recipient_member_id: recipientMemberId,
         recipient_distribution_id: guildRecipientDistributionId || null,
         recipient_guild_id: guildRecipientGuildId || null,
         recipient_channel_id: guildRecipientChannelId || null,
@@ -12563,6 +12654,9 @@ export function App() {
         metadata: {
           workspace_id: workspaceId,
           source: "atelier.desktop.guild_hall",
+          profile: activeProfilePayload,
+          sender_member_id: senderMemberId,
+          recipient_member_id: recipientMemberId,
         },
       });
       setGuildEncryptOutput(data);
@@ -12571,6 +12665,7 @@ export function App() {
         metadata: {
           workspace_id: workspaceId,
           source: "atelier.desktop.guild_hall",
+          profile: activeProfilePayload,
         },
       });
       setGuildPersistOutput(persisted);
@@ -12582,6 +12677,8 @@ export function App() {
             channel_id: guildChannelId,
             thread_id: guildThreadId || null,
             sender_id: guildSenderId,
+            sender_member_id: senderMemberId,
+            profile: activeProfilePayload,
             at: new Date().toISOString(),
             envelope: data,
             persisted,
@@ -12676,6 +12773,7 @@ export function App() {
         }
       })();
       const securitySession = parseObjectJson(guildSecuritySessionText, {});
+      const normalizedParticipantMemberIds = participantMemberIds.length > 0 ? participantMemberIds : [activeProfileMemberId];
       const data = await apiCall("/v1/guild/conversations", "POST", {
         conversation_id: String(guildConversationId || "").trim(),
         conversation_kind: String(guildConversationKind || "").trim() || "guild_channel",
@@ -12683,13 +12781,15 @@ export function App() {
         channel_id: String(guildChannelId || "").trim() || null,
         thread_id: String(guildThreadId || "").trim() || null,
         title: String(guildConversationTitle || "").trim(),
-        participant_member_ids: participantMemberIds,
+        participant_member_ids: normalizedParticipantMemberIds,
         participant_guild_ids: participantGuildIds,
         distribution_id: String(guildRecipientDistributionId || guildDistributionId || "").trim() || null,
         security_session: securitySession,
         metadata: {
           workspace_id: workspaceId,
           source: "atelier.desktop.guild_hall",
+          profile: activeProfilePayload,
+          owner_member_id: normalizedParticipantMemberIds[0] || activeProfileMemberId,
         },
       });
       setGuildConversationOutput(data);
@@ -12707,7 +12807,7 @@ export function App() {
       if (guildConversationKind) {
         params.set("conversation_kind", guildConversationKind);
       }
-      const memberFilter = String(guildSenderId || "").trim();
+      const memberFilter = String(guildSenderId || activeProfileMemberId || "").trim();
       if (memberFilter) {
         params.set("participant_member_id", memberFilter);
       }
@@ -12986,6 +13086,7 @@ export function App() {
         metadata: {
           workspace_id: workspaceId,
           source: "atelier.desktop.guild_hall",
+          profile: activeProfilePayload,
         },
       });
       setDistributionHandshakeOutput(data);
@@ -16578,6 +16679,8 @@ export function App() {
           guildId={guildId}
           setGuildId={setGuildId}
           profileName={profileName}
+          profileEmail={profileEmail}
+          activeProfileMemberId={activeProfileMemberId}
           guildDistributionId={guildDistributionId}
           setGuildDistributionId={setGuildDistributionId}
           guildRecipientDistributionId={guildRecipientDistributionId}
@@ -16776,6 +16879,9 @@ export function App() {
           setMessageDraft={setMessageDraft}
           encryptGuildMessage={encryptGuildMessage}
           decryptGuildMessage={decryptGuildMessage}
+          profileName={profileName}
+          profileEmail={profileEmail}
+          activeProfileMemberId={activeProfileMemberId}
           guildWandStatus={guildWandStatus}
           guildId={guildId}
           guildChannelId={guildChannelId}
@@ -17152,6 +17258,67 @@ export function App() {
           </section>
         ) : null}
       </main>
+      {entryAuthModalOpen ? (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h3>Sign In / Register</h3>
+            <p>This prompt appears on app entry so the active profile, ArtisanID status, and workshop access are explicit before you move deeper into the Atelier.</p>
+            <div className="row">
+              <button
+                className={`action ${entryAuthMode === "register" ? "active" : ""}`}
+                onClick={() => setEntryAuthMode("register")}
+              >
+                Register
+              </button>
+              <button
+                className={`action ${entryAuthMode === "sign_in" ? "active" : ""}`}
+                onClick={() => setEntryAuthMode("sign_in")}
+              >
+                Sign In
+              </button>
+              <button className="action" onClick={fetchArtisanAccessStatus}>Refresh Status</button>
+            </div>
+            <div className="row">
+              <input value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder="display name" />
+              <input value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} placeholder="email" />
+              <input value={profileTimezone} onChange={(e) => setProfileTimezone(e.target.value)} placeholder="timezone (IANA)" />
+            </div>
+            <div className="row">
+              <span className={`badge ${artisanAccessVerified ? "badge-ok" : "badge-warn"}`}>{`Access: ${artisanAccessVerified ? "verified" : "unverified"}`}</span>
+              <span className="badge">{`Role: ${role}`}</span>
+              <span className="badge">{`Workspace: ${workspaceId}`}</span>
+            </div>
+            <div className="row">
+              <input
+                value={artisanAccessInput}
+                onChange={(e) => setArtisanAccessInput(e.target.value)}
+                placeholder="artisan ID access code"
+              />
+              {entryAuthMode === "register" ? (
+                <button
+                  className="action"
+                  onClick={issueArtisanAccessCode}
+                  disabled={!profileIsComplete(profileName, profileEmail)}
+                >
+                  Register / Issue Code
+                </button>
+              ) : (
+                <button
+                  className="action"
+                  onClick={verifyArtisanAccess}
+                  disabled={!profileIsComplete(profileName, profileEmail) || !normalizeProfileText(artisanAccessInput)}
+                >
+                  Sign In / Verify
+                </button>
+              )}
+              <button className="action" onClick={() => setEntryAuthModalOpen(false)}>Dismiss</button>
+            </div>
+            <p>{`Profile schema: ${normalizeProfileText(profileName, "Artisan")} / ${normalizeProfileText(profileEmail, "no email")} / ${normalizeProfileText(profileTimezone, "UTC")}`}</p>
+            {artisanIssuedCode ? <p>{`Issued code: ${artisanIssuedCode}`}</p> : null}
+            <p>{profileIsComplete(profileName, profileEmail) ? "Profile is complete enough for register/sign-in." : "Register/sign-in requires both display name and email."}</p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

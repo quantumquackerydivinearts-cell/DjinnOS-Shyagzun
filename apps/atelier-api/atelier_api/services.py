@@ -12443,6 +12443,7 @@ class AtelierService:
             workshop_id=row.workshop_id,
             profile_name=row.profile_name,
             profile_email=row.profile_email,
+            profile_timezone="UTC",
             artisan_access_verified=row.artisan_access_verified,
         )
 

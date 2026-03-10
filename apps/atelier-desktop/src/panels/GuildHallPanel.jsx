@@ -5,6 +5,8 @@ export function GuildHallPanel(props) {
     guildId,
     setGuildId,
     profileName,
+    profileEmail,
+    activeProfileMemberId,
     guildDistributionId,
     setGuildDistributionId,
     guildRecipientDistributionId,
@@ -224,6 +226,8 @@ export function GuildHallPanel(props) {
       <div className="guild-summary-strip">
         <span className="badge">{`Guild: ${guildId || "unset"}`}</span>
         <span className="badge">{`Profile: ${profileName || "Artisan"}`}</span>
+        <span className="badge">{`Email: ${profileEmail || "unset"}`}</span>
+        <span className="badge">{`Member: ${activeProfileMemberId || "unset"}`}</span>
         <span className="badge">{`Home distribution: ${guildDistributionId || "unset"}`}</span>
         <span className="badge">{`Remote target: ${guildRecipientDistributionId || "local"} / ${guildRecipientGuildId || "none"}`}</span>
         <span className="badge">{`Wand: ${guildWandId || "unset"}`}</span>

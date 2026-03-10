@@ -4,6 +4,9 @@ export function MessagesPanel(props) {
     setMessageDraft,
     encryptGuildMessage,
     decryptGuildMessage,
+    profileName,
+    profileEmail,
+    activeProfileMemberId,
     guildWandStatus,
     guildId,
     guildChannelId,
@@ -31,6 +34,9 @@ export function MessagesPanel(props) {
         <button className="action" onClick={decryptGuildMessage}>Decrypt Current Envelope</button>
       </div>
       <div className="row">
+        <span className="badge">{`Profile: ${profileName || "Artisan"}`}</span>
+        <span className="badge">{`Email: ${profileEmail || "unset"}`}</span>
+        <span className="badge">{`Member: ${activeProfileMemberId || "unset"}`}</span>
         <span className="badge">{`Guild: ${guildId}`}</span>
         <span className="badge">{`Channel: ${guildChannelId}`}</span>
         <span className="badge">{`Conversation: ${guildConversationId || "none"}`}</span>
