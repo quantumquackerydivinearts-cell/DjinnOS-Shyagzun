@@ -4303,6 +4303,61 @@ class AtelierService:
         target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
         return {**payload, "storage_backend": "file"}
 
+    def set_distribution_shop_workspace_id(
+        self,
+        *,
+        distribution_id: str,
+        shop_workspace_id: str,
+        steward_id: str,
+    ) -> Mapping[str, Any]:
+        distribution_id_norm = str(distribution_id).strip()
+        workspace_id_norm = str(shop_workspace_id).strip()
+        if distribution_id_norm == "":
+            raise ValueError("distribution_id_required")
+        if workspace_id_norm == "":
+            raise ValueError("shop_workspace_id_required")
+        now = datetime.now(timezone.utc).isoformat()
+        if self._repo is not None and hasattr(self._repo, "get_distribution_registry_record") and hasattr(self._repo, "save_distribution_registry_record"):
+            row = self._repo.get_distribution_registry_record(distribution_id_norm)
+            if row is None:
+                raise ValueError("distribution_not_found")
+            try:
+                metadata_obj = json.loads(row.metadata_json)
+            except json.JSONDecodeError:
+                metadata_obj = {}
+            if not isinstance(metadata_obj, dict):
+                metadata_obj = {}
+            metadata_obj["shop_workspace_id"] = workspace_id_norm
+            metadata_obj["shop_updated_by"] = steward_id
+            metadata_obj["shop_updated_at"] = now
+            row.metadata_json = json.dumps(metadata_obj, ensure_ascii=False)
+            row.updated_at = datetime.fromisoformat(now.replace("Z", "+00:00"))
+            saved = self._repo.save_distribution_registry_record(row)
+            return {
+                "distribution_id": saved.distribution_id,
+                "display_name": saved.display_name,
+                "base_url": saved.base_url,
+                "status": saved.status,
+                "metadata": json.loads(saved.metadata_json),
+                "updated_at": saved.updated_at.isoformat(),
+                "storage_backend": "database",
+            }
+        path = self._security_bucket_dir("distribution_registry") / f"{distribution_id_norm}.json"
+        if not path.exists():
+            raise ValueError("distribution_not_found")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("distribution_not_found")
+        metadata_obj = payload.get("metadata")
+        metadata = dict(metadata_obj) if isinstance(metadata_obj, Mapping) else {}
+        metadata["shop_workspace_id"] = workspace_id_norm
+        metadata["shop_updated_by"] = steward_id
+        metadata["shop_updated_at"] = now
+        payload["metadata"] = metadata
+        payload["updated_at"] = now
+        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        return {**payload, "storage_backend": "file"}
+
     def get_distribution_registry_entry(self, *, distribution_id: str) -> Mapping[str, Any]:
         distribution_id_norm = str(distribution_id).strip()
         if distribution_id_norm == "":

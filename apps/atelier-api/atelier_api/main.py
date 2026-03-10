@@ -398,6 +398,10 @@ class DistributionRegistryInput(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class DistributionShopWorkspaceUpdate(BaseModel):
+    shop_workspace_id: str
+
+
 class DistributionHandshakeInput(BaseModel):
     distribution_id: str
     local_distribution_id: str = ""
@@ -1682,6 +1686,29 @@ def get_distribution_capabilities(
         return svc.discover_distribution_capabilities(distribution_id=distribution_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.put("/v1/distributions/registry/{distribution_id}/shop-workspace")
+def set_distribution_shop_workspace(
+    distribution_id: str,
+    payload: DistributionShopWorkspaceUpdate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Mapping[str, Any]:
+    _enforce(ctx, "shop.admin")
+    _enforce_role(role, "shop.admin")
+    if role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required")
+    try:
+        return svc.set_distribution_shop_workspace_id(
+            distribution_id=distribution_id,
+            shop_workspace_id=payload.shop_workspace_id,
+            steward_id=workshop.identity.artisan_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/v1/distributions/handshakes")
