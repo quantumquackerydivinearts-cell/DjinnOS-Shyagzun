@@ -1,10 +1,10 @@
 ﻿param(
-    [ValidateSet("dev", "desktop")]
-    [string]$UiMode = "dev",
     [string]$KernelHost = "127.0.0.1",
     [int]$KernelPort = 8000,
     [string]$ApiHost = "127.0.0.1",
-    [int]$ApiPort = 9000
+    [int]$ApiPort = 9000,
+    [ValidateSet("dev", "desktop")]
+    [string]$UiMode = "dev"
 )
 
 $ErrorActionPreference = "Stop"

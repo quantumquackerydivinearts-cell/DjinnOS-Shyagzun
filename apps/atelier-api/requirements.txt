@@ -7,5 +7,5 @@ psycopg[binary]
 pydantic
 jsonschema
 stripe
-multipart
+python-multipart
 

@@ -617,3 +617,27 @@ class DistributionHandshakeRecord(Base):
     status: Mapped[str] = mapped_column(String(80), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class GuildArtisanProfile(Base):
+    __tablename__ = "guild_artisan_profiles"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    artisan_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    bio: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    portfolio_url: Mapped[str] = mapped_column(String(400), nullable=False, default="")
+    avatar_url: Mapped[str] = mapped_column(String(400), nullable=False, default="")
+    region: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    divisions: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    trades: Mapped[str] = mapped_column(String(400), nullable=False, default="")
+    guild_rank: Mapped[str] = mapped_column(String(40), nullable=False, default="artisan")
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    show_region: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    show_trades: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    show_portfolio: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    steward_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    approved_by: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
