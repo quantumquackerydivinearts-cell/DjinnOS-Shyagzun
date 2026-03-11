@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Encyclopedia Esoterica</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --void: #050a06;
+      --deep: #0a120b;
+      --moss: #0f1f10;
+      --bark: #1a2e1b;
+      --lichen: #2a4a2c;
+      --fog: #4a6b4c;
+      --mist: #7a9e7c;
+      --breath: #adc9ae;
+      --gold: #c8a84b;
+      --amber: #e8c870;
+      --ember: #f0d890;
+      --biolume: #4af0c8;
+      --biolume-dim: #1a6b54;
+      --moonsilver: #d0d8d0;
+      --ink: #e8f0e8;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--void);
+      color: var(--ink);
+      font-family: 'Cormorant Garamond', serif;
+      cursor: none;
+    }
+
+    /* Custom cursor */
+    #cursor {
+      position: fixed;
+      width: 8px; height: 8px;
+      background: var(--amber);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: width 0.2s, height 0.2s, background 0.2s;
+      box-shadow: 0 0 12px var(--amber), 0 0 24px var(--gold);
+    }
+    #cursor.hovering {
+      width: 20px; height: 20px;
+      background: var(--biolume);
+      box-shadow: 0 0 20px var(--biolume), 0 0 40px var(--biolume-dim);
+    }
+    #cursor-trail {
+      position: fixed;
+      width: 2px; height: 2px;
+      background: var(--gold);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9998;
+      transform: translate(-50%, -50%);
+      opacity: 0.4;
+      transition: left 0.15s ease, top 0.15s ease;
+    }
+
+    /* Main canvas container */
+    #world {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    /* Sky/void layer */
+    #sky {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 30%, #0d1f0e 0%, #050a06 60%, #020504 100%);
+    }
+
+    /* Stars */
+    #stars {
+      position: absolute;
+      inset: 0;
+    }
+
+    /* Mountain silhouette */
+    #mountains {
+      position: absolute;
+      bottom: 30%;
+      left: 0; right: 0;
+      height: 45%;
+    }
+
+    /* The tree */
+    #tree-container {
+      position: absolute;
+      bottom: 28%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 520px;
+      z-index: 20;
+    }
+
+    #tree-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 0 20px rgba(200, 168, 75, 0.15));
+    }
+
+    /* Water / ground */
+    #water {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 32%;
+      z-index: 15;
+    }
+
+    #water-surface {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 100%;
+      background: linear-gradient(
+        180deg,
+        rgba(10, 30, 20, 0.9) 0%,
+        rgba(5, 15, 10, 0.97) 40%,
+        #020806 100%
+      );
+      overflow: hidden;
+    }
+
+    .water-shimmer {
+      position: absolute;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(74, 240, 200, 0.3), rgba(200, 168, 75, 0.2), transparent);
+      animation: shimmer linear infinite;
+      opacity: 0;
+    }
+
+    @keyframes shimmer {
+      0% { left: -100%; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 0.5; }
+      100% { left: 100%; opacity: 0; }
+    }
+
+    /* Fog layers */
+    .fog-layer {
+      position: absolute;
+      left: -20%;
+      width: 140%;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    #fog-1 {
+      bottom: 26%;
+      height: 180px;
+      background: radial-gradient(ellipse at 50% 50%, rgba(74, 107, 76, 0.12) 0%, transparent 70%);
+      animation: fogDrift 28s ease-in-out infinite alternate;
+      z-index: 25;
+    }
+    #fog-2 {
+      bottom: 24%;
+      height: 220px;
+      background: radial-gradient(ellipse at 40% 50%, rgba(42, 74, 44, 0.1) 0%, transparent 70%);
+      animation: fogDrift 38s ease-in-out infinite alternate-reverse;
+      z-index: 22;
+    }
+    #fog-3 {
+      bottom: 22%;
+      height: 260px;
+      background: radial-gradient(ellipse at 60% 50%, rgba(26, 46, 27, 0.15) 0%, transparent 65%);
+      animation: fogDrift 45s ease-in-out infinite alternate;
+      z-index: 18;
+      filter: blur(8px);
+    }
+
+    @keyframes fogDrift {
+      0% { transform: translateX(-5%) scaleX(1); opacity: 0.7; }
+      50% { transform: translateX(3%) scaleX(1.05); opacity: 1; }
+      100% { transform: translateX(5%) scaleX(0.97); opacity: 0.8; }
+    }
+
+    /* Cannabis plants */
+    .cannabis {
+      position: absolute;
+      bottom: 28%;
+      z-index: 16;
+      opacity: 0;
+      animation: cannabisRise 3s ease-out forwards;
+    }
+    @keyframes cannabisRise {
+      to { opacity: 1; }
+    }
+
+    /* Floating particles */
+    #particles {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      animation: particleFloat linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes particleFloat {
+      0% { transform: translateY(0) translateX(0); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 0.4; }
+      100% { transform: translateY(-120vh) translateX(var(--drift)); opacity: 0; }
+    }
+
+    /* Entry text */
+    #entry-text {
+      position: absolute;
+      bottom: 34%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 40;
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      animation: textReveal 2s ease-out 3s forwards;
+    }
+
+    @keyframes textReveal {
+      to { opacity: 1; }
+    }
+
+    #entry-text h1 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      font-weight: 400;
+      letter-spacing: 0.3em;
+      color: var(--amber);
+      text-shadow: 0 0 40px rgba(200, 168, 75, 0.4), 0 0 80px rgba(200, 168, 75, 0.15);
+      white-space: nowrap;
+    }
+
+    #entry-text p {
+      font-size: clamp(0.85rem, 1.5vw, 1rem);
+      letter-spacing: 0.25em;
+      color: var(--breath);
+      margin-top: 0.6em;
+      font-style: italic;
+      opacity: 0.7;
+    }
+
+    /* Navigation nodes — the garden paths */
+    #nav-nodes {
+      position: absolute;
+      inset: 0;
+      z-index: 35;
+      pointer-events: none;
+    }
+
+    .nav-node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: all;
+      cursor: none;
+      opacity: 0;
+      animation: nodeReveal 1s ease-out forwards;
+    }
+
+    @keyframes nodeReveal {
+      to { opacity: 1; }
+    }
+
+    .node-glow {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--biolume);
+      box-shadow: 0 0 8px var(--biolume), 0 0 20px var(--biolume-dim);
+      transition: all 0.4s ease;
+      position: relative;
+    }
+
+    .nav-node:hover .node-glow {
+      width: 14px; height: 14px;
+      box-shadow: 0 0 20px var(--biolume), 0 0 50px var(--biolume-dim), 0 0 80px rgba(74, 240, 200, 0.15);
+    }
+
+    .node-label {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(100% + 10px);
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: var(--mist);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      text-shadow: 0 0 10px rgba(74, 107, 76, 0.8);
+      pointer-events: none;
+    }
+
+    .nav-node:hover .node-label {
+      opacity: 1;
+    }
+
+    /* Gold node variant */
+    .nav-node.gold .node-glow {
+      background: var(--gold);
+      box-shadow: 0 0 8px var(--gold), 0 0 20px rgba(200, 168, 75, 0.4);
+    }
+    .nav-node.gold:hover .node-glow {
+      box-shadow: 0 0 20px var(--amber), 0 0 50px rgba(200, 168, 75, 0.4);
+    }
+    .nav-node.gold .node-label { color: var(--amber); }
+
+    /* Amber node variant */
+    .nav-node.amber .node-glow {
+      background: var(--ember);
+      box-shadow: 0 0 8px var(--ember), 0 0 20px rgba(240, 216, 144, 0.3);
+      width: 5px; height: 5px;
+    }
+
+    /* Water entry point */
+    #water-entry {
+      position: absolute;
+      bottom: 30%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      opacity: 0;
+      animation: nodeReveal 1.5s ease-out 4.5s forwards;
+      pointer-events: all;
+      cursor: none;
+      text-align: center;
+    }
+
+    #water-entry-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.35em;
+      color: var(--fog);
+      font-style: italic;
+      transition: color 0.5s ease, text-shadow 0.5s ease;
+    }
+
+    #water-entry:hover #water-entry-text {
+      color: var(--breath);
+      text-shadow: 0 0 20px rgba(173, 201, 174, 0.5);
+    }
+
+    #water-entry-line {
+      width: 1px;
+      height: 0;
+      background: linear-gradient(180deg, var(--biolume-dim), transparent);
+      margin: 8px auto 0;
+      transition: height 0.5s ease;
+    }
+
+    #water-entry:hover #water-entry-line {
+      height: 30px;
+    }
+
+    /* Overlay panel */
+    #panel {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 10, 6, 0);
+      pointer-events: none;
+      transition: background 0.8s ease;
+    }
+
+    #panel.active {
+      background: rgba(5, 10, 6, 0.92);
+      pointer-events: all;
+      backdrop-filter: blur(4px);
+    }
+
+    #panel-content {
+      max-width: 640px;
+      padding: 3rem;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease 0.3s, transform 0.6s ease 0.3s;
+      text-align: center;
+    }
+
+    #panel.active #panel-content {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #panel-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+      font-weight: 400;
+      letter-spacing: 0.3em;
+      color: var(--amber);
+      margin-bottom: 1.5rem;
+      text-shadow: 0 0 30px rgba(200, 168, 75, 0.3);
+    }
+
+    #panel-body {
+      font-size: clamp(0.9rem, 1.5vw, 1.05rem);
+      line-height: 1.9;
+      color: var(--breath);
+      font-weight: 300;
+      margin-bottom: 2rem;
+    }
+
+    #panel-body em {
+      color: var(--mist);
+      font-style: italic;
+    }
+
+    #panel-close {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      color: var(--fog);
+      background: none;
+      border: 1px solid var(--lichen);
+      padding: 0.6em 2em;
+      cursor: none;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+    }
+
+    #panel-close:hover {
+      color: var(--breath);
+      border-color: var(--mist);
+      box-shadow: 0 0 20px rgba(122, 158, 124, 0.2);
+    }
+
+    /* Section list in panel */
+    .section-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.4rem 1.2rem;
+      margin: 1.5rem 0;
+      text-align: left;
+    }
+
+    .section-item {
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      color: var(--fog);
+      padding: 0.2em 0;
+      transition: color 0.2s;
+      cursor: none;
+    }
+
+    .section-item:hover { color: var(--biolume); }
+
+    /* Loading veil */
+    #veil {
+      position: fixed;
+      inset: 0;
+      background: var(--void);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: veilLift 1.5s ease-out 1s forwards;
+    }
+
+    @keyframes veilLift {
+      to { opacity: 0; pointer-events: none; }
+    }
+
+    #veil-mark {
+      width: 2px;
+      height: 40px;
+      background: linear-gradient(180deg, transparent, var(--gold), transparent);
+      animation: veilMark 1s ease-in-out infinite alternate;
+    }
+
+    @keyframes veilMark {
+      to { height: 80px; opacity: 0.5; }
+    }
+
+    /* Reflection in water */
+    #reflection {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%) scaleY(-1);
+      width: 600px;
+      height: 260px;
+      opacity: 0.08;
+      filter: blur(3px);
+      z-index: 16;
+    }
+
+    /* Moon */
+    #moon {
+      position: absolute;
+      top: 8%;
+      right: 18%;
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, #e8f0e8, #c0c8c0 40%, #8a988a 80%, transparent);
+      box-shadow: 0 0 30px rgba(208, 216, 208, 0.15), 0 0 80px rgba(208, 216, 208, 0.05);
+      z-index: 5;
+      animation: moonBreath 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes moonBreath {
+      to { box-shadow: 0 0 40px rgba(208, 216, 208, 0.2), 0 0 100px rgba(208, 216, 208, 0.08); }
+    }
+
+  </style>
+</head>
+<body>
+
+<div id="veil"><div id="veil-mark"></div></div>
+<div id="cursor"></div>
+<div id="cursor-trail"></div>
+
+<div id="world">
+  <div id="sky"></div>
+  <canvas id="stars"></canvas>
+  <div id="moon"></div>
+
+  <!-- Mountains -->
+  <svg id="mountains" viewBox="0 0 1400 400" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="mtnGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0d1a0e" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="#050a06" stop-opacity="1"/>
+      </linearGradient>
+      <linearGradient id="mtnGrad2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0a1510" stop-opacity="0.7"/>
+        <stop offset="100%" stop-color="#050a06" stop-opacity="1"/>
+      </linearGradient>
+    </defs>
+    <!-- Far mountains -->
+    <path d="M0,400 L0,280 L120,180 L260,260 L380,140 L520,220 L650,100 L780,200 L920,130 L1060,210 L1180,160 L1300,220 L1400,180 L1400,400 Z" fill="url(#mtnGrad2)" opacity="0.6"/>
+    <!-- Near mountains -->
+    <path d="M0,400 L0,320 L150,240 L300,290 L450,200 L600,260 L720,170 L860,240 L1000,190 L1150,250 L1280,200 L1400,240 L1400,400 Z" fill="url(#mtnGrad)"/>
+  </svg>
+
+  <!-- Water -->
+  <div id="water">
+    <div id="water-surface"></div>
+  </div>
+
+  <!-- Reflection -->
+  <svg id="reflection" viewBox="0 0 600 520" xmlns="http://www.w3.org/2000/svg">
+    <!-- simplified tree reflection -->
+    <line x1="300" y1="520" x2="300" y2="300" stroke="#c8a84b" stroke-width="3" opacity="0.5"/>
+    <ellipse cx="300" cy="280" rx="120" ry="80" fill="none" stroke="#4a6b4c" stroke-width="1" opacity="0.4"/>
+  </svg>
+
+  <!-- The Tree -->
+  <div id="tree-container">
+    <svg id="tree-svg" viewBox="0 0 600 520" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="trunkGrad" cx="50%" cy="80%" r="60%">
+          <stop offset="0%" stop-color="#3a2810"/>
+          <stop offset="100%" stop-color="#1a1408"/>
+        </radialGradient>
+        <radialGradient id="leafGrad1" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#1a3a1c"/>
+          <stop offset="70%" stop-color="#0f2010"/>
+          <stop offset="100%" stop-color="#080e08"/>
+        </radialGradient>
+        <radialGradient id="cherryGrad" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#1e3520"/>
+          <stop offset="60%" stop-color="#0f1e10"/>
+          <stop offset="100%" stop-color="#070d07"/>
+        </radialGradient>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="softglow">
+          <feGaussianBlur stdDeviation="6" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- Roots -->
+      <g opacity="0.7">
+        <path d="M285,490 Q270,500 240,510 Q210,515 190,508" stroke="#2a1a08" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M290,492 Q280,505 265,515 Q245,522 220,518" stroke="#2a1a08" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M295,490 Q295,505 290,518 Q284,528 270,532" stroke="#2a1a08" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M305,490 Q315,505 320,518 Q322,528 316,534" stroke="#2a1a08" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M310,492 Q325,505 340,515 Q358,522 378,520" stroke="#2a1a08" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M315,490 Q335,500 365,508 Q390,513 415,506" stroke="#2a1a08" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- Lotus glow on roots -->
+        <path d="M240,512 Q260,508 285,492" stroke="#1a6b54" stroke-width="1" fill="none" opacity="0.4" stroke-linecap="round"/>
+        <path d="M415,508 Q390,506 315,492" stroke="#1a6b54" stroke-width="1" fill="none" opacity="0.4" stroke-linecap="round"/>
+      </g>
+
+      <!-- Trunk -->
+      <path d="M278,490 Q272,420 268,360 Q264,300 270,250 Q274,210 280,170 Q286,130 290,100" 
+            stroke="url(#trunkGrad)" stroke-width="18" fill="none" stroke-linecap="round"/>
+      <path d="M322,490 Q328,420 332,360 Q336,300 330,250 Q326,210 320,170 Q314,130 310,100"
+            stroke="url(#trunkGrad)" stroke-width="18" fill="none" stroke-linecap="round"/>
+      <!-- Trunk fill -->
+      <path d="M278,490 Q272,420 268,360 Q264,300 270,250 Q274,210 280,170 Q286,130 292,98 L308,98 Q314,130 320,170 Q326,210 330,250 Q336,300 332,360 Q328,420 322,490 Z"
+            fill="url(#trunkGrad)" opacity="0.8"/>
+
+      <!-- Rose wrapping the heart — spiral vine -->
+      <path d="M290,400 Q260,390 255,370 Q250,350 268,340 Q286,330 294,350 Q302,370 285,375"
+            stroke="#4a1520" stroke-width="1.5" fill="none" opacity="0.7" stroke-linecap="round"/>
+      <path d="M294,350 Q310,340 318,320 Q326,300 310,292 Q294,284 288,302 Q282,320 298,326"
+            stroke="#4a1520" stroke-width="1.5" fill="none" opacity="0.7" stroke-linecap="round"/>
+      <!-- Rose blooms -->
+      <circle cx="255" cy="368" r="4" fill="#6a2030" opacity="0.6"/>
+      <circle cx="255" cy="368" r="2.5" fill="#8a3040" opacity="0.8"/>
+      <circle cx="288" cy="302" r="3.5" fill="#6a2030" opacity="0.6"/>
+      <circle cx="288" cy="302" r="2" fill="#8a3040" opacity="0.8"/>
+      <circle cx="318" cy="350" r="3" fill="#7a2838" opacity="0.5"/>
+
+      <!-- Aster wreath - chirality spirals -->
+      <g opacity="0.5" filter="url(#glow)">
+        <path d="M265,280 Q240,270 238,255 Q236,240 252,238" stroke="#3a4a8a" stroke-width="1" fill="none"/>
+        <path d="M252,238 Q268,236 272,252 Q276,268 262,272" stroke="#3a4a8a" stroke-width="1" fill="none"/>
+        <path d="M335,280 Q360,270 362,255 Q364,240 348,238" stroke="#3a4a8a" stroke-width="1" fill="none"/>
+        <path d="M348,238 Q332,236 328,252 Q324,268 338,272" stroke="#3a4a8a" stroke-width="1" fill="none"/>
+        <!-- Aster blooms -->
+        <circle cx="240" cy="255" r="3" fill="#5a6ab0" opacity="0.7"/>
+        <circle cx="360" cy="255" r="3" fill="#5a6ab0" opacity="0.7"/>
+      </g>
+
+      <!-- Grapevine wreath -->
+      <g opacity="0.45">
+        <path d="M268,440 Q245,430 242,415 Q240,400 254,396 Q268,392 272,406 Q276,420 264,424"
+              stroke="#3a2a5a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M332,440 Q355,430 358,415 Q360,400 346,396 Q332,392 328,406 Q324,420 336,424"
+              stroke="#3a2a5a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- Grape clusters -->
+        <circle cx="242" cy="414" r="3" fill="#4a2a6a" opacity="0.7"/>
+        <circle cx="246" cy="420" r="2.5" fill="#4a2a6a" opacity="0.6"/>
+        <circle cx="238" cy="420" r="2.5" fill="#4a2a6a" opacity="0.6"/>
+        <circle cx="358" cy="414" r="3" fill="#4a2a6a" opacity="0.7"/>
+        <circle cx="362" cy="420" r="2.5" fill="#4a2a6a" opacity="0.6"/>
+        <circle cx="354" cy="420" r="2.5" fill="#4a2a6a" opacity="0.6"/>
+      </g>
+
+      <!-- Daisy sprouts on edges -->
+      <g opacity="0.55" filter="url(#glow)">
+        <!-- Left daisies -->
+        <line x1="262" y1="460" x2="240" y2="445" stroke="#3a5a2a" stroke-width="1"/>
+        <circle cx="238" cy="443" r="4" fill="none" stroke="#5a8a4a" stroke-width="1"/>
+        <circle cx="238" cy="443" r="2" fill="#4a6a3a" opacity="0.6"/>
+        <line x1="268" y1="380" x2="244" y2="368" stroke="#3a5a2a" stroke-width="1"/>
+        <circle cx="242" cy="366" r="3.5" fill="none" stroke="#5a8a4a" stroke-width="1"/>
+        <circle cx="242" cy="366" r="1.8" fill="#4a6a3a" opacity="0.6"/>
+        <!-- Right daisies -->
+        <line x1="338" y1="460" x2="360" y2="445" stroke="#3a5a2a" stroke-width="1"/>
+        <circle cx="362" cy="443" r="4" fill="none" stroke="#5a8a4a" stroke-width="1"/>
+        <circle cx="362" cy="443" r="2" fill="#4a6a3a" opacity="0.6"/>
+        <line x1="332" y1="380" x2="356" y2="368" stroke="#3a5a2a" stroke-width="1"/>
+        <circle cx="358" cy="366" r="3.5" fill="none" stroke="#5a8a4a" stroke-width="1"/>
+        <circle cx="358" cy="366" r="1.8" fill="#4a6a3a" opacity="0.6"/>
+      </g>
+
+      <!-- Main canopy — Sakura crown -->
+      <ellipse cx="300" cy="175" rx="130" ry="85" fill="url(#cherryGrad)" opacity="0.85"/>
+      <!-- Sakura branch suggestions -->
+      <path d="M290,98 Q260,120 230,140 Q200,155 175,160" stroke="#1a2e1a" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <path d="M295,100 Q270,115 255,130 Q238,148 225,165" stroke="#1a2e1a" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.6"/>
+      <path d="M305,98 Q330,120 360,138 Q390,152 420,158" stroke="#1a2e1a" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <path d="M308,100 Q330,115 348,132 Q366,150 378,168" stroke="#1a2e1a" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.6"/>
+      <path d="M295,102 Q290,80 288,58 Q286,42 292,30" stroke="#1a2e1a" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.6"/>
+
+      <!-- Canopy leaf masses -->
+      <ellipse cx="220" cy="158" rx="65" ry="45" fill="url(#leafGrad1)" opacity="0.8"/>
+      <ellipse cx="380" cy="158" rx="65" ry="45" fill="url(#leafGrad1)" opacity="0.8"/>
+      <ellipse cx="300" cy="115" rx="55" ry="38" fill="url(#leafGrad1)" opacity="0.75"/>
+      <ellipse cx="250" cy="120" rx="50" ry="35" fill="url(#leafGrad1)" opacity="0.7"/>
+      <ellipse cx="350" cy="120" rx="50" ry="35" fill="url(#leafGrad1)" opacity="0.7"/>
+
+      <!-- AppleBlossom grafts — lighter bloom clusters -->
+      <g opacity="0.5" filter="url(#softglow)">
+        <circle cx="190" cy="152" r="5" fill="#d0c0a0" opacity="0.4"/>
+        <circle cx="200" cy="144" r="4" fill="#d0c0a0" opacity="0.35"/>
+        <circle cx="195" cy="162" r="4" fill="#d0c0a0" opacity="0.35"/>
+        <circle cx="408" cy="152" r="5" fill="#d0c0a0" opacity="0.4"/>
+        <circle cx="398" cy="144" r="4" fill="#d0c0a0" opacity="0.35"/>
+        <circle cx="405" cy="162" r="4" fill="#d0c0a0" opacity="0.35"/>
+        <circle cx="298" cy="80" r="5" fill="#d0c0a0" opacity="0.4"/>
+        <circle cx="308" cy="75" r="4" fill="#d0c0a0" opacity="0.35"/>
+        <circle cx="290" cy="74" r="4" fill="#d0c0a0" opacity="0.35"/>
+      </g>
+
+      <!-- Bioluminescent touches on tree -->
+      <g filter="url(#glow)" opacity="0.3">
+        <circle cx="238" cy="443" r="6" fill="#4af0c8" opacity="0.2"/>
+        <circle cx="362" cy="443" r="6" fill="#4af0c8" opacity="0.2"/>
+        <circle cx="240" cy="255" r="5" fill="#4a6af0" opacity="0.25"/>
+        <circle cx="360" cy="255" r="5" fill="#4a6af0" opacity="0.25"/>
+      </g>
+
+      <!-- Gold heartline -->
+      <line x1="300" y1="490" x2="300" y2="95" stroke="url(#goldLine)" stroke-width="1" opacity="0.3"/>
+      <defs>
+        <linearGradient id="goldLine" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" stop-color="#4af0c8" stop-opacity="0.6"/>
+          <stop offset="40%" stop-color="#c8a84b" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#c8a84b" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+
+  <!-- Fog layers -->
+  <div class="fog-layer" id="fog-3"></div>
+  <div class="fog-layer" id="fog-2"></div>
+  <div class="fog-layer" id="fog-1"></div>
+
+  <!-- Cannabis plants (SVG) -->
+  <svg class="cannabis" style="left:6%; width:80px; height:160px; animation-delay:2.5s;" viewBox="0 0 80 160" xmlns="http://www.w3.org/2000/svg">
+    <line x1="40" y1="160" x2="40" y2="60" stroke="#1a3a1a" stroke-width="2"/>
+    <path d="M40,130 Q20,115 10,100 Q25,98 35,110 Z" fill="#1a3a1a" opacity="0.7"/>
+    <path d="M40,110 Q60,95 72,80 Q57,78 46,92 Z" fill="#1a3a1a" opacity="0.7"/>
+    <path d="M40,90 Q18,75 8,58 Q24,56 36,70 Z" fill="#1a4a1a" opacity="0.6"/>
+    <path d="M40,90 Q62,75 74,58 Q58,56 46,70 Z" fill="#1a4a1a" opacity="0.6"/>
+    <path d="M40,70 Q25,52 20,38 Q34,40 40,54 Z" fill="#1a4a1a" opacity="0.55"/>
+    <path d="M40,70 Q55,52 60,38 Q46,40 40,54 Z" fill="#1a4a1a" opacity="0.55"/>
+    <circle cx="40" cy="58" r="3" fill="#2a5a2a" opacity="0.5"/>
+  </svg>
+
+  <svg class="cannabis" style="right:8%; width:60px; height:130px; animation-delay:3s;" viewBox="0 0 80 160" xmlns="http://www.w3.org/2000/svg">
+    <line x1="40" y1="160" x2="40" y2="60" stroke="#1a3a1a" stroke-width="2"/>
+    <path d="M40,130 Q20,115 10,100 Q25,98 35,110 Z" fill="#1a3a1a" opacity="0.65"/>
+    <path d="M40,110 Q60,95 72,80 Q57,78 46,92 Z" fill="#1a3a1a" opacity="0.65"/>
+    <path d="M40,90 Q18,75 8,58 Q24,56 36,70 Z" fill="#1a4a1a" opacity="0.55"/>
+    <path d="M40,90 Q62,75 74,58 Q58,56 46,70 Z" fill="#1a4a1a" opacity="0.55"/>
+    <circle cx="40" cy="62" r="3" fill="#2a5a2a" opacity="0.4"/>
+  </svg>
+
+  <svg class="cannabis" style="left:18%; width:45px; height:100px; animation-delay:3.5s;" viewBox="0 0 80 160" xmlns="http://www.w3.org/2000/svg">
+    <line x1="40" y1="160" x2="40" y2="70" stroke="#1a3a1a" stroke-width="1.5"/>
+    <path d="M40,130 Q22,118 12,105 Q26,103 36,114 Z" fill="#1a3a1a" opacity="0.6"/>
+    <path d="M40,110 Q58,98 68,85 Q54,83 44,94 Z" fill="#1a3a1a" opacity="0.6"/>
+    <path d="M40,90 Q22,76 14,62 Q28,62 38,74 Z" fill="#1a4a1a" opacity="0.5"/>
+    <path d="M40,90 Q58,76 66,62 Q52,62 42,74 Z" fill="#1a4a1a" opacity="0.5"/>
+  </svg>
+
+  <!-- Particles canvas -->
+  <canvas id="particles-canvas" style="position:absolute;inset:0;z-index:30;pointer-events:none;"></canvas>
+
+  <!-- Title -->
+  <div id="entry-text">
+    <h1>Encyclopedia Esoterica</h1>
+    <p>Library of Being</p>
+  </div>
+
+  <!-- Water entry -->
+  <div id="water-entry" onclick="openPanel('water')">
+    <div id="water-entry-text">enter</div>
+    <div id="water-entry-line"></div>
+  </div>
+
+  <!-- Navigation nodes -->
+  <div id="nav-nodes">
+    <!-- Roots — Lotus -->
+    <div class="nav-node gold" style="left:50%;top:72%;animation-delay:5s;" onclick="openPanel('lotus')">
+      <div class="node-glow"></div>
+      <div class="node-label">Lotus · Roots</div>
+    </div>
+    <!-- Rose — heart -->
+    <div class="nav-node" style="left:42%;top:58%;animation-delay:5.3s;" onclick="openPanel('rose')">
+      <div class="node-glow" style="background:#8a3040;box-shadow:0 0 8px #8a3040,0 0 20px rgba(138,48,64,0.4);"></div>
+      <div class="node-label">Rose · Heart</div>
+    </div>
+    <!-- Aster -->
+    <div class="nav-node" style="left:36%;top:50%;animation-delay:5.5s;" onclick="openPanel('aster')">
+      <div class="node-glow" style="background:#5a6ab0;box-shadow:0 0 8px #5a6ab0,0 0 20px rgba(90,106,176,0.4);"></div>
+      <div class="node-label">Aster · Chirality</div>
+    </div>
+    <!-- Grapevine -->
+    <div class="nav-node" style="left:64%;top:50%;animation-delay:5.5s;" onclick="openPanel('grapevine')">
+      <div class="node-glow" style="background:#4a2a6a;box-shadow:0 0 8px #6a4a8a,0 0 20px rgba(74,42,106,0.5);"></div>
+      <div class="node-label">Grapevine · Network</div>
+    </div>
+    <!-- Sakura crown -->
+    <div class="nav-node gold" style="left:50%;top:22%;animation-delay:5.8s;" onclick="openPanel('sakura')">
+      <div class="node-glow" style="background:#d0c0a0;box-shadow:0 0 8px #d0c0a0,0 0 20px rgba(208,192,160,0.3);width:6px;height:6px;"></div>
+      <div class="node-label">Sakura · Crown</div>
+    </div>
+    <!-- Daisy -->
+    <div class="nav-node amber" style="left:38%;top:64%;animation-delay:5.6s;" onclick="openPanel('daisy')">
+      <div class="node-glow"></div>
+      <div class="node-label">Daisy · Structure</div>
+    </div>
+    <div class="nav-node amber" style="left:62%;top:64%;animation-delay:5.6s;" onclick="openPanel('daisy')">
+      <div class="node-glow"></div>
+      <div class="node-label">Daisy · Structure</div>
+    </div>
+    <!-- Cannabis — edge of fog -->
+    <div class="nav-node" style="left:20%;top:56%;animation-delay:6.2s;" onclick="openPanel('cannabis')">
+      <div class="node-glow" style="background:#2a6a4a;box-shadow:0 0 8px #4af0c8,0 0 20px rgba(74,240,200,0.2);"></div>
+      <div class="node-label">Cannabis · Consciousness</div>
+    </div>
+    <div class="nav-node" style="left:80%;top:56%;animation-delay:6.2s;" onclick="openPanel('cannabis')">
+      <div class="node-glow" style="background:#2a6a4a;box-shadow:0 0 8px #4af0c8,0 0 20px rgba(74,240,200,0.2);"></div>
+      <div class="node-label">Cannabis · Consciousness</div>
+    </div>
+    <!-- Library sections — scattered -->
+    <div class="nav-node amber" style="left:25%;top:40%;animation-delay:6.5s;" onclick="openPanel('library')">
+      <div class="node-glow"></div>
+      <div class="node-label">Library of Being</div>
+    </div>
+    <div class="nav-node amber" style="left:75%;top:40%;animation-delay:6.5s;" onclick="openPanel('library')">
+      <div class="node-glow"></div>
+      <div class="node-label">Library of Being</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Panel overlay -->
+<div id="panel">
+  <div id="panel-content">
+    <div id="panel-title"></div>
+    <div id="panel-body"></div>
+    <button id="panel-close" onclick="closePanel()">Return to the garden</button>
+  </div>
+</div>
+
+<script>
+  // Cursor
+  const cursor = document.getElementById('cursor');
+  const trail = document.getElementById('cursor-trail');
+  let mx = 0, my = 0;
+
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    cursor.style.left = mx + 'px';
+    cursor.style.top = my + 'px';
+    setTimeout(() => {
+      trail.style.left = mx + 'px';
+      trail.style.top = my + 'px';
+    }, 80);
+  });
+
+  document.querySelectorAll('.nav-node, #water-entry, #panel-close').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.classList.add('hovering'));
+    el.addEventListener('mouseleave', () => cursor.classList.remove('hovering'));
+  });
+
+  // Stars
+  const starCanvas = document.getElementById('stars');
+  const starCtx = starCanvas.getContext('2d');
+  function resizeStars() {
+    starCanvas.width = window.innerWidth;
+    starCanvas.height = window.innerHeight;
+    drawStars();
+  }
+  function drawStars() {
+    starCtx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+    for (let i = 0; i < 280; i++) {
+      const x = Math.random() * starCanvas.width;
+      const y = Math.random() * starCanvas.height * 0.65;
+      const r = Math.random() * 1.2;
+      const alpha = Math.random() * 0.6 + 0.1;
+      starCtx.beginPath();
+      starCtx.arc(x, y, r, 0, Math.PI * 2);
+      starCtx.fillStyle = `rgba(${200 + Math.random()*55},${210 + Math.random()*45},${200 + Math.random()*55},${alpha})`;
+      starCtx.fill();
+    }
+  }
+  resizeStars();
+  window.addEventListener('resize', resizeStars);
+
+  // Particles
+  const pCanvas = document.getElementById('particles-canvas');
+  const pCtx = pCanvas.getContext('2d');
+  let particles = [];
+
+  function resizeParticles() {
+    pCanvas.width = window.innerWidth;
+    pCanvas.height = window.innerHeight;
+  }
+  resizeParticles();
+  window.addEventListener('resize', resizeParticles);
+
+  function spawnParticle() {
+    const types = [
+      { color: [74, 240, 200], glow: true },
+      { color: [200, 168, 75], glow: true },
+      { color: [122, 158, 124], glow: false },
+      { color: [173, 201, 174], glow: false },
+    ];
+    const t = types[Math.floor(Math.random() * types.length)];
+    return {
+      x: window.innerWidth * (0.3 + Math.random() * 0.4),
+      y: window.innerHeight * (0.5 + Math.random() * 0.3),
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: -(Math.random() * 0.6 + 0.2),
+      r: Math.random() * 1.5 + 0.5,
+      alpha: 0,
+      maxAlpha: Math.random() * 0.6 + 0.2,
+      life: 0,
+      maxLife: Math.random() * 400 + 200,
+      color: t.color,
+      glow: t.glow,
+    };
+  }
+
+  for (let i = 0; i < 40; i++) {
+    const p = spawnParticle();
+    p.life = Math.random() * p.maxLife;
+    particles.push(p);
+  }
+
+  function animateParticles() {
+    pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+    particles.forEach((p, i) => {
+      p.life++;
+      p.x += p.vx + Math.sin(p.life * 0.02) * 0.3;
+      p.y += p.vy;
+      const prog = p.life / p.maxLife;
+      p.alpha = prog < 0.1 ? p.maxAlpha * (prog / 0.1) : prog > 0.8 ? p.maxAlpha * ((1 - prog) / 0.2) : p.maxAlpha;
+      pCtx.save();
+      if (p.glow) {
+        pCtx.shadowBlur = 8;
+        pCtx.shadowColor = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},0.8)`;
+      }
+      pCtx.beginPath();
+      pCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      pCtx.fillStyle = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${p.alpha})`;
+      pCtx.fill();
+      pCtx.restore();
+      if (p.life >= p.maxLife) particles[i] = spawnParticle();
+    });
+    requestAnimationFrame(animateParticles);
+  }
+  animateParticles();
+
+  // Water shimmer
+  const waterSurface = document.getElementById('water-surface');
+  function addShimmer() {
+    const s = document.createElement('div');
+    s.className = 'water-shimmer';
+    s.style.top = (Math.random() * 100) + '%';
+    s.style.width = (Math.random() * 40 + 20) + '%';
+    s.style.left = (Math.random() * 60) + '%';
+    const dur = Math.random() * 6 + 4;
+    s.style.animation = `shimmer ${dur}s linear forwards`;
+    s.style.opacity = '0';
+    waterSurface.appendChild(s);
+    setTimeout(() => s.remove(), dur * 1000);
+  }
+  setInterval(addShimmer, 1800);
+
+  // Panel content
+  const panels = {
+    water: {
+      title: 'Welcome',
+      body: `<p>There is a kind of knowledge that does not announce itself.</p>
+             <p style="margin-top:1rem">It begins the way a mountain begins — gradually, from ground you are already standing on, rising so slowly that by the time you notice the altitude you have already been climbing for some time.</p>
+             <p style="margin-top:1rem">This is that kind of knowledge.</p>
+             <p style="margin-top:1rem"><em>The garden has an order — roots below, crown above, fog throughout. Follow what draws you.</em></p>`
+    },
+    lotus: {
+      title: 'Lotus · The Roots',
+      body: `<p>Mind is a fundamental field of information coherence and processing whose Nature and capacities are entangled with Spacetime as a bootstrapping mechanistic nonlocal substrate.</p>
+             <p style="margin-top:1rem"><em>The roots are below the waterline. To enter Lotus is to descend.</em></p>`
+    },
+    rose: {
+      title: 'Rose · The Heart',
+      body: `<p>Elemental energy. Color as cosmological vector. The chromatic foundation of the real.</p>
+             <p style="margin-top:1rem">Seven color vectors. Twelve Polafore numerals. The Rose wraps the heart of the trunk — it is what animates the whole.</p>
+             <p style="margin-top:1rem"><em>Coming soon.</em></p>`
+    },
+    sakura: {
+      title: 'Sakura · The Crown',
+      body: `<p>Relational physics. The 24-cell grid. Spatial orientation and the geometry of connection.</p>
+             <p style="margin-top:1rem">The crown is Sakura — the cherry blossom, ephemeral and present. Into it are grafted the AppleBlossom branches, carrying the coordinate system of existence.</p>
+             <p style="margin-top:1rem"><em>The graft changes both organisms.</em></p>`
+    },
+    aster: {
+      title: 'Aster · Chirality',
+      body: `<p>Time modes. Space operations. The handedness of the real.</p>
+             <p style="margin-top:1rem">Si — Linear. Su — Loop. Os — Exponential. Se — Logarithmic. Sy — Fold. As — Frozen.</p>
+             <p style="margin-top:1rem"><em>The chirality threshold sits at the center of the byte table. Everything changes when you cross it.</em></p>`
+    },
+    grapevine: {
+      title: 'Grapevine · The Network',
+      body: `<p>Distributed systems as feast. The ecology of connection, failure, and consensus.</p>
+             <p style="margin-top:1rem">Sa — root volume. Soa — persistent object. Syr — volatile buffer. The feast feeds everyone or it feeds no one.</p>
+             <p style="margin-top:1rem"><em>Coming soon.</em></p>`
+    },
+    daisy: {
+      title: 'Daisy · Structure',
+      body: `<p>Structural biology and mechanics. The 13-fold wheel of morphemes.</p>
+             <p style="margin-top:1rem">Lo — Segments. Yei — Component. Gl — Membrane. To — Scaffold. Ma — Web. Ne — Network.</p>
+             <p style="margin-top:1rem"><em>The daisies sprout from the edges of the trunk. Structure emerges at the margins.</em></p>`
+    },
+    cannabis: {
+      title: 'Cannabis · Consciousness',
+      body: `<p>The eighth tongue. The consciousness tongue. The burning awareness that makes the garden perceivable at all.</p>
+             <p style="margin-top:1rem">Cannabis grows at the edges of the fog. It is not a node on the tree — it is the condition under which the tree can be seen.</p>
+             <p style="margin-top:1rem"><em>Sha burns. Ko endures. The cycle is the point.</em></p>`
+    },
+    library: {
+      title: 'Library of Being',
+      body: `<div class="section-grid">
+               ${['Shygazun','Wunashako','Ko\'s Labyrnth','Theoretical Physics','Business Ethics','Numerology','Psychology','Millennium Problems','Computer Science','Mathematics','Engineering','Art','Technology','Religious & Cult Studies','Superstition','History of America','Hallmarks of Genocide','Protocols for Resisting Genocides','Transgender Issues','Alchemy','Mythology','Astrology','Astronomy','Material Science','Ritual Studies','Open Source Grimoires','Relational Accounting','Linguistics','Economics','Ecology','Comedy'].map(s => `<div class="section-item">${s}</div>`).join('')}
+             </div>
+             <p style="font-size:0.8rem;color:var(--fog);font-style:italic;margin-top:0.5rem">31 directories. In construction.</p>`
+    }
+  };
+
+  function openPanel(key) {
+    const p = panels[key];
+    if (!p) return;
+    document.getElementById('panel-title').textContent = p.title;
+    document.getElementById('panel-body').innerHTML = p.body;
+    document.getElementById('panel').classList.add('active');
+  }
+
+  function closePanel() {
+    document.getElementById('panel').classList.remove('active');
+  }
+
+  document.getElementById('panel').addEventListener('click', e => {
+    if (e.target === document.getElementById('panel')) closePanel();
+  });
+</script>
+</body>
+</html>s
