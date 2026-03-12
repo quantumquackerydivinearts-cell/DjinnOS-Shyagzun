@@ -1,0 +1,3707 @@
+{
+  "schema": "atelier.scene.content.v1",
+  "scene_id": "lapidus/home_morning",
+  "realm_id": "lapidus",
+  "name": "Alexandria's Cottage",
+  "description": "Player starting home in Lapidus.",
+  "nodes": [
+    {
+      "node_id": "spawn_point",
+      "kind": "spawn",
+      "x": 6.0,
+      "y": 6.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "lapidus/home_morning:spawn_point"
+      }
+    },
+    {
+      "node_id": "alchemy_bench",
+      "kind": "interaction",
+      "x": 2.0,
+      "y": 2.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "lapidus/home_morning:alchemy_bench",
+        "interaction": "alchemy_bench",
+        "action": "open_alchemy_ui",
+        "prompt": "Press E to use alchemy workbench"
+      }
+    },
+    {
+      "node_id": "exit",
+      "kind": "interaction",
+      "x": 6.0,
+      "y": 7.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "lapidus/home_morning:exit",
+        "interaction": "exit",
+        "action": "exit_to_lapidus_town",
+        "prompt": "Press E to go outside"
+      }
+    },
+    {
+      "node_id": "furnace",
+      "kind": "interaction",
+      "x": 9.0,
+      "y": 4.0,
+      "metadata": {
+        "z": 2,
+        "placement_id": "lapidus/home_morning:furnace",
+        "interaction": "furnace",
+        "action": "open_smelt_ui",
+        "prompt": "Press E to use furnace"
+      }
+    },
+    {
+      "node_id": "meditate",
+      "kind": "interaction",
+      "x": 6.0,
+      "y": 4.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "lapidus/home_morning:meditate",
+        "interaction": "meditate",
+        "action": "meditation_tutorial",
+        "prompt": "Press E to meditate"
+      }
+    },
+    {
+      "node_id": "read",
+      "kind": "interaction",
+      "x": 4.0,
+      "y": 1.0,
+      "metadata": {
+        "z": 2,
+        "placement_id": "lapidus/home_morning:read",
+        "interaction": "read",
+        "action": "lore_books",
+        "prompt": "Press E to read books"
+      }
+    },
+    {
+      "node_id": "rest",
+      "kind": "interaction",
+      "x": 8.0,
+      "y": 1.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "lapidus/home_morning:rest",
+        "interaction": "rest",
+        "action": "save_and_heal",
+        "prompt": "Press E to rest (saves game)"
+      }
+    },
+    {
+      "node_id": "storage",
+      "kind": "interaction",
+      "x": 2.0,
+      "y": 6.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "lapidus/home_morning:storage",
+        "interaction": "storage",
+        "action": "open_chest",
+        "prompt": "Press E to open chest"
+      }
+    }
+  ],
+  "edges": [],
+  "renderer": {
+    "scene": {
+      "scene_id": "lapidus/home_morning",
+      "scene_name": "Alexandria's Cottage",
+      "scene_type": "voxel_interior",
+      "realm_id": "lapidus",
+      "dimensions": {
+        "width": 12,
+        "depth": 8,
+        "height": 6
+      },
+      "spawn_point": {
+        "x": 6,
+        "y": 6,
+        "z": 1
+      },
+      "camera_default": {
+        "angle": 45,
+        "elevation": 30,
+        "zoom": 1.0
+      },
+      "voxels": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 8,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 8,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 8,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 8,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 8,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 8,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 8,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 8,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 10,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 10,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 10,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 10,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 10,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 10,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 10,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 11,
+          "y": 1,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 11,
+          "y": 2,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 11,
+          "y": 3,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 11,
+          "y": 4,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 11,
+          "y": 5,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 11,
+          "y": 6,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 11,
+          "y": 7,
+          "z": 0,
+          "color": "#8B6914",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_floor",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 1,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 2,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 3,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 4,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 5,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 6,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 7,
+          "z": 1,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 1,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 2,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 3,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 4,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 5,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 6,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 7,
+          "z": 2,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 1,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 2,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 3,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 4,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 5,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 6,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 7,
+          "z": 3,
+          "color": "#696969",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "stone_wall",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "z": 1,
+          "color": "#8B0000",
+          "color_token": "Ru",
+          "presence_token": "Ta",
+          "material": "wood_door",
+          "interaction": "exit",
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "z": 2,
+          "color": "#8B0000",
+          "color_token": "Ru",
+          "presence_token": "Ta",
+          "material": "wood_door",
+          "interaction": "exit",
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 2,
+          "color": "#87CEEB",
+          "color_token": "Fu",
+          "presence_token": "Ta",
+          "opacity_token": "Wu",
+          "material": "glass",
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 2,
+          "color": "#87CEEB",
+          "color_token": "Fu",
+          "presence_token": "Ta",
+          "opacity_token": "Wu",
+          "material": "glass",
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 1,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 2,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 3,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 4,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 5,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 6,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 11,
+          "y": 7,
+          "z": 4,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "thatch_roof",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "z": 1,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_furniture",
+          "interaction": "alchemy_bench",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "z": 1,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_furniture",
+          "interaction": "alchemy_bench",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "z": 1,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_furniture",
+          "interaction": "alchemy_bench",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "z": 1,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_furniture",
+          "interaction": "alchemy_bench",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 2,
+          "z": 1,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_furniture",
+          "interaction": "alchemy_bench",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "z": 1,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_furniture",
+          "interaction": "alchemy_bench",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "z": 2,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "z": 2,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "z": 1,
+          "color": "#8B0000",
+          "color_token": "Ru",
+          "presence_token": "Ta",
+          "material": "furnace",
+          "emits_light": false,
+          "light_color": null,
+          "interaction": "smelt",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "z": 2,
+          "color": "#FF4500",
+          "color_token": "Ru",
+          "presence_token": "Ta",
+          "material": "furnace",
+          "emits_light": true,
+          "light_color": "#FF6600",
+          "interaction": "smelt",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 4,
+          "z": 3,
+          "color": "#8B0000",
+          "color_token": "Ru",
+          "presence_token": "Ta",
+          "material": "furnace",
+          "emits_light": false,
+          "light_color": null,
+          "interaction": "smelt",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 1,
+          "z": 1,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "interaction": "rest",
+          "solid": true
+        },
+        {
+          "x": 8,
+          "y": 2,
+          "z": 1,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "interaction": "rest",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "z": 1,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "interaction": "rest",
+          "solid": true
+        },
+        {
+          "x": 9,
+          "y": 2,
+          "z": 1,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "interaction": "rest",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 1,
+          "z": 1,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "interaction": "rest",
+          "solid": true
+        },
+        {
+          "x": 10,
+          "y": 2,
+          "z": 1,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "interaction": "rest",
+          "solid": true
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "z": 1,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_chest",
+          "interaction": "storage",
+          "solid": true
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "z": 1,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_chest",
+          "interaction": "storage",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "z": 1,
+          "color": "#9400D3",
+          "color_token": "AE",
+          "presence_token": "Ta",
+          "material": "cloth_cushion",
+          "interaction": "meditate",
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "z": 1,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_shelf",
+          "solid": true
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "z": 2,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "books",
+          "interaction": "read",
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "z": 1,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_shelf",
+          "solid": true
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "z": 2,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "books",
+          "interaction": "read",
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "z": 1,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_shelf",
+          "solid": true
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "z": 2,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "books",
+          "interaction": "read",
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "z": 1,
+          "color": "#654321",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "wood_shelf",
+          "solid": true
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "z": 2,
+          "color": "#8B4513",
+          "color_token": "Ot",
+          "presence_token": "Ta",
+          "material": "books",
+          "interaction": "read",
+          "solid": false
+        }
+      ],
+      "interactions": {
+        "alchemy_bench": {
+          "position": {
+            "x": 2,
+            "y": 2,
+            "z": 1
+          },
+          "action": "open_alchemy_ui",
+          "prompt": "Press E to use alchemy workbench"
+        },
+        "furnace": {
+          "position": {
+            "x": 9,
+            "y": 4,
+            "z": 2
+          },
+          "action": "open_smelt_ui",
+          "prompt": "Press E to use furnace"
+        },
+        "rest": {
+          "position": {
+            "x": 8,
+            "y": 1,
+            "z": 1
+          },
+          "action": "save_and_heal",
+          "prompt": "Press E to rest (saves game)"
+        },
+        "storage": {
+          "position": {
+            "x": 2,
+            "y": 6,
+            "z": 1
+          },
+          "action": "open_chest",
+          "prompt": "Press E to open chest"
+        },
+        "meditate": {
+          "position": {
+            "x": 6,
+            "y": 4,
+            "z": 1
+          },
+          "action": "meditation_tutorial",
+          "prompt": "Press E to meditate"
+        },
+        "read": {
+          "position": {
+            "x": 4,
+            "y": 1,
+            "z": 2
+          },
+          "action": "lore_books",
+          "prompt": "Press E to read books"
+        },
+        "exit": {
+          "position": {
+            "x": 6,
+            "y": 7,
+            "z": 1
+          },
+          "action": "exit_to_lapidus_town",
+          "prompt": "Press E to go outside"
+        }
+      },
+      "ambient": {
+        "music": "home_hearth_theme",
+        "time_of_day": "morning",
+        "weather": "clear"
+      }
+    }
+  },
+  "source": {
+    "generator": "player_home.py"
+  }
+}

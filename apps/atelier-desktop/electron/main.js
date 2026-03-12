@@ -1,10 +1,12 @@
 const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const fs = require("fs/promises");
 const path = require("path");
+const { execFile } = require("child_process");
 
 const isDev = !app.isPackaged;
 const STUDIO_FILE_LIMIT = 1024 * 1024;
 const STUDIO_BINARY_FILE_LIMIT = 25 * 1024 * 1024;
+const STUDIO_PYTHON_TIMEOUT_MS = 15000;
 const APP_ICON_PATH = path.join(__dirname, "..", "public", "icon.png");
 
 function runtimeQuery() {
@@ -25,6 +27,70 @@ function assertWithinRoot(rootDir, targetPath) {
     throw new Error("studio_fs_scope_error");
   }
   return normalizedTarget;
+}
+
+function execFileAsync(cmd, args, options) {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, options, (error, stdout, stderr) => {
+      if (error) {
+        const payload = {
+          message: error.message || String(error),
+          code: error.code || null,
+          stdout: stdout ? String(stdout) : "",
+          stderr: stderr ? String(stderr) : "",
+        };
+        reject(payload);
+        return;
+      }
+      resolve({
+        stdout: stdout ? String(stdout) : "",
+        stderr: stderr ? String(stderr) : "",
+      });
+    });
+  });
+}
+
+async function runPythonScript({ rootDir, sourceText, filename, timeoutMs }) {
+  const normalizedRoot = path.resolve(rootDir);
+  const safeFilename = filename && typeof filename === "string" && filename.trim() !== "" ? filename.trim() : `renderer_python_${Date.now()}.py`;
+  const tempDir = assertWithinRoot(normalizedRoot, path.join(normalizedRoot, ".atelier_tmp"));
+  const tempPath = assertWithinRoot(normalizedRoot, path.join(tempDir, safeFilename));
+  await fs.mkdir(path.dirname(tempPath), { recursive: true });
+  await fs.writeFile(tempPath, sourceText, "utf8");
+
+  const env = { ...process.env, PYTHONIOENCODING: "utf-8" };
+  const timeout = Math.max(1000, Number(timeoutMs || STUDIO_PYTHON_TIMEOUT_MS));
+  const attempts = [
+    { cmd: "py", args: ["-3", tempPath] },
+    { cmd: "python", args: [tempPath] },
+    { cmd: "python3", args: [tempPath] },
+  ];
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      const result = await execFileAsync(attempt.cmd, attempt.args, { cwd: normalizedRoot, env, timeout });
+      return { ok: true, command: `${attempt.cmd} ${attempt.args.join(" ")}`, stdout: result.stdout, stderr: result.stderr, tempPath };
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        lastError = error;
+        continue;
+      }
+      return {
+        ok: false,
+        command: `${attempt.cmd} ${attempt.args.join(" ")}`,
+        stdout: error && error.stdout ? error.stdout : "",
+        stderr: error && error.stderr ? error.stderr : error && error.message ? error.message : "python_exec_failed",
+        tempPath,
+      };
+    }
+  }
+  return {
+    ok: false,
+    command: "",
+    stdout: "",
+    stderr: lastError && lastError.message ? lastError.message : "python_not_found",
+    tempPath,
+  };
 }
 
 function registerIpcHandlers() {
@@ -162,6 +228,22 @@ function registerIpcHandlers() {
     }
     const content = await fs.readFile(absolutePath, "utf8");
     return { ok: true, filename: path.basename(absolutePath), content };
+  });
+
+  ipcMain.handle("studio:run-python", async (_event, rootDir, sourceText, options) => {
+    if (typeof rootDir !== "string" || rootDir.trim() === "") {
+      throw new Error("studio_fs_root_required");
+    }
+    if (typeof sourceText !== "string" || sourceText.trim() === "") {
+      throw new Error("studio_python_source_required");
+    }
+    if (sourceText.length > STUDIO_FILE_LIMIT) {
+      throw new Error("studio_python_source_too_large");
+    }
+    const opts = options && typeof options === "object" ? options : {};
+    const timeoutMs = Number(opts.timeoutMs || STUDIO_PYTHON_TIMEOUT_MS);
+    const filename = typeof opts.filename === "string" ? opts.filename : "";
+    return await runPythonScript({ rootDir, sourceText, filename, timeoutMs });
   });
 
   ipcMain.handle("studio:write-text-file", async (_event, rootDir, filename, content) => {

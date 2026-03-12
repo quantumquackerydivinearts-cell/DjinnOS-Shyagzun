@@ -16,7 +16,7 @@
     {
       "event_id": "day1_wakeup",
       "kind": "wake",
-      "scene_id": "lapidus/player_home",
+      "scene_id": "lapidus/home_morning",
       "description": "Player wakes during a stormy morning."
     },
     {
@@ -44,4 +44,3 @@
     }
   ]
 }
-

@@ -51,6 +51,29 @@ def _load_scene_cycle(path: Path) -> list[dict[str, Any]]:
         scenes_obj = payload.get("scenes")
         if isinstance(scenes_obj, list):
             scene_list = [item for item in scenes_obj if isinstance(item, dict)]
+        if len(scene_list) == 0:
+            actions_obj = payload.get("actions")
+            if isinstance(actions_obj, list):
+                for action in actions_obj:
+                    if not isinstance(action, dict):
+                        continue
+                    if str(action.get("kind", "")).strip() != "module.run":
+                        continue
+                    payload_obj = action.get("payload")
+                    payload_map = payload_obj if isinstance(payload_obj, dict) else {}
+                    module_id = str(payload_map.get("module_id", "")).strip()
+                    overrides_obj = payload_map.get("overrides")
+                    overrides = overrides_obj if isinstance(overrides_obj, dict) else {}
+                    scene_id = str(overrides.get("scene_id", "")).strip()
+                    if module_id != "module.render.scene.reconcile" or scene_id == "":
+                        continue
+                    scene_list.append(
+                        {
+                            "scene_id": scene_id,
+                            "clock_advance": overrides.get("clock_advance", 1),
+                            "label": overrides.get("label", scene_id),
+                        }
+                    )
     elif isinstance(payload, list):
         scene_list = [item for item in payload if isinstance(item, dict)]
     if len(scene_list) == 0:
@@ -69,6 +92,37 @@ def _load_scene_cycle(path: Path) -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+def _load_scene_content(scene_id: str, scene_library_root: Path | None) -> dict[str, Any] | None:
+    if scene_library_root is None:
+        return None
+    if scene_id.strip() == "":
+        return None
+    scene_path = Path(*scene_id.split("/"))
+    candidates = [
+        scene_library_root / scene_path.with_suffix(".scene.json"),
+        scene_library_root / scene_path.with_suffix(".json"),
+    ]
+    for path in candidates:
+        if not path.exists():
+            continue
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            continue
+        content = payload
+        if isinstance(payload.get("scene_content"), dict):
+            content = cast(dict[str, Any], payload["scene_content"])
+        elif isinstance(payload.get("scene"), dict):
+            content = cast(dict[str, Any], payload["scene"])
+        if not isinstance(content, dict):
+            continue
+        content.setdefault("realm_id", _realm_from_scene_id(scene_id))
+        content.setdefault("scene_id", scene_id)
+        if not isinstance(content.get("nodes"), list):
+            content["nodes"] = []
+        return content
+    return None
 
 
 def _replace_template_tokens(value: Any, day_index: int, scene_id: str) -> Any:
@@ -91,6 +145,7 @@ def _build_generated_day_actions(
     day_index: int,
     scenes: list[dict[str, Any]],
     scene_overlays: dict[str, list[dict[str, Any]]] | None = None,
+    scene_library_root: Path | None = None,
     render_sync: bool = False,
 ) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
@@ -107,6 +162,13 @@ def _build_generated_day_actions(
         scene_slug = scene_id.replace("/", "_").replace(" ", "_")
         realm_id = _realm_from_scene_id(scene_id)
         if render_sync:
+            scene_content = _load_scene_content(scene_id, scene_library_root)
+            if scene_content is None:
+                scene_content = {
+                    "realm_id": realm_id,
+                    "scene_id": scene_id,
+                    "nodes": [],
+                }
             out.append(
                 {
                     "action_id": f"day_{day_index:02d}_scene_{scene_index:02d}_{scene_slug}_load",
@@ -114,11 +176,7 @@ def _build_generated_day_actions(
                     "payload": {
                         "realm_id": realm_id,
                         "scene_id": scene_id,
-                        "scene_content": {
-                            "realm_id": realm_id,
-                            "scene_id": scene_id,
-                            "nodes": [],
-                        },
+                        "scene_content": scene_content,
                     },
                 }
             )
@@ -159,6 +217,13 @@ def _build_generated_day_actions(
                 }
             )
         if render_sync:
+            scene_content = _load_scene_content(scene_id, scene_library_root)
+            if scene_content is None:
+                scene_content = {
+                    "realm_id": realm_id,
+                    "scene_id": scene_id,
+                    "nodes": [],
+                }
             out.append(
                 {
                     "action_id": f"day_{day_index:02d}_scene_{scene_index:02d}_{scene_slug}_reconcile",
@@ -167,11 +232,7 @@ def _build_generated_day_actions(
                         "apply": True,
                         "realm_id": realm_id,
                         "scene_id": scene_id,
-                        "scene_content": {
-                            "realm_id": realm_id,
-                            "scene_id": scene_id,
-                            "nodes": [],
-                        },
+                        "scene_content": scene_content,
                     },
                 }
             )
@@ -225,6 +286,11 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--scene-library",
+        default="",
+        help="Optional root path for scene content JSON files (e.g., productions/kos-labyrnth/scenes).",
+    )
+    parser.add_argument(
         "--render-sync",
         action="store_true",
         help="Insert render.scene.load and render.scene.reconcile around each scene tick.",
@@ -244,6 +310,8 @@ def main() -> int:
             args.quest_actions = "gameplay/runtime_plans/quest_actions_fate_knocks_day1.json"
         if str(args.scene_overlays).strip() == "":
             args.scene_overlays = "gameplay/runtime_plans/day_scene_ai_overlay.market.json"
+        if str(args.scene_library).strip() == "":
+            args.scene_library = "productions/kos-labyrnth/scenes"
         args.render_sync = True
         if str(args.output).strip() == "gameplay/runtime_plans/day_cycle_plan.generated.json":
             args.output = "gameplay/runtime_plans/day_scene_plan.main.generated.json"
@@ -269,12 +337,16 @@ def main() -> int:
         actions.extend(hand_authored_quest_actions)
 
     day_count = max(1, int(args.days))
+    scene_library_root: Path | None = None
+    if str(args.scene_library).strip() != "":
+        scene_library_root = Path(str(args.scene_library))
     for day_index in range(1, day_count + 1):
         actions.extend(
             _build_generated_day_actions(
                 day_index=day_index,
                 scenes=scenes,
                 scene_overlays=scene_overlays,
+                scene_library_root=scene_library_root,
                 render_sync=bool(args.render_sync),
             )
         )

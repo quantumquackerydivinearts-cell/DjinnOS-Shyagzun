@@ -5444,6 +5444,8 @@ function readRendererLocalState() {
       source: "json",
       json: "{}",
       cobra: "",
+      javascript: "",
+      python: "",
       engine: {},
       settings: {
         renderMode: "2.5d",
@@ -5479,6 +5481,8 @@ function readRendererLocalState() {
   const source = localStorage.getItem("atelier.renderer.source") || "json";
   const json = localStorage.getItem("atelier.renderer.json") || "{}";
   const cobra = localStorage.getItem("atelier.renderer.cobra") || "";
+  const javascript = localStorage.getItem("atelier.renderer.js") || "";
+  const python = localStorage.getItem("atelier.renderer.python") || "";
   let engine = {};
   try {
     engine = JSON.parse(localStorage.getItem("atelier.renderer.engine") || "{}");
@@ -5601,7 +5605,22 @@ function readRendererLocalState() {
   } catch {
     // best-effort bootstrap of signal from storage
   }
-  return { source, json, cobra, engine, settings, materials, layers, atlases, playerId, playerFacing, followPlayer, playerOffset };
+  return {
+    source,
+    json,
+    cobra,
+    javascript,
+    python,
+    engine,
+    settings,
+    materials,
+    layers,
+    atlases,
+    playerId,
+    playerFacing,
+    followPlayer,
+    playerOffset
+  };
 }
 
 const RENDERER_SYNC_CHANNEL = "atelier-renderer-sync-v1";
@@ -7975,6 +7994,11 @@ export function App() {
     } else if (rendererVisualSource === "engine") {
       source = "json";
       payload = rendererEngineStateText;
+    } else if (rendererVisualSource === "javascript" || rendererVisualSource === "python") {
+      source = "json";
+      const raw = rendererVisualSource === "javascript" ? rendererJs : rendererPython;
+      const parsed = parseRendererPayloadSync(rendererVisualSource, raw, rendererEffectiveEngineState);
+      payload = JSON.stringify(parsed || {}, null, 2);
     }
     const validation = await apiCall("/v1/content/validate", "POST", {
       workspace_id: workspaceId,
@@ -8516,20 +8540,110 @@ export function App() {
     }
   }
 
-  function parseRendererPayloadSync(mode, sourceText) {
-    if (mode === "cobra") {
-      return parseCobraShygazunScript(sourceText);
+function parseRendererPayloadSync(mode, sourceText, engineState = {}) {
+  if (mode === "cobra") {
+    return parseCobraShygazunScript(sourceText);
+  }
+  if (mode === "json") {
+    try {
+      const parsed = JSON.parse(sourceText || "{}");
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
     }
-    if (mode === "json") {
-      try {
-        const parsed = JSON.parse(sourceText || "{}");
-        return parsed && typeof parsed === "object" ? parsed : {};
-      } catch {
-        return {};
+  }
+  if (mode === "javascript") {
+    try {
+      const fn = new Function(
+        "engine",
+        `${String(sourceText || "")}\n; return (typeof render === 'function' ? render(engine) : null);`
+      );
+      const result = fn(engineState || {});
+      if (result && typeof result === "object") {
+        return result;
+      }
+      if (typeof result === "string") {
+        try {
+          const parsed = JSON.parse(result);
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+          return {};
+        }
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }
+  if (mode === "python") {
+    const lines = String(sourceText || "").split(/\r?\n/);
+    for (const rawLine of lines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed.startsWith("#")) {
+        continue;
+      }
+      if (trimmed.startsWith("#payload ") || trimmed.startsWith("#json ") || trimmed.startsWith("#render ")) {
+        const jsonText = trimmed.replace(/^#(payload|json|render)\s+/, "");
+        try {
+          const parsed = JSON.parse(jsonText);
+          return parsed && typeof parsed === "object" ? parsed : parsed;
+        } catch {
+          return {};
+        }
       }
     }
     return {};
   }
+  return {};
+}
+
+function extractPythonFileHint(sourceText) {
+  const raw = String(sourceText || "");
+  if (!raw) {
+    return null;
+  }
+  const matches = [];
+  const regex = /["']([^"']+\.(?:scene\.json|json))["']/g;
+  let match = regex.exec(raw);
+  while (match) {
+    const candidate = String(match[1] || "").trim();
+    if (candidate) {
+      matches.push(candidate);
+    }
+    match = regex.exec(raw);
+  }
+  if (matches.length === 0) {
+    return null;
+  }
+  const scenePick = matches.find((item) => item.includes("productions/") || item.includes("scenes/"));
+  if (scenePick) {
+    return scenePick;
+  }
+  const sceneJsonPick = matches.find((item) => item.endsWith(".scene.json"));
+  if (sceneJsonPick) {
+    return sceneJsonPick;
+  }
+  return matches[0];
+}
+
+function extractPythonSavedPath(outputText) {
+  const raw = String(outputText || "");
+  if (!raw) {
+    return null;
+  }
+  const lines = raw.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const match = trimmed.match(/Saved to\s+(.+)$/i);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+  return null;
+}
 
   function commitProceduralOutput(out, cols, rows) {
     if (!out || typeof out !== "object" || Array.isArray(out)) {
@@ -10341,14 +10455,24 @@ export function App() {
     if (rendererVisualSource === "engine") {
       return undefined;
     }
-    const mode = rendererVisualSource === "cobra" ? "cobra" : "json";
-    const sourceText = mode === "cobra" ? rendererCobra : rendererJson;
+    const mode =
+      rendererVisualSource === "cobra" || rendererVisualSource === "json" || rendererVisualSource === "javascript" || rendererVisualSource === "python"
+        ? rendererVisualSource
+        : "json";
+    const sourceText =
+      mode === "cobra"
+        ? rendererCobra
+        : mode === "javascript"
+          ? rendererJs
+          : mode === "python"
+            ? rendererPython
+            : rendererJson;
     const parseKey = `${mode}:${sourceText.length}:${localStringHash(sourceText)}`;
-    const useWorker = sourceText.length >= 4000;
+    const useWorker = (mode === "cobra" || mode === "json") && sourceText.length >= 4000;
     let cancelled = false;
 
     if (!useWorker) {
-      const parsed = parseRendererPayloadSync(mode, sourceText);
+      const parsed = parseRendererPayloadSync(mode, sourceText, rendererEffectiveEngineState);
       setRendererParsedPayload({ source: mode, key: parseKey, payload: parsed });
       setRendererParseStatus(`main:${mode}`);
       return undefined;
@@ -10367,7 +10491,7 @@ export function App() {
         if (cancelled) {
           return;
         }
-        const parsed = parseRendererPayloadSync(mode, sourceText);
+        const parsed = parseRendererPayloadSync(mode, sourceText, rendererEffectiveEngineState);
         setRendererParsedPayload({ source: mode, key: parseKey, payload: parsed });
         setRendererParseStatus(`fallback_main:${mode}`);
       });
@@ -10375,7 +10499,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [rendererVisualSource, rendererCobra, rendererJson]);
+  }, [rendererVisualSource, rendererCobra, rendererJson, rendererJs, rendererPython, rendererEffectiveEngineState]);
   const unifiedRendererPayload = useMemo(() => {
     if (rendererVisualSource === "engine") {
       return rendererEffectiveEngineState;
@@ -10495,6 +10619,12 @@ export function App() {
   const fullscreenPayload = useMemo(() => {
     if (fullscreenState.source === "cobra") {
       return parseCobraShygazunScript(fullscreenState.cobra);
+    }
+    if (fullscreenState.source === "javascript") {
+      return parseRendererPayloadSync("javascript", fullscreenState.javascript, fullscreenState.engine);
+    }
+    if (fullscreenState.source === "python") {
+      return parseRendererPayloadSync("python", fullscreenState.python, fullscreenState.engine);
     }
     if (fullscreenState.source === "engine") {
       return fullscreenState.engine;
@@ -11252,6 +11382,8 @@ export function App() {
     localStorage.setItem("atelier.renderer.source", rendererVisualSource);
     localStorage.setItem("atelier.renderer.json", rendererJson);
     localStorage.setItem("atelier.renderer.cobra", rendererCobra);
+    localStorage.setItem("atelier.renderer.js", rendererJs);
+    localStorage.setItem("atelier.renderer.python", rendererPython);
     localStorage.setItem("atelier.renderer.engine", JSON.stringify(rendererEngineState || {}));
     localStorage.setItem("atelier.renderer.realm", rendererRealmId);
     localStorage.setItem("atelier.renderer.validate_before_emit", validateBeforeEmit ? "1" : "0");
@@ -11297,6 +11429,8 @@ export function App() {
     rendererJson,
     rendererCobra,
     rendererEngineState,
+    rendererJs,
+    rendererPython,
     voxelSettings,
     voxelMaterials,
     voxelLayers,
@@ -11597,6 +11731,72 @@ export function App() {
       tick: Number(rendererEngineState.tick || 0) + 1
     };
     setRendererEngineStateText(JSON.stringify(next, null, 2));
+  }
+
+  async function consumeRendererInput(mode) {
+    const normalized = String(mode || "").toLowerCase();
+    if (normalized === "python" || normalized === "javascript" || normalized === "cobra" || normalized === "json") {
+      setRendererVisualSource(normalized);
+      setRendererGameStatus(`renderer_source:${normalized}`);
+      setNotice(`renderer_source:${normalized}`);
+      if (normalized === "python") {
+        if (hasDesktopFs() && studioFsRoot && window.atelierDesktop.fs && typeof window.atelierDesktop.fs.runPython === "function") {
+          try {
+            const result = await window.atelierDesktop.fs.runPython(studioFsRoot, rendererPython, {
+              filename: "renderer_input.py",
+              timeoutMs: 15000
+            });
+            if (!result || !result.ok) {
+              setNotice(`renderer_python_exec_failed:${result && result.stderr ? result.stderr : "unknown"}`);
+            } else if (result.stdout) {
+              setNotice(`renderer_python_exec_ok:${result.stdout.split(/\r?\n/)[0] || "ok"}`);
+            }
+            const savedPath = extractPythonSavedPath(result && result.stdout ? result.stdout : "");
+            if (savedPath) {
+              const contentResult = await window.atelierDesktop.fs.readTextFile(studioFsRoot, savedPath);
+              if (contentResult && contentResult.ok && typeof contentResult.content === "string") {
+                setRendererJson(contentResult.content);
+                setRendererVisualSource("json");
+                setRendererGameStatus(`renderer_source:json:${savedPath}`);
+                setNotice(`renderer_python_loaded:${savedPath}`);
+                return;
+              }
+            }
+          } catch (error) {
+            setNotice(`renderer_python_exec_error:${error && error.message ? error.message : "unknown"}`);
+          }
+        }
+        const parsed = parseRendererPayloadSync("python", rendererPython, rendererEffectiveEngineState);
+        const hasPayload =
+          parsed &&
+          typeof parsed === "object" &&
+          (Array.isArray(parsed.voxels) ||
+            Array.isArray(parsed.nodes) ||
+            (parsed.graph && Array.isArray(parsed.graph.nodes)) ||
+            Array.isArray(parsed.entities));
+        if (hasPayload) {
+          return;
+        }
+        const hint = extractPythonFileHint(rendererPython);
+        if (hint && hasDesktopFs() && studioFsRoot) {
+          try {
+            const result = await window.atelierDesktop.fs.readTextFile(studioFsRoot, hint);
+            if (result && result.ok && typeof result.content === "string") {
+              setRendererJson(result.content);
+              setRendererVisualSource("json");
+              setRendererGameStatus(`renderer_source:json:${hint}`);
+              setNotice(`renderer_python_file:${hint}`);
+              return;
+            }
+          } catch {
+            // fall through to notice
+          }
+        }
+        setNotice("renderer_python_empty: add #payload JSON or load a .scene.json file");
+      }
+      return;
+    }
+    setNotice(`renderer_source_unknown:${normalized || "unset"}`);
   }
 
   function loadBusinessArchitectureTemplate() {
@@ -14996,6 +15196,8 @@ export function App() {
                 <select value={rendererVisualSource} onChange={(e) => setRendererVisualSource(e.target.value)}>
                   <option value="json">JSON Scene Layer</option>
                   <option value="cobra">Cobra Layer</option>
+                  <option value="javascript">JavaScript Layer</option>
+                  <option value="python">Python Layer</option>
                   <option value="engine">Engine State</option>
                 </select>
                 <select value={rendererRealmId} onChange={(e) => setRendererRealmId(e.target.value)}>
@@ -16008,6 +16210,7 @@ export function App() {
                   </select>
                   <button className="action" onClick={importSelectedFsPythonToRenderer}>Import from FS</button>
                   <button className="action" onClick={refreshStudioFsAssets}>Refresh FS Index</button>
+                  <button className="action" onClick={() => consumeRendererInput("python")}>Consume Python</button>
                   <label className="inline-toggle">
                     <input
                       type="checkbox"
@@ -16031,6 +16234,7 @@ export function App() {
                 <textarea className="editor editor-mono renderer-editor" value={rendererCobra} onChange={(e) => setRendererCobra(e.target.value)} />
                 <div className="row">
                   <span className="badge">{`Lint: ${cobraLintWarnings.length === 0 ? "clean" : `${cobraLintWarnings.length} warning(s)`}`}</span>
+                  <button className="action" onClick={() => consumeRendererInput("cobra")}>Consume Cobra</button>
                 </div>
                 {cobraLintWarnings.length > 0 ? (
                   <pre>{JSON.stringify(cobraLintWarnings, null, 2)}</pre>
@@ -16040,11 +16244,17 @@ export function App() {
               <div className="renderer-cell">
                 <h3>JavaScript Layer</h3>
                 <textarea className="editor editor-mono renderer-editor" value={rendererJs} onChange={(e) => setRendererJs(e.target.value)} />
+                <div className="row">
+                  <button className="action" onClick={() => consumeRendererInput("javascript")}>Consume JS</button>
+                </div>
                 <iframe className="renderer-frame" sandbox="allow-scripts" srcDoc={jsFrameDoc} title="js-renderer" />
               </div>
               <div className="renderer-cell">
                 <h3>JSON Scene Layer</h3>
                 <textarea className="editor editor-mono renderer-editor" value={rendererJson} onChange={(e) => setRendererJson(e.target.value)} />
+                <div className="row">
+                  <button className="action" onClick={() => consumeRendererInput("json")}>Consume JSON</button>
+                </div>
                 <iframe className="renderer-frame" sandbox="allow-scripts" srcDoc={jsonFrameDoc} title="json-renderer" />
               </div>
             </div>

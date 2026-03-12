@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld("atelierDesktop", {
     readTextFile: async (rootDir, filename) => ipcRenderer.invoke("studio:read-text-file", rootDir, filename),
     readBinaryFileBase64: async (rootDir, filename) =>
       ipcRenderer.invoke("studio:read-binary-file-base64", rootDir, filename),
+    runPython: async (rootDir, sourceText, options) =>
+      ipcRenderer.invoke("studio:run-python", rootDir, sourceText, options),
     writeCobraScript: async (rootDir, filename, content) =>
       ipcRenderer.invoke("studio:write-cobra-script", rootDir, filename, content),
     writeTextFile: async (rootDir, filename, content) =>

@@ -5,7 +5,7 @@
   "inputs": {
     "payload": {
       "realm_id": "lapidus",
-      "scene_id": "lapidus/player_home",
+      "scene_id": "lapidus/home_morning",
       "apply": true
     },
     "required_refs": [
