@@ -124,7 +124,7 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 106,01101010,AppleBlossom,Mel,Water
 107,01101011,AppleBlossom,Zot,Earth
 108,01101100,AppleBlossom,Zhuk,Plasma (Fire,Fire)
-109,01101101,AppleBlossom,Kyzu,Sulphur (Fire,Air)
+109,01101101,AppleBlossom,Kypa,Sulphur (Fire,Air)
 110,01101110,AppleBlossom,Alky,Alkahest / Alcohol (Fire,Water)
 111,01101111,AppleBlossom,Kazho,Magma / Lava (Fire,Earth)
 112,01110000,AppleBlossom,Puky,Smoke (Air,Fire)
