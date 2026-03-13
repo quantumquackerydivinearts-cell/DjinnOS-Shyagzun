@@ -1,0 +1,20 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = false
+	logallrefupdates = true
+	symlinks = false
+	ignorecase = true
+[remote "origin"]
+	url = https://github.com/quantumquackerydivinearts-cell/DjinnOS-Shyagzun.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "main"]
+	remote = origin
+	merge = refs/heads/main
+[branch "gitbasin"]
+	remote = origin
+	merge = refs/heads/gitbasin
+	vscode-merge-base = origin/gitbasin
+[user]
+	name = Alexandria
+	email = quantumquackerydivinearts@gmail.com

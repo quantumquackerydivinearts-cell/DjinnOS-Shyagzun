@@ -1,0 +1,25 @@
+# quantum-quackery/_headers
+# Cloudflare Pages — HTTP response headers for all routes.
+# These are applied at the CDN edge before the response reaches the browser.
+
+/*
+  # Security baseline
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+  # Allow the landing page to call the Render-hosted API
+  Access-Control-Allow-Origin: https://atelier-api.quantumquackery.com
+
+  # Cache static assets aggressively, HTML never
+  Cache-Control: public, max-age=0, must-revalidate
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+*.css
+  Cache-Control: public, max-age=31536000, immutable

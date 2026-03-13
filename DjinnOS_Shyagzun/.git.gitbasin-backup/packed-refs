@@ -1,0 +1,4 @@
+# pack-refs with: peeled fully-peeled sorted 
+b0a4e07e3e72a501beb595abe8f86c8d20e5904c refs/remotes/origin/gitbasin
+62fc33a4076274cf92bd2a8b7d20b64eb6132e60 refs/remotes/origin/main
+b0a4e07e3e72a501beb595abe8f86c8d20e5904c refs/tags/shygazun-kernel-v0.1.0

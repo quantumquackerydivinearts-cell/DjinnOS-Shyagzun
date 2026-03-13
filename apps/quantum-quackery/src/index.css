@@ -1,0 +1,246 @@
+/* src/index.css
+   Visual system extracted from the original Quantum Quackery Atelier index.html.
+   App.jsx inherits all of these. Do not change tokens here without updating
+   the Electron shell (root index.html) to match. */
+
+:root {
+  --bg:          #f4f0e8;
+  --ink:         #1c1a16;
+  --accent:      #2f6d62;
+  --accent-soft: #d7ebe6;
+  --panel:       #fffaf1;
+  --line:        #d8cbb8;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top right, #e6efe8 0%, var(--bg) 42%);
+  color: var(--ink);
+  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+  min-height: 100vh;
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+  background: linear-gradient(180deg, #fef6e8 0%, #f4ecdc 100%);
+  padding: 20px 16px;
+}
+
+.content {
+  padding: 26px 28px;
+}
+
+/* ── Brand ───────────────────────────────────────────────────────────────── */
+
+.brand {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 18px;
+}
+
+.brand small {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6f6557;
+  letter-spacing: 0.08em;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────────────── */
+
+.nav {
+  display: grid;
+  gap: 8px;
+}
+
+.nav button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff9ef;
+  color: #2a261f;
+  text-align: left;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.nav button:hover {
+  background: #fff3df;
+  border-color: #c4b89e;
+}
+
+.nav button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: #173a34;
+  font-weight: 700;
+}
+
+/* ── Panels ──────────────────────────────────────────────────────────────── */
+
+.hero {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.hero h1 {
+  margin: 0 0 8px 0;
+  font-size: 34px;
+}
+
+.hero p {
+  margin: 0;
+  color: #5e564b;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fffdf8;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.panel h2 {
+  margin-top: 0;
+  font-size: 22px;
+}
+
+/* ── Form elements ───────────────────────────────────────────────────────── */
+
+.row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+input, textarea, select {
+  font-size: 14px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-family: inherit;
+}
+
+input { flex: 1; }
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 80px;
+}
+
+button.action {
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #25554c;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+button.action:hover {
+  background: #245c52;
+}
+
+button.action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Output / code blocks ────────────────────────────────────────────────── */
+
+pre {
+  margin-top: 12px;
+  background: #0f1729;
+  color: #cde0ff;
+  border-radius: 10px;
+  padding: 12px;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fffdf8;
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.card h3 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+}
+
+.card p {
+  margin: 0;
+  font-size: 13px;
+  color: #5f584e;
+}
+
+/* ── Notice / status bar ─────────────────────────────────────────────────── */
+
+.notice {
+  font-size: 12px;
+  color: #5e564b;
+  background: #fef9f0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-top: 10px;
+  font-family: monospace;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+}

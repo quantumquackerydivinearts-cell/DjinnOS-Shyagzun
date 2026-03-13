@@ -1,0 +1,10 @@
+# quantum-quackery/_redirects
+# Cloudflare Pages redirect rules.
+
+# API calls from the landing page proxy to Render
+# (alternative to calling Render directly — avoids mixed content
+#  and keeps the API URL consistent if you ever move hosts)
+/api/*  https://atelier-api.quantumquackery.com/:splat  200
+
+# Redirect bare domain to www (or remove if you prefer bare)
+# http://quantumquackery.org/*  https://www.quantumquackery.org/:splat  301

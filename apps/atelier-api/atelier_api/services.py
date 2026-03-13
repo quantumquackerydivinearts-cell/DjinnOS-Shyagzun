@@ -44,7 +44,7 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from jsonschema import Draft202012Validator
-from shygazun.lesson_registry import load_lesson_registry
+from DjinnOS_Shygazun.shygazun.lesson_registry import load_lesson_registry
 
 from .business_schemas import (
     ArtisanBootstrapInput,
@@ -232,7 +232,7 @@ from .rendering_schemas import (
     RendererAssetDiagnosticsInput,
     RendererAssetDiagnosticsOut,
 )
-from .config import load_settings
+from core.config import load_settings
 from .kernel_integration import KernelIntegrationService
 from .market_logic import get_realm_coin, get_realm_market, list_realm_coins, list_realm_markets
 from .pygame_worker import PygameWorkerManager, get_pygame_worker_manager

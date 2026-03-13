@@ -198,7 +198,7 @@ from .rendering_schemas import (
 )
 from .capabilities import CapabilityContext, parse_capabilities, require_capability
 from .auth import AuthTokenClaims, decode_auth_token
-from .config import Settings, load_settings
+from core.config import Setttings, load_settings
 from .db import get_db
 from .kernel_client import HttpKernelClient, KernelClient
 from .kernel_integration import KernelIntegrationService

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quantum Quackery — Divine Arts</title>
+  <meta name="description" content="A Paracelsian guild of artisans. Sulphur. Mercury. Salt." />
+
+  <!-- Fonts: Cinzel for display, Cormorant Garamond for body -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Reset & tokens ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:        #0d0d12;
+      --parchment:  #f0e8d8;
+      --gold:       #c9a84c;
+      --gold-dim:   #7a621e;
+      --sulphur:    #e8c44a;
+      --mercury:    #a8c8e8;
+      --salt:       #e8e8e8;
+      --ember:      #c85a28;
+      --void:       #06060a;
+      --ff-display: "Cinzel", serif;
+      --ff-body:    "Cormorant Garamond", serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--void);
+      color: var(--parchment);
+      font-family: var(--ff-body);
+      font-size: 18px;
+      line-height: 1.7;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Grain overlay ──────────────────────────────────────────────────── */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.35;
+    }
+
+    /* ── Nav ────────────────────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 3rem;
+      border-bottom: 1px solid rgba(201,168,76,0.15);
+      backdrop-filter: blur(12px);
+      background: rgba(6,6,10,0.7);
+    }
+
+    .nav-mark {
+      font-family: var(--ff-display);
+      font-size: 0.85rem;
+      letter-spacing: 0.25em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      color: var(--gold-dim);
+      font-family: var(--ff-display);
+    }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--gold-dim);
+      transition: background 0.6s, box-shadow 0.6s;
+    }
+    .status-dot.live {
+      background: #4caf7a;
+      box-shadow: 0 0 8px #4caf7a88;
+    }
+    .status-dot.error {
+      background: var(--ember);
+    }
+
+    /* ── Hero ───────────────────────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 6rem 2rem 4rem;
+      position: relative;
+    }
+
+    /* Ouroboros / radial glow behind hero */
+    .hero::before {
+      content: "";
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(700px, 90vw);
+      height: min(700px, 90vw);
+      background: radial-gradient(
+        ellipse at center,
+        rgba(201,168,76,0.08) 0%,
+        rgba(200,90,40,0.04) 40%,
+        transparent 70%
+      );
+      border-radius: 50%;
+      pointer-events: none;
+      animation: breathe 8s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: translate(-50%,-50%) scale(1);   opacity: 0.7; }
+      50%       { transform: translate(-50%,-50%) scale(1.08); opacity: 1;   }
+    }
+
+    .sigil {
+      width: min(180px, 40vw);
+      height: min(180px, 40vw);
+      margin-bottom: 3rem;
+      position: relative;
+      animation: rotate-slow 120s linear infinite;
+    }
+
+    @keyframes rotate-slow {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* SVG ouroboros drawn inline */
+    .sigil svg { width: 100%; height: 100%; }
+
+    .hero-eyebrow {
+      font-family: var(--ff-display);
+      font-size: 0.7rem;
+      letter-spacing: 0.4em;
+      color: var(--gold-dim);
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      animation: fadeUp 1.2s ease both;
+      animation-delay: 0.3s;
+    }
+
+    .hero-title {
+      font-family: var(--ff-display);
+      font-size: clamp(2.5rem, 7vw, 5.5rem);
+      font-weight: 900;
+      line-height: 1.05;
+      color: var(--parchment);
+      margin-bottom: 0.5rem;
+      animation: fadeUp 1.2s ease both;
+      animation-delay: 0.5s;
+    }
+
+    .hero-title span {
+      color: var(--gold);
+      display: block;
+    }
+
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.35rem);
+      font-style: italic;
+      color: rgba(240,232,216,0.6);
+      max-width: 520px;
+      margin: 1.5rem auto 3rem;
+      animation: fadeUp 1.2s ease both;
+      animation-delay: 0.7s;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      animation: fadeUp 1.2s ease both;
+      animation-delay: 0.9s;
+    }
+
+    .btn {
+      font-family: var(--ff-display);
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 0.85rem 2.5rem;
+      border: 1px solid;
+      transition: all 0.3s;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .btn-primary {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    .btn-primary:hover {
+      background: var(--gold);
+      color: var(--void);
+    }
+
+    .btn-ghost {
+      border-color: rgba(240,232,216,0.25);
+      color: rgba(240,232,216,0.6);
+    }
+    .btn-ghost:hover {
+      border-color: var(--parchment);
+      color: var(--parchment);
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Divisions ──────────────────────────────────────────────────────── */
+    .divisions {
+      padding: 6rem 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-family: var(--ff-display);
+      font-size: 0.65rem;
+      letter-spacing: 0.5em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .divisions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2px;
+    }
+
+    .division-card {
+      padding: 3rem 2.5rem;
+      border: 1px solid rgba(201,168,76,0.1);
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.4s;
+    }
+
+    .division-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .division-card:hover { border-color: rgba(201,168,76,0.3); }
+    .division-card:hover::before { opacity: 1; }
+
+    .sulphur-card::before  { background: radial-gradient(ellipse at top left, rgba(232,196,74,0.06), transparent 60%); }
+    .mercury-card::before  { background: radial-gradient(ellipse at top,       rgba(168,200,232,0.06), transparent 60%); }
+    .salt-card::before     { background: radial-gradient(ellipse at top right, rgba(232,232,232,0.06), transparent 60%); }
+
+    .division-glyph {
+      font-size: 2.5rem;
+      margin-bottom: 1.5rem;
+      display: block;
+      line-height: 1;
+    }
+
+    .division-name {
+      font-family: var(--ff-display);
+      font-size: 1.1rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .sulphur-card .division-name  { color: var(--sulphur); }
+    .mercury-card .division-name  { color: var(--mercury); }
+    .salt-card    .division-name  { color: var(--salt); }
+
+    .division-desc {
+      font-size: 0.95rem;
+      color: rgba(240,232,216,0.55);
+      font-style: italic;
+      line-height: 1.8;
+    }
+
+    /* ── Guild Hall preview ─────────────────────────────────────────────── */
+    .guild-section {
+      padding: 6rem 2rem;
+      border-top: 1px solid rgba(201,168,76,0.1);
+    }
+
+    .guild-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .guild-title {
+      font-family: var(--ff-display);
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      color: var(--parchment);
+      margin-bottom: 1rem;
+    }
+
+    .guild-sub {
+      font-style: italic;
+      color: rgba(240,232,216,0.5);
+      margin-bottom: 3rem;
+      font-size: 1.05rem;
+    }
+
+    #guild-roster {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1px;
+      background: rgba(201,168,76,0.08);
+      border: 1px solid rgba(201,168,76,0.12);
+      min-height: 200px;
+    }
+
+    .roster-card {
+      padding: 1.5rem;
+      background: var(--void);
+      transition: background 0.3s;
+    }
+
+    .roster-card:hover { background: rgba(201,168,76,0.04); }
+
+    .roster-name {
+      font-family: var(--ff-display);
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      margin-bottom: 0.4rem;
+    }
+
+    .roster-rank {
+      font-size: 0.75rem;
+      color: rgba(240,232,216,0.35);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .roster-loading {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem;
+      color: rgba(240,232,216,0.2);
+      font-style: italic;
+      font-size: 0.9rem;
+      gap: 0.75rem;
+    }
+
+    .loading-pulse {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--gold-dim);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    .loading-pulse:nth-child(2) { animation-delay: 0.2s; }
+    .loading-pulse:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulse {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40%            { transform: scale(1);   opacity: 1;   }
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────────────── */
+    footer {
+      padding: 3rem;
+      text-align: center;
+      border-top: 1px solid rgba(201,168,76,0.08);
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      color: rgba(240,232,216,0.2);
+      font-family: var(--ff-display);
+    }
+
+    footer a {
+      color: var(--gold-dim);
+      text-decoration: none;
+    }
+    footer a:hover { color: var(--gold); }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <span class="nav-mark">Q · Q · D · A</span>
+    <span class="nav-status">
+      <span class="status-dot" id="api-dot"></span>
+      <span id="api-status-text">connecting</span>
+    </span>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <!-- Ouroboros sigil -->
+    <div class="sigil">
+      <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="80" stroke="rgba(201,168,76,0.2)" stroke-width="1"/>
+        <circle cx="100" cy="100" r="60" stroke="rgba(201,168,76,0.12)" stroke-width="1" stroke-dasharray="4 6"/>
+        <!-- Ouroboros snake path approximation -->
+        <path d="M100 24 C148 24, 176 52, 176 100 C176 148, 148 176, 100 176 C52 176, 24 148, 24 100 C24 66, 42 38, 68 28"
+              stroke="rgba(201,168,76,0.5)" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <!-- Snake head triangle -->
+        <polygon points="62,20 74,28 58,34" fill="rgba(201,168,76,0.5)"/>
+        <!-- Center cross -->
+        <line x1="100" y1="80" x2="100" y2="120" stroke="rgba(201,168,76,0.3)" stroke-width="1"/>
+        <line x1="80"  y1="100" x2="120" y2="100" stroke="rgba(201,168,76,0.3)" stroke-width="1"/>
+        <circle cx="100" cy="100" r="4" fill="rgba(201,168,76,0.4)"/>
+      </svg>
+    </div>
+
+    <p class="hero-eyebrow">Paracelsian Guild of Divine Arts</p>
+    <h1 class="hero-title">
+      Quantum<br />
+      <span>Quackery</span>
+    </h1>
+    <p class="hero-sub">
+      Where the sulphurous, the mercurial, and the saline find their work.
+      A registry of artisans. A record of things made and unmade.
+    </p>
+    <div class="hero-cta">
+      <a href="#guild" class="btn btn-primary">Enter the Guild Hall</a>
+      <a href="https://atelier-api.quantumquackery.com/docs"
+         target="_blank" rel="noopener" class="btn btn-ghost">API Documentation</a>
+    </div>
+  </section>
+
+  <!-- Divisions -->
+  <section class="divisions">
+    <p class="section-label">The Three Divisions</p>
+    <div class="divisions-grid">
+
+      <div class="division-card sulphur-card">
+        <span class="division-glyph">🜍</span>
+        <div class="division-name">Sulphur</div>
+        <p class="division-desc">
+          The active principle. Fire, will, and the creative impulse.
+          Those who make form from formlessness.
+        </p>
+      </div>
+
+      <div class="division-card mercury-card">
+        <span class="division-glyph">☿</span>
+        <div class="division-name">Mercury</div>
+        <p class="division-desc">
+          The mediating principle. Transmission, translation, the bridge
+          between what is known and what can be known.
+        </p>
+      </div>
+
+      <div class="division-card salt-card">
+        <span class="division-glyph">🜔</span>
+        <div class="division-name">Salt</div>
+        <p class="division-desc">
+          The passive principle. Record, vessel, and the substance
+          of endurance. What remains when everything burns away.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Guild Hall preview -->
+  <section class="guild-section" id="guild">
+    <div class="guild-inner">
+      <p class="section-label">Public Registry</p>
+      <h2 class="guild-title">The Guild Hall</h2>
+      <p class="guild-sub">Artisans who have chosen to be known.</p>
+
+      <div id="guild-roster">
+        <div class="roster-loading">
+          <span class="loading-pulse"></span>
+          <span class="loading-pulse"></span>
+          <span class="loading-pulse"></span>
+          <span>consulting the registry</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>
+      QUANTUM QUACKERY DIVINE ARTS LLC &nbsp;·&nbsp;
+      <a href="mailto:guild@quantumquackery.org">guild@quantumquackery.org</a>
+      &nbsp;·&nbsp;
+      <a href="https://atelier-api.quantumquackery.com/ready">API Status</a>
+    </p>
+  </footer>
+
+  <script>
+    const API = "https://atelier-api.quantumquackery.com";
+
+    // ── API readiness probe ───────────────────────────────────────────────
+    async function checkApiStatus() {
+      const dot  = document.getElementById("api-dot");
+      const text = document.getElementById("api-status-text");
+      try {
+        const res  = await fetch(`${API}/ready`, { signal: AbortSignal.timeout(5000) });
+        const data = await res.json();
+        if (data.ok) {
+          dot.classList.add("live");
+          text.textContent = "atelier live";
+        } else {
+          dot.classList.add("error");
+          text.textContent = "degraded";
+        }
+      } catch {
+        dot.classList.add("error");
+        text.textContent = "offline";
+      }
+    }
+
+    // ── Guild Hall roster ─────────────────────────────────────────────────
+    async function loadGuildRoster() {
+      const roster = document.getElementById("guild-roster");
+      try {
+        const res  = await fetch(`${API}/public/guild/artisans?limit=12`, {
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (!res.ok) throw new Error(`status ${res.status}`);
+        const data = await res.json();
+        const artisans = Array.isArray(data) ? data : (data.artisans || data.results || []);
+
+        if (artisans.length === 0) {
+          roster.innerHTML = `
+            <div class="roster-loading">
+              <span style="color:rgba(240,232,216,0.2);font-style:italic">
+                The registry is empty — be the first to be known.
+              </span>
+            </div>`;
+          return;
+        }
+
+        roster.innerHTML = artisans.map((a) => `
+          <div class="roster-card">
+            <div class="roster-name">${escHtml(a.display_name || a.name || "Unknown")}</div>
+            <div class="roster-rank">${escHtml(a.guild_rank || a.rank || "artisan")}</div>
+          </div>
+        `).join("");
+
+      } catch (err) {
+        roster.innerHTML = `
+          <div class="roster-loading">
+            <span style="color:rgba(200,90,40,0.5)">
+              The registry could not be reached — ${escHtml(err.message)}
+            </span>
+          </div>`;
+      }
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    checkApiStatus();
+    loadGuildRoster();
+
+    // Re-check status every 60s
+    setInterval(checkApiStatus, 60_000);
+  </script>
+
+</body>
+</html>
