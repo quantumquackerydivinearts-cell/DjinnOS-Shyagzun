@@ -14,7 +14,7 @@
 2. Set Android API URL:
    - Create `.env` with `VITE_API_BASE=http://10.0.2.2:9000` (Android emulator)
    - For physical-device or production builds, use a reachable HTTPS URL, for example:
-     `VITE_API_BASE=https://atelier-api.yourdomain.com`
+     `VITE_API_BASE=https://atelier-api.quantumquackery.com`
 3. Initialize Android project once:
    - `npm run mobile:android:init`
 4. Build and sync web bundle:

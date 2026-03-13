@@ -6,13 +6,21 @@ from typing import Any, Dict, Mapping, Optional, Sequence
 
 import stripe
 from uuid import _uuid
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, Mapped, mapped_column
 from sqlalchemy import Boolean, DateTime, String, Text
 import os
+from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator
+
+import structlog
+
+from .core.config import get_settings
+from .routers import game
+
 
 from .business_schemas import (
     ArtisanBootstrapInput,
@@ -4466,6 +4474,63 @@ def public_commission_inquiry(
     svc: AtelierService = Depends(_atelier_service),
 ) -> LeadOut:
     return svc.create_public_inquiry(payload)
+settings = get_settings()
+log = structlog.get_logger()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    log.info(
+        "atelier_api_starting",
+        version=settings.app_version,
+        environment=settings.environment,
+        python=sys.executable,          # always sys.executable — never hardcoded path
+    )
+    # Ensure lineage store directory exists
+    settings.lineage_store_path.mkdir(parents=True, exist_ok=True)
+    yield
+    log.info("atelier_api_shutdown")
+
+
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+    default_response_class=ORJSONResponse,
+    lifespan=lifespan,
+    # Disable default /docs in production if desired
+    docs_url="/docs" if settings.environment != "production" else None,
+    redoc_url="/redoc" if settings.environment != "production" else None,
+)
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ── Request timing middleware ─────────────────────────────────────────────────
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next: Any) -> Any:
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed = time.perf_counter() - start
+    response.headers["X-Process-Time-Ms"] = f"{elapsed * 1000:.1f}"
+    return response
+
+
+# ── Global exception handler ─────────────────────────────────────────────────
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> ORJSONResponse:
+    log.error("unhandled_exception", path=str(request.url), error=str(exc))
+    return ORJSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"ok": False, "error": "internal_server_error", "detail": str(exc)},
+    )
+
 
 class GuildArtisanProfile(BaseModel):
     """

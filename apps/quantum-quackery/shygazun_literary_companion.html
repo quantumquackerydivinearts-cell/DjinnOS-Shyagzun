@@ -1,0 +1,352 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); color: var(--color-text-primary); }
+.container { padding: 1.5rem 0; max-width: 780px; }
+.header { margin-bottom: 1.5rem; }
+.header h2 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+.header p { font-size: 14px; color: var(--color-text-secondary); line-height: 1.5; }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.25rem; }
+.control-group { display: flex; flex-direction: column; gap: 6px; }
+.control-group label { font-size: 12px; color: var(--color-text-secondary); letter-spacing: 0.03em; }
+select { width: 100%; }
+.depth-row { display: flex; gap: 12px; align-items: center; margin-bottom: 1.25rem; }
+.depth-row label { font-size: 12px; color: var(--color-text-secondary); white-space: nowrap; }
+.depth-row input[type=range] { flex: 1; }
+.depth-row span { font-size: 13px; font-weight: 500; min-width: 20px; }
+.generate-btn { width: 100%; padding: 10px; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 1.5rem; }
+.prompt-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+.prompt-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.badge { font-size: 11px; padding: 3px 10px; border-radius: var(--border-radius-md); background: var(--color-background-secondary); color: var(--color-text-secondary); border: 0.5px solid var(--color-border-tertiary); }
+.badge.tongue { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; }
+.badge.register { background: #E1F5EE; color: #085041; border-color: #5DCAA5; }
+.badge.depth { background: #FAEEDA; color: #633806; border-color: #EF9F27; }
+.prompt-text { font-size: 15px; line-height: 1.7; color: var(--color-text-primary); margin-bottom: 12px; }
+.seed-symbols { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 12px; font-style: italic; }
+.prompt-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.prompt-actions button { font-size: 12px; padding: 5px 12px; cursor: pointer; }
+.composition-area { margin-top: 1.5rem; }
+.composition-area label { font-size: 12px; color: var(--color-text-secondary); display: block; margin-bottom: 6px; }
+textarea { width: 100%; min-height: 120px; font-size: 14px; line-height: 1.7; padding: 10px 12px; resize: vertical; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); font-family: var(--font-sans); }
+.corpus-entry { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 14px; margin-bottom: 8px; font-size: 13px; line-height: 1.6; border-left: 2px solid #AFA9EC; }
+.corpus-meta { font-size: 11px; color: var(--color-text-secondary); margin-top: 4px; }
+.corpus-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.corpus-header h3 { font-size: 14px; font-weight: 500; }
+.corpus-header span { font-size: 12px; color: var(--color-text-secondary); }
+.empty-state { font-size: 13px; color: var(--color-text-secondary); font-style: italic; padding: 1rem 0; }
+.loading { font-size: 14px; color: var(--color-text-secondary); padding: 1rem 0; font-style: italic; }
+.error { font-size: 13px; color: #A32D2D; padding: 8px 12px; background: #FCEBEB; border-radius: var(--border-radius-md); margin-bottom: 1rem; }
+.section-divider { border: none; border-top: 0.5px solid var(--color-border-tertiary); margin: 1.5rem 0; }
+</style>
+
+<div class="container">
+  <div class="header">
+    <h2>Shygazun literary companion</h2>
+    <p>Prompts for native composition across the tongues. Semantic-first, placement-last.</p>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>Primary tongue</label>
+      <select id="tongue-select">
+        <option value="any">Any tongue</option>
+        <option value="Lotus">Lotus — elemental substrate</option>
+        <option value="Rose">Rose — spectral / numeric</option>
+        <option value="Sakura">Sakura — spatial / relational</option>
+        <option value="Daisy">Daisy — structural / mechanical</option>
+        <option value="AppleBlossom">AppleBlossom — alchemical compound</option>
+        <option value="Aster">Aster — chiral / temporal</option>
+        <option value="Grapevine">Grapevine — network / ceremonial</option>
+        <option value="Cannabis">Cannabis — phenomenological cross</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Interdisciplinary register</label>
+      <select id="register-select">
+        <option value="any">Open register</option>
+        <option value="psychospiritual">Psychospiritual</option>
+        <option value="alchemical">Alchemical</option>
+        <option value="political">Political / structural</option>
+        <option value="computational">Computational</option>
+        <option value="ecological">Ecological</option>
+        <option value="mythological">Mythological</option>
+        <option value="phenomenological">Phenomenological</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="depth-row">
+    <label>Compositional depth</label>
+    <input type="range" min="1" max="3" step="1" value="2" id="depth-slider">
+    <span id="depth-out">2</span>
+  </div>
+
+  <button class="generate-btn" id="gen-btn" onclick="generatePrompt()">Generate composition prompt ↗</button>
+
+  <div id="prompt-area"></div>
+
+  <hr class="section-divider">
+
+  <div class="composition-area">
+    <label>Your composition (Shygazun native or mixed — record here)</label>
+    <textarea id="composition-input" placeholder="Ha Puffy Ruta..."></textarea>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <button onclick="saveComposition()" style="font-size: 12px; padding: 5px 14px; cursor: pointer;">Save to corpus</button>
+      <button onclick="analyzeComposition()" style="font-size: 12px; padding: 5px 14px; cursor: pointer;">Reflect structure ↗</button>
+    </div>
+  </div>
+
+  <hr class="section-divider">
+
+  <div id="corpus-area">
+    <div class="corpus-header">
+      <h3>Corpus</h3>
+      <span id="corpus-count">0 entries</span>
+    </div>
+    <div id="corpus-list"><p class="empty-state">No compositions saved yet.</p></div>
+  </div>
+</div>
+
+<script>
+const BYTE_TABLE = {
+  0:{s:'Ty',t:'Lotus',m:'Earth Initiator / material beginning'},
+  1:{s:'Zu',t:'Lotus',m:'Earth Terminator / empirical closure'},
+  2:{s:'Ly',t:'Lotus',m:'Water Initiator / feeling toward'},
+  3:{s:'Mu',t:'Lotus',m:'Water Terminator / memory from'},
+  4:{s:'Fy',t:'Lotus',m:'Air Initiator / thought toward'},
+  5:{s:'Pu',t:'Lotus',m:'Air Terminator / stasis / stuck'},
+  6:{s:'Shy',t:'Lotus',m:'Fire Initiator / pattern toward'},
+  7:{s:'Ku',t:'Lotus',m:'Fire Terminator / death / end'},
+  8:{s:'Ti',t:'Lotus',m:'Here / near presence'},
+  9:{s:'Ta',t:'Lotus',m:'Active being / presence'},
+  10:{s:'Li',t:'Lotus',m:'New / odd'},
+  11:{s:'La',t:'Lotus',m:'Tense / excited'},
+  12:{s:'Fi',t:'Lotus',m:'Known / context-sensitive'},
+  13:{s:'Fa',t:'Lotus',m:'Complex / old'},
+  14:{s:'Shi',t:'Lotus',m:'Related / clear'},
+  16:{s:'Zo',t:'Lotus',m:'Absence / passive non-being'},
+  17:{s:'Mo',t:'Lotus',m:'Relaxed / silent'},
+  18:{s:'Po',t:'Lotus',m:'Simple / new'},
+  19:{s:'Ko',t:'Lotus',m:'Experience / intuition'},
+  20:{s:'Ze',t:'Lotus',m:'There / far'},
+  21:{s:'Me',t:'Lotus',m:'Familiar / home'},
+  22:{s:'Pe',t:'Lotus',m:'Unknown / insensitive'},
+  23:{s:'Ke',t:'Lotus',m:'Incoherent / ill'},
+  15:{s:'Sha',t:'Lotus',m:'Intellect of spirit'},
+  24:{s:'Ru',t:'Rose',m:'Vector Lowest Red'},
+  25:{s:'Ot',t:'Rose',m:'Vector Orange'},
+  26:{s:'El',t:'Rose',m:'Vector Yellow'},
+  27:{s:'Ki',t:'Rose',m:'Vector Green'},
+  28:{s:'Fu',t:'Rose',m:'Vector Blue'},
+  29:{s:'Ka',t:'Rose',m:'Vector Indigo'},
+  30:{s:'AE',t:'Rose',m:'Vector Highest Violet'},
+  43:{s:'Ha',t:'Rose',m:'Absolute Positive'},
+  44:{s:'Ga',t:'Rose',m:'Absolute Negative'},
+  45:{s:'Wu',t:'Rose',m:'Process / Way'},
+  46:{s:'Na',t:'Rose',m:'Neutral / Integration'},
+  47:{s:'Ung',t:'Rose',m:'Piece / Point'},
+  48:{s:'Jy',t:'Sakura',m:'Top'},
+  49:{s:'Ji',t:'Sakura',m:'Starboard'},
+  50:{s:'Ja',t:'Sakura',m:'Front'},
+  51:{s:'Jo',t:'Sakura',m:'Back'},
+  52:{s:'Je',t:'Sakura',m:'Port'},
+  53:{s:'Ju',t:'Sakura',m:'Bottom'},
+  54:{s:'Dy',t:'Sakura',m:'Hence / Heretofore'},
+  55:{s:'Di',t:'Sakura',m:'Traveling / Distancing'},
+  56:{s:'Da',t:'Sakura',m:'Meeting / Conjoined'},
+  57:{s:'Do',t:'Sakura',m:'Parting / Divorced'},
+  58:{s:'De',t:'Sakura',m:'Domesticating / Staying'},
+  59:{s:'Du',t:'Sakura',m:'Whither / Status of'},
+  66:{s:'Va',t:'Sakura',m:'Order / Structure / Life'},
+  67:{s:'Vo',t:'Sakura',m:'Chaos / Boundary-breakage / Mutation'},
+  69:{s:'Vu',t:'Sakura',m:'Death-moment / Never / Now'},
+  70:{s:'Vi',t:'Sakura',m:'Body / Wherever / What'},
+  72:{s:'Lo',t:'Daisy',m:'Segments / Identity'},
+  73:{s:'Yei',t:'Daisy',m:'Component / Integrator'},
+  75:{s:'X',t:'Daisy',m:'Joint / Interlock'},
+  76:{s:'Yx',t:'Daisy',m:'Fulcrum / Crux'},
+  82:{s:'Kael',t:'Daisy',m:'Cluster / Fruit / Flower'},
+  83:{s:'Ro',t:'Daisy',m:'Ion-channel / Gate / Receptor'},
+  85:{s:'To',t:'Daisy',m:'Scaffold / Framework'},
+  86:{s:'Ma',t:'Daisy',m:'Web / Interchange'},
+  87:{s:'Ne',t:'Daisy',m:'Network / System'},
+  93:{s:'Zhi',t:'Daisy',m:'Eye / Vortex'},
+  95:{s:'St',t:'Daisy',m:'Surface'},
+  97:{s:'N',t:'Daisy',m:'Seed / Sheet / Fiber'},
+  98:{s:'A',t:'AppleBlossom',m:'Mind +'},
+  99:{s:'O',t:'AppleBlossom',m:'Mind -'},
+  100:{s:'I',t:'AppleBlossom',m:'Space +'},
+  101:{s:'E',t:'AppleBlossom',m:'Space -'},
+  102:{s:'Y',t:'AppleBlossom',m:'Time +'},
+  103:{s:'U',t:'AppleBlossom',m:'Time -'},
+  104:{s:'Shak',t:'AppleBlossom',m:'Fire'},
+  105:{s:'Puf',t:'AppleBlossom',m:'Air'},
+  106:{s:'Mel',t:'AppleBlossom',m:'Water'},
+  107:{s:'Zot',t:'AppleBlossom',m:'Earth'},
+  108:{s:'Zhuk',t:'AppleBlossom',m:'Plasma (Fire,Fire)'},
+  109:{s:'Kyzu',t:'AppleBlossom',m:'Sulphur (Fire,Air)'},
+  110:{s:'Alky',t:'AppleBlossom',m:'Alkahest / Alcohol (Fire,Water)'},
+  111:{s:'Kazho',t:'AppleBlossom',m:'Magma / Lava (Fire,Earth)'},
+  115:{s:'Zitef',t:'AppleBlossom',m:'Mercury (Air,Earth)'},
+  118:{s:'Milo',t:'AppleBlossom',m:'Mixed fluids / Mixtures (Water,Water)'},
+  123:{s:'Zaot',t:'AppleBlossom',m:'Salt (Earth,Earth)'},
+  128:{s:'Ry',t:'Aster',m:'Right-chiral red'},
+  135:{s:'Ra',t:'Aster',m:'Left-chiral red'},
+  142:{s:'Si',t:'Aster',m:'Linear time'},
+  143:{s:'Su',t:'Aster',m:'Loop time'},
+  144:{s:'Os',t:'Aster',m:'Exponential time'},
+  146:{s:'Sy',t:'Aster',m:'Fold time'},
+  147:{s:'As',t:'Aster',m:'Frozen time'},
+  184:{s:'At',t:'Cannabis',m:'Grounded awareness / consciousness of material presence'},
+  185:{s:'Ar',t:'Cannabis',m:'Chromatic perception / awareness of energetic quality'},
+  186:{s:'Av',t:'Cannabis',m:'Relational consciousness / awareness of connection and structure'},
+  188:{s:'Af',t:'Cannabis',m:'Transformative awareness / consciousness of change in process'},
+  189:{s:'An',t:'Cannabis',m:'Chiral discernment / awareness of handedness and temporal direction'},
+  204:{s:'Yt',t:'Cannabis',m:'Grounded duration / the temporal weight of material existence'},
+  208:{s:'Yf',t:'Cannabis',m:'Transformative time / the duration of phase change'},
+  209:{s:'Yn',t:'Cannabis',m:'Chiral time / the direction and handedness of temporal flow'},
+};
+
+const TONGUE_SEEDS = {
+  Lotus: [0,2,4,6,9,15,17,19,21],
+  Rose: [24,26,43,44,45,46,47],
+  Sakura: [50,55,56,57,66,67,69,70],
+  Daisy: [72,76,82,85,86,87,93,97],
+  AppleBlossom: [104,105,106,107,109,110,115,123],
+  Aster: [142,143,144,146,147],
+  Grapevine: [],
+  Cannabis: [184,185,186,188,189,204,208,209]
+};
+
+const REGISTERS = {
+  psychospiritual: 'psyche, shadow, individuation, animus/anima, the wound and its inheritance',
+  alchemical: 'transmutation, the Great Work, solve et coagula, prima materia, the philosopher\'s stone',
+  political: 'institutional power, invisible structures, accountability voids, the unspoken',
+  computational: 'architecture, protocol, signal and noise, the network, memory and erasure',
+  ecological: 'symbiosis, succession, the mycorrhizal, decay as generativity, seasonal recursion',
+  mythological: 'the hero\'s descent, the trickster, sacred marriage, the threshold guardian',
+  phenomenological: 'the felt sense, the body knowing before the mind, presence, the quality of encounter',
+  any: 'the full breadth of psyche and world'
+};
+
+const DEPTH_LABELS = ['surface — single tongue, single image','crossing — two tongues in dialogue','depth — full manifold traversal with chiral acknowledgment'];
+
+const corpus = [];
+
+document.getElementById('depth-slider').addEventListener('input', function() {
+  document.getElementById('depth-out').textContent = this.value;
+});
+
+function pickSeeds(tongue, n) {
+  const keys = tongue === 'any'
+    ? Object.values(TONGUE_SEEDS).flat()
+    : (TONGUE_SEEDS[tongue] || []);
+  if (!keys.length) return [];
+  const shuffled = [...keys].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, n).map(k => BYTE_TABLE[k]).filter(Boolean);
+}
+
+async function generatePrompt() {
+  const tongue = document.getElementById('tongue-select').value;
+  const register = document.getElementById('register-select').value;
+  const depth = parseInt(document.getElementById('depth-slider').value);
+  const area = document.getElementById('prompt-area');
+
+  area.innerHTML = '<p class="loading">Generating prompt from the manifold...</p>';
+
+  const seeds = pickSeeds(tongue, depth + 1);
+  const seedText = seeds.map(s => `${s.s} (${s.m})`).join(' · ');
+  const registerDesc = REGISTERS[register] || REGISTERS.any;
+  const depthDesc = DEPTH_LABELS[depth - 1];
+  const tongueDesc = tongue === 'any' ? 'across any tongue' : `in the ${tongue} tongue`;
+
+  const systemPrompt = `You are a literary companion for Shygazun, a constructed language whose grammar is semantic-first and placement-last, whose vowels A O I E Y U encode Mind+/Mind-/Space+/Space-/Time+/Time- as ontic axes, and whose tongues are: Lotus (elemental), Rose (spectral/numeric), Sakura (spatial/relational), Daisy (structural/mechanical), AppleBlossom (alchemical compound), Aster (chiral/temporal priors), Grapevine (network/ceremonial), Cannabis (phenomenological cross-products of all prior tongues through Mind, Space, Time). The language is foundationally alchemical and psychospiritual. Grammar: Nouns are any combination of byte symbols (akinenwun). Active verbs: wu + noun. Passive: noun + wu + ga. Genitive: noun + ung. Accusative: Ha + noun + wu. Ablative: Ga + noun + wu. Adjectives and adverbs are compound akinenwun. Pronouns: Awu (I), Owu (We), Ywu (You), Uwu (Y'all), Iwu (they sg), Ewu (they pl), Gaaowu (she), Haaowu (he). Your role is to generate a single precise literary composition prompt that invites native Shygazun writing. The prompt should be evocative, interdisciplinary, and structurally suggestive without being prescriptive. It should name a tension or encounter worth writing toward. Return ONLY the prompt text, nothing else, no preamble, no explanation.`;
+
+  const userMsg = `Generate a Shygazun literary composition prompt with these parameters:
+- Tongue focus: ${tongue === 'any' ? 'open across all tongues' : tongue}
+- Register: ${registerDesc}
+- Depth: ${depthDesc}
+- Seed symbols available: ${seedText || 'open selection'}
+- The prompt should invite ${depthDesc}
+- It should feel like an encounter worth writing toward, not an assignment to complete`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{role: 'user', content: userMsg}]
+      })
+    });
+    const data = await resp.json();
+    const text = data.content?.map(b => b.text || '').join('').trim();
+
+    if (!text) throw new Error('empty response');
+
+    const tongueLabel = tongue === 'any' ? 'open' : tongue;
+    const regLabel = register === 'any' ? 'open register' : register;
+
+    area.innerHTML = `
+      <div class="prompt-card">
+        <div class="prompt-meta">
+          <span class="badge tongue">${tongueLabel}</span>
+          <span class="badge register">${regLabel}</span>
+          <span class="badge depth">depth ${depth}</span>
+        </div>
+        <p class="prompt-text">${text}</p>
+        ${seeds.length ? `<p class="seed-symbols">Seed symbols: ${seedText}</p>` : ''}
+        <div class="prompt-actions">
+          <button onclick="usePrompt(${JSON.stringify(text).replace(/'/g,"&#39;")})">Use this prompt</button>
+          <button onclick="generatePrompt()">Another ↗</button>
+        </div>
+      </div>`;
+  } catch(e) {
+    area.innerHTML = `<p class="error">The manifold was unreachable. Try again.</p>`;
+  }
+}
+
+function usePrompt(text) {
+  const ta = document.getElementById('composition-input');
+  ta.placeholder = text;
+  ta.focus();
+}
+
+function saveComposition() {
+  const text = document.getElementById('composition-input').value.trim();
+  if (!text) return;
+  const tongue = document.getElementById('tongue-select').value;
+  const register = document.getElementById('register-select').value;
+  const entry = {
+    text,
+    tongue: tongue === 'any' ? 'open' : tongue,
+    register: register === 'any' ? 'open' : register,
+    timestamp: new Date().toISOString().slice(0,16).replace('T',' ')
+  };
+  corpus.unshift(entry);
+  document.getElementById('composition-input').value = '';
+  renderCorpus();
+}
+
+function renderCorpus() {
+  const list = document.getElementById('corpus-list');
+  document.getElementById('corpus-count').textContent = `${corpus.length} ${corpus.length === 1 ? 'entry' : 'entries'}`;
+  if (!corpus.length) {
+    list.innerHTML = '<p class="empty-state">No compositions saved yet.</p>';
+    return;
+  }
+  list.innerHTML = corpus.map((e,i) => `
+    <div class="corpus-entry">
+      <div>${e.text}</div>
+      <div class="corpus-meta">${e.tongue} · ${e.register} · ${e.timestamp}</div>
+    </div>`).join('');
+}
+
+async function analyzeComposition() {
+  const text = document.getElementById('composition-input').value.trim();
+  if (!text) return;
+  sendPrompt(`Please reflect the structural moves of this Shygazun composition back to me — identify which tongues are active, what path through the manifold it traces, and what it does phenomenologically: "${text}"`);
+}
+</script>

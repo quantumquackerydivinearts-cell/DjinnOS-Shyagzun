@@ -14,7 +14,8 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, cast
-
+import subprocess
+from pathlib import Path
 
 def _ensure_repo_root_on_path() -> None:
     current = Path(__file__).resolve()
@@ -13150,3 +13151,71 @@ class AtelierService:
 
     def list_skill_catalog(self) -> SkillCatalogOut:
         return SkillCatalogOut(skills=list(CANONICAL_GAME_SKILLS))
+
+# --- PYTHON PATH FIX ---
+# Get the Python running this API server
+PYTHON_EXE = sys.executable
+
+# DjinnOS root (adjust if needed)
+DJINNOS_ROOT = Path(__file__).parent.parent.parent.parent  # Goes up to repo root
+SCRIPTS_DIR = DJINNOS_ROOT / "scripts"
+GAMEPLAY_DIR = DJINNOS_ROOT / "gameplay"
+
+def run_python_script(script_path: str, input_data: str = None, timeout: int = 30):
+    """
+    Execute a Python script using the same interpreter running this server.
+    
+    Args:
+        script_path: Path to .py file (relative to DjinnOS root or absolute)
+        input_data: String to pass as stdin
+        timeout: Max execution time in seconds
+        
+    Returns:
+        dict with {"ok": bool, "stdout": str, "stderr": str, "returncode": int}
+    """
+    script = Path(script_path)
+    if not script.is_absolute():
+        script = DJINNOS_ROOT / script
+    
+    if not script.exists():
+        return {
+            "ok": False,
+            "error": f"Script not found: {script}",
+            "stdout": "",
+            "stderr": "",
+            "returncode": -1
+        }
+    
+    try:
+        result = subprocess.run(
+            [PYTHON_EXE, str(script)],
+            input=input_data,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(DJINNOS_ROOT)  # Run from repo root
+        )
+        
+        return {
+            "ok": result.returncode == 0,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "returncode": result.returncode
+        }
+    
+    except subprocess.TimeoutExpired:
+        return {
+            "ok": False,
+            "error": f"Script timeout after {timeout}s",
+            "stdout": "",
+            "stderr": "",
+            "returncode": -1
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": str(e),
+            "stdout": "",
+            "stderr": "",
+            "returncode": -1
+        }

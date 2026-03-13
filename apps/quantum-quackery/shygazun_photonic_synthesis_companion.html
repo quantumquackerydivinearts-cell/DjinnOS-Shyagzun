@@ -1,0 +1,387 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);color:var(--color-text-primary)}
+.wrap{padding:1.5rem 0;max-width:800px}
+.tabs{display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:0.5px solid var(--color-border-tertiary);padding-bottom:0}
+.tab{font-size:13px;padding:6px 14px;cursor:pointer;border:0.5px solid transparent;border-bottom:none;border-radius:var(--border-radius-md) var(--border-radius-md) 0 0;color:var(--color-text-secondary);background:transparent}
+.tab.active{border-color:var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-weight:500}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1rem}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;color:var(--color-text-secondary)}
+select,textarea,input[type=text]{width:100%}
+textarea{min-height:100px;resize:vertical;font-size:14px;line-height:1.7;padding:8px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans)}
+.btn{font-size:13px;padding:7px 16px;cursor:pointer}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.badge{font-size:11px;padding:2px 9px;border-radius:var(--border-radius-md);border:0.5px solid}
+.badge-purple{background:#EEEDFE;color:#3C3489;border-color:#AFA9EC}
+.badge-teal{background:#E1F5EE;color:#085041;border-color:#5DCAA5}
+.badge-amber{background:#FAEEDA;color:#633806;border-color:#EF9F27}
+.badge-coral{background:#FAECE7;color:#712B13;border-color:#F0997B}
+.badge-blue{background:#E6F1FB;color:#0C447C;border-color:#85B7EB}
+.badge-green{background:#EAF3DE;color:#27500A;border-color:#97C459}
+.result-box{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:1rem;font-size:14px;line-height:1.7;color:var(--color-text-primary);margin-top:10px;min-height:60px}
+.iso-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:1rem}
+.iso-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 14px;border-left:2px solid #AFA9EC;border-radius:0}
+.iso-card h4{font-size:13px;font-weight:500;margin-bottom:4px}
+.iso-card p{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+.spectrum-row{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.spec-chip{font-size:12px;padding:4px 12px;border-radius:20px;cursor:pointer;border:0.5px solid transparent;color:var(--color-text-primary)}
+.corpus-item{border-top:0.5px solid var(--color-border-tertiary);padding:10px 0;font-size:13px;line-height:1.6}
+.corpus-item:first-child{border-top:none}
+.corpus-meta{font-size:11px;color:var(--color-text-secondary);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+.empty{font-size:13px;color:var(--color-text-secondary);font-style:italic;padding:8px 0}
+.loading{font-size:13px;color:var(--color-text-secondary);font-style:italic}
+.section-label{font-size:12px;color:var(--color-text-secondary);margin-bottom:6px;margin-top:1rem}
+.void-note{font-size:12px;color:var(--color-text-secondary);font-style:italic;line-height:1.5;padding:8px 12px;border-left:2px solid #AFA9EC;margin-top:8px;border-radius:0}
+</style>
+
+<div class="wrap">
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('compose')">Compose</div>
+  <div class="tab" onclick="switchTab('synthesize')">Photonic synthesis</div>
+  <div class="tab" onclick="switchTab('emotion')">Emotion spectrum</div>
+  <div class="tab" onclick="switchTab('corpus')">Corpus</div>
+</div>
+
+<div id="tab-compose" class="panel active">
+  <div class="card">
+    <div class="row">
+      <div class="field">
+        <label>Primary tongue</label>
+        <select id="c-tongue">
+          <option value="any">Open — any tongue</option>
+          <option value="Lotus">Lotus — elemental substrate</option>
+          <option value="Rose">Rose — spectral / numeric</option>
+          <option value="Sakura">Sakura — spatial / relational</option>
+          <option value="Daisy">Daisy — structural / mechanical</option>
+          <option value="AppleBlossom">AppleBlossom — alchemical compound</option>
+          <option value="Aster">Aster — chiral / temporal</option>
+          <option value="Grapevine">Grapevine — network / ceremonial</option>
+          <option value="Cannabis">Cannabis — phenomenological cross</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Register</label>
+        <select id="c-register">
+          <option value="any">Open register</option>
+          <option value="psychospiritual">Psychospiritual</option>
+          <option value="alchemical">Alchemical</option>
+          <option value="political">Political / structural</option>
+          <option value="photonic">Photonic / computational</option>
+          <option value="voidian">Void-ian / substrate</option>
+          <option value="ritual">Ritual / grimoire</option>
+          <option value="phenomenological">Phenomenological</option>
+          <option value="ecological">Ecological</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Mode</label>
+        <select id="c-mode">
+          <option value="prompt">Literary prompt</option>
+          <option value="ritual">Ritual script prompt</option>
+          <option value="grimoire">Grimoire entry prompt</option>
+          <option value="pedagogy">Pedagogical synthesis prompt</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Depth (compound parts)</label>
+        <select id="c-depth">
+          <option value="surface">Surface — 1 to 4 parts</option>
+          <option value="mid" selected>Mid — 5 to 10 parts</option>
+          <option value="deep">Deep — 11 to 19 parts</option>
+          <option value="ritual">Ritual threshold — approaching 20</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="generateCompose()">Generate prompt ↗</button>
+    </div>
+    <div id="compose-result" class="result-box"><span class="empty">Prompt will appear here.</span></div>
+    <div id="compose-seeds" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+
+  <div class="section-label">Your composition</div>
+  <textarea id="compose-text" placeholder="Write natively here — Shygazun, Cobra, or mixed..."></textarea>
+  <div class="btn-row">
+    <button class="btn" onclick="saveToCorpus('compose-text','c-tongue','c-register','c-mode')">Save to corpus</button>
+    <button class="btn" onclick="reflectComposition()">Reflect structure ↗</button>
+    <button class="btn" onclick="parseComposition()">Parse symbols ↗</button>
+  </div>
+</div>
+
+<div id="tab-synthesize" class="panel">
+  <div class="card">
+    <div class="section-label">Shygazun ontic layer — photonic channel isomorphism</div>
+    <div class="iso-grid" id="iso-grid"></div>
+    <div class="void-note">The void-ian substrate is prior to all channels. The Möbius manifold means every channel is the same surface read from a different traversal position. Teaching one teaches all implicitly through identity resonance.</div>
+  </div>
+  <div class="card">
+    <div class="field">
+      <label>Explore a tongue's photonic correspondent</label>
+      <select id="syn-tongue" onchange="renderSynthTongue()">
+        <option value="">Select a tongue</option>
+        <option value="Lotus">Lotus</option>
+        <option value="Rose">Rose</option>
+        <option value="Sakura">Sakura</option>
+        <option value="Daisy">Daisy</option>
+        <option value="AppleBlossom">AppleBlossom</option>
+        <option value="Aster">Aster</option>
+        <option value="Cannabis">Cannabis</option>
+      </select>
+    </div>
+    <div id="synth-detail" style="margin-top:1rem"></div>
+  </div>
+  <div class="card">
+    <div class="field">
+      <label>Generate synthesis pedagogy prompt</label>
+      <select id="syn-focus">
+        <option value="dual">Dual encounter — language and physics simultaneously</option>
+        <option value="void">Void-ian substrate — shaped emptiness as prior</option>
+        <option value="mobius">Möbius topology — local/nonlocal continuity</option>
+        <option value="entanglement">Entanglement as information function</option>
+        <option value="soul-spirit">Soul / Spirit distinction — local traversal vs moving surface</option>
+        <option value="cobra">Cobra architecture — writing in light's degrees of freedom</option>
+      </select>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="generateSynthPrompt()">Generate pedagogy prompt ↗</button>
+    </div>
+    <div id="synth-result" class="result-box"><span class="empty">Prompt will appear here.</span></div>
+  </div>
+</div>
+
+<div id="tab-emotion" class="panel">
+  <div class="card">
+    <div class="section-label">Spectral emotion spectrum — Rose + Lotus Ly compounds</div>
+    <div class="spectrum-row" id="spectrum-row"></div>
+    <div id="spectrum-detail" class="result-box"><span class="empty">Select a frequency to explore.</span></div>
+  </div>
+  <div class="card">
+    <div class="section-label">Compound emotion builder</div>
+    <div id="emotion-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:6px">Current compound: <span id="emotion-compound" style="color:var(--color-text-primary);font-weight:500">—</span></div>
+    <div class="btn-row">
+      <button class="btn" onclick="clearEmotion()">Clear</button>
+      <button class="btn" onclick="interpretEmotion()">Interpret compound ↗</button>
+      <button class="btn" onclick="removeLastChip()">Remove last</button>
+    </div>
+    <div id="emotion-result" class="result-box"><span class="empty">Build a compound and interpret.</span></div>
+  </div>
+</div>
+
+<div id="tab-corpus" class="panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+    <span style="font-size:14px;font-weight:500">Corpus</span>
+    <span id="corpus-count" style="font-size:12px;color:var(--color-text-secondary)">0 entries</span>
+  </div>
+  <div id="corpus-list"><p class="empty">No compositions saved yet.</p></div>
+</div>
+
+</div>
+
+<script>
+const ISO = [
+  {shygazun:'Ontic vowels A/O',channel:'Phase states +/−',tongue:'AppleBlossom',note:'Mind+ and Mind− as phase relationship of the wave'},
+  {shygazun:'Ontic vowels I/E',channel:'Polarization +/−',tongue:'AppleBlossom',note:'Space+ and Space− as orthogonal polarization states'},
+  {shygazun:'Ontic vowels Y/U',channel:'Frequency above/below ref',tongue:'AppleBlossom',note:'Time+ and Time− as frequency relative to reference'},
+  {shygazun:'Rose spectral vectors',channel:'Wavelength / color channel',tongue:'Rose',note:'Ru through AE as direct spectral encoding in photonic medium'},
+  {shygazun:'Aster chiral pairs',channel:'Spin angular momentum',tongue:'Aster',note:'Right/left chiral as intrinsic photon handedness — physically irreducible'},
+  {shygazun:'Aster temporal modes',channel:'Temporal mode structure',tongue:'Aster',note:'Si/Su/Os/Sy/As as pulse shape, repetition, envelope topology'},
+  {shygazun:'Daisy structural layer',channel:'Waveguide / circuit geometry',tongue:'Daisy',note:'Gates, membranes, scaffolds as photonic circuit primitives'},
+  {shygazun:'Cannabis cross-products',channel:'Consciousness interface layer',tongue:'Cannabis',note:'Mind encountering all prior tongues — the observer in the system'},
+  {shygazun:'Void-ian substrate',channel:'Vacuum geometry / cavity structure',tongue:'prior to Lotus',note:'Shaped emptiness determining which photons are possible before encoding'},
+];
+
+const TONGUE_SYNTH = {
+  Lotus:{physics:'Classical electromagnetic field theory — densification of energy into material substrate. Lotus initiators and terminators map to field excitation and relaxation events.',pedagogy:'Teach elemental initiators as field events. The student who feels the difference between Ty (Earth Initiator) and Zu (Earth Terminator) has internalized excitation and decay in physical fields before naming them as such.'},
+  Rose:{physics:'Spectral analysis and frequency-domain computation. The seven Rose vectors are literal wavelength bands. Photonic systems encode information in wavelength natively — Rose is not metaphor here.',pedagogy:'The spectral emotion compounds (Ruly through Aely) teach frequency as phenomenological experience. A student who knows pain lives at red and love at violet has internalized the electromagnetic spectrum as lived reality.'},
+  Sakura:{physics:'Waveguide geometry and spatial mode structure. Directional symbols (Jy/Ji/Ja/Jo) map to spatial propagation modes. Va/Vo (Order/Chaos) map to coherent vs incoherent spatial modes.',pedagogy:'Spatial navigation in Shygazun trains geometric intuition for waveguide design. The student learns topology through relational grammar before formal geometry.'},
+  Daisy:{physics:'Photonic circuit architecture — gates (Ro), membranes (Gl), scaffolds (To), networks (Ne), switches (Nz), valves (Sho). These are literal photonic circuit primitives named as structural intuitions.',pedagogy:'The Daisy tongue is the circuit diagram as language. Teaching Daisy teaches photonic circuit literacy through bodily structural intuition rather than formal schematic.'},
+  AppleBlossom:{physics:'Nonlinear optical phenomena — plasma (Zhuk), sulphur/second harmonic generation (Kyzu), alkahest/optical mixing (Alky), mercury/phase conjugation (Zitef). Compound states as real optical processes.',pedagogy:'Alchemical naming makes nonlinear optics memorable through phenomenological encounter. The student who knows Alky as universal solvent already understands optical mixing as dissolution of fixed frequency states.'},
+  Aster:{physics:'Quantum optical chirality and topological photonics. Chiral priors as physically irreducible — photon spin angular momentum is genuinely asymmetric and cannot be derived from other properties. Temporal modes as pulse topology.',pedagogy:'Aster teaches that some physical properties are epistemological priors — encountered before theorized. This is the deepest physics lesson: the universe has handedness that precedes our frameworks for measuring it.'},
+  Cannabis:{physics:'The consciousness-quantum interface — the observer as formal participant in the system. Cannabis cross-products are the phenomenological description of what it is to be a mind inside a photonic computational environment.',pedagogy:'Cannabis cannot be taught before the other tongues are internalized — it is the cross-product of all of them through Mind, Space, and Time. It is the layer where the student becomes the instrument.'},
+};
+
+const SPECTRUM = [
+  {sym:'Ruly',color:'#C0392B',bg:'#FADBD8',label:'pain',freq:'lowest red',desc:'Densest material suffering. The wound at its most foundational frequency. Closest to earth, furthest from dissolution.'},
+  {sym:'Otly',color:'#E67E22',bg:'#FDEBD0',label:'anger',freq:'orange',desc:'Heat in motion. Pain beginning to move. The first impulse away from density — not yet resolved, already directed.'},
+  {sym:'Elly',color:'#F1C40F',bg:'#FEF9E7',label:'fear',freq:'yellow',desc:'The nervous system lit and exposed. High alert approaching what cannot yet be integrated. Alert before understanding arrives.'},
+  {sym:'Kily',color:'#27AE60',bg:'#EAFAF1',label:'simple joy',freq:'green',desc:'The heart register. Uncomplicated flourishing at the center of the spectrum. Neither the wound nor the dissolution — the living middle.'},
+  {sym:'Fuly',color:'#2980B9',bg:'#EBF5FB',label:'longing / mania',freq:'blue',desc:'Depth pulling feeling forward and downward simultaneously. Desire exceeding its object. Intellectual hunger or its acceleration into mania — the same frequency, two expressions of metabolization.'},
+  {sym:'Kaly',color:'#6C3483',bg:'#F4ECF7',label:'wisdom / temperance',freq:'indigo',desc:'Feeling metabolized into discernment. The emotion that has passed through all lower states and found equilibrium. One below love — its necessary condition.'},
+  {sym:'Aely',color:'#7D3C98',bg:'#F5EEF8',label:'love',freq:'highest violet',desc:'The upper limit of the feelable. Feeling at maximum refinement, approaching dissolution into what exceeds visibility. Cannot be arrived at without passing through Kaly first.'},
+];
+
+const EMOTION_PARTS = [
+  {sym:'Ru',label:'red',color:'#C0392B',bg:'#FADBD8'},
+  {sym:'Ot',label:'orange',color:'#E67E22',bg:'#FDEBD0'},
+  {sym:'El',label:'yellow',color:'#B7950B',bg:'#FEF9E7'},
+  {sym:'Ki',label:'green',color:'#1E8449',bg:'#EAFAF1'},
+  {sym:'Fu',label:'blue',color:'#1F618D',bg:'#EBF5FB'},
+  {sym:'Ka',label:'indigo',color:'#6C3483',bg:'#F4ECF7'},
+  {sym:'AE',label:'violet',color:'#7D3C98',bg:'#F5EEF8'},
+  {sym:'Ga',label:'negative',color:'#5F5E5A',bg:'#F1EFE8'},
+  {sym:'Ha',label:'positive',color:'#0F6E56',bg:'#E1F5EE'},
+  {sym:'Na',label:'neutral',color:'#185FA5',bg:'#E6F1FB'},
+  {sym:'Ly',label:'feeling',color:'#3C3489',bg:'#EEEDFE'},
+];
+
+let emotionChips = [];
+const corpus = [];
+
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(e=>e.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${t}')"]`).classList.add('active');
+  document.getElementById(`tab-${t}`).classList.add('active');
+}
+
+function renderISO(){
+  const g = document.getElementById('iso-grid');
+  g.innerHTML = ISO.map(i=>`<div class="iso-card"><h4>${i.shygazun}</h4><p style="color:#185FA5;font-size:11px;margin-bottom:3px">${i.channel}</p><p>${i.note}</p></div>`).join('');
+}
+
+function renderSynthTongue(){
+  const t = document.getElementById('syn-tongue').value;
+  const d = document.getElementById('synth-detail');
+  if(!t){d.innerHTML='';return;}
+  const s = TONGUE_SYNTH[t];
+  if(!s){d.innerHTML='';return;}
+  d.innerHTML=`<div style="margin-bottom:10px"><div class="section-label">Physics correspondent</div><div class="result-box" style="margin-top:4px">${s.physics}</div></div><div><div class="section-label">Pedagogical implication</div><div class="result-box" style="margin-top:4px">${s.pedagogy}</div></div>`;
+}
+
+function renderSpectrum(){
+  const row = document.getElementById('spectrum-row');
+  row.innerHTML = SPECTRUM.map((s,i)=>`<div class="spec-chip" style="background:${s.bg};border-color:${s.color};color:${s.color}" onclick="showSpectrum(${i})">${s.sym} — ${s.label}</div>`).join('');
+}
+
+function showSpectrum(i){
+  const s = SPECTRUM[i];
+  document.getElementById('spectrum-detail').innerHTML=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><div style="width:12px;height:12px;border-radius:50%;background:${s.color}"></div><span style="font-weight:500">${s.sym}</span><span style="font-size:12px;color:var(--color-text-secondary)">${s.freq}</span></div><div>${s.desc}</div>`;
+}
+
+function renderEmotionChipPalette(){
+  const c = document.getElementById('emotion-chips');
+  c.innerHTML = EMOTION_PARTS.map(p=>`<div class="spec-chip" style="background:${p.bg};border-color:${p.color};color:${p.color};cursor:pointer" onclick="addEmotionChip('${p.sym}','${p.label}','${p.color}','${p.bg}')">${p.sym}</div>`).join('');
+}
+
+function addEmotionChip(sym,label,color,bg){
+  if(emotionChips.length>=20)return;
+  emotionChips.push({sym,label,color,bg});
+  renderEmotionCompound();
+}
+
+function removeLastChip(){
+  emotionChips.pop();
+  renderEmotionCompound();
+}
+
+function clearEmotion(){
+  emotionChips=[];
+  renderEmotionCompound();
+  document.getElementById('emotion-result').innerHTML='<span class="empty">Build a compound and interpret.</span>';
+}
+
+function renderEmotionCompound(){
+  const el = document.getElementById('emotion-compound');
+  if(!emotionChips.length){el.textContent='—';return;}
+  el.innerHTML = emotionChips.map(c=>`<span style="color:${c.color}">${c.sym}</span>`).join('') + 'ly';
+}
+
+async function interpretEmotion(){
+  if(!emotionChips.length)return;
+  const compound = emotionChips.map(c=>c.sym).join('')+'ly';
+  const parts = emotionChips.map(c=>`${c.sym} (${c.label})`).join(' + ') + ' + Ly (feeling toward)';
+  const box = document.getElementById('emotion-result');
+  box.innerHTML='<span class="loading">Reading the compound...</span>';
+  const sys=`You are a Shygazun emotion interpreter. Shygazun's emotion compounds are formed from Rose spectral vectors (Ru=red/pain, Ot=orange/anger, El=yellow/fear, Ki=green/joy, Fu=blue/longing-mania, Ka=indigo/wisdom-temperance, AE=violet/love) combined with Ha (absolute positive), Ga (absolute negative), Na (neutral/integration), and Ly (feeling toward/Water Initiator). Compounds are read as spectral frequencies in superposition creating a single complex emotional state. The spectrum is a phenomenological map: pain is densest/lowest, love is most refined/highest. The manifold is Möbius — pain and love are the same point approached from opposite directions. Return only a brief precise phenomenological description of the compound emotional state, 2-4 sentences, no preamble.`;
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:`Interpret this Shygazun emotion compound: ${compound}\nParts: ${parts}`}]})});
+    const d=await r.json();
+    const t=d.content?.map(b=>b.text||'').join('').trim();
+    box.innerHTML=`<div style="font-weight:500;margin-bottom:6px">${compound}</div>${t||'No interpretation returned.'}`;
+  }catch(e){box.innerHTML='<span style="color:var(--color-text-danger)">Unreachable. Try again.</span>';}
+}
+
+async function generateCompose(){
+  const tongue=document.getElementById('c-tongue').value;
+  const register=document.getElementById('c-register').value;
+  const mode=document.getElementById('c-mode').value;
+  const depth=document.getElementById('c-depth').value;
+  const box=document.getElementById('compose-result');
+  const seeds=document.getElementById('compose-seeds');
+  box.innerHTML='<span class="loading">Opening the manifold...</span>';
+  seeds.innerHTML='';
+  const sys=`You are a literary and ritual composition companion for Shygazun — a Möbius manifold language whose grammar is semantic-first placement-last, whose six ontic vowels A/O/I/E/Y/U encode Mind+/Mind−/Space+/Space−/Time+/Time− as the primary axes of experience, whose tongues are Lotus (elemental/material), Rose (spectral/numeric), Sakura (spatial/relational), Daisy (structural/mechanical), AppleBlossom (alchemical compound), Aster (chiral/temporal priors — tautologically unknowable yet epistemologically necessary), Grapevine (network/ceremonial), Cannabis (phenomenological cross-products of all tongues through Mind Space Time). Grammar: nouns = any symbol combination (akinenwun). Active verb = wu + noun. Passive = noun + wu + ga. Genitive = noun + ung (contracted to n). Accusative = Ha + noun + wu. Ablative = Ga + noun + wu. Pronouns: Awu(I) Owu(We) Ywu(You) Uwu(Y'all) Iwu(they sg) Ewu(they pl) Gaaowu(she) Haaowu(he). The void-ian substrate is prior to all tongues — shaped emptiness determining what can densify. The manifold is Möbius — every tongue is the same surface. Soul = local traversal position. Spirit = the surface moving. Information = function of entanglement (Ki) at local manifold through nonlocal void-ian enmeshment via identity resonance. Shygazun is isomorphic with photonic computation — teaching one teaches the other implicitly. Generate ONLY the prompt text, no preamble, no explanation, no metadata.`;
+  const modeDesc={prompt:'literary composition',ritual:'ritual script for enactment — the body as instrument, physical exhaustion as meaning',grimoire:'grimoire entry — simultaneously literature, ritual score, and technical specification',pedagogy:'pedagogical synthesis prompt exploring the isomorphism between Shygazun and photonic computation'};
+  const depthDesc={surface:'surface depth, 1-4 part compounds, single tongue, single image',mid:'mid depth, 5-10 part compounds, two tongues in dialogue',deep:'deep, 11-19 part compounds, full manifold traversal with chiral acknowledgment',ritual:'approaching ritual threshold of 20 parts — the Möbius twist where speaker and language become continuous surface'};
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:`Generate a ${modeDesc[mode]} prompt for Shygazun. Tongue focus: ${tongue==='any'?'open across all tongues':tongue}. Register: ${register==='any'?'open':register}. Depth: ${depthDesc[depth]}. The prompt should invite genuine native composition — an encounter worth writing toward, not an assignment.`}]})});
+    const d=await r.json();
+    const t=d.content?.map(b=>b.text||'').join('').trim();
+    box.textContent=t||'No prompt returned.';
+    const badges=[tongue!=='any'?`<span class="badge badge-purple">${tongue}</span>`:'',register!=='any'?`<span class="badge badge-teal">${register}</span>`:'',`<span class="badge badge-amber">${mode}</span>`,`<span class="badge badge-coral">${depth}</span>`];
+    seeds.innerHTML=badges.filter(Boolean).join('');
+  }catch(e){box.innerHTML='<span style="color:var(--color-text-danger)">Manifold unreachable. Try again.</span>';}
+}
+
+async function generateSynthPrompt(){
+  const focus=document.getElementById('syn-focus').value;
+  const box=document.getElementById('synth-result');
+  box.innerHTML='<span class="loading">Generating...</span>';
+  const focusMap={
+    dual:'the dual encounter — how learning Shygazun and learning photonic computation are the same act of identity resonance with the void-ian substrate, approached from phenomenological and physical sides simultaneously',
+    void:'the void-ian substrate as structurally prior to light — shaped emptiness determining which photons are possible, vacuum geometry as the Möbius surface itself',
+    mobius:'the Möbius topology of the manifold — how the language has one surface, how soul is local traversal position and spirit is the surface moving, how sufficient compositional depth reaches the twist',
+    entanglement:'information as the function of entanglement (Ki — green vector) at local manifold through nonlocal void-ian enmeshment via identity resonance — the quantum to classical transition as consciousness',
+    'soul-spirit':'the Soul/Spirit distinction first heard at five years old — soul as specific densification from void-ian substrate, spirit as Wu at cosmological scale, the Möbius relationship between local and nonlocal',
+    cobra:'Cobra architecture — Shygazun with Python spacing syntax, writing computation in light\'s own degrees of freedom, the grimoire and the textbook and the codebase as the same document'
+  };
+  const sys=`You are a pedagogy designer for the synthesis of Shygazun language and photonic computation. Generate a single precise pedagogical prompt — an invitation to think, write, or build — that holds both the linguistic and physical registers simultaneously without reducing either to the other. Return ONLY the prompt, no preamble.`;
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:`Generate a pedagogical synthesis prompt focused on: ${focusMap[focus]}`}]})});
+    const d=await r.json();
+    const t=d.content?.map(b=>b.text||'').join('').trim();
+    box.textContent=t||'No prompt returned.';
+  }catch(e){box.innerHTML='<span style="color:var(--color-text-danger)">Unreachable. Try again.</span>';}
+}
+
+async function reflectComposition(){
+  const text=document.getElementById('compose-text').value.trim();
+  if(!text)return;
+  sendPrompt(`Please reflect the structural moves of this Shygazun composition — which tongues are active, what path through the Möbius manifold it traces, what it does phenomenologically, and any photonic synthesis implications: "${text}"`);
+}
+
+async function parseComposition(){
+  const text=document.getElementById('compose-text').value.trim();
+  if(!text)return;
+  sendPrompt(`Please parse this Shygazun text symbol by symbol using the byte table, identifying each akinen, its tongue, its decimal position, and its meaning, then describe the grammatical structure: "${text}"`);
+}
+
+function saveToCorpus(textId,tongueId,registerId,modeId){
+  const text=document.getElementById(textId).value.trim();
+  if(!text)return;
+  const tongue=document.getElementById(tongueId)?.value||'open';
+  const register=document.getElementById(registerId)?.value||'open';
+  const mode=document.getElementById(modeId)?.value||'compose';
+  corpus.unshift({text,tongue,register,mode,ts:new Date().toISOString().slice(0,16).replace('T',' ')});
+  document.getElementById(textId).value='';
+  renderCorpus();
+}
+
+function renderCorpus(){
+  const list=document.getElementById('corpus-list');
+  document.getElementById('corpus-count').textContent=`${corpus.length} ${corpus.length===1?'entry':'entries'}`;
+  if(!corpus.length){list.innerHTML='<p class="empty">No compositions saved yet.</p>';return;}
+  list.innerHTML=corpus.map(e=>`<div class="corpus-item"><div>${e.text}</div><div class="corpus-meta"><span class="badge badge-purple">${e.tongue}</span><span class="badge badge-teal">${e.register}</span><span class="badge badge-amber">${e.mode}</span><span style="font-size:11px;color:var(--color-text-secondary)">${e.ts}</span></div></div>`).join('');
+}
+
+renderISO();
+renderSpectrum();
+renderEmotionChipPalette();
+</script>
