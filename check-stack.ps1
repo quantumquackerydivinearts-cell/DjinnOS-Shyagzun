@@ -2,7 +2,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 param(
-    [int]$Retries = 20,
+    [int]$Retries == 20,
     [int]$DelaySeconds = 1
 )
 

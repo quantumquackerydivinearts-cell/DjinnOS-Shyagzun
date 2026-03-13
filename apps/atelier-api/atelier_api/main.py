@@ -8,7 +8,7 @@ import stripe
 from uuid import _uuid
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response, ORJSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, Mapped, mapped_column
 from sqlalchemy import Boolean, DateTime, String, Text
@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
 import structlog
+
 
 from .core.config import get_settings
 from .routers import game
