@@ -44,7 +44,7 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from jsonschema import Draft202012Validator
-from DjinnOS_Shygazun.shygazun.lesson_registry import load_lesson_registry
+from shygazun.lesson_registry import load_lesson_registry
 
 from .business_schemas import (
     ArtisanBootstrapInput,
