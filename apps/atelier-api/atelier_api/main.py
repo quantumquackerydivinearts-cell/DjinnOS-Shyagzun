@@ -17,7 +17,7 @@ import sys
 import time
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
-
+from .db import Base
 import structlog
 
 
@@ -201,7 +201,7 @@ from .rendering_schemas import (
 )
 from .capabilities import CapabilityContext, parse_capabilities, require_capability
 from .auth import AuthTokenClaims, decode_auth_token
-from core.config import Setttings, load_settings
+from .core.config import Settings, load_settings
 from .db import get_db
 from .kernel_client import HttpKernelClient, KernelClient
 from .kernel_integration import KernelIntegrationService
@@ -4535,7 +4535,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> ORJSONRe
     )
 
 
-class GuildArtisanProfile(BaseModel):
+class GuildArtisanProfile(Base):
     """
     Public-facing artisan profile. Opt-in. Separate from ArtisanAccount
     which holds internal auth/access credentials.

@@ -13,7 +13,7 @@ from typing import Any
 from uuid import uuid4
 
 from ..core.lineage import LineageRecord, get_lineage_store
-from ..models.schemas import TickEvent, TickEventResult
+from ..site_models.schemas import TickEvent, TickEventResult
 
 
 # ── Tick handlers ─────────────────────────────────────────────────────────────

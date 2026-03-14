@@ -5,7 +5,7 @@ from collections.abc import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from core.config import load_settings
+from .core.config import load_settings
 
 
 class Base(DeclarativeBase):

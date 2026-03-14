@@ -15,7 +15,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import ORJSONResponse
 
 from ..core.lineage import get_lineage_store
-from ..models.schemas import (
+from ..site_models.schemas import (
     ApplySpriteAnimatorRequest,
     ApplySpriteAnimatorResponse,
     CompileCobraRequest,
@@ -42,14 +42,14 @@ from ..models.schemas import (
     ValidateContentRequest,
     ValidateContentResponse,
 )
-from ..services.atlas import apply_sprite_animator, create_atlas_from_png_bytes
-from ..services.cobra import (
+from ..site_services.atlas import apply_sprite_animator, create_atlas_from_png_bytes
+from ..site_services.cobra import (
     entities_to_voxels,
     parse_cobra,
     semantic_to_bilingual_trust,
 )
-from ..services.daisy import bodyplan_to_voxels, build_bodyplan
-from ..services.tick_engine import apply_tick
+from ..site_services.daisy import bodyplan_to_voxels, build_bodyplan
+from ..site_services.tick_engine import apply_tick
 
 router = APIRouter(prefix="/v1/game", tags=["game"])
 
@@ -215,7 +215,7 @@ async def validate_content(req: ValidateContentRequest) -> ValidateContentRespon
             warnings.append(f"{req.source_type}: source is empty")
 
     scene_id = req.scene_id or f"{req.realm_id}/validate"
-    from ..models.schemas import BilingualTrust
+    from ..site_models.schemas import BilingualTrust
     bt = BilingualTrust(**bilingual_trust_dict) if bilingual_trust_dict else BilingualTrust()
 
     return ValidateContentResponse(
@@ -448,7 +448,7 @@ async def shygazun_interpret(req: ShygazunInterpretRequest) -> ShygazunInterpret
     ]
     output = "\n".join(entity_lines) if entity_lines else "(no entities)"
 
-    from ..models.schemas import BilingualTrust
+    from ..site_models.schemas import BilingualTrust
     return ShygazunInterpretResponse(
         ok=True,
         output=output,
@@ -528,7 +528,7 @@ async def consume_engine_inbox(req: EngineInboxConsumeRequest) -> EngineInboxCon
     batch     = req.messages[:req.max_consume]
     remaining = req.messages[req.max_consume:]
 
-    from ..models.schemas import TickEvent
+    from ..site_models.schemas import TickEvent
     events = [
         TickEvent(
             kind=str(m.get("kind", "state.patch")),

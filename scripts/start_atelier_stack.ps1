@@ -57,7 +57,7 @@ function Start-ShellProcess {
 }
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
-$kernelRepo = Join-Path $repoRoot "DjinnOS-Shyagzun"
+$kernelRepo = Join-Path $repoRoot "DjinnOS_Shyagzun"
 $apiRepo = Join-Path $repoRoot "apps/atelier-api"
 $desktopRepo = Join-Path $repoRoot "apps/atelier-desktop"
 

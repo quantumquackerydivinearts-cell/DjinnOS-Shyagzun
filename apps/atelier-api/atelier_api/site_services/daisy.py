@@ -9,7 +9,7 @@ import random
 import time
 from typing import Any
 
-from ..models.schemas import DaisyBodyplanRequest
+from ..site_models.schemas import DaisyBodyplanRequest
 
 ROLES = [
     "framework",
