@@ -9,18 +9,19 @@ Each line is one of:
     SET <key> = <value>
     # comment
 
-Shygazun semantic annotations are prefixed with '§':
-    §AUTHORITY <level>
-    §TRUST <grade>
-    §CHIRALITY <values...>
-    §TIME_TOPOLOGY <values...>
-    §SPACE_OPERATOR <values...>
-    §NETWORK_ROLE <values...>
-    §CLUSTER_ROLE <values...>
-    §AXIS <values...>
-    §TONGUE <values...>
-    §CANNABIS_MODE <values...>
+Shygazun semantic annotations are prefixed with 'Lex':
+    LexAUTHORITY <level>
+    LexTRUST <grade>
+    LexCHIRALITY <values...>
+    LexTIME_TOPOLOGY <values...>
+    LexSPACE_OPERATOR <values...>
+    LexNETWORK_ROLE <values...>
+    LexCLUSTER_ROLE <values...>
+    LexAXIS <values...>
+    LexTONGUE <values...>
+    LexCANNABIS_MODE <values...>
 """
+
 from __future__ import annotations
 
 import re
@@ -76,7 +77,7 @@ def parse_cobra(source: str, strict: bool = False) -> CobraParseResult:
 
         try:
             # ── Shygazun semantic annotation ──────────────────────────────
-            if line.startswith("§"):
+            if line.startswith("Lex"):
                 parts = line[1:].split(maxsplit=1)
                 key = parts[0].lower() if parts else ""
                 vals = parts[1].split() if len(parts) > 1 else []
