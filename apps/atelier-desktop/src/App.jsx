@@ -4,6 +4,7 @@ import { consumeInboxBatch } from "./engineInbox";
 import { applyRenderPack, createRenderPack, validateRenderPack } from "./rendererCore";
 import { GuildHallPanel } from "./panels/GuildHallPanel";
 import { MessagesPanel } from "./panels/MessagesPanel";
+import { CalculatorPanel } from "./panels/CalculatorPanel";
 
 function resolveRuntimeApiBase() {
   try {
@@ -65,7 +66,8 @@ const NAV_ITEMS = [
   "Graph Maker",
   "Business Logic",
   "Renderer Lab",
-  "Privacy"
+  "Privacy",
+  "Calculator"
 ];
 
 function capabilitiesForRole(role) {
@@ -17750,6 +17752,9 @@ function extractPythonSavedPath(outputText) {
           )}
         </section>
       );
+    }
+    if (section === "Calculator") {
+      return <CalculatorPanel />;
     }
     return <section className="panel"><h2>Tooling</h2><p>Select a section.</p></section>;
   }

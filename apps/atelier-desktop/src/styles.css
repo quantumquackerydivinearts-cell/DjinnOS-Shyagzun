@@ -1,3 +1,17 @@
+/*
+  TODO (font swap): Once `python tools/build_shygazun_font.py` has run and
+  placed Shygazun.woff2 / Shygazun.ttf in apps/atelier-desktop/public/fonts/,
+  uncomment the @font-face block below, then replace every <SymbolFallback>
+  with <Glyph> in CalculatorPanel.jsx.
+
+@font-face {
+  font-family: 'Shygazun';
+  src: url('/fonts/Shygazun.woff2') format('woff2'),
+       url('/fonts/Shygazun.ttf') format('truetype');
+  font-display: swap;
+}
+*/
+
 :root {
   --bg: #f4f0e8;
   --ink: #1c1a16;
