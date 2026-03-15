@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wrangler --version)",
+      "Bash(wrangler login:*)",
+      "Bash(CLOUDFLARE_API_TOKEN=Rzo0frAs19SBDCxf6Clloj2SBMPgyy7LzmCE6AtZ wrangler whoami)",
+      "Bash(CLOUDFLARE_API_TOKEN=Rzo0frAs19SBDCxf6Clloj2SBMPgyy7LzmCE6AtZ wrangler pages project create quantum-quackery --production-branch main)",
+      "Bash(CLOUDFLARE_API_TOKEN=Rzo0frAs19SBDCxf6Clloj2SBMPgyy7LzmCE6AtZ CLOUDFLARE_ACCOUNT_ID=54d3e7319956514bd85bd3d1e25a8d76 wrangler pages deploy \"C:/DjinnOS/apps/quantum-quackery\" --project-name quantum-quackery --branch main)",
+      "Bash(CLOUDFLARE_API_TOKEN=Rzo0frAs19SBDCxf6Clloj2SBMPgyy7LzmCE6AtZ CLOUDFLARE_ACCOUNT_ID=54d3e7319956514bd85bd3d1e25a8d76 wrangler pages project create quantum-quackery --production-branch main)",
+      "Bash(CLOUDFLARE_API_TOKEN=Rzo0frAs19SBDCxf6Clloj2SBMPgyy7LzmCE6AtZ CLOUDFLARE_ACCOUNT_ID=54d3e7319956514bd85bd3d1e25a8d76 wrangler pages domain add quantum-quackery quantumquackery.org)",
+      "Bash(CLOUDFLARE_API_TOKEN=Rzo0frAs19SBDCxf6Clloj2SBMPgyy7LzmCE6AtZ CLOUDFLARE_ACCOUNT_ID=54d3e7319956514bd85bd3d1e25a8d76 npx wrangler pages deploy \"apps/quantum-quackery\" --project-name quantum-quackery --branch main --commit-dirty=true)",
+      "Bash(wc -l atelier_api/*.py)",
+      "Bash(npm list:*)",
+      "Bash(python -c \"from atelier_api.core.config import load_settings; s = load_settings\\(\\); print\\(f''DB: {s.database_url}''\\)\")"
+    ]
+  }
+}

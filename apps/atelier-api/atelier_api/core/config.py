@@ -47,7 +47,8 @@ def _parse_float(raw: str, default: float = 0.0) -> float:
     except (ValueError, AttributeError):
         return default
 
-def get_settings() -> Settings: (Settings)
+def get_settings() -> Settings:
+    return load_settings()
 
 def load_settings() -> Settings:
     return Settings(

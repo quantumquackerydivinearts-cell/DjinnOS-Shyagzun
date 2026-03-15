@@ -64,6 +64,44 @@
       transition: left 0.15s ease, top 0.15s ease;
     }
 
+    /* Site navigation */
+    #site-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.2rem 2.5rem;
+      background: linear-gradient(180deg, rgba(5,10,6,0.7) 0%, transparent 100%);
+    }
+    #site-nav a.nav-mark {
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.35em;
+      color: var(--fog);
+      text-decoration: none;
+      cursor: none;
+      transition: color 0.3s;
+    }
+    #site-nav a.nav-mark:hover { color: var(--breath); }
+    .site-nav-links {
+      display: flex;
+      gap: 2.5rem;
+    }
+    .site-nav-links a {
+      font-family: 'Cinzel', serif;
+      font-size: 0.6rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--fog);
+      text-decoration: none;
+      cursor: none;
+      transition: color 0.3s;
+    }
+    .site-nav-links a:hover { color: var(--breath); }
+    .site-nav-links a.active { color: var(--amber); }
+
     /* Main canvas container */
     #world {
       position: fixed;
@@ -371,11 +409,12 @@
       inset: 0;
       z-index: 100;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       background: rgba(5, 10, 6, 0);
       pointer-events: none;
       transition: background 0.8s ease;
+      overflow-y: auto;
     }
 
     #panel.active {
@@ -386,11 +425,59 @@
 
     #panel-content {
       max-width: 640px;
-      padding: 3rem;
+      width: 90%;
+      padding: 3rem 2rem;
+      margin: 5vh auto;
       opacity: 0;
       transform: translateY(20px);
       transition: opacity 0.6s ease 0.3s, transform 0.6s ease 0.3s;
       text-align: center;
+    }
+
+    /* Word roster tables */
+    .word-roster {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.75rem 0 1.25rem;
+      text-align: left;
+    }
+    .word-roster td {
+      padding: 0.3rem 0.4rem;
+      border-bottom: 1px solid rgba(42, 74, 44, 0.25);
+      font-size: 0.88rem;
+      line-height: 1.5;
+      vertical-align: top;
+    }
+    .word-roster .sym {
+      font-family: 'Cinzel', serif;
+      color: var(--amber);
+      white-space: nowrap;
+      padding-right: 0.75rem;
+      letter-spacing: 0.04em;
+      font-size: 0.82rem;
+      min-width: 3.5rem;
+    }
+    .word-roster .dec {
+      color: var(--fog);
+      font-size: 0.72rem;
+      white-space: nowrap;
+      padding-right: 0.75rem;
+      min-width: 2rem;
+    }
+    .word-roster .def {
+      color: var(--breath);
+      font-weight: 300;
+    }
+    .roster-section {
+      margin: 1.2rem 0 0.4rem;
+      font-family: 'Cinzel', serif;
+      font-size: 0.6rem;
+      letter-spacing: 0.28em;
+      color: var(--mist);
+      text-transform: uppercase;
+      text-align: center;
+      border-bottom: 1px solid rgba(74, 107, 76, 0.3);
+      padding-bottom: 0.35rem;
     }
 
     #panel.active #panel-content {
@@ -520,6 +607,17 @@
   </style>
 </head>
 <body>
+
+<nav id="site-nav">
+  <a href="/" class="nav-mark">Q · Q · D · A</a>
+  <div class="site-nav-links">
+    <a href="/">Home</a>
+    <a href="/encyclopedia" class="active">Encyclopedia</a>
+    <a href="/atelier">Atelier</a>
+    <a href="/guild">Guild Hall</a>
+  </div>
+</nav>
+
 
 <div id="veil"><div id="veil-mark"></div></div>
 <div id="cursor"></div>
@@ -791,6 +889,15 @@
       <div class="node-glow" style="background:#d0c0a0;box-shadow:0 0 8px #d0c0a0,0 0 20px rgba(208,192,160,0.3);width:6px;height:6px;"></div>
       <div class="node-label">Sakura · Crown</div>
     </div>
+    <!-- AppleBlossom — grafted into the crown -->
+    <div class="nav-node" style="left:42%;top:30%;animation-delay:5.9s;" onclick="openPanel('appleblossom')">
+      <div class="node-glow" style="background:#c0b090;box-shadow:0 0 8px #c0b090,0 0 20px rgba(192,176,144,0.35);width:5px;height:5px;"></div>
+      <div class="node-label">AppleBlossom · Elements</div>
+    </div>
+    <div class="nav-node" style="left:58%;top:30%;animation-delay:5.9s;" onclick="openPanel('appleblossom')">
+      <div class="node-glow" style="background:#c0b090;box-shadow:0 0 8px #c0b090,0 0 20px rgba(192,176,144,0.35);width:5px;height:5px;"></div>
+      <div class="node-label">AppleBlossom · Elements</div>
+    </div>
     <!-- Daisy -->
     <div class="nav-node amber" style="left:38%;top:64%;animation-delay:5.6s;" onclick="openPanel('daisy')">
       <div class="node-glow"></div>
@@ -847,7 +954,7 @@
     }, 80);
   });
 
-  document.querySelectorAll('.nav-node, #water-entry, #panel-close').forEach(el => {
+  document.querySelectorAll('.nav-node, #water-entry, #panel-close, #site-nav a, .site-nav-links a, .word-roster').forEach(el => {
     el.addEventListener('mouseenter', () => cursor.classList.add('hovering'));
     el.addEventListener('mouseleave', () => cursor.classList.remove('hovering'));
   });
@@ -969,43 +1076,341 @@
     lotus: {
       title: 'Lotus · The Roots',
       body: `<p>Mind is a fundamental field of information coherence and processing whose Nature and capacities are entangled with Spacetime as a bootstrapping mechanistic nonlocal substrate.</p>
-             <p style="margin-top:1rem"><em>The roots are below the waterline. To enter Lotus is to descend.</em></p>`
+             <p style="margin-top:0.75rem">The first tongue. Twenty-four material and experiential primitives — the irreducible ground states of being here, embodied, in a world. Every other tongue builds on what Lotus names. <em>Machines can hold the symbols. They cannot instantiate the grounding.</em></p>
+             <div class="roster-section">Element pairs · initiators &amp; terminators</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Ty</td><td class="dec">0</td><td class="def">Earth Initiator · material beginning</td></tr>
+               <tr><td class="sym">Zu</td><td class="dec">1</td><td class="def">Earth Terminator · empirical closure</td></tr>
+               <tr><td class="sym">Ly</td><td class="dec">2</td><td class="def">Water Initiator · feeling toward</td></tr>
+               <tr><td class="sym">Mu</td><td class="dec">3</td><td class="def">Water Terminator · memory from</td></tr>
+               <tr><td class="sym">Fy</td><td class="dec">4</td><td class="def">Air Initiator · thought toward</td></tr>
+               <tr><td class="sym">Pu</td><td class="dec">5</td><td class="def">Air Terminator · stasis · stuck</td></tr>
+               <tr><td class="sym">Shy</td><td class="dec">6</td><td class="def">Fire Initiator · pattern toward</td></tr>
+               <tr><td class="sym">Ku</td><td class="dec">7</td><td class="def">Fire Terminator · death · end</td></tr>
+             </tbody></table>
+             <div class="roster-section">Presence &amp; place</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Ti</td><td class="dec">8</td><td class="def">Here · near presence</td></tr>
+               <tr><td class="sym">Ta</td><td class="dec">9</td><td class="def">Active being · presence (present tense marker)</td></tr>
+               <tr><td class="sym">Zo</td><td class="dec">16</td><td class="def">Absence · passive non-being (past tense marker)</td></tr>
+               <tr><td class="sym">Ze</td><td class="dec">20</td><td class="def">There · far</td></tr>
+               <tr><td class="sym">Me</td><td class="dec">21</td><td class="def">Familiar · home</td></tr>
+             </tbody></table>
+             <div class="roster-section">Qualities</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Li</td><td class="dec">10</td><td class="def">New · odd</td></tr>
+               <tr><td class="sym">La</td><td class="dec">11</td><td class="def">Tense · excited</td></tr>
+               <tr><td class="sym">Fi</td><td class="dec">12</td><td class="def">Known · context-sensitive</td></tr>
+               <tr><td class="sym">Fa</td><td class="dec">13</td><td class="def">Complex · old</td></tr>
+               <tr><td class="sym">Shi</td><td class="dec">14</td><td class="def">Related · clear</td></tr>
+               <tr><td class="sym">Sha</td><td class="dec">15</td><td class="def">Intellect of spirit</td></tr>
+               <tr><td class="sym">Mo</td><td class="dec">17</td><td class="def">Relaxed · silent</td></tr>
+               <tr><td class="sym">Po</td><td class="dec">18</td><td class="def">Simple · new</td></tr>
+               <tr><td class="sym">Ko</td><td class="dec">19</td><td class="def">Experience · intuition</td></tr>
+               <tr><td class="sym">Pe</td><td class="dec">22</td><td class="def">Unknown · insensitive</td></tr>
+               <tr><td class="sym">Ke</td><td class="dec">23</td><td class="def">Incoherent · ill</td></tr>
+             </tbody></table>`
     },
     rose: {
       title: 'Rose · The Heart',
-      body: `<p>Elemental energy. Color as cosmological vector. The chromatic foundation of the real.</p>
-             <p style="margin-top:1rem">Seven color vectors. Twelve Polafore numerals. The Rose wraps the heart of the trunk — it is what animates the whole.</p>
-             <p style="margin-top:1rem"><em>Coming soon.</em></p>`
+      body: `<p>The second tongue. Vectors, numbers, and the five Primordials. The Rose binds Earth and Heavens by offering them space to see one another. Color as cosmological force. Number as ontological structure.</p>
+             <p style="margin-top:0.75rem"><em>The 24 characters of the Rose are natural descriptors, pairable with the 24 of Lotus to form self-descriptive compound words. Speaking Rose at its most basic level is naming the Primordials.</em></p>
+             <div class="roster-section">Chromatic vectors</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Ru</td><td class="dec">24</td><td class="def">Vector — Lowest Red</td></tr>
+               <tr><td class="sym">Ot</td><td class="dec">25</td><td class="def">Vector — Orange</td></tr>
+               <tr><td class="sym">El</td><td class="dec">26</td><td class="def">Vector — Yellow</td></tr>
+               <tr><td class="sym">Ki</td><td class="dec">27</td><td class="def">Vector — Green</td></tr>
+               <tr><td class="sym">Fu</td><td class="dec">28</td><td class="def">Vector — Blue</td></tr>
+               <tr><td class="sym">Ka</td><td class="dec">29</td><td class="def">Vector — Indigo</td></tr>
+               <tr><td class="sym">AE</td><td class="dec">30</td><td class="def">Vector — Highest Violet</td></tr>
+             </tbody></table>
+             <div class="roster-section">Polafore numerals · base twelve</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Gaoh</td><td class="dec">31</td><td class="def">12 · Zero</td></tr>
+               <tr><td class="sym">Ao</td><td class="dec">32</td><td class="def">1</td></tr>
+               <tr><td class="sym">Ye</td><td class="dec">33</td><td class="def">2</td></tr>
+               <tr><td class="sym">Ui</td><td class="dec">34</td><td class="def">3</td></tr>
+               <tr><td class="sym">Shu</td><td class="dec">35</td><td class="def">4</td></tr>
+               <tr><td class="sym">Kiel</td><td class="dec">36</td><td class="def">5</td></tr>
+               <tr><td class="sym">Yeshu</td><td class="dec">37</td><td class="def">6</td></tr>
+               <tr><td class="sym">Lao</td><td class="dec">38</td><td class="def">7</td></tr>
+               <tr><td class="sym">Shushy</td><td class="dec">39</td><td class="def">8</td></tr>
+               <tr><td class="sym">Uinshu</td><td class="dec">40</td><td class="def">9</td></tr>
+               <tr><td class="sym">Kokiel</td><td class="dec">41</td><td class="def">10</td></tr>
+               <tr><td class="sym">Aonkiel</td><td class="dec">42</td><td class="def">11</td></tr>
+             </tbody></table>
+             <div class="roster-section">The five Primordials</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Ha</td><td class="dec">43</td><td class="def">Absolute Positive · Everything</td></tr>
+               <tr><td class="sym">Ga</td><td class="dec">44</td><td class="def">Absolute Negative · Void</td></tr>
+               <tr><td class="sym">Wu</td><td class="dec">45</td><td class="def">Process · Way · The Game</td></tr>
+               <tr><td class="sym">Na</td><td class="dec">46</td><td class="def">Neutral · Integration · Nondual</td></tr>
+               <tr><td class="sym">Ung</td><td class="dec">47</td><td class="def">Piece · Point · The Path · Energy</td></tr>
+             </tbody></table>`
     },
     sakura: {
       title: 'Sakura · The Crown',
-      body: `<p>Relational physics. The 24-cell grid. Spatial orientation and the geometry of connection.</p>
-             <p style="margin-top:1rem">The crown is Sakura — the cherry blossom, ephemeral and present. Into it are grafted the AppleBlossom branches, carrying the coordinate system of existence.</p>
-             <p style="margin-top:1rem"><em>The graft changes both organisms.</em></p>`
+      body: `<p>The third tongue. Orientation, motion, relational quality. The crown of the tree — ephemeral and present, governing where things are, how they move, their relational status. Into the crown are grafted the AppleBlossom branches, carrying the coordinate system of existence.</p>
+             <p style="margin-top:0.75rem"><em>The graft changes both organisms.</em></p>
+             <div class="roster-section">The six directions</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Jy</td><td class="dec">48</td><td class="def">Top</td></tr>
+               <tr><td class="sym">Ji</td><td class="dec">49</td><td class="def">Starboard</td></tr>
+               <tr><td class="sym">Ja</td><td class="dec">50</td><td class="def">Front</td></tr>
+               <tr><td class="sym">Jo</td><td class="dec">51</td><td class="def">Back</td></tr>
+               <tr><td class="sym">Je</td><td class="dec">52</td><td class="def">Port</td></tr>
+               <tr><td class="sym">Ju</td><td class="dec">53</td><td class="def">Bottom</td></tr>
+             </tbody></table>
+             <div class="roster-section">Motion &amp; relational status</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Dy</td><td class="dec">54</td><td class="def">Hence · Heretofore</td></tr>
+               <tr><td class="sym">Di</td><td class="dec">55</td><td class="def">Traveling · Distancing</td></tr>
+               <tr><td class="sym">Da</td><td class="dec">56</td><td class="def">Meeting · Conjoined</td></tr>
+               <tr><td class="sym">Do</td><td class="dec">57</td><td class="def">Parting · Divorced</td></tr>
+               <tr><td class="sym">De</td><td class="dec">58</td><td class="def">Domesticating · Staying</td></tr>
+               <tr><td class="sym">Du</td><td class="dec">59</td><td class="def">Whither · Status of</td></tr>
+             </tbody></table>
+             <div class="roster-section">States of being</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">By</td><td class="dec">60</td><td class="def">When-hence · Eventual</td></tr>
+               <tr><td class="sym">Bi</td><td class="dec">61</td><td class="def">Crowned · Owning</td></tr>
+               <tr><td class="sym">Ba</td><td class="dec">62</td><td class="def">Plain · Explicit</td></tr>
+               <tr><td class="sym">Bo</td><td class="dec">63</td><td class="def">Hidden · Occulted</td></tr>
+               <tr><td class="sym">Be</td><td class="dec">64</td><td class="def">Common · Outer · Wild</td></tr>
+               <tr><td class="sym">Bu</td><td class="dec">65</td><td class="def">Since · Relational</td></tr>
+               <tr><td class="sym">Va</td><td class="dec">66</td><td class="def">Order · Structure · Life</td></tr>
+               <tr><td class="sym">Vo</td><td class="dec">67</td><td class="def">Chaos · Boundary-breakage · Mutation</td></tr>
+               <tr><td class="sym">Ve</td><td class="dec">68</td><td class="def">Pieces · Not-wherever · Where</td></tr>
+               <tr><td class="sym">Vu</td><td class="dec">69</td><td class="def">Death-moment · Never · Now</td></tr>
+               <tr><td class="sym">Vi</td><td class="dec">70</td><td class="def">Body · Wherever · What</td></tr>
+               <tr><td class="sym">Vy</td><td class="dec">71</td><td class="def">Lifespan · Whenever · How</td></tr>
+             </tbody></table>`
     },
     aster: {
       title: 'Aster · Chirality',
-      body: `<p>Time modes. Space operations. The handedness of the real.</p>
-             <p style="margin-top:1rem">Si — Linear. Su — Loop. Os — Exponential. Se — Logarithmic. Sy — Fold. As — Frozen.</p>
-             <p style="margin-top:1rem"><em>The chirality threshold sits at the center of the byte table. Everything changes when you cross it.</em></p>`
+      body: `<p>The sixth tongue. The chirality threshold. Right and left-handed color, six modes of time, eight operations of space. The chirality threshold sits at the center of the byte table — everything changes when you cross it.</p>
+             <p style="margin-top:0.75rem"><em>Aster is presented in circular mandala form. The wreath on the trunk spirals because chirality is directional, and direction is real.</em></p>
+             <div class="roster-section">Right-chiral spectrum · 128–134</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Ry</td><td class="dec">128</td><td class="def">Right-chiral red</td></tr>
+               <tr><td class="sym">Oth</td><td class="dec">129</td><td class="def">Right-chiral orange</td></tr>
+               <tr><td class="sym">Le</td><td class="dec">130</td><td class="def">Right-chiral yellow</td></tr>
+               <tr><td class="sym">Gi</td><td class="dec">131</td><td class="def">Right-chiral green</td></tr>
+               <tr><td class="sym">Fe</td><td class="dec">132</td><td class="def">Right-chiral blue</td></tr>
+               <tr><td class="sym">Ky</td><td class="dec">133</td><td class="def">Right-chiral indigo</td></tr>
+               <tr><td class="sym">Alz</td><td class="dec">134</td><td class="def">Right-chiral violet</td></tr>
+             </tbody></table>
+             <div class="roster-section">Left-chiral spectrum · 135–141</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Ra</td><td class="dec">135</td><td class="def">Left-chiral red</td></tr>
+               <tr><td class="sym">Tho</td><td class="dec">136</td><td class="def">Left-chiral orange</td></tr>
+               <tr><td class="sym">Lu</td><td class="dec">137</td><td class="def">Left-chiral yellow</td></tr>
+               <tr><td class="sym">Ge</td><td class="dec">138</td><td class="def">Left-chiral green</td></tr>
+               <tr><td class="sym">Fo</td><td class="dec">139</td><td class="def">Left-chiral blue</td></tr>
+               <tr><td class="sym">Kw</td><td class="dec">140</td><td class="def">Left-chiral indigo</td></tr>
+               <tr><td class="sym">Dr</td><td class="dec">141</td><td class="def">Left-chiral violet</td></tr>
+             </tbody></table>
+             <div class="roster-section">Time modes · 142–147</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Si</td><td class="dec">142</td><td class="def">Linear time</td></tr>
+               <tr><td class="sym">Su</td><td class="dec">143</td><td class="def">Loop time</td></tr>
+               <tr><td class="sym">Os</td><td class="dec">144</td><td class="def">Exponential time</td></tr>
+               <tr><td class="sym">Se</td><td class="dec">145</td><td class="def">Logarithmic time</td></tr>
+               <tr><td class="sym">Sy</td><td class="dec">146</td><td class="def">Fold time</td></tr>
+               <tr><td class="sym">As</td><td class="dec">147</td><td class="def">Frozen time</td></tr>
+             </tbody></table>
+             <div class="roster-section">Space operations · 148–155</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Ep</td><td class="dec">148</td><td class="def">Assign space</td></tr>
+               <tr><td class="sym">Gwev</td><td class="dec">149</td><td class="def">Save space</td></tr>
+               <tr><td class="sym">Ifa</td><td class="dec">150</td><td class="def">Parse space</td></tr>
+               <tr><td class="sym">Ier</td><td class="dec">151</td><td class="def">Loop space</td></tr>
+               <tr><td class="sym">San</td><td class="dec">152</td><td class="def">Push space</td></tr>
+               <tr><td class="sym">Enno</td><td class="dec">153</td><td class="def">Delete space</td></tr>
+               <tr><td class="sym">Yl</td><td class="dec">154</td><td class="def">Run space</td></tr>
+               <tr><td class="sym">Hoz</td><td class="dec">155</td><td class="def">Unbind space</td></tr>
+             </tbody></table>`
     },
     grapevine: {
       title: 'Grapevine · The Network',
-      body: `<p>Distributed systems as feast. The ecology of connection, failure, and consensus.</p>
-             <p style="margin-top:1rem">Sa — root volume. Soa — persistent object. Syr — volatile buffer. The feast feeds everyone or it feeds no one.</p>
-             <p style="margin-top:1rem"><em>Coming soon.</em></p>`
+      body: `<p>The seventh tongue. Distributed systems as feast. A vocabulary written entirely in symposium metaphor — the ecology of connection, failure, and consensus. The feast feeds everyone or it feeds no one.</p>
+             <p style="margin-top:0.75rem"><em>Grapevine is the tongue most directly relevant to DjinnOS federation architecture. The banquet hall is a database cluster. The cup is a file. The wine is a volatile buffer. This is not metaphor — it is the actual spec.</em></p>
+             <div class="roster-section">Storage · 156–162</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Sa</td><td class="dec">156</td><td class="def">Feast table · root volume</td></tr>
+               <tr><td class="sym">Sao</td><td class="dec">157</td><td class="def">Cup · file · persistent object</td></tr>
+               <tr><td class="sym">Syr</td><td class="dec">158</td><td class="def">Wine · volatile buffer</td></tr>
+               <tr><td class="sym">Seth</td><td class="dec">159</td><td class="def">Platter · directory · bundle</td></tr>
+               <tr><td class="sym">Samos</td><td class="dec">160</td><td class="def">Banquet hall · database cluster</td></tr>
+               <tr><td class="sym">Sava</td><td class="dec">161</td><td class="def">Amphora · snapshot archive</td></tr>
+               <tr><td class="sym">Sael</td><td class="dec">162</td><td class="def">Leftovers · cache</td></tr>
+             </tbody></table>
+             <div class="roster-section">Transmission · 163–169</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Myk</td><td class="dec">163</td><td class="def">Messenger · packet</td></tr>
+               <tr><td class="sym">Myr</td><td class="dec">164</td><td class="def">Procession path · route</td></tr>
+               <tr><td class="sym">Mio</td><td class="dec">165</td><td class="def">Stride · hop</td></tr>
+               <tr><td class="sym">Mek</td><td class="dec">166</td><td class="def">Call · emit event</td></tr>
+               <tr><td class="sym">Mavo</td><td class="dec">167</td><td class="def">Banner · metadata</td></tr>
+               <tr><td class="sym">Mekha</td><td class="dec">168</td><td class="def">Herald · gateway</td></tr>
+               <tr><td class="sym">Myrun</td><td class="dec">169</td><td class="def">Sacred march · stream</td></tr>
+             </tbody></table>
+             <div class="roster-section">Failure modes · 170–176</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Dyf</td><td class="dec">170</td><td class="def">Jitter · nondeterminism</td></tr>
+               <tr><td class="sym">Dyo</td><td class="dec">171</td><td class="def">Burst · load spike</td></tr>
+               <tr><td class="sym">Dyth</td><td class="dec">172</td><td class="def">Packet loss · corruption</td></tr>
+               <tr><td class="sym">Dyska</td><td class="dec">173</td><td class="def">Concurrency · thread dance</td></tr>
+               <tr><td class="sym">Dyne</td><td class="dec">174</td><td class="def">Broadcast · flood</td></tr>
+               <tr><td class="sym">Dyran</td><td class="dec">175</td><td class="def">Overflow · memory full</td></tr>
+               <tr><td class="sym">Dyso</td><td class="dec">176</td><td class="def">Overload threshold</td></tr>
+             </tbody></table>
+             <div class="roster-section">Topology &amp; consensus · 177–183</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Kyf</td><td class="dec">177</td><td class="def">Cluster node</td></tr>
+               <tr><td class="sym">Kyl</td><td class="dec">178</td><td class="def">Steward · coordinator</td></tr>
+               <tr><td class="sym">Kyra</td><td class="dec">179</td><td class="def">Control token · semaphore</td></tr>
+               <tr><td class="sym">Kyvos</td><td class="dec">180</td><td class="def">Ring topology</td></tr>
+               <tr><td class="sym">Kysha</td><td class="dec">181</td><td class="def">Consensus choir</td></tr>
+               <tr><td class="sym">Kyom</td><td class="dec">182</td><td class="def">Replica · masked follower</td></tr>
+               <tr><td class="sym">Kysael</td><td class="dec">183</td><td class="def">Authoritative commit</td></tr>
+             </tbody></table>`
     },
     daisy: {
       title: 'Daisy · Structure',
-      body: `<p>Structural biology and mechanics. The 13-fold wheel of morphemes.</p>
-             <p style="margin-top:1rem">Lo — Segments. Yei — Component. Gl — Membrane. To — Scaffold. Ma — Web. Ne — Network.</p>
-             <p style="margin-top:1rem"><em>The daisies sprout from the edges of the trunk. Structure emerges at the margins.</em></p>`
+      body: `<p>The fourth tongue. Structural biology and mechanics. Segments, networks, bonds, passages, scaffolds — the engineering tongue. Presented in radial and hourglass form.</p>
+             <p style="margin-top:0.75rem"><em>The daisies sprout from the edges of the trunk. Structure emerges at the margins.</em></p>
+             <div class="roster-section">Identity &amp; space · 72–82</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Lo</td><td class="dec">72</td><td class="def">Segments · Identity</td></tr>
+               <tr><td class="sym">Yei</td><td class="dec">73</td><td class="def">Component · Integrator</td></tr>
+               <tr><td class="sym">Ol</td><td class="dec">74</td><td class="def">Deadzone · Relative Void</td></tr>
+               <tr><td class="sym">X</td><td class="dec">75</td><td class="def">Joint · Interlock</td></tr>
+               <tr><td class="sym">Yx</td><td class="dec">76</td><td class="def">Fulcrum · Crux</td></tr>
+               <tr><td class="sym">Go</td><td class="dec">77</td><td class="def">Plug · Blocker</td></tr>
+               <tr><td class="sym">Foa</td><td class="dec">78</td><td class="def">Degree · Space</td></tr>
+               <tr><td class="sym">Oy</td><td class="dec">79</td><td class="def">Depths · Layers</td></tr>
+               <tr><td class="sym">W</td><td class="dec">80</td><td class="def">Freefall · Socket Space</td></tr>
+               <tr><td class="sym">Th</td><td class="dec">81</td><td class="def">Cuff · Indentation</td></tr>
+               <tr><td class="sym">Kael</td><td class="dec">82</td><td class="def">Cluster · Fruit · Flower</td></tr>
+             </tbody></table>
+             <div class="roster-section">Functional anatomy · 83–88</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Ro</td><td class="dec">83</td><td class="def">Ion-channel · Gate · Receptor</td></tr>
+               <tr><td class="sym">Gl</td><td class="dec">84</td><td class="def">Membrane · Muscle</td></tr>
+               <tr><td class="sym">To</td><td class="dec">85</td><td class="def">Scaffold · Framework</td></tr>
+               <tr><td class="sym">Ma</td><td class="dec">86</td><td class="def">Web · Interchange</td></tr>
+               <tr><td class="sym">Ne</td><td class="dec">87</td><td class="def">Network · System</td></tr>
+               <tr><td class="sym">Ym</td><td class="dec">88</td><td class="def">Radial Space</td></tr>
+             </tbody></table>
+             <div class="roster-section">Actuators, bonds &amp; passages · 89–97</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Nz</td><td class="dec">89</td><td class="def">Switch · Circuit Actuator</td></tr>
+               <tr><td class="sym">Sho</td><td class="dec">90</td><td class="def">Valve · Fluid Actuator</td></tr>
+               <tr><td class="sym">Hi</td><td class="dec">91</td><td class="def">Lever · Radial Actuator</td></tr>
+               <tr><td class="sym">Mh</td><td class="dec">92</td><td class="def">Bond</td></tr>
+               <tr><td class="sym">Zhi</td><td class="dec">93</td><td class="def">Eye · Vortex</td></tr>
+               <tr><td class="sym">Vr</td><td class="dec">94</td><td class="def">Rotor · Tensor</td></tr>
+               <tr><td class="sym">St</td><td class="dec">95</td><td class="def">Surface</td></tr>
+               <tr><td class="sym">Fn</td><td class="dec">96</td><td class="def">Passage · Pathway</td></tr>
+               <tr><td class="sym">N</td><td class="dec">97</td><td class="def">Seed · Sheet · Fiber</td></tr>
+             </tbody></table>`
+    },
+    appleblossom: {
+      title: 'AppleBlossom · Elements',
+      body: `<p>The fifth tongue. Alchemical elements and their compounds. Four base elements plus Kael — the fifth element, chaos and life itself — plus sixteen compound states that encode the logic of material transformation as element-pair intersections.</p>
+             <p style="margin-top:0.75rem"><em>The AppleBlossom grafts into the Sakura crown. Where they join, the coordinate system of existence enters the geometry of relation. The graft changes both organisms.</em></p>
+             <div class="roster-section">Polarity operators · 98–103</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">A</td><td class="dec">98</td><td class="def">Mind +</td></tr>
+               <tr><td class="sym">O</td><td class="dec">99</td><td class="def">Mind −</td></tr>
+               <tr><td class="sym">I</td><td class="dec">100</td><td class="def">Space +</td></tr>
+               <tr><td class="sym">E</td><td class="dec">101</td><td class="def">Space −</td></tr>
+               <tr><td class="sym">Y</td><td class="dec">102</td><td class="def">Time +</td></tr>
+               <tr><td class="sym">U</td><td class="dec">103</td><td class="def">Time −</td></tr>
+             </tbody></table>
+             <div class="roster-section">The five elements · 104–107 + Kael</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Shak</td><td class="dec">104</td><td class="def">Fire — pattern, spirit, form, change, life</td></tr>
+               <tr><td class="sym">Puf</td><td class="dec">105</td><td class="def">Air — mental states, mind</td></tr>
+               <tr><td class="sym">Mel</td><td class="dec">106</td><td class="def">Water — emotional, sensory, intuitive</td></tr>
+               <tr><td class="sym">Zot</td><td class="dec">107</td><td class="def">Earth — physical density, material events</td></tr>
+               <tr><td class="sym">Kael</td><td class="dec">—</td><td class="def">Chaos · Life — the Primordial as elemental category</td></tr>
+             </tbody></table>
+             <div class="roster-section">Compounds · Fire base · 108–111</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Zhuk</td><td class="dec">108</td><td class="def">Plasma (Fire · Fire)</td></tr>
+               <tr><td class="sym">Kypa</td><td class="dec">109</td><td class="def">Sulphur (Fire · Air)</td></tr>
+               <tr><td class="sym">Alky</td><td class="dec">110</td><td class="def">Alkahest · Alcohol (Fire · Water)</td></tr>
+               <tr><td class="sym">Kazho</td><td class="dec">111</td><td class="def">Magma · Lava (Fire · Earth)</td></tr>
+             </tbody></table>
+             <div class="roster-section">Compounds · Air base · 112–115</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Puky</td><td class="dec">112</td><td class="def">Smoke (Air · Fire)</td></tr>
+               <tr><td class="sym">Pyfu</td><td class="dec">113</td><td class="def">Gas (Air · Air)</td></tr>
+               <tr><td class="sym">Mipa</td><td class="dec">114</td><td class="def">Carbonation · Trapped Gas (Air · Water)</td></tr>
+               <tr><td class="sym">Zitef</td><td class="dec">115</td><td class="def">Mercury (Air · Earth)</td></tr>
+             </tbody></table>
+             <div class="roster-section">Compounds · Water base · 116–119</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Shem</td><td class="dec">116</td><td class="def">Steam (Water · Fire)</td></tr>
+               <tr><td class="sym">Lefu</td><td class="dec">117</td><td class="def">Vapor (Water · Air)</td></tr>
+               <tr><td class="sym">Milo</td><td class="dec">118</td><td class="def">Mixed fluids · Mixtures (Water · Water)</td></tr>
+               <tr><td class="sym">Myza</td><td class="dec">119</td><td class="def">Erosion (Water · Earth)</td></tr>
+             </tbody></table>
+             <div class="roster-section">Compounds · Earth base · 120–123</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Zashu</td><td class="dec">120</td><td class="def">Radiation · Radioactive stones (Earth · Fire)</td></tr>
+               <tr><td class="sym">Fozt</td><td class="dec">121</td><td class="def">Dust (Earth · Air)</td></tr>
+               <tr><td class="sym">Mazi</td><td class="dec">122</td><td class="def">Sediment (Earth · Water)</td></tr>
+               <tr><td class="sym">Zaot</td><td class="dec">123</td><td class="def">Salt (Earth · Earth)</td></tr>
+             </tbody></table>`
     },
     cannabis: {
       title: 'Cannabis · Consciousness',
-      body: `<p>The eighth tongue. The consciousness tongue. The burning awareness that makes the garden perceivable at all.</p>
-             <p style="margin-top:1rem">Cannabis grows at the edges of the fog. It is not a node on the tree — it is the condition under which the tree can be seen.</p>
-             <p style="margin-top:1rem"><em>Sha burns. Ko endures. The cycle is the point.</em></p>`
+      body: `<p>The eighth tongue. A tensor product of all seven prior tongues with three operators: Mind, Space, Time. Each concept from any prior tongue projected through awareness, distribution, or duration to yield its experiential, spatial, or temporal form.</p>
+             <p style="margin-top:0.75rem">Cannabis grows at the edges of the fog. It is not a node on the tree — it is the condition under which the tree can be seen. It arrived recently. It handles meta-cognitive awareness.</p>
+             <p style="margin-top:0.5rem"><em>Sha burns. Ko endures. The cycle is the point.</em></p>
+             <div class="roster-section">Through Mind · 184–193</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">At</td><td class="dec">184</td><td class="def">Grounded awareness — felt sense of material presence (Lotus · Mind)</td></tr>
+               <tr><td class="sym">Ar</td><td class="dec">185</td><td class="def">Chromatic perception — color as felt rather than measured (Rose · Mind)</td></tr>
+               <tr><td class="sym">Av</td><td class="dec">186</td><td class="def">Relational consciousness — knowing where you stand (Sakura · Mind)</td></tr>
+               <tr><td class="sym">Azr</td><td class="dec">187</td><td class="def">Structural intuition — bodily knowledge of mechanism (Daisy · Mind)</td></tr>
+               <tr><td class="sym">Af</td><td class="dec">188</td><td class="def">Transformative awareness — feeling a phase transition (AppleBlossom · Mind)</td></tr>
+               <tr><td class="sym">An</td><td class="dec">189</td><td class="def">Chiral discernment — sense of which way time is turning (Aster · Mind)</td></tr>
+               <tr><td class="sym">Od</td><td class="dec">190</td><td class="def">Unspecified mental signal — noise without narrative (Grapevine dark · Mind)</td></tr>
+               <tr><td class="sym">Ox</td><td class="dec">191</td><td class="def">Of the quality of unconscious transmission (operator shadow · adjective)</td></tr>
+               <tr><td class="sym">Om</td><td class="dec">192</td><td class="def">In the manner of unconscious transmission (operator shadow · adverb)</td></tr>
+               <tr><td class="sym">Soa</td><td class="dec">193</td><td class="def">Conscious persistence — mind making something durable</td></tr>
+             </tbody></table>
+             <div class="roster-section">Through Space · 194–203</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">It</td><td class="dec">194</td><td class="def">Grounded locality — where something is in the most concrete sense (Lotus · Space)</td></tr>
+               <tr><td class="sym">Ir</td><td class="dec">195</td><td class="def">Spectral field — energy and color as they occupy space (Rose · Space)</td></tr>
+               <tr><td class="sym">Iv</td><td class="dec">196</td><td class="def">Relational geometry — actual distances and orientations (Sakura · Space)</td></tr>
+               <tr><td class="sym">Izr</td><td class="dec">197</td><td class="def">Structural volume — the 3D reality of assembly (Daisy · Space)</td></tr>
+               <tr><td class="sym">If</td><td class="dec">198</td><td class="def">Transitional space — the crucible, the threshold (AppleBlossom · Space)</td></tr>
+               <tr><td class="sym">In</td><td class="dec">199</td><td class="def">Chiral orientation — which way something faces, its mirror distinction (Aster · Space)</td></tr>
+               <tr><td class="sym">Ed</td><td class="dec">200</td><td class="def">Unspecified spatial signal — network without location (Grapevine dark · Space)</td></tr>
+               <tr><td class="sym">Ex</td><td class="dec">201</td><td class="def">Of the quality of unlocated transmission (operator shadow · adjective)</td></tr>
+               <tr><td class="sym">Em</td><td class="dec">202</td><td class="def">In the manner of unlocated transmission (operator shadow · adverb)</td></tr>
+               <tr><td class="sym">Sei</td><td class="dec">203</td><td class="def">Conscious spatial action — mind deliberately occupying or shaping space</td></tr>
+             </tbody></table>
+             <div class="roster-section">Through Time · 204–213</div>
+             <table class="word-roster"><tbody>
+               <tr><td class="sym">Yt</td><td class="dec">204</td><td class="def">Grounded duration — age as felt reality, how long something has been here (Lotus · Time)</td></tr>
+               <tr><td class="sym">Yr</td><td class="dec">205</td><td class="def">Spectral timing — frequency and rhythm of energetic cycles (Rose · Time)</td></tr>
+               <tr><td class="sym">Yv</td><td class="dec">206</td><td class="def">Relational temporality — when things come together and separate (Sakura · Time)</td></tr>
+               <tr><td class="sym">Yzr</td><td class="dec">207</td><td class="def">Structural time — how a structure develops and completes itself (Daisy · Time)</td></tr>
+               <tr><td class="sym">Yf</td><td class="dec">208</td><td class="def">Transformative time — how long transformation takes (AppleBlossom · Time)</td></tr>
+               <tr><td class="sym">Yn</td><td class="dec">209</td><td class="def">Chiral time — which way time is moving, linear or looped (Aster · Time)</td></tr>
+               <tr><td class="sym">Ud</td><td class="dec">210</td><td class="def">Unspecified temporal signal — propagation without sequence (Grapevine dark · Time)</td></tr>
+               <tr><td class="sym">Ux</td><td class="dec">211</td><td class="def">Of the quality of unsequenced transmission (operator shadow · adjective)</td></tr>
+               <tr><td class="sym">Um</td><td class="dec">212</td><td class="def">In the manner of unsequenced transmission (operator shadow · adverb)</td></tr>
+               <tr><td class="sym">Suy</td><td class="dec">213</td><td class="def">Conscious temporal action — mind deliberately moving through or shaping time</td></tr>
+             </tbody></table>`
     },
     library: {
       title: 'Library of Being',
@@ -1033,4 +1438,4 @@
   });
 </script>
 </body>
-</html>s
+</html>

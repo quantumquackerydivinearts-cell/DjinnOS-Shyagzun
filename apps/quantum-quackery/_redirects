@@ -6,5 +6,9 @@
 #  and keeps the API URL consistent if you ever move hosts)
 /api/*  https://atelier-api.quantumquackery.com/:splat  200
 
+# Route clean paths to HTML files
+/encyclopedia  /encyclopedia-esoterica.html  200
+/encyclopedia/  /encyclopedia-esoterica.html  200
+
 # Redirect bare domain to www (or remove if you prefer bare)
 # http://quantumquackery.org/*  https://www.quantumquackery.org/:splat  301

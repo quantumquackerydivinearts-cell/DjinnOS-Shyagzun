@@ -5,7 +5,7 @@ import re
 from typing import Any, Dict, Mapping, Optional, Sequence
 
 import stripe
-from uuid import _uuid
+from uuid import uuid4
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response, ORJSONResponse
@@ -4477,42 +4477,7 @@ def public_commission_inquiry(
     svc: AtelierService = Depends(_atelier_service),
 ) -> LeadOut:
     return svc.create_public_inquiry(payload)
-settings = get_settings()
 log = structlog.get_logger()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    log.info(
-        "atelier_api_starting",
-        version=settings.app_version,
-        environment=settings.environment,
-        python=sys.executable,          # always sys.executable — never hardcoded path
-    )
-    # Ensure lineage store directory exists
-    settings.lineage_store_path.mkdir(parents=True, exist_ok=True)
-    yield
-    log.info("atelier_api_shutdown")
-
-
-app = FastAPI(
-    title=settings.app_name,
-    version=settings.app_version,
-    default_response_class=ORJSONResponse,
-    lifespan=lifespan,
-    # Disable default /docs in production if desired
-    docs_url="/docs" if settings.environment != "production" else None,
-    redoc_url="/redoc" if settings.environment != "production" else None,
-)
-
-# ── CORS ──────────────────────────────────────────────────────────────────────
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 # ── Request timing middleware ─────────────────────────────────────────────────
@@ -4535,50 +4500,4 @@ async def global_exception_handler(request: Request, exc: Exception) -> ORJSONRe
     )
 
 
-class GuildArtisanProfile(Base):
-    """
-    Public-facing artisan profile. Opt-in. Separate from ArtisanAccount
-    which holds internal auth/access credentials.
-    Artisans control visibility and what they expose publicly.
-    """
-    __tablename__ = "guild_artisan_profiles"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-
-    # Links back to internal account — not exposed publicly
-    artisan_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
-
-    # Public display
-    display_name: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    bio: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    portfolio_url: Mapped[str] = mapped_column(String(400), nullable=False, default="")
-    avatar_url: Mapped[str] = mapped_column(String(400), nullable=False, default="")
-
-    # Location — freeform, artisan controls granularity
-    region: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    # e.g. "Salt Lake City, Utah" or just "Pacific Northwest" or "West Africa"
-
-    # Division alignment — comma separated: sulphur, mercury, salt
-    divisions: Mapped[str] = mapped_column(String(120), nullable=False, default="")
-
-    # Trade tags — comma separated, freeform
-    # e.g. "ceramics,woodworking,natural-dye"
-    trades: Mapped[str] = mapped_column(String(400), nullable=False, default="")
-
-    # Guild rank in Q3 structure
-    # artisan | senior_artisan | steward | community_member
-    guild_rank: Mapped[str] = mapped_column(String(40), nullable=False, default="artisan")
-
-    # Visibility flags
-    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    show_region: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    show_trades: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    show_portfolio: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-
-    # Steward approval for public listing
-    steward_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    approved_by: Mapped[str] = mapped_column(String(100), nullable=False, default="")
-    approved_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False, default=DateTime.utcnow)
-    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False, default=DateTime.utcnow)
+# GuildArtisanProfile is defined in models.py — do not redefine here.

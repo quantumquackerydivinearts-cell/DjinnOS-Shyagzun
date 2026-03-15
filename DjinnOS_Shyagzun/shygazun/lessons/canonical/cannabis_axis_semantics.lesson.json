@@ -9,7 +9,7 @@
       { "decimal": 184, "binary": "10111000", "tongue": "Cannabis", "symbol": "At", "meaning": "Grounded awareness / consciousness of material presence (Lotus seen through Mind — the felt sense of being here, embodied, in a specific moment of earth)" },
       { "decimal": 194, "binary": "11000010", "tongue": "Cannabis", "symbol": "It", "meaning": "Grounded locality / the spatial fact of material presence (Lotus through Space — where something is in the most concrete sense, its place in the earth)" },
       { "decimal": 204, "binary": "11001100", "tongue": "Cannabis", "symbol": "Yt", "meaning": "Grounded duration / the temporal weight of material existence (Lotus through Time — how long something has been here, its age as felt reality)" },
-      { "decimal": 193, "binary": "11000001", "tongue": "Cannabis", "symbol": "Soa*", "meaning": "Conscious persistence / the act of mind making something durable" },
+      { "decimal": 193, "binary": "11000001", "tongue": "Cannabis", "symbol": "Soa", "meaning": "Conscious persistence / the act of mind making something durable" },
       { "decimal": 203, "binary": "11001011", "tongue": "Cannabis", "symbol": "Sei", "meaning": "Conscious spatial action / the act of mind deliberately occupying or shaping space" },
       { "decimal": 213, "binary": "11010101", "tongue": "Cannabis", "symbol": "Suy", "meaning": "Conscious temporal action / the act of mind deliberately moving through or shaping time" }
     ]
@@ -46,7 +46,7 @@
       }
     },
     {
-      "token": "Soa*",
+      "token": "Soa",
       "english_alias": "conscious persistence",
       "literal_gloss": "Conscious persistence",
       "features": {
