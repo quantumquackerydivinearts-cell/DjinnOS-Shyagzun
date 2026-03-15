@@ -1082,7 +1082,7 @@ Layers 5/6 of the Twelvefold Coil. This is not accidental.
 | Faygoru | 1009_UNDI | Gold & turquoise scales, Time traveler, Ohadame devotee |
 | Chazak | 1010_SALA | Greater Siren, Zen af, Transcendental Meditator, Moshize Devotee |
 | Axiozul | 1011_SALA | Axolotl (blue), Timeless, Immortal, Child of Lakota |
-| Savvi | 1012_SALA | Fire Salamander, Child of Vios and Drovitth, Bane of Misfortune |
+| Savvi | 1012_SALA | Fire Salamander, Child of Vios and Drovitth, Cosmic Arms Dealer, Bane of Misfortune |
 | Eukala | 1013_DRYA | Constantly hunting, honors death, 8'ky+, ageless, LN |
 | Tymona | 1014_DRYA | Hates humans, full of sadism, 6ft+, 40s, godless CN |
 | Vajil | 1015_DRYA | |
