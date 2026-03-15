@@ -290,6 +290,31 @@
       gap: 0;
     }
 
+    /* ── Phoenix logo ── */
+    #phoenix {
+      display: block;
+      margin: 0 auto 0.6rem;
+      width: clamp(72px, 10vw, 108px);
+      height: auto;
+      opacity: 0;
+      animation: rise 2.2s ease-out 0.3s forwards;
+      filter: drop-shadow(0 0 18px var(--accent-glow)) drop-shadow(0 0 6px var(--accent-2-glow));
+      transition: filter var(--transition);
+    }
+    @keyframes phoenixFloat {
+      0%   { transform: translateY(0px); }
+      50%  { transform: translateY(-5px); }
+      100% { transform: translateY(0px); }
+    }
+    #phoenix {
+      animation: rise 2.2s ease-out 0.3s forwards, phoenixFloat 6s ease-in-out 2.5s infinite;
+    }
+    /* Time-aware phoenix colors are driven by CSS variables via currentColor */
+    #phoenix .body   { fill: var(--accent); transition: fill var(--transition); }
+    #phoenix .flame  { fill: var(--accent-2); transition: fill var(--transition); }
+    #phoenix .wing   { fill: var(--accent); opacity: 0.82; transition: fill var(--transition); }
+    #phoenix .crest  { fill: var(--accent-2); transition: fill var(--transition); }
+
     /* ── Wordmark ── */
     #wordmark {
       text-align: center;
@@ -520,6 +545,37 @@
 
 <!-- Main content -->
 <div id="content">
+
+  <!-- Phoenix -->
+  <svg id="phoenix" viewBox="0 0 120 110" xmlns="http://www.w3.org/2000/svg" aria-label="Phoenix — Quantum Quackery Divine Arts">
+    <!-- Tail feathers (downward) -->
+    <path class="flame" d="M60,92 C52,104 46,110 44,108 C46,100 50,94 60,92Z" opacity="0.85"/>
+    <path class="flame" d="M60,92 C60,106 58,112 56,110 C56,102 57,96 60,92Z" opacity="0.7"/>
+    <path class="flame" d="M60,92 C68,104 74,110 76,108 C74,100 70,94 60,92Z" opacity="0.85"/>
+    <path class="flame" d="M60,92 C56,108 52,114 49,112 C52,104 55,97 60,92Z" opacity="0.55"/>
+    <path class="flame" d="M60,92 C64,108 68,114 71,112 C68,104 65,97 60,92Z" opacity="0.55"/>
+    <!-- Body -->
+    <ellipse class="body" cx="60" cy="72" rx="12" ry="18"/>
+    <!-- Left wing — sweeps up and out -->
+    <path class="wing" d="M50,68 C38,58 18,44 10,30 C18,36 28,46 38,58 C30,42 22,24 24,12 C28,26 34,44 46,60 C40,40 40,20 46,8 C46,24 48,44 54,62 Z"/>
+    <!-- Right wing — sweeps up and out -->
+    <path class="wing" d="M70,68 C82,58 102,44 110,30 C102,36 92,46 82,58 C90,42 98,24 96,12 C92,26 86,44 74,60 C80,40 80,20 74,8 C74,24 72,44 66,62 Z"/>
+    <!-- Neck -->
+    <path class="body" d="M56,56 C54,46 56,40 60,36 C64,40 66,46 64,56 Z"/>
+    <!-- Head -->
+    <ellipse class="body" cx="60" cy="32" rx="8" ry="9"/>
+    <!-- Crest feathers -->
+    <path class="crest" d="M60,24 C58,16 54,10 52,6 C56,12 58,18 60,24Z" opacity="0.9"/>
+    <path class="crest" d="M60,24 C60,14 60,8 60,4 C60,10 60,16 60,24Z" opacity="0.75"/>
+    <path class="crest" d="M60,24 C62,16 66,10 68,6 C64,12 62,18 60,24Z" opacity="0.9"/>
+    <!-- Eye -->
+    <circle cx="60" cy="33" r="2.2" fill="#0a0a0a" opacity="0.7"/>
+    <circle cx="60.6" cy="32.4" r="0.7" fill="white" opacity="0.6"/>
+    <!-- Wing flame tips -->
+    <path class="flame" d="M10,30 C4,22 2,14 4,8 C6,16 8,24 10,30Z" opacity="0.7"/>
+    <path class="flame" d="M110,30 C116,22 118,14 116,8 C114,16 112,24 110,30Z" opacity="0.7"/>
+  </svg>
+
   <div id="wordmark">
     <h1>Quantum Quackery</h1>
     <div class="sub">Divine Arts</div>
