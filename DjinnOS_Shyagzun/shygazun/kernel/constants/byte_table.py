@@ -168,7 +168,7 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 154,10011010,Aster,Yl,Run space
 155,10011011,Aster,Hoz,Unbind space
 156,10011100,Grapevine,Sa,Feast table / root volume
-157,10011101,Grapevine,Soa,Cup / file / persistent object
+157,10011101,Grapevine,Sao,Cup / file / persistent object
 158,10011110,Grapevine,Syr,Wine / volatile buffer
 159,10011111,Grapevine,Seth,Platter / directory / bundle
 160,10100000,Grapevine,Samos,Banquet hall / database cluster
