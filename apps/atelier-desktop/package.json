@@ -9,7 +9,7 @@
     "start": "electron .",
     "build": "vite build",
     "build:web": "vite build",
-    "clean:desktop": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }; if (Test-Path release\\\\desktop) { Remove-Item -Recurse -Force release\\\\desktop }\"",
+    "clean:desktop": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }; if (Test-Path release) { Remove-Item -Recurse -Force release }\"",
     "rebuild:desktop": "npm run clean:desktop && npm run build:web",
     "pack:desktop:dir": "npm run rebuild:desktop && npx electron-builder --dir",
     "pack:desktop:win": "npm run rebuild:desktop && npx electron-builder --win portable nsis",
@@ -47,7 +47,7 @@
     "appId": "com.quantumquackery.atelier.desktop",
     "productName": "Atelier Desktop",
     "directories": {
-      "output": "release/desktop",
+      "output": "release",
       "buildResources": "public"
     },
     "files": [
