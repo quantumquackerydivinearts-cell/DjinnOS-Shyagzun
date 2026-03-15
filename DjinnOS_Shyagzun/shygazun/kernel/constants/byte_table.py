@@ -204,7 +204,7 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 190,10111110,Cannabis,Od,Unspecified mental signal / noise without narrative (Grapevine dark through Mind)
 191,10111111,Cannabis,Ox,Of the quality of unconscious transmission (operator shadow as adjective)
 192,11000000,Cannabis,Om,In the manner of unconscious transmission (operator shadow as adverb)
-193,11000001,Cannabis,Soa*,Conscious persistence / the act of mind making something durable
+193,11000001,Cannabis,Soa,Conscious persistence / the act of mind making something durable
 194,11000010,Cannabis,It,Grounded locality / the spatial fact of material presence (Lotus through Space — where something is in the most concrete sense, its place in the earth)
 195,11000011,Cannabis,Ir,Spectral field / the spatial distribution of energetic frequency (Rose through Space — color and energy as they occupy and define space around them)
 196,11000100,Cannabis,Iv,Relational geometry / the spatial structure of connection (Sakura through Space — the actual distances and orientations between things in relation)
