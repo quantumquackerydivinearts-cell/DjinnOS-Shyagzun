@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "atelier.render_lab.arch_diagram_spec.v1",
+  "title": "Architecture Diagram Spec v1",
+  "description": "Input spec for the Render Lab architecture diagram renderer. Formalises the BUSINESS_ARCHITECTURE_TEMPLATE shape from App.jsx.",
+  "type": "object",
+  "required": ["schema"],
+  "properties": {
+    "schema": { "type": "string", "const": "atelier.render_lab.arch_diagram_spec.v1" },
+    "domains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "lane"],
+        "properties": {
+          "id":          { "type": "string" },
+          "name":        { "type": "string" },
+          "lane":        { "type": "string" },
+          "kind":        { "type": "string", "default": "domain" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "systems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "lane"],
+        "properties": {
+          "id":          { "type": "string" },
+          "name":        { "type": "string" },
+          "lane":        { "type": "string" },
+          "kind":        { "type": "string", "default": "service" },
+          "domain":      { "type": "string" },
+          "description": { "type": "string" },
+          "tags":        { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "lane"],
+        "properties": {
+          "id":          { "type": "string" },
+          "name":        { "type": "string" },
+          "lane":        { "type": "string" },
+          "kind":        { "type": "string", "default": "tool" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "flows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "label"],
+        "properties": {
+          "id":    { "type": "string" },
+          "from":  { "type": "string" },
+          "to":    { "type": "string" },
+          "label": { "type": "string" },
+          "style": {
+            "type": "string",
+            "enum": ["solid", "dashed", "dotted"],
+            "default": "solid",
+            "description": "solid=sync call, dashed=async event, dotted=data flow"
+          }
+        }
+      }
+    },
+    "layout_hints": {
+      "type": "object",
+      "properties": {
+        "lane_order":      { "type": "array", "items": { "type": "string" } },
+        "highlight_ids":   { "type": "array", "items": { "type": "string" } },
+        "group_by_domain": { "type": "boolean", "default": false }
+      }
+    }
+  }
+}

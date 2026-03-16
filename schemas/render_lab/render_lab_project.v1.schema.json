@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "atelier.render_lab.project.v1",
+  "title": "Render Lab Project v1",
+  "description": "A persisted, typed unit of work in the Render Lab. Supports game_voxel, arch_diagram, and hybrid project types.",
+  "type": "object",
+  "required": ["schema", "project_id", "name", "project_type", "workspace_id", "status"],
+  "properties": {
+    "schema": { "type": "string", "const": "atelier.render_lab.project.v1" },
+    "project_id": { "type": "string", "pattern": "^rlp_[0-9a-f]{16}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "project_type": { "type": "string", "enum": ["game_voxel", "arch_diagram", "hybrid"] },
+    "workspace_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "building", "ready", "failed", "archived"]
+    },
+    "pipeline": {
+      "type": "object",
+      "properties": {
+        "source_ids": {
+          "type": "object",
+          "properties": {
+            "python_file_id":  { "type": ["string", "null"] },
+            "cobra_file_id":   { "type": ["string", "null"] },
+            "js_file_id":      { "type": ["string", "null"] },
+            "json_file_id":    { "type": ["string", "null"] },
+            "engine_file_id":  { "type": ["string", "null"] }
+          }
+        },
+        "world_region": {
+          "type": "object",
+          "properties": {
+            "realm_id":     { "type": "string" },
+            "region_key":   { "type": "string" },
+            "cache_policy": { "type": "string", "enum": ["cache", "nocache"] }
+          }
+        },
+        "render_settings": { "type": "object" },
+        "last_run_at":     { "type": ["string", "null"] },
+        "last_run_status": { "type": ["string", "null"], "enum": ["ok", "failed", "pending", null] }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "compiled_pack_path":     { "type": ["string", "null"] },
+        "stream_manifest_path":   { "type": ["string", "null"] },
+        "prefetch_manifest_path": { "type": ["string", "null"] },
+        "toolchain_report_path":  { "type": ["string", "null"] },
+        "layer_projection_path":  { "type": ["string", "null"] }
+      }
+    },
+    "arch_diagram": {
+      "description": "Populated only when project_type is arch_diagram or hybrid.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "spec":            { "type": "object" },
+            "export_svg_path": { "type": ["string", "null"] },
+            "export_png_path": { "type": ["string", "null"] }
+          }
+        }
+      ]
+    },
+    "gate_status": {
+      "type": "object",
+      "properties": {
+        "gate_a": { "type": ["string", "null"], "enum": ["pass", "fail", "pending", null] },
+        "gate_b": { "type": ["string", "null"], "enum": ["pass", "fail", "pending", null] },
+        "gate_c": { "type": ["string", "null"], "enum": ["pass", "fail", "pending", null] },
+        "gate_d": { "type": ["string", "null"], "enum": ["pass", "fail", "pending", null] },
+        "gate_e": { "type": ["string", "null"], "enum": ["pass", "fail", "pending", null] },
+        "gate_f": { "type": ["string", "null"], "enum": ["pass", "fail", "pending", null] }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "properties": {
+        "readiness_green":  { "type": "boolean" },
+        "federation_green": { "type": "boolean" },
+        "last_checked_at":  { "type": ["string", "null"] }
+      }
+    },
+    "lineage_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

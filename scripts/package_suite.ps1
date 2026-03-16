@@ -117,7 +117,7 @@ if (-not $SkipGoNoGo) {
         throw "Go/No-Go metrics not found at $goNoGoMetrics"
     }
 }
-$kernelRepo = Join-Path $repoRoot "DjinnOS-Shyagzun"
+$kernelRepo = Join-Path $repoRoot "DjinnOS_Shyagzun"
 $kernelSourceDir = Join-Path $kernelRepo "shygazun"
 $kernelBundleZip = Join-Path $releaseRoot "kernel-runtime-bundle.zip"
 $wheelhouseZip = Join-Path $releaseRoot "python-wheelhouse.zip"

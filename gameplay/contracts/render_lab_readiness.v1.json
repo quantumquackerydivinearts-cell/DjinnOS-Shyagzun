@@ -1,0 +1,42 @@
+{
+  "id": "render_lab_readiness.v1",
+  "version": "1.0.0",
+  "description": "Readiness and federation health contract for the Render Lab. Used by scripts/check_render_lab_readiness.py and GET /v1/render_lab/projects/{id}/readiness.",
+  "checks": {
+    "api_ready": {
+      "endpoint": "/ready",
+      "required_field": "status",
+      "required_value": "ready",
+      "applies_to": ["game_voxel", "arch_diagram", "hybrid"]
+    },
+    "kernel_health": {
+      "endpoint": "http://127.0.0.1:8000/health",
+      "required_field": "status",
+      "required_value": "ok",
+      "applies_to": ["game_voxel", "arch_diagram", "hybrid"]
+    },
+    "toolchain_go_no_go": {
+      "artifact": "reports/renderer_toolchain/report.{project_id}.json",
+      "schema": "renderer_toolchain_report.v1",
+      "required_field": "go",
+      "required_value": true,
+      "applies_to": ["game_voxel", "hybrid"]
+    },
+    "arch_diagram_parse": {
+      "description": "At least one node present in arch_diagram spec, no parse errors.",
+      "required": "spec.nodes.length > 0",
+      "applies_to": ["arch_diagram", "hybrid"]
+    }
+  },
+  "federation": {
+    "endpoint": "/v1/federation/health",
+    "required_field": "status",
+    "required_value": "ok",
+    "required_error_count": 0,
+    "description": "Federation green is required for release gating but not for routine lab use."
+  },
+  "definition": {
+    "readiness_green": "All applicable checks pass for the project type.",
+    "federation_green": "federation.status == ok AND federation.error_count == 0"
+  }
+}

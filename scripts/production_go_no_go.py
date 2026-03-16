@@ -5,6 +5,8 @@ import gzip
 import json
 import subprocess
 import sys
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import Any
 
@@ -102,9 +104,32 @@ def _gate_metrics() -> dict[str, Any]:
     return out
 
 
+def _http_get_json(url: str, timeout: int = 5) -> tuple[bool, int, dict]:
+    """Return (ok, status_code, body_dict).  ok=True when HTTP 200 and body is valid JSON."""
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            code = resp.status
+            body = json.loads(resp.read().decode("utf-8", errors="replace"))
+            return code == 200, code, body
+    except urllib.error.HTTPError as exc:
+        try:
+            body = json.loads(exc.read().decode("utf-8", errors="replace"))
+        except Exception:
+            body = {}
+        return False, exc.code, body
+    except Exception as exc:
+        return False, 0, {"error": str(exc)}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Production go/no-go harness with hard budgets.")
     parser.add_argument("--skip-build", action="store_true", help="Skip renderer build step.")
+    parser.add_argument("--skip-live-checks", action="store_true",
+                        help="Skip live stack checks (kernel, API readiness, federation).")
+    parser.add_argument("--render-lab-project-id", default=None,
+                        help="Render Lab project ID (rlp_<hex>) for readiness check. Optional.")
+    parser.add_argument("--kernel-url", default="http://127.0.0.1:8000", help="Kernel base URL.")
+    parser.add_argument("--api-url", default="http://127.0.0.1:9000", help="API base URL.")
     parser.add_argument("--output", default=str(OUTPUT_PATH), help="Metrics output path.")
     args = parser.parse_args()
 
@@ -230,6 +255,54 @@ def main() -> int:
     gates = _gate_metrics()
     gate_ok = len(gates["missing"]) == 0 and len(gates["mismatch"]) == 0
     add_check("renderer_acceptance_gates", gate_ok, gates)
+
+    # --- Live stack checks: Kernel, API Readiness, Federation ---
+    # Require --skip-live-checks to bypass.  Stack must be running when cutting a release.
+    if not args.skip_live_checks:
+        kernel_url = args.kernel_url.rstrip("/")
+        api_url = args.api_url.rstrip("/")
+
+        ok, code, body = _http_get_json(f"{kernel_url}/health")
+        add_check("kernel_health", ok, {
+            "url": f"{kernel_url}/health",
+            "http_status": code,
+            "body": body,
+        })
+
+        ok, code, body = _http_get_json(f"{api_url}/ready")
+        readiness_ok = ok and str(body.get("status")) == "ready"
+        add_check("api_readiness", readiness_ok, {
+            "url": f"{api_url}/ready",
+            "http_status": code,
+            "status": body.get("status"),
+            "body": body,
+        })
+
+        ok, code, body = _http_get_json(f"{api_url}/v1/federation/health")
+        federation_ok = ok and str(body.get("status")) == "ok"
+        add_check("federation_health", federation_ok, {
+            "url": f"{api_url}/v1/federation/health",
+            "http_status": code,
+            "status": body.get("status"),
+            "error_count": body.get("error_count"),
+            "active_trust_count": body.get("active_trust_count"),
+            "body": body,
+        })
+
+        if args.render_lab_project_id:
+            rl_project_id = args.render_lab_project_id
+            ok, code, body = _http_get_json(
+                f"{api_url}/v1/render_lab/projects/{rl_project_id}/readiness"
+            )
+            rl_ok = ok and bool(body.get("readiness_green")) and bool(body.get("federation_green"))
+            add_check("render_lab_readiness", rl_ok, {
+                "url": f"{api_url}/v1/render_lab/projects/{rl_project_id}/readiness",
+                "http_status": code,
+                "project_id": rl_project_id,
+                "readiness_green": body.get("readiness_green"),
+                "federation_green": body.get("federation_green"),
+                "checks": body.get("checks", []),
+            })
 
     checks = metrics["checks"]
     metrics["summary"] = {

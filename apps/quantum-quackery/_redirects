@@ -9,6 +9,12 @@
 # Route clean paths to HTML files
 /encyclopedia  /encyclopedia-esoterica.html  200
 /encyclopedia/  /encyclopedia-esoterica.html  200
+/guild  /guild.html  200
+/guild/  /guild.html  200
+/shygazun  /shygazun_literary_companion.html  200
+/shygazun/  /shygazun_literary_companion.html  200
+/synthesis  /shygazun_photonic_synthesis_companion.html  200
+/synthesis/  /shygazun_photonic_synthesis_companion.html  200
 
 # Redirect bare domain to www (or remove if you prefer bare)
 # http://quantumquackery.org/*  https://www.quantumquackery.org/:splat  301

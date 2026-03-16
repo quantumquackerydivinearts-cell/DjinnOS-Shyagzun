@@ -43,7 +43,12 @@ def _stamp_gate(
 
 def main() -> int:
     checklist = _load_json(CHECKLIST_PATH)
-    app_text = APP_PATH.read_text(encoding="utf-8")
+    src_dir = ROOT / "apps" / "atelier-desktop" / "src"
+    app_text = "\n".join(
+        p.read_text(encoding="utf-8", errors="replace")
+        for p in sorted(src_dir.rglob("*.jsx"))
+        if p.is_file()
+    )
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     checks = {

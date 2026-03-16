@@ -1,3 +1,10 @@
+function normalizeRenderMode(raw) {
+  const s = String(raw || "").toLowerCase();
+  if (s === "3d") return "3d";
+  if (s === "2d") return "2d";
+  return "2.5d";
+}
+
 function parseJsonObject(text, fallback) {
   try {
     const parsed = JSON.parse(String(text || ""));
@@ -31,7 +38,7 @@ function chunkKeyForPoint(x, y, sizeX, sizeY) {
 export function sanitizeRendererSettings(settings) {
   const src = settings && typeof settings === "object" ? settings : {};
   return {
-    renderMode: String(src.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
+    renderMode: normalizeRenderMode(src.renderMode),
     tile: Number.isFinite(Number(src.tile)) ? Number(src.tile) : 18,
     zScale: Number.isFinite(Number(src.zScale)) ? Number(src.zScale) : 8,
     renderScale: Number.isFinite(Number(src.renderScale)) ? Number(src.renderScale) : 1,

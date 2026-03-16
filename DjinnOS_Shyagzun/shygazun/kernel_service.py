@@ -19,8 +19,8 @@ from shygazun.lesson_registry import (
     validate_lesson_payloads,
 )
 from shygazun.kernel.kernel import Kernel, RegisterPlugin
-from shygazun.kernel.register.rose_stub import RoseStub
-from shygazun.kernel.register.sakura_stub import SakuraStub
+from shygazun.kernel.registers import ALL_REGISTERS
+from shygazun.kernel.attestation import Attestation as StructuredAttestation, intent_hash_for_candidate
 from shygazun.kernel.policy import apply_frontier_policy, frontier_for_akinenwun
 from shygazun.kernel.policy.akinenwun_dictionary import AkinenwunDictionary
 from shygazun.kernel.policy.recombiner import frontier_hash, frontier_to_obj
@@ -89,6 +89,13 @@ class BilingualProjectRequest(BaseModel):
 
 class LessonValidateRequest(BaseModel):
     lessons: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class ProcessAttestRequest(BaseModel):
+    frontier_id: str
+    candidate_id: str
+    agent_id: str = "alexi"
+    intent_hash: str
 
 
 class WandDamageMediaEvidence(BaseModel):
@@ -890,7 +897,7 @@ def _validate_shop_submission(
 app = FastAPI()
 
 _field = InMemoryField(field_id="F0", clock=Clock(tick=0, causal_epoch="0"))
-_registers: List[RegisterPlugin] = cast(List[RegisterPlugin], [RoseStub(), SakuraStub()])
+_registers: List[RegisterPlugin] = cast(List[RegisterPlugin], list(ALL_REGISTERS))
 _kernel = Kernel(field=_field, registers=_registers)
 _state = RuntimeState()
 _akinenwun_dictionary = AkinenwunDictionary()
@@ -1337,6 +1344,63 @@ def v1_wand_damage_validate(req: WandDamageAttestationValidateRequest) -> Respon
             "payload": dict(req.payload),
         }
     )
+
+
+@app.get("/v0.1/field/{field_id}/lotus-pending")
+def v1_lotus_pending(field_id: str) -> Response:
+    _assert_field_id_or_default(field_id)
+    observed = _kernel.observe()
+
+    # Collect all lotus-gated candidates across frontiers
+    pending = []
+    for frontier_id, candidates in observed.candidates_by_frontier.items():
+        for c in candidates:
+            lr = c.preconditions.lotus_requirement if hasattr(c.preconditions, "lotus_requirement") else None
+            if lr is None:
+                continue
+            prov = list(c.provenance) if c.provenance else []
+            tongue = prov[0].get("source") if prov else None
+            pending.append({
+                "candidate_id": c.id,
+                "frontier_id": frontier_id,
+                "attestation_tag": lr.get("attestation_tag") if isinstance(lr, dict) else getattr(lr, "attestation_tag", None),
+                "tongue": tongue,
+                "provenance": prov,
+                "intent_hash": intent_hash_for_candidate(c),
+            })
+
+    return _json_response({
+        "field_id": _field.field_id,
+        "clock": {"tick": _field.clock.tick, "causal_epoch": _field.clock.causal_epoch},
+        "lotus_pending": pending,
+        "count": len(pending),
+    })
+
+
+@app.post("/v0.1/attest/process")
+def v1_attest_process(req: ProcessAttestRequest) -> Response:
+    attestation = StructuredAttestation(
+        field_id=_field.field_id,
+        clock=_field.clock.tick,
+        frontier_id=req.frontier_id,
+        candidate_id=req.candidate_id,
+        agent_id=req.agent_id,
+        intent_hash=req.intent_hash,
+    )
+    result = _kernel.process_attestation(attestation)
+
+    if isinstance(result, dict) and result.get("kind") == "attestation":
+        _state.lotus_attestation_count += 1
+        return _json_response({"accepted": True, "event": result})
+
+    # Refusal (dataclass or dict)
+    refusal_obj = result if isinstance(result, dict) else {
+        "reason": getattr(result, "reason", "refusal"),
+        "frontier_id": getattr(result, "frontier_id", req.frontier_id),
+        "agent_id": getattr(result, "agent_id", req.agent_id),
+        "clock": getattr(result, "clock", _field.clock.tick),
+    }
+    return _json_response({"accepted": False, "refusal": refusal_obj})
 
 
 if __name__ == "__main__":

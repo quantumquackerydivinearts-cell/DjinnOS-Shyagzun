@@ -9,9 +9,6 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
-  # Allow the landing page to call the Render-hosted API
-  Access-Control-Allow-Origin: https://atelier-api.quantumquackery.com
-
   # Cache static assets aggressively, HTML never
   Cache-Control: public, max-age=0, must-revalidate
 

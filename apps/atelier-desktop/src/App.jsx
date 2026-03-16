@@ -5,6 +5,8 @@ import { applyRenderPack, createRenderPack, validateRenderPack } from "./rendere
 import { GuildHallPanel } from "./panels/GuildHallPanel";
 import { MessagesPanel } from "./panels/MessagesPanel";
 import { CalculatorPanel } from "./panels/CalculatorPanel";
+import { RenderLabPanel } from "./panels/RenderLabPanel";
+import { LotusPanel } from "./panels/LotusPanel";
 
 function resolveRuntimeApiBase() {
   try {
@@ -67,7 +69,8 @@ const NAV_ITEMS = [
   "Business Logic",
   "Renderer Lab",
   "Privacy",
-  "Calculator"
+  "Calculator",
+  "Lotus"
 ];
 
 function capabilitiesForRole(role) {
@@ -4377,6 +4380,13 @@ function applyVoxelMaterials(voxels, materialsMap, layersMap, atlasMap) {
   });
 }
 
+function normalizeRenderMode(raw) {
+  const s = String(raw || "").toLowerCase();
+  if (s === "3d") return "3d";
+  if (s === "2d") return "2d";
+  return "2.5d";
+}
+
 function drawVoxelScene3D(canvas, voxels, settings = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -4934,12 +4944,123 @@ function drawVoxelSceneCardinal(canvas, ctx, voxels, settings, shared) {
   });
 }
 
+function drawVoxelScene2D(canvas, ctx, voxels, settings, shared) {
+  // Plain top-down 2D: x→canvas-x, y→canvas-y, z→draw order only.
+  const {
+    tile,
+    outline,
+    outlineColor,
+    edgeGlow,
+    edgeGlowColor,
+    edgeGlowStrength,
+    visualStyle,
+    labelMode,
+    labelColor,
+    lightingEnabled,
+    ambient,
+    intensity,
+    nz,
+    width,
+    height,
+    cameraPanX,
+    cameraPanY,
+  } = shared;
+
+  // Sort: z ASC (ground first), then y ASC within same z (painter's algorithm)
+  const sorted = voxels.slice().sort((a, b) => {
+    const az = Number(a.z || 0), bz = Number(b.z || 0);
+    if (az !== bz) return az - bz;
+    return Number(a.y || 0) - Number(b.y || 0);
+  });
+
+  if (sorted.length === 0) return;
+
+  const xs = sorted.map((v) => Number(v.x || 0));
+  const ys = sorted.map((v) => Number(v.y || 0));
+  const minCX = Math.min(...xs) * tile;
+  const maxCX = (Math.max(...xs) + 1) * tile;
+  const minCY = Math.min(...ys) * tile;
+  const maxCY = (Math.max(...ys) + 1) * tile;
+  const offsetX = (width  - (maxCX - minCX)) * 0.5 - minCX + cameraPanX;
+  const offsetY = (height - (maxCY - minCY)) * 0.5 - minCY + cameraPanY;
+
+  const redraw = () => drawVoxelScene(canvas, voxels, settings);
+
+  sorted.forEach((item) => {
+    const sx = Number(item.x || 0) * tile + offsetX;
+    const sy = Number(item.y || 0) * tile + offsetY;
+
+    const baseColor = item.color;
+    // In 2D top-down, only the top face is visible — light it with nz (up component)
+    const topRaw = lightingEnabled
+      ? shadeColor(baseColor, ambient + Math.max(0, nz) * intensity)
+      : baseColor;
+    const faceColor = stylizeVoxelColor(topRaw, visualStyle);
+
+    const topTexture = item.textureTop || item.texture || null;
+    const topFrame   = item.frameTop   || item.frame   || null;
+
+    const edgeGlowLocal = resolveVoxelEdgeGlowConfig(item, {
+      enabled: edgeGlow, color: edgeGlowColor, strength: edgeGlowStrength,
+    });
+
+    if (edgeGlowLocal.enabled && edgeGlowLocal.strength > 0) {
+      ctx.save();
+      ctx.shadowColor = edgeGlowLocal.color;
+      ctx.shadowBlur  = edgeGlowLocal.strength;
+    }
+
+    if (topTexture) {
+      const img = getTextureImage(topTexture, redraw);
+      if (img && img.complete && img.naturalWidth > 0) {
+        if (topFrame && Number.isFinite(Number(topFrame.w))) {
+          ctx.drawImage(
+            img,
+            Number(topFrame.x || 0), Number(topFrame.y || 0),
+            Number(topFrame.w), Number(topFrame.h || topFrame.w),
+            sx, sy, tile, tile
+          );
+        } else {
+          ctx.drawImage(img, sx, sy, tile, tile);
+        }
+      } else {
+        ctx.fillStyle = faceColor;
+        ctx.fillRect(sx, sy, tile, tile);
+      }
+    } else {
+      ctx.fillStyle = faceColor;
+      ctx.fillRect(sx, sy, tile, tile);
+    }
+
+    if (edgeGlowLocal.enabled && edgeGlowLocal.strength > 0) {
+      ctx.restore();
+    }
+
+    if (outline) {
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(sx, sy, tile, tile);
+    }
+
+    if (labelMode !== "none") {
+      let labelText = "";
+      if      (labelMode === "type")  labelText = String(item.type  || "");
+      else if (labelMode === "z")     labelText = String(item.z     || 0);
+      else if (labelMode === "layer") labelText = String(item.layer || "");
+      if (labelText) {
+        ctx.fillStyle = labelColor;
+        ctx.font = "10px monospace";
+        ctx.fillText(labelText, sx + 2, sy + 11);
+      }
+    }
+  });
+}
+
 function drawVoxelScene(canvas, voxels, settings = {}) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const renderModeRaw = typeof settings.renderMode === "string" ? settings.renderMode : "2.5d";
-  const renderMode = renderModeRaw.toLowerCase() === "3d" ? "3d" : "2.5d";
+  const renderMode = normalizeRenderMode(settings.renderMode);
   if (renderMode === "3d") {
     drawVoxelScene3D(canvas, voxels, settings);
     return;
@@ -5030,29 +5151,19 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
   if (!voxels || voxels.length == 0) {
     return;
   }
+  const shared2d = {
+    tile, zScale, outline, outlineColor,
+    edgeGlow, edgeGlowColor, edgeGlowStrength,
+    visualStyle, labelMode, labelColor,
+    lightingEnabled, ambient, intensity,
+    nx, ny, nz, width, height, cameraPanX, cameraPanY,
+  };
+  if (renderMode === "2d") {
+    drawVoxelScene2D(canvas, ctx, voxels, settings, shared2d);
+    return;
+  }
   if (projection === "cardinal") {
-    drawVoxelSceneCardinal(canvas, ctx, voxels, settings, {
-      tile,
-      zScale,
-      outline,
-      outlineColor,
-      edgeGlow,
-      edgeGlowColor,
-      edgeGlowStrength,
-      visualStyle,
-      labelMode,
-      labelColor,
-      lightingEnabled,
-      ambient,
-      intensity,
-      nx,
-      ny,
-      nz,
-      width,
-      height,
-      cameraPanX,
-      cameraPanY,
-    });
+    drawVoxelSceneCardinal(canvas, ctx, voxels, settings, shared2d);
     return;
   }
   const sorted = voxels.slice().sort((a, b) => (a.x + a.y + a.z) - (b.x + b.y + b.z));
@@ -5530,7 +5641,7 @@ function readRendererLocalState() {
   try {
     const parsed = JSON.parse(localStorage.getItem("atelier.renderer.voxel_settings") || "{}");
     settings = {
-      renderMode: String(parsed.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
+      renderMode: normalizeRenderMode(parsed.renderMode),
       projection: String(parsed.projection || "isometric").toLowerCase() === "cardinal" ? "cardinal" : "isometric",
       camera3d: normalizeCamera3d(parsed.camera3d),
       camera2d: normalizeCamera2d(parsed.camera2d),
@@ -5773,7 +5884,7 @@ export function App() {
       try {
         const parsed = JSON.parse(saved);
         return {
-          renderMode: String(parsed.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
+          renderMode: normalizeRenderMode(parsed.renderMode),
           projection: String(parsed.projection || "isometric").toLowerCase() === "cardinal" ? "cardinal" : "isometric",
           camera3d: normalizeCamera3d(parsed.camera3d),
           camera2d: normalizeCamera2d(parsed.camera2d),
@@ -10723,7 +10834,7 @@ function extractPythonSavedPath(outputText) {
     if (!rendererFollowPlayer) {
       return base;
     }
-    const renderMode = String(base.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d";
+    const renderMode = normalizeRenderMode(base.renderMode);
     if (renderMode === "3d") {
       const pan3d = computePlayerFollowPan3d(
         rendererMotionVoxels,
@@ -10799,7 +10910,7 @@ function extractPythonSavedPath(outputText) {
     if (!fullscreenState.followPlayer) {
       return withRose;
     }
-    const renderMode = String(withRose.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d";
+    const renderMode = normalizeRenderMode(withRose.renderMode);
     if (renderMode === "3d") {
       const pan3d = computePlayerFollowPan3d(
         fullscreenMotionVoxels,
@@ -12569,7 +12680,7 @@ function extractPythonSavedPath(outputText) {
         workspace_id: workspaceId,
         realm_id: rendererRealmId,
         scene_id: `${rendererRealmId}/renderer-lab`,
-        render_mode: String(voxelSettings.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d",
+        render_mode: normalizeRenderMode(voxelSettings.renderMode),
         include_unloaded_regions: true,
         include_material_constraints: true,
       });
@@ -14005,7 +14116,7 @@ function extractPythonSavedPath(outputText) {
     }
   };
   const compileSceneGraphPreview = async () => {
-    const renderMode = String(voxelSettings.renderMode || "2.5d").toLowerCase() === "3d" ? "3d" : "2.5d";
+    const renderMode = normalizeRenderMode(voxelSettings.renderMode);
     const camera = normalizeCamera3d(voxelSettings.camera3d);
     const payload = {
       workspace_id: workspaceId,
@@ -15098,6 +15209,17 @@ function extractPythonSavedPath(outputText) {
       return (
         <>
           <section className="panel">
+            <RenderLabPanel
+              onRunGateA={runRendererGateASmoke}
+              onRunGateD={runRendererGateDSmoke}
+              onBootstrap={runGuidedLabBootstrap}
+              labCoherence={labCoherence}
+              setLabCoherence={setLabCoherence}
+              moduleRunOutput={moduleRunOutput}
+              rendererRealmId={rendererRealmId}
+            />
+          </section>
+          <section className="panel">
             <h2>Runtime Launcher (No CLI)</h2>
             <p>Canonical flow: health check {"->"} main plan {"->"} scene graph. No terminal commands required.</p>
             <div className="row">
@@ -15319,11 +15441,12 @@ function extractPythonSavedPath(outputText) {
                   onChange={(e) =>
                     setVoxelSettings((prev) => ({
                       ...prev,
-                      renderMode: e.target.value === "3d" ? "3d" : "2.5d",
+                      renderMode: normalizeRenderMode(e.target.value),
                     }))
                   }
                 >
                   <option value="2.5d">Render 2.5D</option>
+                  <option value="2d">Render 2D</option>
                   <option value="3d">Render 3D</option>
                 </select>
                 <select
@@ -17755,6 +17878,9 @@ function extractPythonSavedPath(outputText) {
     }
     if (section === "Calculator") {
       return <CalculatorPanel />;
+    }
+    if (section === "Lotus") {
+      return <LotusPanel />;
     }
     return <section className="panel"><h2>Tooling</h2><p>Select a section.</p></section>;
   }

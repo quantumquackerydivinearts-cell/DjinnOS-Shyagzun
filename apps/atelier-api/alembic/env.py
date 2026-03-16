@@ -7,7 +7,7 @@ from alembic.ddl.impl import DefaultImpl
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, String, Table
 
-from atelier_api.config import load_settings
+from atelier_api.core.config import load_settings
 from atelier_api.db import Base
 from atelier_api import models  # noqa: F401
 

@@ -1,9 +1,8 @@
 # shygazun/api/state.py
 from __future__ import annotations
 
-from typing import Dict
-
 from shygazun.kernel.kernel import Kernel
+from shygazun.kernel.registers import ALL_REGISTERS
 from shygazun.kernel.types.field import Field
 from shygazun.kernel.types.clock import Clock
 from shygazun.kernel.types.frontier import Frontier
@@ -39,7 +38,7 @@ class KernelRegistry:
                     inconsistency_proof=None,
                 )
             ],
-            registers=[],
+            registers=list(ALL_REGISTERS),
         )
 
         self._kernels[field_id] = kernel

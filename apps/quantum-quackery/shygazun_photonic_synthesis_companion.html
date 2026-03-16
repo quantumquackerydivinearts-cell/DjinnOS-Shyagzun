@@ -301,7 +301,7 @@ async function interpretEmotion(){
   box.innerHTML='<span class="loading">Reading the compound...</span>';
   const sys=`You are a Shygazun emotion interpreter. Shygazun's emotion compounds are formed from Rose spectral vectors (Ru=red/pain, Ot=orange/anger, El=yellow/fear, Ki=green/joy, Fu=blue/longing-mania, Ka=indigo/wisdom-temperance, AE=violet/love) combined with Ha (absolute positive), Ga (absolute negative), Na (neutral/integration), and Ly (feeling toward/Water Initiator). Compounds are read as spectral frequencies in superposition creating a single complex emotional state. The spectrum is a phenomenological map: pain is densest/lowest, love is most refined/highest. The manifold is Möbius — pain and love are the same point approached from opposite directions. Return only a brief precise phenomenological description of the compound emotional state, 2-4 sentences, no preamble.`;
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:`Interpret this Shygazun emotion compound: ${compound}\nParts: ${parts}`}]})});
+    const r=await fetch('/api/shygazun/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:`Interpret this Shygazun emotion compound: ${compound}\nParts: ${parts}`}]})});
     const d=await r.json();
     const t=d.content?.map(b=>b.text||'').join('').trim();
     box.innerHTML=`<div style="font-weight:500;margin-bottom:6px">${compound}</div>${t||'No interpretation returned.'}`;
@@ -321,7 +321,7 @@ async function generateCompose(){
   const modeDesc={prompt:'literary composition',ritual:'ritual script for enactment — the body as instrument, physical exhaustion as meaning',grimoire:'grimoire entry — simultaneously literature, ritual score, and technical specification',pedagogy:'pedagogical synthesis prompt exploring the isomorphism between Shygazun and photonic computation'};
   const depthDesc={surface:'surface depth, 1-4 part compounds, single tongue, single image',mid:'mid depth, 5-10 part compounds, two tongues in dialogue',deep:'deep, 11-19 part compounds, full manifold traversal with chiral acknowledgment',ritual:'approaching ritual threshold of 20 parts — the Möbius twist where speaker and language become continuous surface'};
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:`Generate a ${modeDesc[mode]} prompt for Shygazun. Tongue focus: ${tongue==='any'?'open across all tongues':tongue}. Register: ${register==='any'?'open':register}. Depth: ${depthDesc[depth]}. The prompt should invite genuine native composition — an encounter worth writing toward, not an assignment.`}]})});
+    const r=await fetch('/api/shygazun/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:`Generate a ${modeDesc[mode]} prompt for Shygazun. Tongue focus: ${tongue==='any'?'open across all tongues':tongue}. Register: ${register==='any'?'open':register}. Depth: ${depthDesc[depth]}. The prompt should invite genuine native composition — an encounter worth writing toward, not an assignment.`}]})});
     const d=await r.json();
     const t=d.content?.map(b=>b.text||'').join('').trim();
     box.textContent=t||'No prompt returned.';
@@ -344,7 +344,7 @@ async function generateSynthPrompt(){
   };
   const sys=`You are a pedagogy designer for the synthesis of Shygazun language and photonic computation. Generate a single precise pedagogical prompt — an invitation to think, write, or build — that holds both the linguistic and physical registers simultaneously without reducing either to the other. Return ONLY the prompt, no preamble.`;
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:`Generate a pedagogical synthesis prompt focused on: ${focusMap[focus]}`}]})});
+    const r=await fetch('/api/shygazun/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:`Generate a pedagogical synthesis prompt focused on: ${focusMap[focus]}`}]})});
     const d=await r.json();
     const t=d.content?.map(b=>b.text||'').join('').trim();
     box.textContent=t||'No prompt returned.';

@@ -22,7 +22,8 @@ import structlog
 
 
 from .core.config import Settings, get_settings
-from .routers import game
+from .routers import game, render_lab
+from .shygazun_router import router as shygazun_router
 
 
 from .business_schemas import (
@@ -1054,6 +1055,8 @@ app.add_middleware(
 )
 register_shop_routes(app)
 register_guild_routes(app)
+app.include_router(render_lab.router)
+app.include_router(shygazun_router, prefix="/shygazun", tags=["shygazun"])
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)

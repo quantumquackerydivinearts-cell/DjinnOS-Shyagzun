@@ -469,3 +469,37 @@ def get_byte_table(tongue: Optional[str] = None):
         rows = BYTE_ROWS
     tongues = sorted(set(r["tongue"] for r in BYTE_ROWS))
     return {"rows": rows, "count": len(rows), "tongues": tongues}
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    model: str = "claude-sonnet-4-20250514"
+    max_tokens: int = 1000
+    system: Optional[str] = None
+    messages: List[ChatMessage]
+
+
+@router.post("/chat")
+def chat(req: ChatRequest):
+    """Generic Anthropic messages proxy — injects API key server-side.
+    Accepts the same shape as the Anthropic messages API so companion pages
+    can call /api/shygazun/chat instead of api.anthropic.com directly.
+    """
+    client = get_client()
+    kwargs: dict = {
+        "model": req.model,
+        "max_tokens": req.max_tokens,
+        "messages": [{"role": m.role, "content": m.content} for m in req.messages],
+    }
+    if req.system:
+        kwargs["system"] = req.system
+    msg = client.messages.create(**kwargs)
+    return {
+        "content": [{"type": "text", "text": block.text} for block in msg.content if hasattr(block, "text")],
+        "model": msg.model,
+        "stop_reason": msg.stop_reason,
+    }

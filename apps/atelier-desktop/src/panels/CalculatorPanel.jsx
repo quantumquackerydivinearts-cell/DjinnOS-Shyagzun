@@ -18,7 +18,7 @@
  *   The Python module is the spec; this is the view layer.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 // ---------------------------------------------------------------------------
 // Byte table (embedded — matches shygazun_byte_table.py exactly)
@@ -150,94 +150,94 @@ const BYTE_TABLE = [
   [119,"AppleBlossom","Myza","Erosion (Water,Earth)"],
   [120,"AppleBlossom","Zashu","Radiation / Radioactive stones (Earth,Fire)"],
   [121,"AppleBlossom","Fozt","Dust (Earth,Air)"],
-  [122,"AppleBlossom","Zosh","Sediment / Stone in Liquid (Earth,Water)"],
-  [123,"AppleBlossom","Kael","Quintessence / Chaos / Life"],
+  [122,"AppleBlossom","Mazi","Sediment (Earth,Water)"],
+  [123,"AppleBlossom","Zaot","Salt (Earth,Earth)"],
   // 124–127 reserved — intentionally absent
-  [128,"Aster","Ry","Chiral Lowest Red (Left)"],
-  [129,"Aster","Ra","Chiral Lowest Red (Right)"],
-  [130,"Aster","Oty","Chiral Orange (Left)"],
-  [131,"Aster","Ota","Chiral Orange (Right)"],
-  [132,"Aster","Ely","Chiral Yellow (Left)"],
-  [133,"Aster","Ela","Chiral Yellow (Right)"],
-  [134,"Aster","Kiy","Chiral Green (Left)"],
-  [135,"Aster","Kia","Chiral Green (Right)"],
-  [136,"Aster","Fuy","Chiral Blue (Left)"],
-  [137,"Aster","Fua","Chiral Blue (Right)"],
-  [138,"Aster","Kay","Chiral Indigo (Left)"],
-  [139,"Aster","Kaa","Chiral Indigo (Right)"],
-  [140,"Aster","AEy","Chiral Highest Violet (Left)"],
-  [141,"Aster","AEa","Chiral Highest Violet (Right)"],
+  [128,"Aster","Ry","Right-chiral red"],
+  [129,"Aster","Oth","Right-chiral orange"],
+  [130,"Aster","Le","Right-chiral yellow"],
+  [131,"Aster","Gi","Right-chiral green"],
+  [132,"Aster","Fe","Right-chiral blue"],
+  [133,"Aster","Ky","Right-chiral indigo"],
+  [134,"Aster","Alz","Right-chiral violet"],
+  [135,"Aster","Ra","Left-chiral red"],
+  [136,"Aster","Tho","Left-chiral orange"],
+  [137,"Aster","Lu","Left-chiral yellow"],
+  [138,"Aster","Ge","Left-chiral green"],
+  [139,"Aster","Fo","Left-chiral blue"],
+  [140,"Aster","Kw","Left-chiral indigo"],
+  [141,"Aster","Dr","Left-chiral violet"],
   [142,"Aster","Si","Linear time"],
   [143,"Aster","Su","Loop time"],
   [144,"Aster","Os","Exponential time"],
   [145,"Aster","Se","Logarithmic time"],
   [146,"Aster","Sy","Fold time"],
   [147,"Aster","As","Frozen time"],
-  [148,"Aster","Mavo","Banner / Flag / Metadata"],
-  [149,"Aster","Dyf","Jitter / Nondeterminism"],
-  [150,"Aster","Vyl","Run-space op: assign"],
-  [151,"Aster","Mek","Call / Emit event"],
-  [152,"Aster","Soa","Cup / File / Persistent Object"],
-  [153,"Aster","Ylo","Run-space op: loop"],
-  [154,"Aster","Yl","Run-space"],
-  [155,"Aster","Goel","Run-space op: unbind"],
-  [156,"Grapevine","Sa","Feast table / Root volume"],
-  [157,"Grapevine","Sao","Cup / File / Persistent object"],
-  [158,"Grapevine","Syr","Wine / Volatile buffer"],
-  [159,"Grapevine","Seth","Platter / Directory / Bundle"],
-  [160,"Grapevine","Samos","Banquet hall / Database cluster"],
-  [161,"Grapevine","Myk","Messenger / Packet"],
-  [162,"Grapevine","Myka","Herald / Packet with address"],
-  [163,"Grapevine","Myke","Courier / Signed packet"],
-  [164,"Grapevine","Mykao","Ambassador / Credentialed packet"],
-  [165,"Grapevine","Kyl","Wineskin / Encrypted container"],
-  [166,"Grapevine","Kyls","Sealed wineskin / Encrypted at rest"],
-  [167,"Grapevine","Kylm","Locked wineskin / Encrypted in transit"],
-  [168,"Grapevine","Mekha","Herald / Gateway"],
-  [169,"Grapevine","Myrun","Sacred march / Stream"],
-  [170,"Grapevine","Nosh","Feast / Broadcast"],
-  [171,"Grapevine","Noshka","Grand feast / Multicast"],
-  [172,"Grapevine","Tav","Table setting / Schema"],
-  [173,"Grapevine","Tavro","Schema with relations"],
-  [174,"Grapevine","Syn","Vintage / Version"],
-  [175,"Grapevine","Synth","Archive vintage / Immutable version"],
-  [176,"Grapevine","Koph","Goblet / View"],
-  [177,"Grapevine","Kophi","Crystal goblet / Materialized view"],
-  [178,"Grapevine","Loch","Cellar / Cold storage"],
-  [179,"Grapevine","Lochm","Deep cellar / Archival storage"],
-  [180,"Grapevine","Rosh","Toast / Acknowledgment"],
+  [148,"Aster","Ep","Assign space"],
+  [149,"Aster","Gwev","Save space"],
+  [150,"Aster","Ifa","Parse space"],
+  [151,"Aster","Ier","Loop space"],
+  [152,"Aster","San","Push space"],
+  [153,"Aster","Enno","Delete space"],
+  [154,"Aster","Yl","Run space"],
+  [155,"Aster","Hoz","Unbind space"],
+  [156,"Grapevine","Sa","Feast table / root volume"],
+  [157,"Grapevine","Sao","Cup / file / persistent object"],
+  [158,"Grapevine","Syr","Wine / volatile buffer"],
+  [159,"Grapevine","Seth","Platter / directory / bundle"],
+  [160,"Grapevine","Samos","Banquet hall / database cluster"],
+  [161,"Grapevine","Sava","Amphora / snapshot archive"],
+  [162,"Grapevine","Sael","Leftovers / cache"],
+  [163,"Grapevine","Myk","Messenger / packet"],
+  [164,"Grapevine","Myr","Procession path / route"],
+  [165,"Grapevine","Mio","Stride / hop"],
+  [166,"Grapevine","Mek","Call / emit event"],
+  [167,"Grapevine","Mavo","Banner / metadata"],
+  [168,"Grapevine","Mekha","Herald / gateway"],
+  [169,"Grapevine","Myrun","Sacred march / stream"],
+  [170,"Grapevine","Dyf","Jitter / nondeterminism"],
+  [171,"Grapevine","Dyo","Burst / load spike"],
+  [172,"Grapevine","Dyth","Packet loss / corruption"],
+  [173,"Grapevine","Dyska","Concurrency / thread dance"],
+  [174,"Grapevine","Dyne","Broadcast / flood"],
+  [175,"Grapevine","Dyran","Overflow / memory full"],
+  [176,"Grapevine","Dyso","Overload threshold"],
+  [177,"Grapevine","Kyf","Cluster node"],
+  [178,"Grapevine","Kyl","Steward / coordinator"],
+  [179,"Grapevine","Kyra","Control token / semaphore"],
+  [180,"Grapevine","Kyvos","Ring topology"],
   [181,"Grapevine","Kysha","Consensus choir"],
-  [182,"Grapevine","Kyshe","Partial quorum"],
+  [182,"Grapevine","Kyom","Replica / masked follower"],
   [183,"Grapevine","Kysael","Authoritative commit"],
-  [184,"Cannabis","Tyk","Conscious material action / awareness of Earth"],
-  [185,"Cannabis","Zuk","Conscious material closure / awareness of ending"],
-  [186,"Cannabis","Lyk","Conscious feeling / awareness of water"],
-  [187,"Cannabis","Muk","Conscious memory / awareness of past feeling"],
-  [188,"Cannabis","Fyk","Conscious thought / awareness of air"],
-  [189,"Cannabis","Puk","Conscious stasis / awareness of stuck thought"],
-  [190,"Cannabis","Shyk","Conscious pattern / awareness of fire"],
-  [191,"Cannabis","Kuk","Conscious ending / awareness of death-pattern"],
-  [192,"Cannabis","Tik","Conscious presence / awareness of here"],
-  [193,"Cannabis","Tak","Conscious being / awareness of active presence"],
-  [194,"Cannabis","Lik","Conscious newness / awareness of odd"],
-  [195,"Cannabis","Lak","Conscious tension / awareness of excitement"],
-  [196,"Cannabis","Fik","Conscious knowing / context-aware awareness"],
-  [197,"Cannabis","Fak","Conscious complexity / awareness of age"],
-  [198,"Cannabis","Shik","Conscious relation / awareness of clarity"],
-  [199,"Cannabis","Shak","Conscious intellect / awareness of spirit-mind"],
-  [200,"Cannabis","Zok","Conscious absence / awareness of non-being"],
-  [201,"Cannabis","Mok","Conscious relaxation / awareness of silence"],
-  [202,"Cannabis","Pok","Conscious simplicity / awareness of newness"],
-  [203,"Cannabis","Kok","Conscious experience / awareness of intuition"],
-  [204,"Cannabis","Zek","Conscious distance / awareness of there"],
-  [205,"Cannabis","Mek","Conscious familiarity / awareness of home"],
-  [206,"Cannabis","Pek","Conscious unknown / awareness of insensitivity"],
-  [207,"Cannabis","Kek","Conscious incoherence / awareness of ill"],
-  [208,"Cannabis","Tys","Spatial material action / distribution of Earth"],
-  [209,"Cannabis","Zus","Spatial material closure / distribution of ending"],
-  [210,"Cannabis","Lys","Spatial feeling / distribution of water"],
-  [211,"Cannabis","Mus","Spatial memory / distribution of past feeling"],
-  [212,"Cannabis","Fys","Spatial thought / distribution of air"],
+  [184,"Cannabis","At","Grounded awareness / consciousness of material presence (Lotus seen through Mind)"],
+  [185,"Cannabis","Ar","Chromatic perception / awareness of energetic quality (Rose through Mind)"],
+  [186,"Cannabis","Av","Relational consciousness / awareness of connection and structure (Sakura through Mind)"],
+  [187,"Cannabis","Azr","Structural intuition / felt sense of how things are assembled (Daisy through Mind)"],
+  [188,"Cannabis","Af","Transformative awareness / consciousness of change in process (AppleBlossom through Mind)"],
+  [189,"Cannabis","An","Chiral discernment / awareness of handedness and temporal direction (Aster through Mind)"],
+  [190,"Cannabis","Od","Unspecified mental signal / noise without narrative (Grapevine dark through Mind)"],
+  [191,"Cannabis","Ox","Of the quality of unconscious transmission (operator shadow as adjective)"],
+  [192,"Cannabis","Om","In the manner of unconscious transmission (operator shadow as adverb)"],
+  [193,"Cannabis","Soa","Conscious persistence / the act of mind making something durable"],
+  [194,"Cannabis","It","Grounded locality / the spatial fact of material presence (Lotus through Space)"],
+  [195,"Cannabis","Ir","Spectral field / the spatial distribution of energetic frequency (Rose through Space)"],
+  [196,"Cannabis","Iv","Relational geometry / the spatial structure of connection (Sakura through Space)"],
+  [197,"Cannabis","Izr","Structural volume / the space a form occupies and articulates (Daisy through Space)"],
+  [198,"Cannabis","If","Transitional space / the spatial site of transformation (AppleBlossom through Space)"],
+  [199,"Cannabis","In","Chiral orientation / handedness as spatial phenomenon (Aster through Space)"],
+  [200,"Cannabis","Ed","Unspecified spatial signal / network without location (Grapevine dark through Space)"],
+  [201,"Cannabis","Ex","Of the quality of unlocated transmission (operator shadow as adjective)"],
+  [202,"Cannabis","Em","In the manner of unlocated transmission (operator shadow as adverb)"],
+  [203,"Cannabis","Sei","Conscious spatial action / the act of mind deliberately occupying or shaping space"],
+  [204,"Cannabis","Yt","Grounded duration / the temporal weight of material existence (Lotus through Time)"],
+  [205,"Cannabis","Yr","Spectral timing / the frequency and rhythm of energetic cycles (Rose through Time)"],
+  [206,"Cannabis","Yv","Relational temporality / the timing of meeting and parting (Sakura through Time)"],
+  [207,"Cannabis","Yzr","Structural time / the temporal unfolding of form and assembly (Daisy through Time)"],
+  [208,"Cannabis","Yf","Transformative time / the duration of phase change (AppleBlossom through Time)"],
+  [209,"Cannabis","Yn","Chiral time / the direction and handedness of temporal flow (Aster through Time)"],
+  [210,"Cannabis","Ud","Unspecified temporal signal / propagation without sequence (Grapevine dark through Time)"],
+  [211,"Cannabis","Ux","Of the quality of unsequenced transmission (operator shadow as adjective)"],
+  [212,"Cannabis","Um","In the manner of unsequenced transmission (operator shadow as adverb)"],
   [213,"Cannabis","Suy","Conscious temporal action / the act of mind deliberately moving through or shaping time"],
 ];
 
@@ -287,6 +287,35 @@ const SPECTRAL_ROWS = TONGUE_MAP["Rose"].filter(
 // Gaoh fold is a named operation using Gaoh's symbol
 const OPERATIONS = ["Ha", "Ga", "Wu", "Na", "Ung", "Gaoh"];
 const OP_DISPLAY = { Ha: "+", Ga: "−", Wu: "×", Na: "÷", Ung: "⟲", Gaoh: "◉" };
+
+// Aster chiral vectors (128–141): not dimensional operators — chiral qualifiers only.
+// Aster time (142–147) and space (148–155) operators: full dim operators.
+const ASTER_CHIRAL_DECIMALS = new Set([128,129,130,131,132,133,134,135,136,137,138,139,140,141]);
+const ASTER_TIME_DECIMALS   = new Set([142,143,144,145,146,147]);
+const ASTER_SPACE_DECIMALS  = new Set([148,149,150,151,152,153,154,155]);
+
+// Cannabis axis structure: 3 axes × 10 entries each, starting at decimal 184.
+// Position within axis: 0=Lotus, 1=Rose, 2=Sakura, 3=Daisy, 4=AppleBlossom,
+//                       5=Aster, 6=Grapevine, 7=shadow(adj), 8=shadow(adv), 9=conscious
+const CANNABIS_AXIS_SIZE = 10;
+const CANNABIS_SOURCE_LABELS = ["Lotus","Rose","Sakura","Daisy","AppleBlossom","Aster","Grapevine","Shadow","Shadow","Conscious"];
+const CANNABIS_AXIS_NAMES = ["Mind","Space","Time"];
+
+function cannabisSourceIdx(decimal) {
+  if (decimal < 184 || decimal > 213) return -1;
+  return (decimal - 184) % CANNABIS_AXIS_SIZE;
+}
+function cannabisAxisName(decimal) {
+  if (decimal < 184 || decimal > 213) return null;
+  return CANNABIS_AXIS_NAMES[Math.floor((decimal - 184) / CANNABIS_AXIS_SIZE)];
+}
+
+const CANNABIS_ROWS_BY_AXIS = CANNABIS_AXIS_NAMES.map((axisName, axisIdx) => ({
+  name: axisName,
+  rows: (TONGUE_MAP["Cannabis"] || []).filter(r =>
+    Math.floor((r.decimal - 184) / CANNABIS_AXIS_SIZE) === axisIdx
+  ),
+}));
 
 // ---------------------------------------------------------------------------
 // Codepoint mapping (font — when compiled)
@@ -620,6 +649,28 @@ export function CalculatorPanel() {
     setCalc(prev => fn(prev, ...args));
   }, []);
 
+  // Keyboard redundancy — every operator and action has a key alias.
+  // Digit 0-9 → spine value (Gaoh=0 … decimal 31+n).
+  // +/a → Ha   -/g → Ga   */w → Wu   //n → Na   u → Ung   m → Gaoh(op)
+  // Enter/= → execute   Esc/Delete/c → clear
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+      const k = e.key;
+      if (k >= "0" && k <= "9") { dispatch(enterValue, 31 + parseInt(k, 10)); return; }
+      if (k === "+" || k === "a") { dispatch(setOp, "Ha"); return; }
+      if (k === "-" || k === "g") { dispatch(setOp, "Ga"); return; }
+      if (k === "*" || k === "w") { dispatch(setOp, "Wu"); return; }
+      if ((k === "/" || k === "n") && !e.ctrlKey && !e.metaKey) { e.preventDefault(); dispatch(setOp, "Na"); return; }
+      if (k === "u") { dispatch(setOp, "Ung"); return; }
+      if (k === "m") { dispatch(setOp, "Gaoh"); return; }
+      if (k === "Enter" || k === "=") { dispatch(executeOp); return; }
+      if (k === "Escape" || k === "Delete" || (k === "c" && !e.ctrlKey && !e.metaKey)) { setCalc(makeCalculator()); return; }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [dispatch]);
+
   const { current, pendingOp, expr, vocab } = calc;
   const { spine, dims } = current;
   const projections = compoundProjections(current);
@@ -649,17 +700,29 @@ export function CalculatorPanel() {
           </div>
         </div>
 
-        {/* Active dim chips */}
+        {/* Active dim chips — same-part Cannabis pairs get emphasis ring */}
         {dims.length > 0 && (
           <div style={{ ...S.row, marginTop: 8 }}>
-            {dims.map(op => (
-              <span key={op.decimal} style={S.chip(true)} onClick={() => dispatch(toggleDim, op.decimal)}>
-                {/* TODO (font swap): replace span below with <Glyph decimal={op.decimal} size={12} /> */}
-                <span style={{ fontFamily: "monospace", fontSize: 11 }}>{op.symbol}</span>
-                {op.meaning.slice(0, 28)}{op.meaning.length > 28 ? "…" : ""}
-                <span style={{ opacity: 0.5, marginLeft: 2 }}>×</span>
-              </span>
-            ))}
+            {dims.map(op => {
+              const srcIdx = cannabisSourceIdx(op.decimal);
+              const samePartPeer = srcIdx >= 0 && dims.some(
+                d => d.decimal !== op.decimal && cannabisSourceIdx(d.decimal) === srcIdx
+              );
+              const chipStyle = {
+                ...S.chip(true),
+                ...(samePartPeer ? { outline: "2px solid var(--accent)", outlineOffset: 1 } : {}),
+              };
+              return (
+                <span key={op.decimal} style={chipStyle} onClick={() => dispatch(toggleDim, op.decimal)}
+                  title={samePartPeer ? `Same-part sharing: ${CANNABIS_SOURCE_LABELS[srcIdx]} through ${cannabisAxisName(op.decimal)}` : op.meaning}>
+                  {/* TODO (font swap): replace span below with <Glyph decimal={op.decimal} size={12} /> */}
+                  <span style={{ fontFamily: "monospace", fontSize: 11 }}>{op.symbol}</span>
+                  {samePartPeer && <span style={{ fontSize: 9, color: "var(--accent)", fontWeight: 700, marginLeft: 2 }}>{cannabisAxisName(op.decimal)}</span>}
+                  {op.meaning.slice(0, 24)}{op.meaning.length > 24 ? "…" : ""}
+                  <span style={{ opacity: 0.5, marginLeft: 2 }}>×</span>
+                </span>
+              );
+            })}
           </div>
         )}
 
@@ -774,9 +837,49 @@ export function CalculatorPanel() {
               ))}
             </div>
 
-            <div style={S.sectionLabel}>Primordials (dim operators)</div>
+            <div style={S.sectionLabel}>Primordials (arithmetic operators)</div>
             <div style={S.row}>
               {PRIMORDIAL_ROWS.map(r => (
+                <button
+                  key={r.decimal}
+                  style={S.dimBtn(activeDimDecimals.has(r.decimal))}
+                  onClick={() => { dispatch(toggleDim, r.decimal); dispatch(setOp, r.symbol); }}
+                  title={`${r.meaning} — ${OP_DISPLAY[r.symbol]}`}
+                >
+                  {/* TODO (font swap): replace span below with <Glyph decimal={r.decimal} size={13} /> */}
+                  <span style={{ fontFamily: "monospace", fontSize: 11 }}>{r.symbol}</span>
+                  <span style={{ fontSize: 9, opacity: 0.7 }}>{r.meaning.slice(0, 14)}</span>
+                  <span style={{ fontSize: 8, color: "var(--accent)", marginTop: 1 }}>
+                    {OP_DISPLAY[r.symbol]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+
+        ) : kbTab === "Aster" ? (
+          <>
+            <div style={S.sectionLabel}>Chiral vectors (compound qualifiers — not operators)</div>
+            <div style={S.row}>
+              {(TONGUE_MAP["Aster"] || []).filter(r => ASTER_CHIRAL_DECIMALS.has(r.decimal)).map(r => (
+                <button
+                  key={r.decimal}
+                  style={{ ...S.dimBtn(activeDimDecimals.has(r.decimal)), opacity: 0.75 }}
+                  onClick={() => dispatch(toggleDim, r.decimal)}
+                  title={r.meaning}
+                >
+                  {/* TODO (font swap): replace span below with <Glyph decimal={r.decimal} size={13} /> */}
+                  <span style={{ fontFamily: "monospace", fontSize: 11 }}>{r.symbol}</span>
+                  <span style={{ fontSize: 9, opacity: 0.7, maxWidth: 64, textAlign: "center" }}>
+                    {r.meaning.slice(0, 18)}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div style={S.sectionLabel}>Time (dim operators)</div>
+            <div style={S.row}>
+              {(TONGUE_MAP["Aster"] || []).filter(r => ASTER_TIME_DECIMALS.has(r.decimal)).map(r => (
                 <button
                   key={r.decimal}
                   style={S.dimBtn(activeDimDecimals.has(r.decimal))}
@@ -785,11 +888,67 @@ export function CalculatorPanel() {
                 >
                   {/* TODO (font swap): replace span below with <Glyph decimal={r.decimal} size={13} /> */}
                   <span style={{ fontFamily: "monospace", fontSize: 11 }}>{r.symbol}</span>
-                  <span style={{ fontSize: 9, opacity: 0.7 }}>{r.meaning.slice(0, 14)}</span>
+                  <span style={{ fontSize: 9, opacity: 0.7, maxWidth: 64, textAlign: "center" }}>
+                    {r.meaning.slice(0, 18)}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div style={S.sectionLabel}>Space (dim operators)</div>
+            <div style={S.row}>
+              {(TONGUE_MAP["Aster"] || []).filter(r => ASTER_SPACE_DECIMALS.has(r.decimal)).map(r => (
+                <button
+                  key={r.decimal}
+                  style={S.dimBtn(activeDimDecimals.has(r.decimal))}
+                  onClick={() => dispatch(toggleDim, r.decimal)}
+                  title={r.meaning}
+                >
+                  {/* TODO (font swap): replace span below with <Glyph decimal={r.decimal} size={13} /> */}
+                  <span style={{ fontFamily: "monospace", fontSize: 11 }}>{r.symbol}</span>
+                  <span style={{ fontSize: 9, opacity: 0.7, maxWidth: 64, textAlign: "center" }}>
+                    {r.meaning.slice(0, 18)}
+                  </span>
                 </button>
               ))}
             </div>
           </>
+
+        ) : kbTab === "Cannabis" ? (
+          <>
+            {CANNABIS_ROWS_BY_AXIS.map(({ name, rows }) => (
+              <div key={name}>
+                <div style={S.sectionLabel}>{name} axis</div>
+                <div style={S.row}>
+                  {rows.map(r => {
+                    const srcIdx = cannabisSourceIdx(r.decimal);
+                    const srcLabel = CANNABIS_SOURCE_LABELS[srcIdx];
+                    const samePartActive = activeDimDecimals.has(r.decimal) &&
+                      dims.some(d => d.decimal !== r.decimal && cannabisSourceIdx(d.decimal) === srcIdx);
+                    return (
+                      <button
+                        key={r.decimal}
+                        style={{
+                          ...S.dimBtn(activeDimDecimals.has(r.decimal)),
+                          ...(samePartActive ? { outline: "2px solid var(--accent)", outlineOffset: 1 } : {}),
+                        }}
+                        onClick={() => dispatch(toggleDim, r.decimal)}
+                        title={`${r.meaning} [${srcLabel} through ${name}]`}
+                      >
+                        {/* TODO (font swap): replace span below with <Glyph decimal={r.decimal} size={13} /> */}
+                        <span style={{ fontFamily: "monospace", fontSize: 11 }}>{r.symbol}</span>
+                        <span style={{ fontSize: 8, color: "#8a7e6e", fontWeight: 600 }}>{srcLabel}</span>
+                        <span style={{ fontSize: 9, opacity: 0.7, maxWidth: 64, textAlign: "center" }}>
+                          {r.meaning.slice(0, 16)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </>
+
         ) : (
           <>
             <div style={S.row}>
@@ -803,7 +962,7 @@ export function CalculatorPanel() {
                   {/* TODO (font swap): replace span below with <Glyph decimal={r.decimal} size={13} /> */}
                   <span style={{ fontFamily: "monospace", fontSize: 11 }}>{r.symbol}</span>
                   <span style={{ fontSize: 9, opacity: 0.7, maxWidth: 64, textAlign: "center" }}>
-                    {r.meaning.slice(0, 16)}
+                    {r.meaning.slice(0, 18)}
                   </span>
                 </button>
               ))}
