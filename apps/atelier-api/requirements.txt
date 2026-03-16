@@ -1,4 +1,5 @@
 requests
+anthropic
 psycopg[binary]
 jsonschema
 stripe
