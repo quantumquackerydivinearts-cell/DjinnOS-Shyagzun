@@ -809,13 +809,14 @@ def _shop_sections() -> list[dict[str, str | list[str]]]:
 
 
 def _shop_link_overrides() -> dict[str, str]:
+    import os as _os
     return {
-        "consultations": os.getenv("SHOP_LINK_CONSULTATIONS", "").strip(),
-        "licenses": os.getenv("SHOP_LINK_LICENSES", "").strip(),
-        "catalog": os.getenv("SHOP_LINK_CATALOG", "").strip(),
-        "custom-orders": os.getenv("SHOP_LINK_CUSTOM_ORDERS", "").strip(),
-        "digital": os.getenv("SHOP_LINK_DIGITAL", "").strip(),
-        "land-assessments": os.getenv("SHOP_LINK_LAND_ASSESSMENTS", "").strip(),
+        "consultations": _os.getenv("SHOP_LINK_CONSULTATIONS", "").strip(),
+        "licenses": _os.getenv("SHOP_LINK_LICENSES", "").strip(),
+        "catalog": _os.getenv("SHOP_LINK_CATALOG", "").strip(),
+        "custom-orders": _os.getenv("SHOP_LINK_CUSTOM_ORDERS", "").strip(),
+        "digital": _os.getenv("SHOP_LINK_DIGITAL", "").strip(),
+        "land-assessments": _os.getenv("SHOP_LINK_LAND_ASSESSMENTS", "").strip(),
     }
 
 
@@ -2466,7 +2467,7 @@ def ledger_payout_run(
     return JSONResponse(svc.run_monthly_payouts(workspace_id=workspace_id, month=month, dry_run=dry_run))
 
 
-@app.get("/v1/ledger/payouts/export")
+@app.get("/v1/ledger/payouts/export", response_class=Response)
 def ledger_payout_export(
     workspace_id: str,
     month: str,
@@ -2493,7 +2494,7 @@ def ledger_payout_export(
     return Response(content=content, media_type="text/csv")
 
 
-@app.get("/v1/ledger/payouts/1099")
+@app.get("/v1/ledger/payouts/1099", response_class=Response)
 def ledger_payout_1099(
     workspace_id: str,
     month: str,
