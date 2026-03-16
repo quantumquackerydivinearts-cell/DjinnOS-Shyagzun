@@ -191,7 +191,7 @@ def _json_response(payload: object, status_code: int = 200) -> Response:
 
 
 def _shop_landing_html() -> str:
-    website_url = os.getenv("PUBLIC_WEBSITE_URL", "https://www.quantumquackery.org").strip()
+    website_url = os.getenv("PUBLIC_WEBSITE_URL", "https://quantumquackery.org").strip()
     atelier_url = os.getenv("PUBLIC_ATELIER_URL", "https://atelier-api.quantumquackery.com").strip()
     shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or atelier_url)
     docs_url = f"{atelier_url.rstrip('/')}/docs"
@@ -579,7 +579,7 @@ def _shop_intake_html(section_id: str) -> str:
 
 
 def _shop_section_html(section_id: str, notice: str | None = None) -> str:
-    website_url = os.getenv("PUBLIC_WEBSITE_URL", "https://www.quantumquackery.org").strip()
+    website_url = os.getenv("PUBLIC_WEBSITE_URL", "https://quantumquackery.org").strip()
     atelier_url = os.getenv("PUBLIC_ATELIER_URL", "https://atelier-api.quantumquackery.com").strip()
     shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or atelier_url)
     docs_url = f"{atelier_url.rstrip('/')}/docs"
