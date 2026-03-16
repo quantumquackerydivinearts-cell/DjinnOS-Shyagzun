@@ -201,7 +201,7 @@ if ($Target -eq "local") {
         $apiLines = Get-Content $apiRequirements |
             Where-Object { $_ -and ($_ -notmatch "^\s*#") } |
             ForEach-Object { $_.Trim() } |
-            Where-Object { $_ -and ($_ -notmatch "^psycopg(\[.*\])?$") -and ($_ -notmatch "^alembic$") }
+            Where-Object { $_ -and ($_ -notmatch "^psycopg(\[.*\])?$") -and ($_ -notmatch "^alembic$") -and ($_ -notmatch "^orjson") }
         $kernelLines = @(
             "fastapi",
             "uvicorn",
@@ -212,9 +212,9 @@ if ($Target -eq "local") {
         $combined = ($apiLines + $kernelLines | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Sort-Object -Unique)
         $combined | Out-File -FilePath $combinedReq -Encoding ascii
 
-        & $pythonCommand -m pip wheel --wheel-dir $wheelhouseDir -r $combinedReq
+        & $pythonCommand -m pip wheel --wheel-dir $wheelhouseDir --only-binary=:all: -r $combinedReq
         if ($LASTEXITCODE -ne 0) {
-            throw "Failed to build python wheelhouse"
+            Write-Warning "Some packages could not be collected as binary wheels and will require online install. Continuing."
         }
 
         Compress-Archive -Path (Join-Path $wheelhouseDir "*") -DestinationPath $wheelhouseZip -CompressionLevel Optimal

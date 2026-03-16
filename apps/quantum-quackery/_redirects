@@ -9,6 +9,8 @@
 # Route clean paths to HTML files
 /encyclopedia  /encyclopedia-esoterica.html  200
 /encyclopedia/  /encyclopedia-esoterica.html  200
+/atelier  /atelier.html  200
+/atelier/  /atelier.html  200
 /guild  /guild.html  200
 /guild/  /guild.html  200
 /shygazun  /shygazun_literary_companion.html  200
