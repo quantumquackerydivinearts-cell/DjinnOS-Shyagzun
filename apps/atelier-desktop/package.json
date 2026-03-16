@@ -8,7 +8,7 @@
     "dev": "set ELECTRON_RUN_AS_NODE=&& concurrently \"vite\" \"wait-on tcp:5173 && electron .\"",
     "start": "electron .",
     "build": "vite build",
-    "build:web": "vite build",
+    "build:web": "cross-env VITE_WEB_BUILD=1 vite build",
     "clean:desktop": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }; if (Test-Path release\\\\desktop) { Remove-Item -Recurse -Force release\\\\desktop }\"",
     "rebuild:desktop": "npm run clean:desktop && npm run build:web",
     "pack:desktop:dir": "npm run rebuild:desktop && npx electron-builder --dir",
@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "@capacitor/android": "^6.2.0",
+    "cross-env": "^7.0.3",
     "@capacitor/cli": "^6.2.0",
     "@vitejs/plugin-react": "^5.1.4",
     "concurrently": "^9.0.1",
