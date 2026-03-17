@@ -14697,8 +14697,12 @@ function extractPythonSavedPath(outputText) {
           <div className="row">
             <input value={bookingStart} onChange={(e) => setBookingStart(e.target.value)} placeholder="start ISO datetime" />
             <input value={bookingEnd} onChange={(e) => setBookingEnd(e.target.value)} placeholder="end ISO datetime" />
-            <button className="action" onClick={() => createEntity("bookings_create", "/v1/booking", { workspace_id: workspaceId, starts_at: bookingStart, ends_at: bookingEnd, status: "scheduled", notes: "" }, () => {}, listBookings)}>Create</button>
+            <input value={bookingContactId} onChange={(e) => setBookingContactId(e.target.value)} placeholder="Lead or contact ID (optional)" />
+            <button className="action" onClick={() => createEntity("bookings_create", "/v1/booking", { workspace_id: workspaceId, starts_at: bookingStart, ends_at: bookingEnd, status: "scheduled", contact_id: bookingContactId || null, notes: bookingNotes }, () => { setBookingContactId(""); setBookingNotes(""); }, listBookings)}>Create</button>
             <button className="action" onClick={listBookings}>Refresh</button>
+          </div>
+          <div className="row">
+            <textarea value={bookingNotes} onChange={(e) => setBookingNotes(e.target.value)} placeholder="booking notes" />
           </div>
           <div className="row"><input value={bookingFilter} onChange={(e) => setBookingFilter(e.target.value)} placeholder="filter bookings" /><button className="action" onClick={() => downloadJson(`bookings-${workspaceId}.json`, filteredBookings)}>Export</button></div>
           <pre>{JSON.stringify(filteredBookings, null, 2)}</pre>
@@ -14859,8 +14863,12 @@ function extractPythonSavedPath(outputText) {
               <input value={quoteAmount} onChange={(e) => setQuoteAmount(e.target.value)} placeholder="amount cents" />
               <input value={quoteCurrency} onChange={(e) => setQuoteCurrency(e.target.value)} placeholder="currency" />
               <label><input type="checkbox" checked={quotePublic} onChange={(e) => setQuotePublic(e.target.checked)} /> Public</label>
-              <button className="action" onClick={() => createEntity("quotes_create", "/v1/quotes", { workspace_id: workspaceId, title: quoteTitle, amount_cents: Number.parseInt(quoteAmount || "0", 10), currency: quoteCurrency, status: quotePublic ? "published" : "draft", is_public: quotePublic, notes: "" }, () => { setQuoteTitle(""); setQuoteAmount(""); setQuotePublic(false); }, listQuotes)}>Create</button>
+              <input value={quoteLeadId} onChange={(e) => setQuoteLeadId(e.target.value)} placeholder="Lead ID (optional)" />
+              <button className="action" onClick={() => createEntity("quotes_create", "/v1/quotes", { workspace_id: workspaceId, title: quoteTitle, amount_cents: Number.parseInt(quoteAmount || "0", 10), currency: quoteCurrency, status: quotePublic ? "published" : "draft", is_public: quotePublic, lead_id: quoteLeadId || null, notes: quoteNotes }, () => { setQuoteTitle(""); setQuoteAmount(""); setQuotePublic(false); setQuoteLeadId(""); setQuoteNotes(""); }, listQuotes)}>Create</button>
               <button className="action" onClick={listQuotes}>Refresh</button>
+            </div>
+            <div className="row">
+              <textarea value={quoteNotes} onChange={(e) => setQuoteNotes(e.target.value)} placeholder="quote notes" />
             </div>
             <div className="row"><input value={quoteFilter} onChange={(e) => setQuoteFilter(e.target.value)} placeholder="filter quotes" /></div>
             <pre>{JSON.stringify(filteredQuotes, null, 2)}</pre>
@@ -14884,8 +14892,13 @@ function extractPythonSavedPath(outputText) {
             <input value={orderTitle} onChange={(e) => setOrderTitle(e.target.value)} placeholder="order title" />
             <input value={orderAmount} onChange={(e) => setOrderAmount(e.target.value)} placeholder="amount cents" />
             <input value={orderCurrency} onChange={(e) => setOrderCurrency(e.target.value)} placeholder="currency" />
-            <button className="action" onClick={() => createEntity("orders_create", "/v1/orders", { workspace_id: workspaceId, title: orderTitle, amount_cents: Number.parseInt(orderAmount || "0", 10), currency: orderCurrency, status: "open", notes: "" }, () => { setOrderTitle(""); setOrderAmount(""); }, listOrders)}>Create</button>
+            <input value={orderQuoteId} onChange={(e) => setOrderQuoteId(e.target.value)} placeholder="Quote ID (optional)" />
+            <input value={orderClientId} onChange={(e) => setOrderClientId(e.target.value)} placeholder="Client ID (optional)" />
+            <button className="action" onClick={() => createEntity("orders_create", "/v1/orders", { workspace_id: workspaceId, title: orderTitle, amount_cents: Number.parseInt(orderAmount || "0", 10), currency: orderCurrency, status: "open", quote_id: orderQuoteId || null, client_id: orderClientId || null, notes: orderNotes }, () => { setOrderTitle(""); setOrderAmount(""); setOrderQuoteId(""); setOrderClientId(""); setOrderNotes(""); }, listOrders)}>Create</button>
             <button className="action" onClick={listOrders}>Refresh</button>
+          </div>
+          <div className="row">
+            <textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} placeholder="order notes" />
           </div>
           <div className="row"><input value={orderFilter} onChange={(e) => setOrderFilter(e.target.value)} placeholder="filter orders" /></div>
           <pre>{JSON.stringify(filteredOrders, null, 2)}</pre>
