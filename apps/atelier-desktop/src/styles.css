@@ -120,6 +120,16 @@ body {
   background: #fff0f0;
   color: #7a2323;
 }
+.error-text {
+  color: #7a2323;
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+.muted-text {
+  color: var(--muted, #888);
+  font-size: 12px;
+  margin: 6px 0 0;
+}
 .tools-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

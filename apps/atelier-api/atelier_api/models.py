@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -487,9 +487,11 @@ class AssetManifest(Base):
     kind: Mapped[str] = mapped_column(String(80), nullable=False)
     payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     payload_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    storage_key: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    storage_state: Mapped[str] = mapped_column(String(40), nullable=False, default="local")
+    mime_type: Mapped[str] = mapped_column(String(120), nullable=False, default="application/octet-stream")
+    file_size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-
-    workspace: Mapped[Workspace] = relationship()
 
     workspace: Mapped[Workspace] = relationship()
 

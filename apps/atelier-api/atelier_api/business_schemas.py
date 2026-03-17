@@ -461,6 +461,21 @@ class ArtisanBootstrapInput(AtelierProfileInput):
     artisan_id: str
 
 
+class ArtisanLoginInput(BaseModel):
+    artisan_id: str
+    artisan_code: str
+
+
+class ArtisanLoginOut(BaseModel):
+    token: str
+    expires_at: int
+    artisan_id: str
+    role: str
+    workshop_id: str
+    profile_name: str
+    profile_email: str
+
+
 class HeadlessQuestStep(BaseModel):
     step_id: str
     raw: str
@@ -1731,7 +1746,32 @@ class AssetManifestOut(BaseModel):
     kind: str
     payload: dict[str, object]
     payload_hash: str
+    storage_key: str
+    storage_state: str
+    mime_type: str
+    file_size_bytes: int
     created_at: datetime
+
+
+class AssetUploadRequestInput(BaseModel):
+    name: str
+    kind: str
+    mime_type: str
+    file_size_bytes: int
+    realm_id: str = "lapidus"
+
+
+class AssetUploadRequestOut(BaseModel):
+    id: str
+    upload_url: str
+    storage_key: str
+    expires_in_seconds: int
+
+
+class AssetConfirmUploadOut(BaseModel):
+    id: str
+    storage_state: str
+    public_url: str | None
 
 
 class RealmOut(BaseModel):

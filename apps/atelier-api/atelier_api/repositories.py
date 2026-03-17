@@ -553,6 +553,20 @@ class AtelierRepository:
         self._db.refresh(row)
         return row
 
+    def get_asset_manifest(self, workspace_id: str, asset_id: str) -> AssetManifest | None:
+        return self._db.scalar(
+            select(AssetManifest).where(
+                AssetManifest.workspace_id == workspace_id,
+                AssetManifest.id == asset_id,
+            )
+        )
+
+    def save_asset_manifest(self, row: AssetManifest) -> AssetManifest:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
     def create_guild_message_envelope_record(self, row: GuildMessageEnvelopeRecord) -> GuildMessageEnvelopeRecord:
         self._db.add(row)
         self._db.commit()

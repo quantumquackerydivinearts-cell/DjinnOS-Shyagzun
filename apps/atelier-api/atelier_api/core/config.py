@@ -29,6 +29,11 @@ class Settings:
     stripe_prices: dict[str, str]
     commission_rates: dict[str, float]
     tax_rates: dict[str, float]
+    r2_account_id: str
+    r2_access_key_id: str
+    r2_secret_access_key: str
+    r2_bucket_name: str
+    r2_public_base_url: str
 
 
 def _parse_origins(raw: str) -> tuple[str, ...]:
@@ -104,4 +109,9 @@ def load_settings() -> Settings:
             "digital": _parse_float(os.getenv("TAX_RATE_DIGITAL", "0.0"), 0.0),
             "land-assessments": _parse_float(os.getenv("TAX_RATE_LAND_ASSESSMENTS", "0.0"), 0.0),
         },
+        r2_account_id=os.getenv("R2_ACCOUNT_ID", "").strip(),
+        r2_access_key_id=os.getenv("R2_ACCESS_KEY_ID", "").strip(),
+        r2_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY", "").strip(),
+        r2_bucket_name=os.getenv("R2_BUCKET_NAME", "").strip(),
+        r2_public_base_url=os.getenv("R2_PUBLIC_BASE_URL", "").strip(),
     )

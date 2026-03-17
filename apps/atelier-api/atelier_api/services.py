@@ -235,7 +235,7 @@ from .rendering_schemas import (
     RendererAssetDiagnosticsInput,
     RendererAssetDiagnosticsOut,
 )
-from .core.config import load_settings
+from .core.config import Settings, load_settings
 from .kernel_integration import KernelIntegrationService
 from .market_logic import get_realm_coin, get_realm_market, list_realm_coins, list_realm_markets
 from .pygame_worker import PygameWorkerManager, get_pygame_worker_manager
@@ -12262,22 +12262,34 @@ class AtelierService:
             for row in rows
         ]
 
+    @staticmethod
+    def _asset_manifest_out(row: "AssetManifest") -> "AssetManifestOut":
+        from .business_schemas import AssetManifestOut as _Out
+        import json as _json
+        payload: dict[str, object] = {}
+        try:
+            payload = _json.loads(row.payload_json or "{}")
+        except Exception:
+            pass
+        return _Out(
+            id=row.id,
+            workspace_id=row.workspace_id,
+            realm_id=row.realm_id,
+            manifest_id=row.manifest_id,
+            name=row.name,
+            kind=row.kind,
+            payload=payload,
+            payload_hash=row.payload_hash,
+            storage_key=row.storage_key or "",
+            storage_state=row.storage_state or "local",
+            mime_type=row.mime_type or "application/octet-stream",
+            file_size_bytes=row.file_size_bytes or 0,
+            created_at=row.created_at,
+        )
+
     def list_asset_manifests(self, workspace_id: str) -> Sequence[AssetManifestOut]:
         rows = self._require_repo().list_asset_manifests(workspace_id=workspace_id)
-        return [
-            AssetManifestOut(
-                id=row.id,
-                workspace_id=row.workspace_id,
-                realm_id=row.realm_id,
-                manifest_id=row.manifest_id,
-                name=row.name,
-                kind=row.kind,
-                payload=self._json_to_object_map(row.payload_json),
-                payload_hash=row.payload_hash,
-                created_at=row.created_at,
-            )
-            for row in rows
-        ]
+        return [self._asset_manifest_out(row) for row in rows]
 
     def create_asset_manifest(self, payload: AssetManifestCreate) -> AssetManifestOut:
         payload_hash = self._canonical_hash(payload.payload)
@@ -12291,17 +12303,128 @@ class AtelierService:
             payload_hash=payload_hash,
         )
         saved = self._require_repo().create_asset_manifest(row)
-        return AssetManifestOut(
-            id=saved.id,
-            workspace_id=saved.workspace_id,
-            realm_id=saved.realm_id,
-            manifest_id=saved.manifest_id,
-            name=saved.name,
-            kind=saved.kind,
-            payload=self._json_to_object_map(saved.payload_json),
-            payload_hash=saved.payload_hash,
-            created_at=saved.created_at,
+        return self._asset_manifest_out(saved)
+
+    def request_asset_upload(
+        self,
+        *,
+        workspace_id: str,
+        payload: "AssetUploadRequestInput",
+        settings: "Settings",
+    ) -> "AssetUploadRequestOut":
+        from .business_schemas import AssetUploadRequestOut as _Out
+        from .storage import build_storage_key, generate_upload_url, r2_is_configured, _UPLOAD_TTL_SECONDS
+        repo = self._require_repo()
+        # Create the manifest record immediately so we have an ID for the key.
+        row = AssetManifest(
+            workspace_id=workspace_id,
+            realm_id=payload.realm_id.strip().lower() or "lapidus",
+            manifest_id=f"upload-{secrets.token_hex(8)}",
+            name=payload.name,
+            kind=payload.kind,
+            payload_json="{}",
+            payload_hash="",
+            mime_type=payload.mime_type,
+            file_size_bytes=payload.file_size_bytes,
+            storage_state="pending_upload",
         )
+        saved = repo.create_asset_manifest(row)
+        storage_key = build_storage_key(workspace_id, saved.id, payload.name)
+        saved.storage_key = storage_key
+        repo.save_asset_manifest(saved)
+
+        if r2_is_configured(settings.r2_account_id, settings.r2_access_key_id, settings.r2_secret_access_key, settings.r2_bucket_name):
+            upload_url = generate_upload_url(
+                account_id=settings.r2_account_id,
+                access_key_id=settings.r2_access_key_id,
+                secret_access_key=settings.r2_secret_access_key,
+                bucket_name=settings.r2_bucket_name,
+                storage_key=storage_key,
+                mime_type=payload.mime_type,
+            )
+        else:
+            upload_url = ""  # R2 not configured — local/dev mode
+
+        return _Out(
+            id=saved.id,
+            upload_url=upload_url,
+            storage_key=storage_key,
+            expires_in_seconds=_UPLOAD_TTL_SECONDS,
+        )
+
+    def confirm_asset_upload(
+        self,
+        *,
+        workspace_id: str,
+        asset_id: str,
+        settings: "Settings",
+    ) -> "AssetConfirmUploadOut":
+        from .business_schemas import AssetConfirmUploadOut as _Out
+        from .storage import public_url
+        repo = self._require_repo()
+        row = repo.get_asset_manifest(workspace_id, asset_id)
+        if row is None:
+            raise ValueError("asset_not_found")
+        row.storage_state = "uploaded"
+        saved = repo.save_asset_manifest(row)
+        pub_url = public_url(settings.r2_public_base_url, saved.storage_key) if saved.storage_key else None
+        return _Out(id=saved.id, storage_state=saved.storage_state, public_url=pub_url)
+
+    def get_asset_download_url(
+        self,
+        *,
+        workspace_id: str,
+        asset_id: str,
+        settings: "Settings",
+    ) -> str:
+        from .storage import generate_download_url, r2_is_configured, public_url
+        repo = self._require_repo()
+        row = repo.get_asset_manifest(workspace_id, asset_id)
+        if row is None:
+            raise ValueError("asset_not_found")
+        if row.storage_state != "uploaded":
+            raise ValueError("asset_not_uploaded")
+        if not row.storage_key:
+            raise ValueError("asset_no_storage_key")
+        # If bucket has a public URL configured, just return that.
+        pub = public_url(settings.r2_public_base_url, row.storage_key)
+        if pub:
+            return pub
+        if r2_is_configured(settings.r2_account_id, settings.r2_access_key_id, settings.r2_secret_access_key, settings.r2_bucket_name):
+            return generate_download_url(
+                account_id=settings.r2_account_id,
+                access_key_id=settings.r2_access_key_id,
+                secret_access_key=settings.r2_secret_access_key,
+                bucket_name=settings.r2_bucket_name,
+                storage_key=row.storage_key,
+            )
+        raise ValueError("r2_not_configured")
+
+    def delete_asset(
+        self,
+        *,
+        workspace_id: str,
+        asset_id: str,
+        settings: "Settings",
+    ) -> None:
+        from .storage import delete_object, r2_is_configured
+        repo = self._require_repo()
+        row = repo.get_asset_manifest(workspace_id, asset_id)
+        if row is None:
+            raise ValueError("asset_not_found")
+        if row.storage_key and r2_is_configured(settings.r2_account_id, settings.r2_access_key_id, settings.r2_secret_access_key, settings.r2_bucket_name):
+            try:
+                delete_object(
+                    account_id=settings.r2_account_id,
+                    access_key_id=settings.r2_access_key_id,
+                    secret_access_key=settings.r2_secret_access_key,
+                    bucket_name=settings.r2_bucket_name,
+                    storage_key=row.storage_key,
+                )
+            except Exception:
+                pass  # Best-effort deletion from R2; mark deleted regardless
+        row.storage_state = "deleted"
+        repo.save_asset_manifest(row)
 
     def list_realms(self) -> Sequence[RealmOut]:
         rows = self._require_repo().list_realms()
@@ -13136,6 +13259,57 @@ class AtelierService:
         row.artisan_access_verified = True
         saved = repo.save_artisan_account(row)
         return ArtisanAccessIssueOut(artisan_code=code, status=self._to_access_status(saved))
+
+    def login_artisan(self, *, artisan_id: str, artisan_code: str, secret: str) -> "ArtisanLoginOut":
+        from .roles import ROLE_CAPABILITIES
+        from .auth import create_auth_token
+        from .business_schemas import ArtisanLoginOut
+        repo = self._require_repo()
+        row = repo.get_artisan_account(artisan_id)
+        if row is None:
+            raise ValueError("artisan_not_found")
+        if not row.artisan_access_verified:
+            raise ValueError("access_not_verified")
+        expected_hash = self._hash_code(artisan_code)
+        if not hmac.compare_digest(expected_hash, row.artisan_code_hash or ""):
+            raise ValueError("invalid_artisan_code")
+        # Auto-provision a personal workspace on first login so the artisan
+        # always has a membership record and isolation enforcement can be strict.
+        if repo.resolve_artisan_workspace_id(artisan_id) is None:
+            display_name = (row.profile_name or "").strip() or artisan_id
+            ws = Workspace(
+                name=f"{display_name}'s Workspace",
+                owner_artisan_id=artisan_id,
+                status="active",
+            )
+            ws = repo.create_workspace(ws)
+            repo.create_workspace_membership(WorkspaceMembership(
+                workspace_id=ws.id,
+                artisan_id=artisan_id,
+                role="owner",
+                granted_by=artisan_id,
+            ))
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        exp_ts = now_ts + 60 * 60 * 24 * 30  # 30-day token
+        caps = ROLE_CAPABILITIES.get(row.role, frozenset())
+        token = create_auth_token(
+            actor_id=row.artisan_id,
+            capabilities=tuple(sorted(caps)),
+            role=row.role,
+            secret=secret,
+            exp=exp_ts,
+            iat=now_ts,
+        )
+        return ArtisanLoginOut(
+            token=token,
+            expires_at=exp_ts,
+            artisan_id=row.artisan_id,
+            role=row.role,
+            workshop_id=row.workshop_id,
+            profile_name=row.profile_name,
+            profile_email=row.profile_email,
+        )
+
     @staticmethod
     def _canonical_skill_id(raw_skill_id: str) -> str:
         normalized = str(raw_skill_id or "").strip().lower()
@@ -13159,10 +13333,22 @@ class AtelierService:
 
     # ── Workspace management ──────────────────────────────────────────────────
 
-    def resolve_artisan_workspace_id(self, artisan_id: str) -> str:
-        """Return the primary workspace_id for this artisan, or 'main' fallback."""
-        ws_id = self._require_repo().resolve_artisan_workspace_id(artisan_id)
-        return ws_id if ws_id else "main"
+    def resolve_artisan_workspace_id(self, artisan_id: str) -> str | None:
+        """Return the primary workspace_id for this artisan, or None if no membership."""
+        return self._require_repo().resolve_artisan_workspace_id(artisan_id)
+
+    def assert_workspace_access(self, artisan_id: str, workspace_id: str, role: str) -> None:
+        """Raise ValueError if artisan lacks membership in workspace_id.
+
+        Stewards bypass the membership check (they manage all workspaces).
+        The 'main' pseudo-workspace is always accessible for legacy compatibility.
+        """
+        from .roles import ROLE_STEWARD
+        if workspace_id == "main" or role == ROLE_STEWARD:
+            return
+        membership = self._require_repo().get_workspace_membership(artisan_id, workspace_id)
+        if membership is None:
+            raise ValueError("workspace_access_denied")
 
     def list_artisan_workspaces(self, artisan_id: str) -> list[WorkspaceOut]:
         repo = self._require_repo()

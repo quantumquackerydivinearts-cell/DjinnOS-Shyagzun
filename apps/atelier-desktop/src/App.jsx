@@ -88,6 +88,7 @@ const NAV_ITEMS = [
   "Guild Hall",
   "Messages",
   "Studio Hub",
+  "Asset Library",
   "Lesson Creation",
   "Module Creation",
   "Learning Hall",
@@ -223,16 +224,23 @@ function capabilitiesForRole(role) {
   ];
 }
 
-function buildHeaders(role, capsCsv, adminGateToken) {
+function buildHeaders(role, capsCsv, adminGateToken, artisanId, workshopId, authToken, workspaceId) {
   const headers = {
     "Content-Type": "application/json",
-    "X-Atelier-Actor": "desktop-user",
+    "X-Atelier-Actor": artisanId || "desktop-user",
     "X-Atelier-Capabilities": capsCsv,
-    "X-Artisan-Id": "artisan-desktop",
+    "X-Artisan-Id": artisanId || "artisan-desktop",
     "X-Artisan-Role": role,
-    "X-Workshop-Id": "workshop-primary",
+    "X-Workshop-Id": workshopId || "workshop-primary",
     "X-Workshop-Scopes": "scene:*,workspace:*"
   };
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+  // Tell the server which workspace to scope to (enables multi-workspace switching).
+  if (workspaceId && workspaceId !== "main") {
+    headers["X-Workspace-Id"] = workspaceId;
+  }
   if (adminGateToken) {
     headers["X-Admin-Gate-Token"] = adminGateToken;
   }
@@ -5778,6 +5786,12 @@ const RENDERER_SYNC_CHANNEL = "atelier-renderer-sync-v1";
 export function App() {
   const [section, setSection] = useState(resolveInitialSection);
   const [role, setRole] = useState(() => localStorage.getItem("atelier.role") || "senior_artisan");
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem("atelier.auth_token") || null);
+  const [artisanId, setArtisanId] = useState(() => localStorage.getItem("atelier.artisan_id") || "");
+  const [workshopId, setWorkshopId] = useState(() => localStorage.getItem("atelier.workshop_id") || "");
+  const [loginArtisanId, setLoginArtisanId] = useState("");
+  const [loginArtisanCode, setLoginArtisanCode] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [workspaceId, setWorkspaceId] = useState(() => localStorage.getItem("atelier.workspace") || "main");
   const [workspaceList, setWorkspaceList] = useState([]);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
@@ -6351,6 +6365,10 @@ export function App() {
   const [assetManifests, setAssetManifests] = useState([]);
   const [assetManifestStatus, setAssetManifestStatus] = useState("idle");
   const [assetManifestSelected, setAssetManifestSelected] = useState("");
+  const [assetUploadFile, setAssetUploadFile] = useState(null);
+  const [assetUploadMime, setAssetUploadMime] = useState("application/octet-stream");
+  const [assetUploadKind, setAssetUploadKind] = useState("image");
+  const [assetUploadStatus, setAssetUploadStatus] = useState("idle");
   const [rendererTickText, setRendererTickText] = useState(
     "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"dt_ms\":120,\"events\":[{\"kind\":\"levels.apply\",\"payload\":{\"gained_xp\":120}},{\"kind\":\"skills.train\",\"payload\":{\"skill_id\":\"melee_weapons\",\"points_available\":1,\"max_rank\":5}},{\"kind\":\"flags.set\",\"payload\":{\"key\":\"intro_done\",\"value\":true}}]}"
   );
@@ -7063,6 +7081,18 @@ export function App() {
 
   useEffect(() => localStorage.setItem("atelier.section", section), [section]);
   useEffect(() => localStorage.setItem("atelier.role", role), [role]);
+  useEffect(() => {
+    if (authToken) localStorage.setItem("atelier.auth_token", authToken);
+    else localStorage.removeItem("atelier.auth_token");
+  }, [authToken]);
+  useEffect(() => {
+    if (artisanId) localStorage.setItem("atelier.artisan_id", artisanId);
+    else localStorage.removeItem("atelier.artisan_id");
+  }, [artisanId]);
+  useEffect(() => {
+    if (workshopId) localStorage.setItem("atelier.workshop_id", workshopId);
+    else localStorage.removeItem("atelier.workshop_id");
+  }, [workshopId]);
   useEffect(() => localStorage.setItem("atelier.workspace", workspaceId), [workspaceId]);
   useEffect(() => localStorage.setItem("atelier.tile_traversal_class", tileTraversalClass), [tileTraversalClass]);
   useEffect(() => localStorage.setItem("atelier.profile_name", profileName), [profileName]);
@@ -7263,7 +7293,7 @@ export function App() {
     const token = tokenOverride === undefined ? adminGateToken : tokenOverride;
     const response = await fetch(`${API_BASE}${path}`, {
       method,
-      headers: buildHeaders(role, caps, token),
+      headers: buildHeaders(role, caps, token, artisanId, workshopId, authToken, workspaceId),
       body: body === null ? undefined : JSON.stringify(body)
     });
     const data = parseSafeJson(await response.text());
@@ -7278,7 +7308,7 @@ export function App() {
     const token = tokenOverride === undefined ? adminGateToken : tokenOverride;
     const response = await fetch(`${API_BASE}${path}`, {
       method,
-      headers: buildHeaders(role, caps, token),
+      headers: buildHeaders(role, caps, token, artisanId, workshopId, authToken, workspaceId),
       body: body === null ? undefined : JSON.stringify(body)
     });
     const text = await response.text();
@@ -7453,21 +7483,58 @@ export function App() {
     try {
       const data = await apiCall("/v1/me/workspace", "GET", null);
       if (data && data.workspace_id) {
-        const resolved = data.workspace_id;
-        setWorkspaceId(resolved);
-        localStorage.setItem("atelier.workspace", resolved);
+        setWorkspaceId(data.workspace_id);
+        localStorage.setItem("atelier.workspace", data.workspace_id);
         if (Array.isArray(data.workspaces)) {
           setWorkspaceList(data.workspaces);
         }
       }
-    } catch (_) {
-      // no memberships yet — keep current workspaceId
+    } catch (err) {
+      const detail = (() => { try { return JSON.parse(err.message)?.detail; } catch { return null; } })();
+      if (detail === "no_workspace_membership") {
+        // Authenticated artisan with no workspace — should not happen after login provisioning.
+        setNotice("No workspace found. Please contact your steward.");
+      }
+      // Other errors: keep current workspaceId (network issue, legacy mode, etc.)
     }
   }
 
   useEffect(() => {
     void fetchMyWorkspace();
   }, [role, caps]);
+
+  async function login() {
+    setLoginError("");
+    try {
+      const res = await fetch(`${API_BASE}/v1/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artisan_id: loginArtisanId, artisan_code: loginArtisanCode }),
+      });
+      const data = parseSafeJson(await res.text());
+      if (!res.ok) {
+        setLoginError(data.detail || "login_failed");
+        return;
+      }
+      setAuthToken(data.token);
+      setArtisanId(data.artisan_id);
+      setWorkshopId(data.workshop_id);
+      setRole(data.role);
+      setLoginArtisanCode("");
+      void fetchMyWorkspace();
+    } catch (err) {
+      setLoginError(err.message || "login_failed");
+    }
+  }
+
+  function logout() {
+    setAuthToken(null);
+    setArtisanId("");
+    setWorkshopId("");
+    setLoginArtisanId("");
+    setLoginArtisanCode("");
+    setLoginError("");
+  }
 
   async function createWorkspace() {
     await runAction("workspace_create", async () => {
@@ -8125,11 +8192,7 @@ export function App() {
   async function loadAssetManifests() {
     setAssetManifestStatus("loading");
     const data = await runAction("asset_manifests_load", async () => {
-      const response = await apiCall(
-        `/v1/assets/manifests?workspace_id=${encodeURIComponent(workspaceId)}`,
-        "GET",
-        null
-      );
+      const response = await apiCall("/v1/assets/manifests", "GET", null);
       setAssetManifests(Array.isArray(response) ? response : []);
       return response;
     });
@@ -8138,6 +8201,64 @@ export function App() {
       return;
     }
     setAssetManifestStatus("ready");
+  }
+
+  async function uploadAsset() {
+    if (!assetUploadFile) {
+      setNotice("Select a file first.");
+      return;
+    }
+    setAssetUploadStatus("requesting");
+    try {
+      // 1. Request presigned upload URL
+      const req = await apiCall("/v1/assets/upload-request", "POST", {
+        name: assetUploadFile.name,
+        kind: assetUploadKind,
+        mime_type: assetUploadMime || assetUploadFile.type || "application/octet-stream",
+        file_size_bytes: assetUploadFile.size,
+      });
+      if (!req.upload_url) {
+        setNotice("R2 not configured — asset registered locally only.");
+        setAssetUploadStatus("idle");
+        void loadAssetManifests();
+        return;
+      }
+      // 2. PUT directly to R2 presigned URL
+      setAssetUploadStatus("uploading");
+      const putRes = await fetch(req.upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": assetUploadMime || assetUploadFile.type || "application/octet-stream" },
+        body: assetUploadFile,
+      });
+      if (!putRes.ok) throw new Error(`R2 upload failed: ${putRes.status}`);
+      // 3. Confirm upload
+      setAssetUploadStatus("confirming");
+      await apiCall(`/v1/assets/${req.id}/confirm`, "POST", null);
+      setNotice(`Asset uploaded: ${assetUploadFile.name}`);
+      setAssetUploadFile(null);
+      setAssetUploadStatus("idle");
+      void loadAssetManifests();
+    } catch (err) {
+      setNotice(`Upload failed: ${err.message}`);
+      setAssetUploadStatus("error");
+    }
+  }
+
+  async function downloadAsset(assetId) {
+    try {
+      const data = await apiCall(`/v1/assets/${assetId}/download-url`, "GET", null);
+      if (data.url) window.open(data.url, "_blank");
+    } catch (err) {
+      setNotice(`Download failed: ${err.message}`);
+    }
+  }
+
+  async function deleteAsset(assetId) {
+    await runAction("asset_delete", async () => {
+      await apiCall(`/v1/assets/${assetId}`, "DELETE", null);
+      void loadAssetManifests();
+      return { ok: true };
+    });
   }
 
   function applyAssetManifest() {
@@ -14439,6 +14560,38 @@ function extractPythonSavedPath(outputText) {
             </div>
           </section>
           <section className="panel">
+            <h2>Artisan Login</h2>
+            {authToken ? (
+              <div>
+                <div className="row">
+                  <span className="badge badge-ok">{`Signed in: ${artisanId} (${role})`}</span>
+                  <button className="action" onClick={logout}>Sign Out</button>
+                </div>
+                <p>{`Workshop: ${workshopId || "—"}`}</p>
+              </div>
+            ) : (
+              <div>
+                <div className="row">
+                  <input
+                    value={loginArtisanId}
+                    onChange={(e) => setLoginArtisanId(e.target.value)}
+                    placeholder="artisan_id"
+                  />
+                  <input
+                    type="password"
+                    value={loginArtisanCode}
+                    onChange={(e) => setLoginArtisanCode(e.target.value)}
+                    placeholder="artisan code (AID-...)"
+                    onKeyDown={(e) => { if (e.key === "Enter") void login(); }}
+                  />
+                  <button className="action" onClick={login}>Sign In</button>
+                </div>
+                {loginError && <p className="error-text">{loginError}</p>}
+                <p className="muted-text">No account yet? A steward must bootstrap your access first.</p>
+              </div>
+            )}
+          </section>
+          <section className="panel">
             <h2>Session Control</h2>
             <div className="row">
               <select value={role} onChange={(e) => setRole(e.target.value)}>
@@ -18047,6 +18200,79 @@ function extractPythonSavedPath(outputText) {
             <p>No lessons loaded yet.</p>
           )}
         </section>
+      );
+    }
+    if (section === "Asset Library") {
+      return (
+        <>
+          <section className="panel">
+            <h2>Upload Asset</h2>
+            <div className="row">
+              <input
+                type="file"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null;
+                  setAssetUploadFile(f);
+                  if (f) setAssetUploadMime(f.type || "application/octet-stream");
+                }}
+              />
+              <select value={assetUploadKind} onChange={(e) => setAssetUploadKind(e.target.value)}>
+                <option value="image">Image</option>
+                <option value="audio">Audio</option>
+                <option value="document">Document</option>
+                <option value="model">3D Model</option>
+                <option value="data">Data</option>
+                <option value="other">Other</option>
+              </select>
+              <input value={assetUploadMime} onChange={(e) => setAssetUploadMime(e.target.value)} placeholder="mime type" />
+              <button className="action" onClick={uploadAsset} disabled={!assetUploadFile || assetUploadStatus !== "idle"}>
+                {assetUploadStatus === "idle" ? "Upload" : assetUploadStatus}
+              </button>
+            </div>
+            {assetUploadFile && <p>{`Selected: ${assetUploadFile.name} (${(assetUploadFile.size / 1024).toFixed(1)} KB)`}</p>}
+          </section>
+          <section className="panel">
+            <h2>Stored Assets</h2>
+            <div className="row">
+              <button className="action" onClick={loadAssetManifests}>Refresh</button>
+              <span className="badge">{`${assetManifests.filter(a => a.storage_state === "uploaded").length} uploaded`}</span>
+              <span className="badge">{`${assetManifests.length} total`}</span>
+            </div>
+            {assetManifests.length > 0 ? (
+              <table className="data-table">
+                <thead>
+                  <tr><th>Name</th><th>Kind</th><th>State</th><th>Size</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {assetManifests.map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.name}</td>
+                      <td>{a.kind}</td>
+                      <td>
+                        <span className={`badge ${a.storage_state === "uploaded" ? "badge-ok" : a.storage_state === "deleted" ? "badge-error" : "badge-warn"}`}>
+                          {a.storage_state}
+                        </span>
+                      </td>
+                      <td>{a.file_size_bytes > 0 ? `${(a.file_size_bytes / 1024).toFixed(1)} KB` : "—"}</td>
+                      <td>
+                        <div className="row">
+                          {a.storage_state === "uploaded" && (
+                            <button className="action" onClick={() => downloadAsset(a.id)}>Download</button>
+                          )}
+                          {a.storage_state !== "deleted" && (
+                            <button className="action" onClick={() => deleteAsset(a.id)}>Delete</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No assets yet. Upload a file above.</p>
+            )}
+          </section>
+        </>
       );
     }
     if (section === "Calculator") {

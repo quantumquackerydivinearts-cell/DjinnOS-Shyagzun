@@ -32,6 +32,8 @@ from .business_schemas import (
     ArtisanAccessIssueOut,
     ArtisanAccessStatusOut,
     ArtisanAccessVerifyInput,
+    ArtisanLoginInput,
+    ArtisanLoginOut,
     BookingCreate,
     BookingOut,
     ClientCreate,
@@ -86,6 +88,9 @@ from .business_schemas import (
     InfernalMeditationUnlockOut,
     AssetManifestCreate,
     AssetManifestOut,
+    AssetUploadRequestInput,
+    AssetUploadRequestOut,
+    AssetConfirmUploadOut,
     ContentValidateInput,
     ContentValidateOut,
     RealmOut,
@@ -529,18 +534,28 @@ def _kernel_only_service(kernel: KernelIntegrationService = Depends(_kernel_inte
 
 
 def _workshop_context(
+    claims: Optional[AuthTokenClaims] = Depends(_auth_token_claims_dep),
     x_artisan_id: Optional[str] = Header(default=None),
     x_workshop_id: Optional[str] = Header(default=None),
     x_workshop_scopes: Optional[str] = Header(default=None),
 ) -> WorkshopContext:
-    if x_artisan_id is None or not x_artisan_id.strip():
+    # Resolve artisan_id: prefer JWT claims (tamper-proof), fall back to header.
+    if claims is not None:
+        resolved_artisan_id = claims.actor_id
+        # If the client also sent a header, reject mismatches to prevent spoofing.
+        if x_artisan_id and x_artisan_id.strip() and x_artisan_id.strip() != resolved_artisan_id:
+            raise HTTPException(status_code=403, detail="artisan_id_token_mismatch")
+    elif x_artisan_id and x_artisan_id.strip():
+        resolved_artisan_id = x_artisan_id.strip()
+    else:
         raise HTTPException(status_code=401, detail="missing_artisan_id")
+
     if x_workshop_id is None or not x_workshop_id.strip():
         raise HTTPException(status_code=401, detail="missing_workshop_id")
     if x_workshop_scopes is None:
         raise HTTPException(status_code=403, detail="missing_workshop_scopes")
     return WorkshopContext(
-        identity=ArtisanIdentity(artisan_id=x_artisan_id, workshop_id=x_workshop_id),
+        identity=ArtisanIdentity(artisan_id=resolved_artisan_id, workshop_id=x_workshop_id),
         scope=WorkshopScope(scopes=parse_scopes(x_workshop_scopes)),
     )
 
@@ -568,15 +583,39 @@ def _settings() -> Settings:
 
 
 def _workspace_id_dep(
+    claims: Optional[AuthTokenClaims] = Depends(_auth_token_claims_dep),
     workshop: WorkshopContext = Depends(_workshop_context),
+    x_workspace_id: Optional[str] = Header(default=None),
     svc: AtelierService = Depends(_atelier_service),
 ) -> str:
-    """Resolve the authenticated artisan's primary workspace_id.
+    """Resolve the artisan's active workspace_id.
 
-    Falls back to 'main' for backwards compatibility when no membership
-    record exists (existing single-tenant deployments).
+    Priority:
+      1. X-Workspace-Id header (explicit switch) — validated against membership.
+      2. First membership record for this artisan (auto-provisioned at login).
+      3. 'main' fallback for legacy header-only / local dev (no JWT).
+
+    JWT artisans are always isolated to their own workspaces.
     """
-    return svc.resolve_artisan_workspace_id(workshop.identity.artisan_id)
+    artisan_id = workshop.identity.artisan_id
+
+    # Honour an explicit workspace switch request, enforcing membership.
+    if x_workspace_id and x_workspace_id.strip() and x_workspace_id.strip() != "main":
+        requested = x_workspace_id.strip()
+        try:
+            svc.assert_workspace_access(artisan_id=artisan_id, workspace_id=requested, role="member")
+        except ValueError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        return requested
+
+    ws_id = svc.resolve_artisan_workspace_id(artisan_id)
+    if ws_id:
+        return ws_id
+    if claims is not None:
+        # Authenticated artisan with no workspace — login should have provisioned one.
+        raise HTTPException(status_code=403, detail="no_workspace_membership")
+    # Legacy header-only mode: single-tenant fallback.
+    return "main"
 
 
 def _shop_landing_html(settings: Settings) -> str:
@@ -1281,6 +1320,23 @@ def bootstrap_artisan_account(
     )
 
 
+@app.post("/v1/auth/login")
+def artisan_login(
+    payload: ArtisanLoginInput,
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ArtisanLoginOut:
+    """Public endpoint — no auth headers required. Verifies artisan_code and issues a JWT."""
+    try:
+        return svc.login_artisan(
+            artisan_id=payload.artisan_id,
+            artisan_code=payload.artisan_code,
+            secret=settings.auth_token_secret,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
 @app.get("/v1/atelier/admin/gate/status")
 def admin_gate_status(
     ctx: CapabilityContext = Depends(_capability_context),
@@ -1384,10 +1440,11 @@ def get_my_workspace(
 ) -> Dict[str, Any]:
     """Return the current artisan's resolved workspace and full workspace list."""
     _enforce(ctx, "kernel.observe")
-    workspace_id = svc.resolve_artisan_workspace_id(workshop.identity.artisan_id)
-    workspaces = svc.list_artisan_workspaces(workshop.identity.artisan_id)
+    artisan_id = workshop.identity.artisan_id
+    workspace_id = svc.resolve_artisan_workspace_id(artisan_id) or "main"
+    workspaces = svc.list_artisan_workspaces(artisan_id)
     return {
-        "artisan_id": workshop.identity.artisan_id,
+        "artisan_id": artisan_id,
         "workspace_id": workspace_id,
         "workspaces": [w.model_dump() for w in workspaces],
     }
@@ -3227,6 +3284,80 @@ def create_asset_manifest(
     if not validation.ok:
         raise HTTPException(status_code=400, detail=f"unknown_realm:{payload.realm_id}")
     return svc.create_asset_manifest(payload)
+
+
+@app.post("/v1/assets/upload-request")
+def request_asset_upload(
+    payload: AssetUploadRequestInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    workspace_id: str = Depends(_workspace_id_dep),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> AssetUploadRequestOut:
+    """Create an asset record and return a presigned PUT URL for direct upload to R2."""
+    _enforce(ctx, "lesson.write")
+    _enforce_role(role, "lesson.write")
+    try:
+        return svc.request_asset_upload(workspace_id=workspace_id, payload=payload, settings=settings)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"upload_request_failed:{exc}") from exc
+
+
+@app.post("/v1/assets/{asset_id}/confirm")
+def confirm_asset_upload(
+    asset_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    workspace_id: str = Depends(_workspace_id_dep),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> AssetConfirmUploadOut:
+    """Mark an asset as successfully uploaded after the client PUT to R2."""
+    _enforce(ctx, "lesson.write")
+    _enforce_role(role, "lesson.write")
+    try:
+        return svc.confirm_asset_upload(workspace_id=workspace_id, asset_id=asset_id, settings=settings)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/v1/assets/{asset_id}/download-url")
+def get_asset_download_url(
+    asset_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    workspace_id: str = Depends(_workspace_id_dep),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> Dict[str, Any]:
+    """Return a presigned download URL (or public URL) for an uploaded asset."""
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+    try:
+        url = svc.get_asset_download_url(workspace_id=workspace_id, asset_id=asset_id, settings=settings)
+        return {"asset_id": asset_id, "url": url}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.delete("/v1/assets/{asset_id}")
+def delete_asset(
+    asset_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    workspace_id: str = Depends(_workspace_id_dep),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> Dict[str, Any]:
+    """Delete an asset from R2 and mark it deleted in the DB."""
+    _enforce(ctx, "lesson.write")
+    _enforce_role(role, "lesson.write")
+    try:
+        svc.delete_asset(workspace_id=workspace_id, asset_id=asset_id, settings=settings)
+        return {"ok": True, "asset_id": asset_id}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/v1/realms")
