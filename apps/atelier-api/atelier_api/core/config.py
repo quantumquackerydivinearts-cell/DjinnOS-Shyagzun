@@ -67,13 +67,13 @@ def load_settings() -> Settings:
         cors_allowed_origins=_parse_origins(
             os.getenv(
                 "CORS_ALLOWED_ORIGINS",
-                "http://127.0.0.1:5173,http://localhost:5173,capacitor://localhost,http://localhost,https://shop.quantumquackery.org",
+                "http://127.0.0.1:5173,http://localhost:5173,capacitor://localhost,http://localhost,https://shop.quantumquackery.org,https://atelier.quantumquackery.com,https://quantumquackery.org",
             )
         ),
         kernel_connect_retries=max(1, int(os.getenv("KERNEL_CONNECT_RETRIES", "4").strip() or "4")),
         kernel_connect_backoff_ms=max(0, int(os.getenv("KERNEL_CONNECT_BACKOFF_MS", "400").strip() or "400")),
-        public_website_url=os.getenv("PUBLIC_WEBSITE_URL", "https://www.quantumquackery.org").strip(),
-        public_atelier_url=os.getenv("PUBLIC_ATELIER_URL", "https://atelier-api.quantumquackery.com").strip(),
+        public_website_url=os.getenv("PUBLIC_WEBSITE_URL", "https://quantumquackery.org").strip(),
+        public_atelier_url=os.getenv("PUBLIC_ATELIER_URL", "https://atelier.quantumquackery.com").strip(),
         public_shop_url=os.getenv("PUBLIC_SHOP_URL", "").strip(),
         shop_workspace_id=os.getenv("SHOP_WORKSPACE_ID", "").strip(),
         stripe_secret_key=os.getenv("STRIPE_SECRET_KEY", "").strip(),

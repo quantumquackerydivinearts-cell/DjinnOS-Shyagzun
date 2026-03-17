@@ -565,8 +565,8 @@ def _settings() -> Settings:
 
 
 def _shop_landing_html(settings: Settings) -> str:
-    website_url = settings.public_website_url or "https://www.quantumquackery.org"
-    atelier_url = settings.public_atelier_url or "https://atelier-api.quantumquackery.com"
+    website_url = settings.public_website_url or "https://quantumquackery.org"
+    atelier_url = settings.public_atelier_url or "https://atelier.quantumquackery.com"
     shop_url = _normalize_shop_base(settings.public_shop_url or atelier_url)
     docs_url = f"{atelier_url.rstrip('/')}/docs"
     cards_html = _shop_cards_html(atelier_url=atelier_url, docs_url=docs_url, website_url=website_url, shop_url=shop_url)
@@ -846,8 +846,8 @@ def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str, shop_
 
 
 def _shop_section_html(section_id: str, settings: Settings, items: Sequence[ShopItemOut]) -> str:
-    website_url = settings.public_website_url or "https://www.quantumquackery.org"
-    atelier_url = settings.public_atelier_url or "https://atelier-api.quantumquackery.com"
+    website_url = settings.public_website_url or "https://quantumquackery.org"
+    atelier_url = settings.public_atelier_url or "https://atelier.quantumquackery.com"
     shop_url = _normalize_shop_base(settings.public_shop_url or atelier_url)
     docs_url = f"{atelier_url.rstrip('/')}/docs"
     section_map = {item["id"]: item for item in _shop_sections()}

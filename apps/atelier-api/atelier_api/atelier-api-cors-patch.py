@@ -27,8 +27,11 @@ CORS_ORIGINS = [
     # "https://*.quantum-quackery.pages.dev",  # wildcard doesn't work in CORS
     # Instead, add specific preview URLs as needed during development.
 
+    # Atelier web app
+    "https://atelier.quantumquackery.com",
+
     # Render service self-reference (for health checks)
-    "https://atelier-api.quantumquackery.com",
+    "https://djinnos-shyagzun-atelier-api.onrender.com",
 ]
 
 # In your main.py, the middleware call should look like this:
