@@ -176,6 +176,10 @@ class Client(Base):
     phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
     status: Mapped[str] = mapped_column(String(40), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    # Public auth fields — null until client self-registers
+    password_hash: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False, server_default="0")
+    email_verification_token: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     workspace: Mapped[Workspace] = relationship()
 
@@ -217,6 +221,43 @@ class Order(Base):
     workspace: Mapped[Workspace] = relationship()
     quote: Mapped[Quote | None] = relationship()
     client: Mapped[Client | None] = relationship()
+
+
+class ClientConversation(Base):
+    __tablename__ = "client_conversations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
+    client_id: Mapped[str] = mapped_column(String(36), ForeignKey("clients.id"), nullable=False)
+    order_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("orders.id"), nullable=True)
+    quote_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("quotes.id"), nullable=True)
+    guild_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    subject: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    participant_artisan_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    min_rank: Mapped[str] = mapped_column(String(40), nullable=False, default="apprentice")
+    status: Mapped[str] = mapped_column(String(40), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    workspace: Mapped[Workspace] = relationship()
+    client: Mapped[Client] = relationship()
+
+
+class ClientMessageEnvelope(Base):
+    __tablename__ = "client_message_envelopes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    conversation_id: Mapped[str] = mapped_column(String(36), ForeignKey("client_conversations.id"), nullable=False)
+    sender_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    sender_kind: Mapped[str] = mapped_column(String(20), nullable=False)  # client | artisan | steward
+    ciphertext_b64: Mapped[str] = mapped_column(Text, nullable=False)
+    nonce_b64: Mapped[str] = mapped_column(String(60), nullable=False)
+    mac_hex: Mapped[str] = mapped_column(String(64), nullable=False)
+    plaintext_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    conversation: Mapped[ClientConversation] = relationship()
 
 
 class Contract(Base):

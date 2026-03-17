@@ -47,6 +47,8 @@ from .models import (
     KernelField,
     InviteCode,
     GuildArtisanProfile,
+    ClientConversation,
+    ClientMessageEnvelope,
 )
 
 
@@ -202,6 +204,88 @@ class AtelierRepository:
         self._db.commit()
         self._db.refresh(row)
         return row
+
+    def get_client_by_email(self, email: str, workspace_id: str) -> Client | None:
+        return self._db.scalars(
+            select(Client).where(Client.email == email, Client.workspace_id == workspace_id)
+        ).first()
+
+    def get_client_by_id(self, client_id: str) -> Client | None:
+        return self._db.scalars(select(Client).where(Client.id == client_id)).first()
+
+    def save_client(self, row: Client) -> Client:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    # ── Client conversations ──────────────────────────────────────────────────
+
+    def create_client_conversation(self, row: ClientConversation) -> ClientConversation:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_client_conversation(self, conversation_id: str) -> ClientConversation | None:
+        return self._db.scalars(
+            select(ClientConversation).where(ClientConversation.id == conversation_id)
+        ).first()
+
+    def list_client_conversations_by_client(self, client_id: str) -> Sequence[ClientConversation]:
+        return self._db.scalars(
+            select(ClientConversation)
+            .where(ClientConversation.client_id == client_id)
+            .order_by(ClientConversation.updated_at.desc())
+        ).all()
+
+    def list_client_conversations_by_workspace(self, workspace_id: str) -> Sequence[ClientConversation]:
+        return self._db.scalars(
+            select(ClientConversation)
+            .where(ClientConversation.workspace_id == workspace_id)
+            .order_by(ClientConversation.updated_at.desc())
+        ).all()
+
+    def save_client_conversation(self, row: ClientConversation) -> ClientConversation:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    # ── Client messages ───────────────────────────────────────────────────────
+
+    def create_client_message(self, row: ClientMessageEnvelope) -> ClientMessageEnvelope:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_client_messages(self, conversation_id: str) -> Sequence[ClientMessageEnvelope]:
+        return self._db.scalars(
+            select(ClientMessageEnvelope)
+            .where(ClientMessageEnvelope.conversation_id == conversation_id)
+            .order_by(ClientMessageEnvelope.sent_at.asc())
+        ).all()
+
+    def get_client_message(self, message_id: str) -> ClientMessageEnvelope | None:
+        return self._db.scalars(
+            select(ClientMessageEnvelope).where(ClientMessageEnvelope.id == message_id)
+        ).first()
+
+    def mark_client_messages_read(self, conversation_id: str, reader_id: str) -> None:
+        """Mark all messages in this conversation as read for a non-sender."""
+        msgs = self._db.scalars(
+            select(ClientMessageEnvelope).where(
+                ClientMessageEnvelope.conversation_id == conversation_id,
+                ClientMessageEnvelope.sender_id != reader_id,
+                ClientMessageEnvelope.read_at.is_(None),
+            )
+        ).all()
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        for msg in msgs:
+            msg.read_at = now
+        self._db.commit()
 
     def list_quotes(self, workspace_id: str) -> Sequence[Quote]:
         return self._db.scalars(select(Quote).where(Quote.workspace_id == workspace_id)).all()

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -1859,6 +1859,84 @@ class InviteRedeemOut(BaseModel):
     workshop_id: str
     profile_name: str
     profile_email: str
+
+
+class ClientRegisterInput(BaseModel):
+    workspace_id: str
+    full_name: str
+    email: str
+    password: str
+    phone: Optional[str] = None
+
+
+class ClientLoginInput(BaseModel):
+    email: str
+    password: str
+    workspace_id: str
+
+
+class ClientLoginOut(BaseModel):
+    token: str
+    expires_at: int
+    client_id: str
+    full_name: str
+    email: str
+    workspace_id: str
+
+
+class ClientMeOut(BaseModel):
+    client_id: str
+    full_name: str
+    email: str
+    workspace_id: str
+    phone: Optional[str] = None
+    email_verified: bool
+    status: str
+
+
+class ClientConversationCreateInput(BaseModel):
+    workspace_id: str
+    client_id: str
+    participant_artisan_ids: List[str]
+    subject: str = ""
+    order_id: Optional[str] = None
+    quote_id: Optional[str] = None
+    guild_id: Optional[str] = None
+    min_rank: str = "apprentice"
+
+
+class ClientConversationOut(BaseModel):
+    id: str
+    workspace_id: str
+    client_id: str
+    order_id: Optional[str] = None
+    quote_id: Optional[str] = None
+    guild_id: Optional[str] = None
+    subject: str
+    participant_artisan_ids: List[str]
+    min_rank: str
+    status: str
+    created_at: str
+    updated_at: str
+
+
+class ConversationParticipantPatchInput(BaseModel):
+    action: Literal["add", "remove"]
+    artisan_id: str
+
+
+class ClientMessageSendInput(BaseModel):
+    plaintext: str
+
+
+class ClientMessageOut(BaseModel):
+    id: str
+    conversation_id: str
+    sender_id: str
+    sender_kind: str
+    plaintext: str
+    sent_at: str
+    read_at: Optional[str] = None
 
 
 class RealmOut(BaseModel):

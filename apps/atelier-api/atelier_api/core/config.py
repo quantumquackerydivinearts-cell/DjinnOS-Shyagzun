@@ -2,6 +2,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
+from pathlib import Path
+
+
+def _load_env_file() -> None:
+    """Load key=value pairs from .env in the repo root or api dir into os.environ.
+    Does NOT override vars already present in the environment."""
+    candidates = [
+        Path(__file__).parent.parent.parent / ".env",          # apps/atelier-api/.env
+        Path(__file__).parent.parent.parent.parent / ".env",   # repo root .env
+    ]
+    for env_path in candidates:
+        if not env_path.is_file():
+            continue
+        for raw in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = val
+        break  # stop after first found
 
 
 @dataclass(frozen=True)
@@ -56,6 +79,7 @@ def get_settings() -> Settings:
     return load_settings()
 
 def load_settings() -> Settings:
+    _load_env_file()
     return Settings(
         kernel_base_url=os.getenv("KERNEL_BASE_URL", "http://127.0.0.1:8000"),
         kernel_internal_base_url=os.getenv("KERNEL_INTERNAL_BASE_URL", "").strip(),

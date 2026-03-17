@@ -76,8 +76,18 @@ if (-not (Test-Path -LiteralPath $npmCmd)) {
     throw "npm not found at $npmCmd"
 }
 
+$kernelPython = Join-Path $repoRoot ".venv\Scripts\python.exe"
+$apiPython = Join-Path $apiRepo ".venv\Scripts\python.exe"
+
+if (-not (Test-Path -LiteralPath $kernelPython)) {
+    throw "Root venv not found: $kernelPython — run: python -m venv .venv && .venv\Scripts\pip install uvicorn fastapi"
+}
+if (-not (Test-Path -LiteralPath $apiPython)) {
+    throw "API venv not found: $apiPython — run: cd apps\atelier-api && python -m venv .venv && .venv\Scripts\pip install -r requirements.txt"
+}
+
 Write-Host "Starting kernel service on ${KernelHost}:${KernelPort}"
-$kernelCmd = "python -m uvicorn shygazun.kernel_service:app --host $KernelHost --port $KernelPort --app-dir '$kernelRepo'"
+$kernelCmd = "& '$kernelPython' -m uvicorn shygazun.kernel_service:app --host $KernelHost --port $KernelPort --app-dir '$kernelRepo'"
 $kernelProc = Start-ShellProcess -Title "Atelier Kernel" -Workdir $kernelRepo -Command $kernelCmd
 
 if (-not (Test-HttpReady -Url "http://${KernelHost}:${KernelPort}/events" -TimeoutSec 90)) {
@@ -86,7 +96,7 @@ if (-not (Test-HttpReady -Url "http://${KernelHost}:${KernelPort}/events" -Timeo
 
 Write-Host "Starting API service on ${ApiHost}:${ApiPort}"
 $sqlitePath = (Join-Path $apiRepo "atelier_local.db") -replace "\\", "/"
-$apiCmd = "`$env:DATABASE_URL='sqlite:///$sqlitePath'; `$env:KERNEL_BASE_URL='http://${KernelHost}:${KernelPort}'; `$env:AUTH_TOKEN_SECRET='84a60807b2e453ffa43bce7da13f831b5eed378bcdfd7617c391255f73a6d353'; `$env:PYTHONPATH='$repoRoot;$apiRepo'; python -m alembic upgrade head; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; python -m uvicorn atelier_api.main:app --host $ApiHost --port $ApiPort --app-dir '$apiRepo'"
+$apiCmd = "`$env:DATABASE_URL='sqlite:///$sqlitePath'; `$env:KERNEL_BASE_URL='http://${KernelHost}:${KernelPort}'; `$env:AUTH_TOKEN_SECRET='84a60807b2e453ffa43bce7da13f831b5eed378bcdfd7617c391255f73a6d353'; `$env:ADMIN_GATE_CODE='ELKO_OWU_DYSKA'; `$env:PYTHONPATH='$repoRoot;$apiRepo'; & '$apiPython' -m alembic upgrade head; if (`$LASTEXITCODE -ne 0) { Read-Host 'Migration failed — press Enter to close'; exit `$LASTEXITCODE }; & '$apiPython' -m uvicorn atelier_api.main:app --host $ApiHost --port $ApiPort --app-dir '$apiRepo'"
 $apiProc = Start-ShellProcess -Title "Atelier API" -Workdir $apiRepo -Command $apiCmd
 
 if (-not (Test-HttpReady -Url "http://${ApiHost}:${ApiPort}/health" -TimeoutSec 90)) {

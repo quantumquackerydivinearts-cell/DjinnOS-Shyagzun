@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, FrozenSet
 
 
+ROLE_CLIENT = "client"
 ROLE_APPRENTICE = "apprentice"
 ROLE_ARTISAN = "artisan"
 ROLE_SENIOR_ARTISAN = "senior_artisan"
@@ -16,6 +17,14 @@ class RoleContext:
 
 
 ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
+    ROLE_CLIENT: frozenset(
+        {
+            "order.read",
+            "conversation.read",
+            "conversation.write",
+            "conversation.create",
+        }
+    ),
     ROLE_APPRENTICE: frozenset(
         {
             "kernel.observe",
@@ -43,6 +52,9 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
     ),
     ROLE_ARTISAN: frozenset(
         {
+            "conversation.read",
+            "conversation.write",
+            "conversation.create",
             "kernel.place",
             "kernel.observe",
             "kernel.timeline",
@@ -86,12 +98,17 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
     ),
     ROLE_SENIOR_ARTISAN: frozenset(
         {
+            "conversation.read",
+            "conversation.write",
+            "conversation.create",
+            "conversation.admin",
             "kernel.place",
             "kernel.observe",
             "kernel.timeline",
             "kernel.frontiers",
             "kernel.edges",
             "kernel.attest",
+            "kernel.interpret",
             "crm.contacts.read",
             "crm.contacts.write",
             "booking.read",
@@ -132,12 +149,17 @@ ROLE_CAPABILITIES: Dict[str, FrozenSet[str]] = {
     ),
     ROLE_STEWARD: frozenset(
         {
+            "conversation.read",
+            "conversation.write",
+            "conversation.create",
+            "conversation.admin",
             "kernel.place",
             "kernel.observe",
             "kernel.timeline",
             "kernel.frontiers",
             "kernel.edges",
             "kernel.attest",
+            "kernel.interpret",
             "crm.contacts.read",
             "crm.contacts.write",
             "booking.read",

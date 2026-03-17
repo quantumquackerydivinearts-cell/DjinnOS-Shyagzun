@@ -4851,6 +4851,352 @@ class AtelierService:
         out = self._require_repo().create_client(row)
         return ClientOut.model_validate(out, from_attributes=True)
 
+    def register_public_client(
+        self,
+        *,
+        workspace_id: str,
+        full_name: str,
+        email: str,
+        password: str,
+        phone: str | None,
+        secret: str,
+    ) -> "ClientLoginOut":
+        from .auth import create_auth_token
+        from .business_schemas import ClientLoginOut
+        from .core.security import hash_password
+        from .roles import ROLE_CAPABILITIES, ROLE_CLIENT
+
+        email = email.strip().lower()
+        if not email or "@" not in email:
+            raise ValueError("invalid_email")
+        if not password or len(password) < 8:
+            raise ValueError("password_too_short")
+
+        repo = self._require_repo()
+        existing = repo.get_client_by_email(email, workspace_id)
+        if existing is not None and existing.password_hash is not None:
+            raise ValueError("email_already_registered")
+
+        if existing is not None:
+            # Upgrade an existing CRM-only record to an auth-capable account
+            existing.full_name = full_name.strip() or existing.full_name
+            existing.phone = phone or existing.phone
+            existing.password_hash = hash_password(password)
+            existing.email_verified = True
+            row = repo.save_client(existing)
+        else:
+            row = Client(
+                workspace_id=workspace_id,
+                full_name=full_name.strip(),
+                email=email,
+                phone=phone,
+                status="active",
+                password_hash=hash_password(password),
+                email_verified=True,
+            )
+            row = repo.create_client(row)
+
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        exp_ts = now_ts + 60 * 60 * 24  # 24-hour token
+        caps = ROLE_CAPABILITIES.get(ROLE_CLIENT, frozenset())
+        token = create_auth_token(
+            actor_id=row.id,
+            capabilities=tuple(sorted(caps)),
+            role=ROLE_CLIENT,
+            secret=secret,
+            exp=exp_ts,
+            iat=now_ts,
+        )
+        return ClientLoginOut(
+            token=token,
+            expires_at=exp_ts,
+            client_id=row.id,
+            full_name=row.full_name,
+            email=row.email or "",
+            workspace_id=row.workspace_id,
+        )
+
+    def login_public_client(
+        self,
+        *,
+        email: str,
+        password: str,
+        workspace_id: str,
+        secret: str,
+    ) -> "ClientLoginOut":
+        from .auth import create_auth_token
+        from .business_schemas import ClientLoginOut
+        from .core.security import verify_password
+        from .roles import ROLE_CAPABILITIES, ROLE_CLIENT
+
+        email = email.strip().lower()
+        repo = self._require_repo()
+        row = repo.get_client_by_email(email, workspace_id)
+        if row is None or row.password_hash is None:
+            raise ValueError("invalid_credentials")
+        if not verify_password(password, row.password_hash):
+            raise ValueError("invalid_credentials")
+
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        exp_ts = now_ts + 60 * 60 * 24  # 24-hour token
+        caps = ROLE_CAPABILITIES.get(ROLE_CLIENT, frozenset())
+        token = create_auth_token(
+            actor_id=row.id,
+            capabilities=tuple(sorted(caps)),
+            role=ROLE_CLIENT,
+            secret=secret,
+            exp=exp_ts,
+            iat=now_ts,
+        )
+        return ClientLoginOut(
+            token=token,
+            expires_at=exp_ts,
+            client_id=row.id,
+            full_name=row.full_name,
+            email=row.email or "",
+            workspace_id=row.workspace_id,
+        )
+
+    # ── Client conversation helpers ───────────────────────────────────────────
+
+    @staticmethod
+    def _client_conv_root_key(conversation_id: str, secret: str) -> bytes:
+        import hashlib
+        return hashlib.sha256(
+            f"client_conv_v1:{conversation_id}:{secret}".encode("utf-8")
+        ).digest()
+
+    @staticmethod
+    def _client_conv_encrypt(plaintext: str, root_key: bytes) -> tuple[str, str, str, str]:
+        """Returns (ciphertext_b64, nonce_b64, mac_hex, plaintext_digest)."""
+        import base64
+        import hashlib
+        import hmac as hmac_mod
+        import os
+        raw = plaintext.encode("utf-8")
+        nonce = os.urandom(16)
+        # Keystream via SHA256 counter mode
+        keystream = bytearray()
+        counter = 0
+        while len(keystream) < len(raw):
+            keystream += hashlib.sha256(root_key + nonce + counter.to_bytes(4, "big")).digest()
+            counter += 1
+        ciphertext = bytes(a ^ b for a, b in zip(raw, keystream))
+        mac = hmac_mod.new(root_key, nonce + ciphertext, hashlib.sha256).hexdigest()
+        digest = hashlib.sha256(raw).hexdigest()
+        return (
+            base64.b64encode(ciphertext).decode("ascii"),
+            base64.b64encode(nonce).decode("ascii"),
+            mac,
+            digest,
+        )
+
+    @staticmethod
+    def _client_conv_decrypt(
+        ciphertext_b64: str, nonce_b64: str, mac_hex: str, root_key: bytes
+    ) -> str:
+        import base64
+        import hashlib
+        import hmac as hmac_mod
+        ciphertext = base64.b64decode(ciphertext_b64)
+        nonce = base64.b64decode(nonce_b64)
+        expected_mac = hmac_mod.new(root_key, nonce + ciphertext, hashlib.sha256).hexdigest()
+        if not hmac_mod.compare_digest(expected_mac, mac_hex):
+            raise ValueError("message_mac_invalid")
+        keystream = bytearray()
+        counter = 0
+        while len(keystream) < len(ciphertext):
+            keystream += hashlib.sha256(root_key + nonce + counter.to_bytes(4, "big")).digest()
+            counter += 1
+        return bytes(a ^ b for a, b in zip(ciphertext, keystream)).decode("utf-8")
+
+    def _conv_out(self, row: "ClientConversation") -> "ClientConversationOut":
+        import json
+        from .business_schemas import ClientConversationOut
+        return ClientConversationOut(
+            id=row.id,
+            workspace_id=row.workspace_id,
+            client_id=row.client_id,
+            order_id=row.order_id,
+            quote_id=row.quote_id,
+            guild_id=row.guild_id,
+            subject=row.subject or "",
+            participant_artisan_ids=json.loads(row.participant_artisan_ids_json or "[]"),
+            min_rank=row.min_rank or "apprentice",
+            status=row.status,
+            created_at=row.created_at.isoformat() if row.created_at else "",
+            updated_at=row.updated_at.isoformat() if row.updated_at else "",
+        )
+
+    def _msg_out(self, row: "ClientMessageEnvelope", root_key: bytes) -> "ClientMessageOut":
+        from .business_schemas import ClientMessageOut
+        plaintext = self._client_conv_decrypt(
+            row.ciphertext_b64, row.nonce_b64, row.mac_hex, root_key
+        )
+        return ClientMessageOut(
+            id=row.id,
+            conversation_id=row.conversation_id,
+            sender_id=row.sender_id,
+            sender_kind=row.sender_kind,
+            plaintext=plaintext,
+            sent_at=row.sent_at.isoformat() if row.sent_at else "",
+            read_at=row.read_at.isoformat() if row.read_at else None,
+        )
+
+    # Rank ordering for guild ACL checks
+    _RANK_ORDER = ["apprentice", "artisan", "senior_artisan", "steward"]
+
+    @staticmethod
+    def _rank_gte(actual: str, required: str) -> bool:
+        """Return True if actual rank is >= required rank."""
+        ranks = ["apprentice", "artisan", "senior_artisan", "steward"]
+        try:
+            return ranks.index(actual) >= ranks.index(required)
+        except ValueError:
+            return False
+
+    def create_client_conversation(
+        self,
+        *,
+        workspace_id: str,
+        client_id: str,
+        participant_artisan_ids: list[str],
+        subject: str,
+        order_id: str | None,
+        quote_id: str | None,
+        guild_id: str | None = None,
+        min_rank: str = "apprentice",
+    ) -> "ClientConversationOut":
+        import json
+        from .models import ClientConversation
+        repo = self._require_repo()
+        # Guild membership check: if guild_id is set, every participant must have
+        # a steward-approved guild profile meeting min_rank.
+        if guild_id and participant_artisan_ids:
+            for aid in participant_artisan_ids:
+                profile = repo.get_guild_profile(aid)
+                if profile is None or not profile.steward_approved:
+                    raise ValueError(f"artisan_not_guild_member:{aid}")
+                if not self._rank_gte(profile.guild_rank or "apprentice", min_rank):
+                    raise ValueError(f"artisan_rank_insufficient:{aid}")
+        row = ClientConversation(
+            workspace_id=workspace_id,
+            client_id=client_id,
+            order_id=order_id,
+            quote_id=quote_id,
+            guild_id=guild_id,
+            subject=subject or "",
+            participant_artisan_ids_json=json.dumps(participant_artisan_ids),
+            min_rank=min_rank,
+            status="active",
+        )
+        row = repo.create_client_conversation(row)
+        return self._conv_out(row)
+
+    def list_client_conversations(
+        self, *, actor_id: str, actor_kind: str, workspace_id: str | None
+    ) -> list["ClientConversationOut"]:
+        repo = self._require_repo()
+        if actor_kind == "client":
+            rows = repo.list_client_conversations_by_client(actor_id)
+        else:
+            # artisan or steward — list by workspace
+            if not workspace_id:
+                raise ValueError("workspace_id_required")
+            rows = repo.list_client_conversations_by_workspace(workspace_id)
+        return [self._conv_out(r) for r in rows]
+
+    def get_client_conversation(self, *, conversation_id: str) -> "ClientConversationOut":
+        repo = self._require_repo()
+        row = repo.get_client_conversation(conversation_id)
+        if row is None:
+            raise ValueError("conversation_not_found")
+        return self._conv_out(row)
+
+    def patch_conversation_participant(
+        self,
+        *,
+        conversation_id: str,
+        artisan_id: str,
+        action: str,  # "add" | "remove"
+    ) -> "ClientConversationOut":
+        import json
+        repo = self._require_repo()
+        conv = repo.get_client_conversation(conversation_id)
+        if conv is None:
+            raise ValueError("conversation_not_found")
+        participants: list[str] = json.loads(conv.participant_artisan_ids_json or "[]")
+        if action == "add":
+            # Guild membership check when guild_id is set
+            if conv.guild_id:
+                profile = repo.get_guild_profile(artisan_id)
+                if profile is None or not profile.steward_approved:
+                    raise ValueError(f"artisan_not_guild_member:{artisan_id}")
+                if not self._rank_gte(profile.guild_rank or "apprentice", conv.min_rank or "apprentice"):
+                    raise ValueError(f"artisan_rank_insufficient:{artisan_id}")
+            if artisan_id not in participants:
+                participants.append(artisan_id)
+        elif action == "remove":
+            participants = [p for p in participants if p != artisan_id]
+        else:
+            raise ValueError("invalid_action")
+        conv.participant_artisan_ids_json = json.dumps(participants)
+        conv.updated_at = datetime.now(timezone.utc)
+        conv = repo.save_client_conversation(conv)
+        return self._conv_out(conv)
+
+    def send_client_message(
+        self,
+        *,
+        conversation_id: str,
+        sender_id: str,
+        sender_kind: str,
+        plaintext: str,
+        secret: str,
+    ) -> "ClientMessageOut":
+        import json
+        from .models import ClientMessageEnvelope
+        if not plaintext.strip():
+            raise ValueError("message_empty")
+        repo = self._require_repo()
+        conv = repo.get_client_conversation(conversation_id)
+        if conv is None:
+            raise ValueError("conversation_not_found")
+        # ACL: sender must be the conversation's client OR a listed participant artisan/steward
+        if sender_kind == "client":
+            if sender_id != conv.client_id:
+                raise ValueError("sender_not_conversation_client")
+        elif sender_kind in ("artisan", "senior_artisan", "steward"):
+            participants: list[str] = json.loads(conv.participant_artisan_ids_json or "[]")
+            # Stewards have workspace-level access; artisans must be listed
+            if sender_kind != "steward" and sender_id not in participants:
+                raise ValueError("sender_not_conversation_participant")
+        root_key = self._client_conv_root_key(conversation_id, secret)
+        ciphertext_b64, nonce_b64, mac_hex, digest = self._client_conv_encrypt(plaintext, root_key)
+        row = ClientMessageEnvelope(
+            conversation_id=conversation_id,
+            sender_id=sender_id,
+            sender_kind=sender_kind,
+            ciphertext_b64=ciphertext_b64,
+            nonce_b64=nonce_b64,
+            mac_hex=mac_hex,
+            plaintext_digest=digest,
+        )
+        row = repo.create_client_message(row)
+        # Touch conversation updated_at
+        conv.updated_at = datetime.now(timezone.utc)
+        repo.save_client_conversation(conv)
+        return self._msg_out(row, root_key)
+
+    def list_client_messages(
+        self, *, conversation_id: str, reader_id: str, secret: str
+    ) -> list["ClientMessageOut"]:
+        repo = self._require_repo()
+        root_key = self._client_conv_root_key(conversation_id, secret)
+        rows = repo.list_client_messages(conversation_id)
+        repo.mark_client_messages_read(conversation_id, reader_id)
+        return [self._msg_out(r, root_key) for r in rows]
+
     def list_quotes(self, workspace_id: str) -> Sequence[QuoteOut]:
         rows = self._require_repo().list_quotes(workspace_id=workspace_id)
         return [QuoteOut.model_validate(row, from_attributes=True) for row in rows]

@@ -37,7 +37,11 @@ from .business_schemas import (
     BookingCreate,
     BookingOut,
     ClientCreate,
+    ClientLoginInput,
+    ClientLoginOut,
+    ClientMeOut,
     ClientOut,
+    ClientRegisterInput,
     ContactCreate,
     ContactOut,
     InventoryItemCreate,
@@ -205,6 +209,11 @@ from .business_schemas import (
     WorkspaceCreate,
     WorkspaceOut,
     WorkspaceMemberAddInput,
+    ClientConversationCreateInput,
+    ClientConversationOut,
+    ConversationParticipantPatchInput,
+    ClientMessageSendInput,
+    ClientMessageOut,
 )
 from .rendering_schemas import (
     RendererTablesInput,
@@ -1376,6 +1385,250 @@ def redeem_invite(
     """Public endpoint — redeem an invite code to create an account and receive a JWT."""
     try:
         return svc.redeem_invite(payload=payload, secret=settings.auth_token_secret)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/public/auth/client/register")
+def client_register(
+    payload: ClientRegisterInput,
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> ClientLoginOut:
+    """Public — register a client account and receive a JWT."""
+    try:
+        return svc.register_public_client(
+            workspace_id=payload.workspace_id,
+            full_name=payload.full_name,
+            email=payload.email,
+            password=payload.password,
+            phone=payload.phone,
+            secret=settings.auth_token_secret,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/public/auth/client/login")
+def client_login(
+    payload: ClientLoginInput,
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> ClientLoginOut:
+    """Public — authenticate a client and receive a JWT."""
+    try:
+        return svc.login_public_client(
+            email=payload.email,
+            password=payload.password,
+            workspace_id=payload.workspace_id,
+            secret=settings.auth_token_secret,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.get("/v1/client/me")
+def client_me(
+    authorization: Optional[str] = Header(default=None),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> ClientMeOut:
+    """Authenticated client — own profile."""
+    from .auth import decode_auth_token
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="missing_token")
+    try:
+        claims = decode_auth_token(token=authorization[7:], secret=settings.auth_token_secret)
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+    if claims.role != "client":
+        raise HTTPException(status_code=403, detail="client_role_required")
+    repo = svc._require_repo()
+    row = repo.get_client_by_id(claims.actor_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="client_not_found")
+    return ClientMeOut(
+        client_id=row.id,
+        full_name=row.full_name,
+        email=row.email or "",
+        workspace_id=row.workspace_id,
+        phone=row.phone,
+        email_verified=row.email_verified,
+        status=row.status,
+    )
+
+
+@app.post("/v1/client/conversations")
+def client_create_conversation(
+    payload: ClientConversationCreateInput,
+    authorization: Optional[str] = Header(default=None),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> ClientConversationOut:
+    """Create a conversation thread between a client and one or more artisans."""
+    from .auth import decode_auth_token
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="missing_token")
+    claims = decode_auth_token(token, settings.auth_token_secret)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="invalid_token")
+    role = claims.get("role", "")
+    if role not in ("client", "artisan", "senior_artisan", "steward"):
+        raise HTTPException(status_code=403, detail="forbidden")
+    try:
+        return svc.create_client_conversation(
+            workspace_id=payload.workspace_id,
+            client_id=payload.client_id,
+            participant_artisan_ids=payload.participant_artisan_ids,
+            subject=payload.subject,
+            order_id=payload.order_id,
+            quote_id=payload.quote_id,
+            guild_id=payload.guild_id,
+            min_rank=payload.min_rank,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/client/conversations")
+def client_list_conversations(
+    workspace_id: Optional[str] = None,
+    authorization: Optional[str] = Header(default=None),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> list[ClientConversationOut]:
+    """List conversations visible to the calling actor."""
+    from .auth import decode_auth_token
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="missing_token")
+    claims = decode_auth_token(token, settings.auth_token_secret)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="invalid_token")
+    role = claims.get("role", "")
+    if role not in ("client", "artisan", "senior_artisan", "steward"):
+        raise HTTPException(status_code=403, detail="forbidden")
+    actor_id = claims.get("sub", "")
+    # Clients scope to their own conversations via client_id match in service
+    actor_kind = "client" if role == "client" else "artisan"
+    ws = claims.get("workspace_id") or workspace_id
+    try:
+        return svc.list_client_conversations(
+            actor_id=actor_id, actor_kind=actor_kind, workspace_id=ws
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/client/conversations/{conversation_id}")
+def client_get_conversation(
+    conversation_id: str,
+    authorization: Optional[str] = Header(default=None),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> ClientConversationOut:
+    """Get a single conversation by ID."""
+    from .auth import decode_auth_token
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="missing_token")
+    claims = decode_auth_token(token, settings.auth_token_secret)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="invalid_token")
+    if claims.get("role") not in ("client", "artisan", "senior_artisan", "steward"):
+        raise HTTPException(status_code=403, detail="forbidden")
+    try:
+        result = svc.get_client_conversation(conversation_id=conversation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return result
+
+
+@app.patch("/v1/client/conversations/{conversation_id}/participants")
+def client_patch_conversation_participant(
+    conversation_id: str,
+    payload: ConversationParticipantPatchInput,
+    authorization: Optional[str] = Header(default=None),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> ClientConversationOut:
+    """Add or remove an artisan participant. Requires senior_artisan or steward role."""
+    from .auth import decode_auth_token
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="missing_token")
+    claims = decode_auth_token(token, settings.auth_token_secret)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="invalid_token")
+    if claims.get("role") not in ("senior_artisan", "steward"):
+        raise HTTPException(status_code=403, detail="conversation_admin_required")
+    try:
+        return svc.patch_conversation_participant(
+            conversation_id=conversation_id,
+            artisan_id=payload.artisan_id,
+            action=payload.action,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/client/conversations/{conversation_id}/messages")
+def client_send_message(
+    conversation_id: str,
+    payload: ClientMessageSendInput,
+    authorization: Optional[str] = Header(default=None),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> ClientMessageOut:
+    """Send a message into a conversation."""
+    from .auth import decode_auth_token
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="missing_token")
+    claims = decode_auth_token(token, settings.auth_token_secret)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="invalid_token")
+    role = claims.get("role", "")
+    if role not in ("client", "artisan", "senior_artisan", "steward"):
+        raise HTTPException(status_code=403, detail="forbidden")
+    sender_id = claims.get("sub", "")
+    try:
+        return svc.send_client_message(
+            conversation_id=conversation_id,
+            sender_id=sender_id,
+            sender_kind=role,
+            plaintext=payload.plaintext,
+            secret=settings.auth_token_secret,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/client/conversations/{conversation_id}/messages")
+def client_list_messages(
+    conversation_id: str,
+    authorization: Optional[str] = Header(default=None),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> list[ClientMessageOut]:
+    """List (and decrypt) all messages in a conversation."""
+    from .auth import decode_auth_token
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="missing_token")
+    claims = decode_auth_token(token, settings.auth_token_secret)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="invalid_token")
+    if claims.get("role") not in ("client", "artisan", "senior_artisan", "steward"):
+        raise HTTPException(status_code=403, detail="forbidden")
+    reader_id = claims.get("sub", "")
+    try:
+        return svc.list_client_messages(
+            conversation_id=conversation_id,
+            reader_id=reader_id,
+            secret=settings.auth_token_secret,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

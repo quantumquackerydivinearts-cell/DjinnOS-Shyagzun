@@ -19,7 +19,12 @@ function resolveRuntimeApiBase() {
   }
   if (import.meta.env.VITE_API_BASE) return import.meta.env.VITE_API_BASE;
   try {
+    const proto = window.location.protocol;
     const h = window.location.hostname;
+    // Capacitor bundle on Android/iOS: capacitor://localhost or http://localhost
+    if (proto === "capacitor:" || (h === "localhost" && proto !== "http:" && proto !== "https:")) {
+      return "https://djinnos-shyagzun-atelier-api.onrender.com";
+    }
     if (h !== "localhost" && h !== "127.0.0.1" && h !== "") {
       return "https://djinnos-shyagzun-atelier-api.onrender.com";
     }
@@ -14197,25 +14202,27 @@ function extractPythonSavedPath(outputText) {
         });
         const text = await response.text();
         const data = parseSafeJson(text);
-        if (!response.ok || !(data && typeof data === "object" && !Array.isArray(data))) {
-          const failure = response.ok
-            ? {
-                status: "error",
-                scope: "ready",
-                category: "invalid_response",
-                detail: String(text || "").trim() || "non_json_ready_response",
-              }
-            : await buildProbeHttpErrorPayload("ready", {
-                ...response,
-                text: async () => text,
-              });
-          setOutput(JSON.stringify(failure, null, 2));
-          setServiceReadinessOutput(failure);
-          throw new Error(JSON.stringify(failure));
+        // /ready returns 503 when not-ready — treat any valid JSON body as the
+        // readiness payload regardless of HTTP status, so sub-fields are visible.
+        if (data && typeof data === "object" && !Array.isArray(data)) {
+          setOutput(JSON.stringify(data, null, 2));
+          setServiceReadinessOutput(data);
+          return data;
         }
-        setOutput(JSON.stringify(data, null, 2));
-        setServiceReadinessOutput(data);
-        return data;
+        const failure = response.ok
+          ? {
+              status: "error",
+              scope: "ready",
+              category: "invalid_response",
+              detail: String(text || "").trim() || "non_json_ready_response",
+            }
+          : await buildProbeHttpErrorPayload("ready", {
+              ...response,
+              text: async () => text,
+            });
+        setOutput(JSON.stringify(failure, null, 2));
+        setServiceReadinessOutput(failure);
+        throw new Error(JSON.stringify(failure));
       } catch (err) {
         const failure = buildProbeErrorPayload("ready", err);
         setOutput(JSON.stringify(failure, null, 2));
