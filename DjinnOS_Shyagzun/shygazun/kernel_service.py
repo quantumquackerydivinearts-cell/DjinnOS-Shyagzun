@@ -528,55 +528,141 @@ def _shop_items_html(items: list[dict[str, object]]) -> str:
     return f'<div class="grid">{"".join(cards)}</div>'
 
 
-def _shop_intake_html(section_id: str) -> str:
+def _shop_intake_html(section_id: str) -> str:  # noqa: C901
     section = str(section_id or "general")
-    lead_label = "Request a consultation" if section in ("consultations", "land-assessments") else "Request details"
-    quote_enabled = section == "custom-orders"
     timestamp = int(time.time())
-    quote_block = ""
-    if quote_enabled:
-        quote_block = f"""
-      <div class="card" style="margin-top: 18px;">
-        <h3>Request a custom quote</h3>
-        <p>Tell us what you need and we will draft a quote in the Atelier.</p>
-        <form method="post" action="/shop/quote" class="intake-form">
-          <input type="hidden" name="section_id" value="{section}" />
-          <input type="hidden" name="ts" value="{timestamp}" />
-          <input class="hp" name="company" tabindex="-1" autocomplete="off" />
+    hp = '<input class="hp" name="company" tabindex="-1" autocomplete="off" />'
+    hidden = f'<input type="hidden" name="section_id" value="{section}" /><input type="hidden" name="ts" value="{timestamp}" />'
+
+    if section == "consultations":
+        extra = """
           <div class="row">
-            <input name="full_name" placeholder="Full name" required />
-            <input name="email" placeholder="Email" type="email" />
+            <input name="organization" placeholder="Organisation (optional)" />
+            <select name="subtype">
+              <option value="">Consultation type…</option>
+              <option value="Strategy">Strategy</option>
+              <option value="Architecture">Architecture</option>
+              <option value="Operations">Operations</option>
+              <option value="General">General</option>
+            </select>
+          </div>
+          <input name="preferred_dates" placeholder="Preferred dates or availability window" />"""
+        label, blurb, cta = "Request a consultation", "Tell us what you need help with and when you're available.", "Book consultation"
+
+    elif section == "land-assessments":
+        extra = """
+          <div class="row">
+            <input name="location" placeholder="Property address or area" required />
+            <select name="subtype">
+              <option value="">Assessment type…</option>
+              <option value="Standard">Standard</option>
+              <option value="Full">Full</option>
+            </select>
+          </div>
+          <input name="preferred_dates" placeholder="Preferred dates or window" />"""
+        label, blurb, cta = "Request a land assessment", "Guild members are assessed free of charge. Non-members are billed a flat fee.", "Request assessment"
+
+    elif section == "licenses":
+        extra = """
+          <div class="row">
+            <input name="organization" placeholder="Company or organisation" />
+            <select name="subtype">
+              <option value="">License type…</option>
+              <option value="SaaS Subscription">SaaS Subscription</option>
+              <option value="Perpetual">Perpetual</option>
+            </select>
           </div>
           <div class="row">
-            <input name="phone" placeholder="Phone" />
-            <input name="title" placeholder="Project title" />
-          </div>
-          <textarea name="details" placeholder="Describe the request" rows="4"></textarea>
-          <button class="btn primary" type="submit">Send quote request</button>
-        </form>
-      </div>
-      """
-    return f"""
+            <input name="quantity" placeholder="Number of users / seats" type="number" min="1" />
+            <select name="budget_range">
+              <option value="">Budget range…</option>
+              <option value="Under $500">Under $500</option>
+              <option value="$500–$2,000">$500–$2,000</option>
+              <option value="$2,000–$10,000">$2,000–$10,000</option>
+              <option value="$10,000+">$10,000+</option>
+            </select>
+          </div>"""
+        label, blurb, cta = "Request a license", "Tell us your team size and preferred license model.", "Request license"
+
+    elif section == "catalog":
+        extra = """
+          <textarea name="items" placeholder="Items of interest — names, SKUs, or descriptions" rows="3"></textarea>
+          <div class="row">
+            <input name="quantity" placeholder="Estimated quantity" />
+            <input name="shipping_destination" placeholder="Shipping country / region" />
+          </div>"""
+        label, blurb, cta = "Request catalog items", "Let us know what you need and where it needs to go.", "Send request"
+
+    elif section == "digital":
+        extra = """
+          <textarea name="items" placeholder="Product(s) of interest" rows="2"></textarea>
+          <div class="row">
+            <input name="subtype" placeholder="Intended use" />
+            <input name="organization" placeholder="Company / project (optional)" />
+          </div>"""
+        label, blurb, cta = "Request digital access", "Secure access links are delivered on confirmation.", "Request access"
+
+    else:
+        extra = ""
+        label, blurb, cta = "Request details", "We will capture this as a lead so the team can respond quickly.", "Send request"
+
+    lead_form = f"""
     <div class="card" style="margin-top: 24px;">
-      <h3>{lead_label}</h3>
-      <p>We will capture this as a lead inside the Atelier so the team can respond quickly.</p>
+      <h3>{label}</h3>
+      <p>{blurb}</p>
       <form method="post" action="/shop/lead" class="intake-form">
-        <input type="hidden" name="section_id" value="{section}" />
-        <input type="hidden" name="ts" value="{timestamp}" />
-        <input class="hp" name="company" tabindex="-1" autocomplete="off" />
+        {hidden}{hp}
         <div class="row">
           <input name="full_name" placeholder="Full name" required />
-          <input name="email" placeholder="Email" type="email" />
+          <input name="email" placeholder="Email" type="email" required />
+        </div>
+        <input name="phone" placeholder="Phone (optional)" />
+        {extra}
+        <textarea name="details" placeholder="Anything else we should know?" rows="3"></textarea>
+        <button class="btn primary" type="submit">{cta}</button>
+      </form>
+    </div>"""
+
+    quote_form = ""
+    if section == "custom-orders":
+        quote_form = f"""
+    <div class="card" style="margin-top: 18px;">
+      <h3>Request a custom quote</h3>
+      <p>Tell us what you need and we will draft a detailed quote in the Atelier.</p>
+      <form method="post" action="/shop/quote" class="intake-form">
+        {hidden}{hp}
+        <div class="row">
+          <input name="full_name" placeholder="Full name" required />
+          <input name="email" placeholder="Email" type="email" required />
         </div>
         <div class="row">
-          <input name="phone" placeholder="Phone" />
+          <input name="phone" placeholder="Phone (optional)" />
+          <input name="organization" placeholder="Company / organisation" />
         </div>
-        <textarea name="details" placeholder="How can we help?" rows="4"></textarea>
-        <button class="btn primary" type="submit">Send request</button>
+        <input name="title" placeholder="Project title" required />
+        <div class="row">
+          <select name="budget_range">
+            <option value="">Budget range…</option>
+            <option value="Under $1,000">Under $1,000</option>
+            <option value="$1,000–$5,000">$1,000–$5,000</option>
+            <option value="$5,000–$20,000">$5,000–$20,000</option>
+            <option value="$20,000+">$20,000+</option>
+          </select>
+          <select name="timeline">
+            <option value="">Timeline…</option>
+            <option value="ASAP">ASAP</option>
+            <option value="1–4 weeks">1–4 weeks</option>
+            <option value="1–3 months">1–3 months</option>
+            <option value="3+ months">3+ months</option>
+            <option value="Flexible">Flexible</option>
+          </select>
+        </div>
+        <textarea name="details" placeholder="Describe the project — scope, requirements, references" rows="5"></textarea>
+        <button class="btn primary" type="submit">Send quote request</button>
       </form>
-    </div>
-    {quote_block}
-    """
+    </div>"""
+
+    return lead_form + quote_form
 
 
 def _shop_section_html(section_id: str, notice: str | None = None) -> str:
@@ -962,15 +1048,34 @@ def shop_lead(
     section_id: str = Form("general"),
     ts: str = Form(""),
     company: str = Form(""),
+    organization: str = Form(""),
+    subtype: str = Form(""),
+    location: str = Form(""),
+    preferred_dates: str = Form(""),
+    budget_range: str = Form(""),
+    quantity: str = Form(""),
+    shipping_destination: str = Form(""),
+    items: str = Form(""),
 ) -> str:
     valid, reason = _validate_shop_submission(request=request, honeypot=company, ts=ts, section_id=section_id)
     if not valid:
         return _shop_submission_html(ok=False, title="Request failed", detail=reason)
+    parts = []
+    if organization: parts.append(f"Organisation: {organization}")
+    if subtype: parts.append(f"Type: {subtype}")
+    if location: parts.append(f"Location: {location}")
+    if preferred_dates: parts.append(f"Preferred dates: {preferred_dates}")
+    if budget_range: parts.append(f"Budget: {budget_range}")
+    if quantity: parts.append(f"Quantity: {quantity}")
+    if shipping_destination: parts.append(f"Shipping: {shipping_destination}")
+    if items: parts.append(f"Items:\n{items}")
+    if details: parts.append(details)
+    full_details = "\n".join(parts)
     payload = {
         "full_name": full_name,
         "email": email or None,
         "phone": phone or None,
-        "details": details or "",
+        "details": full_details,
         "section_id": section_id or "general",
     }
     ok, detail = _submit_shop_payload("/public/shop/leads", payload)
@@ -990,16 +1095,25 @@ def shop_quote(
     section_id: str = Form("custom-orders"),
     ts: str = Form(""),
     company: str = Form(""),
+    organization: str = Form(""),
+    budget_range: str = Form(""),
+    timeline: str = Form(""),
 ) -> str:
     valid, reason = _validate_shop_submission(request=request, honeypot=company, ts=ts, section_id=section_id)
     if not valid:
         return _shop_submission_html(ok=False, title="Quote request failed", detail=reason)
+    parts = []
+    if organization: parts.append(f"Organisation: {organization}")
+    if budget_range: parts.append(f"Budget: {budget_range}")
+    if timeline: parts.append(f"Timeline: {timeline}")
+    if details: parts.append(details)
+    full_details = "\n".join(parts)
     payload = {
         "full_name": full_name,
         "email": email or None,
         "phone": phone or None,
         "title": title or None,
-        "details": details or "",
+        "details": full_details,
         "section_id": section_id or "custom-orders",
     }
     ok, detail = _submit_shop_payload("/public/shop/quotes", payload)
