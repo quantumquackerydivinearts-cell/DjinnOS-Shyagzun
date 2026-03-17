@@ -1142,6 +1142,17 @@ def shop_section(
 
 @app.on_event("startup")
 def startup_probe_dependencies() -> None:
+    # Run DB migrations on startup so deploys to Render auto-migrate.
+    try:
+        from alembic.config import Config as AlembicConfig
+        from alembic import command as alembic_command
+        import pathlib
+        alembic_cfg = AlembicConfig(str(pathlib.Path(__file__).parent.parent / "alembic.ini"))
+        alembic_command.upgrade(alembic_cfg, "head")
+        print("[startup] alembic upgrade head ok")
+    except Exception as exc:
+        print(f"[startup] alembic upgrade head failed: {exc}")
+
     settings = load_settings()
     kernel_url = settings.kernel_internal_base_url or settings.kernel_base_url
     kernel = HttpKernelClient(
