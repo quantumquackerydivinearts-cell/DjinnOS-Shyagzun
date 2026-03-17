@@ -193,8 +193,9 @@ def _json_response(payload: object, status_code: int = 200) -> Response:
 def _shop_landing_html() -> str:
     website_url = os.getenv("PUBLIC_WEBSITE_URL", "https://quantumquackery.org").strip()
     atelier_url = os.getenv("PUBLIC_ATELIER_URL", "https://atelier.quantumquackery.com").strip()
-    shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or atelier_url)
-    docs_url = f"{atelier_url.rstrip('/')}/docs"
+    api_url = os.getenv("PUBLIC_API_URL", "https://djinnos-shyagzun-atelier-api.onrender.com").strip()
+    shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or api_url)
+    docs_url = f"{api_url.rstrip('/')}/docs"
     cards_html = _shop_cards_html(atelier_url=atelier_url, docs_url=docs_url, website_url=website_url, shop_url=shop_url)
     return f"""<!doctype html>
 <html lang="en">
@@ -581,8 +582,9 @@ def _shop_intake_html(section_id: str) -> str:
 def _shop_section_html(section_id: str, notice: str | None = None) -> str:
     website_url = os.getenv("PUBLIC_WEBSITE_URL", "https://quantumquackery.org").strip()
     atelier_url = os.getenv("PUBLIC_ATELIER_URL", "https://atelier.quantumquackery.com").strip()
-    shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or atelier_url)
-    docs_url = f"{atelier_url.rstrip('/')}/docs"
+    api_url = os.getenv("PUBLIC_API_URL", "https://djinnos-shyagzun-atelier-api.onrender.com").strip()
+    shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or api_url)
+    docs_url = f"{api_url.rstrip('/')}/docs"
     section_map = {item["id"]: item for item in _shop_sections()}
     section = section_map.get(section_id)
     if section is None:
@@ -761,7 +763,7 @@ def _normalize_shop_base(value: str) -> str:
 
 def _shop_api_base() -> str:
     return os.getenv("SHOP_CONTENT_API_URL", "").strip() or os.getenv(
-        "PUBLIC_ATELIER_URL", "https://atelier.quantumquackery.com"
+        "PUBLIC_API_URL", "https://djinnos-shyagzun-atelier-api.onrender.com"
     ).strip()
 
 
@@ -793,8 +795,8 @@ def _request_checkout_url(section_id: str) -> tuple[bool, str]:
 
 
 def _shop_submission_html(*, ok: bool, title: str, detail: str) -> str:
-    atelier_url = os.getenv("PUBLIC_ATELIER_URL", "https://atelier.quantumquackery.com").strip()
-    shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or atelier_url)
+    api_url = os.getenv("PUBLIC_API_URL", "https://djinnos-shyagzun-atelier-api.onrender.com").strip()
+    shop_url = _normalize_shop_base(os.getenv("PUBLIC_SHOP_URL", "").strip() or api_url)
     return f"""<!doctype html>
 <html lang="en">
   <head>
