@@ -5779,6 +5779,12 @@ export function App() {
   const [section, setSection] = useState(resolveInitialSection);
   const [role, setRole] = useState(() => localStorage.getItem("atelier.role") || "senior_artisan");
   const [workspaceId, setWorkspaceId] = useState(() => localStorage.getItem("atelier.workspace") || "main");
+  const [workspaceList, setWorkspaceList] = useState([]);
+  const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const [newWorkspaceOwner, setNewWorkspaceOwner] = useState("");
+  const [addMemberWorkspaceId, setAddMemberWorkspaceId] = useState("");
+  const [addMemberArtisanId, setAddMemberArtisanId] = useState("");
+  const [addMemberRole, setAddMemberRole] = useState("member");
   const [output, setOutput] = useState("{}");
   const [notice, setNotice] = useState("Ready");
   const [busyAction, setBusyAction] = useState(null);
@@ -7443,6 +7449,51 @@ export function App() {
     void refreshGateStatus(null);
   }, [role, caps]);
 
+  async function fetchMyWorkspace() {
+    try {
+      const data = await apiCall("/v1/me/workspace", "GET", null);
+      if (data && data.workspace_id) {
+        const resolved = data.workspace_id;
+        setWorkspaceId(resolved);
+        localStorage.setItem("atelier.workspace", resolved);
+        if (Array.isArray(data.workspaces)) {
+          setWorkspaceList(data.workspaces);
+        }
+      }
+    } catch (_) {
+      // no memberships yet — keep current workspaceId
+    }
+  }
+
+  useEffect(() => {
+    void fetchMyWorkspace();
+  }, [role, caps]);
+
+  async function createWorkspace() {
+    await runAction("workspace_create", async () => {
+      const data = await apiCall("/v1/admin/workspaces", "POST", {
+        name: newWorkspaceName,
+        owner_artisan_id: newWorkspaceOwner,
+      });
+      setNewWorkspaceName("");
+      setNewWorkspaceOwner("");
+      await fetchMyWorkspace();
+      return data;
+    });
+  }
+
+  async function addWorkspaceMember() {
+    await runAction("workspace_add_member", async () => {
+      const data = await apiCall(
+        `/v1/admin/workspaces/${encodeURIComponent(addMemberWorkspaceId)}/members`,
+        "POST",
+        { artisan_id: addMemberArtisanId, role: addMemberRole }
+      );
+      setAddMemberArtisanId("");
+      return data;
+    });
+  }
+
   const makeList = (path, setter, action) => async () =>
     runAction(action, async () => {
       const data = await apiCall(path, "GET", null);
@@ -7450,27 +7501,27 @@ export function App() {
       return data;
     });
 
-  const listContacts = makeList(`/v1/crm/contacts?workspace_id=${encodeURIComponent(workspaceId)}`, setContacts, "contacts_list");
-  const listBookings = makeList(`/v1/booking?workspace_id=${encodeURIComponent(workspaceId)}`, setBookings, "bookings_list");
-  const listLessons = makeList(`/v1/lessons?workspace_id=${encodeURIComponent(workspaceId)}`, setLessons, "lessons_list");
+  const listContacts = makeList("/v1/crm/contacts", setContacts, "contacts_list");
+  const listBookings = makeList("/v1/booking", setBookings, "bookings_list");
+  const listLessons = makeList("/v1/lessons", setLessons, "lessons_list");
   const listLessonProgress = () =>
     runAction("lessons_progress_list", async () => {
       const data = await apiCall(
-        `/v1/lessons/progress?workspace_id=${encodeURIComponent(workspaceId)}&actor_id=${encodeURIComponent(lessonActorId)}`,
+        `/v1/lessons/progress?actor_id=${encodeURIComponent(lessonActorId)}`,
         "GET",
         null
       );
       setLessonProgress(data);
       return data;
     });
-  const listModules = makeList(`/v1/modules?workspace_id=${encodeURIComponent(workspaceId)}`, setModules, "modules_list");
-  const listLeads = makeList(`/v1/leads?workspace_id=${encodeURIComponent(workspaceId)}`, setLeads, "leads_list");
-  const listClients = makeList(`/v1/clients?workspace_id=${encodeURIComponent(workspaceId)}`, setClients, "clients_list");
-  const listQuotes = makeList(`/v1/quotes?workspace_id=${encodeURIComponent(workspaceId)}`, setQuotes, "quotes_list");
-  const listOrders = makeList(`/v1/orders?workspace_id=${encodeURIComponent(workspaceId)}`, setOrders, "orders_list");
-  const listContracts = makeList(`/v1/contracts?workspace_id=${encodeURIComponent(workspaceId)}`, setContracts, "contracts_list");
-  const listSuppliers = makeList(`/v1/suppliers?workspace_id=${encodeURIComponent(workspaceId)}`, setSuppliers, "suppliers_list");
-  const listInventory = makeList(`/v1/inventory?workspace_id=${encodeURIComponent(workspaceId)}`, setInventoryItems, "inventory_list");
+  const listModules = makeList("/v1/modules", setModules, "modules_list");
+  const listLeads = makeList("/v1/leads", setLeads, "leads_list");
+  const listClients = makeList("/v1/clients", setClients, "clients_list");
+  const listQuotes = makeList("/v1/quotes", setQuotes, "quotes_list");
+  const listOrders = makeList("/v1/orders", setOrders, "orders_list");
+  const listContracts = makeList("/v1/contracts", setContracts, "contracts_list");
+  const listSuppliers = makeList("/v1/suppliers", setSuppliers, "suppliers_list");
+  const listInventory = makeList("/v1/inventory", setInventoryItems, "inventory_list");
   const loadPublicQuotes = async () =>
     runAction("public_quotes_list", async () => {
       const data = await publicApiCall(`/public/commission-hall/quotes?workspace_id=${encodeURIComponent(workspaceId)}`, "GET", null);
@@ -7480,7 +7531,7 @@ export function App() {
 
   const loadLedgerEntries = async () =>
     runAction("ledger_entries", async () => {
-      const data = await apiCall(`/v1/ledger/entries?workspace_id=${encodeURIComponent(workspaceId)}`, "GET", null);
+      const data = await apiCall("/v1/ledger/entries", "GET", null);
       setLedgerEntries(Array.isArray(data) ? data : []);
       return data;
     });
@@ -7488,7 +7539,7 @@ export function App() {
   const loadLedgerSummary = async () =>
     runAction("ledger_summary", async () => {
       const data = await apiCall(
-        `/v1/ledger/payouts/summary?workspace_id=${encodeURIComponent(workspaceId)}&month=${encodeURIComponent(ledgerMonth)}`,
+        `/v1/ledger/payouts/summary?month=${encodeURIComponent(ledgerMonth)}`,
         "GET",
         null
       );
@@ -7499,9 +7550,7 @@ export function App() {
   const runLedgerPayouts = async (dryRun) =>
     runAction("ledger_payout_run", async () => {
       const data = await apiCall(
-        `/v1/ledger/payouts/run?workspace_id=${encodeURIComponent(workspaceId)}&month=${encodeURIComponent(ledgerMonth)}&dry_run=${
-          dryRun ? "true" : "false"
-        }`,
+        `/v1/ledger/payouts/run?month=${encodeURIComponent(ledgerMonth)}&dry_run=${dryRun ? "true" : "false"}`,
         "POST",
         null
       );
@@ -7511,7 +7560,7 @@ export function App() {
 
   const exportLedgerCsv = async () => {
     const text = await apiCallRaw(
-      `/v1/ledger/payouts/export?workspace_id=${encodeURIComponent(workspaceId)}&month=${encodeURIComponent(ledgerMonth)}`,
+      `/v1/ledger/payouts/export?month=${encodeURIComponent(ledgerMonth)}`,
       "GET",
       null
     );
@@ -7520,7 +7569,7 @@ export function App() {
 
   const exportLedger1099 = async () => {
     const text = await apiCallRaw(
-      `/v1/ledger/payouts/1099?workspace_id=${encodeURIComponent(workspaceId)}&month=${encodeURIComponent(ledgerMonth)}`,
+      `/v1/ledger/payouts/1099?month=${encodeURIComponent(ledgerMonth)}`,
       "GET",
       null
     );
@@ -7564,7 +7613,7 @@ export function App() {
     }
     return runAction("contracts_update", async () => {
       const data = await apiCall(
-        `/v1/contracts/${encodeURIComponent(safeId)}?workspace_id=${encodeURIComponent(workspaceId)}`,
+        `/v1/contracts/${encodeURIComponent(safeId)}`,
         "PATCH",
         {
           title: contractTitle || null,
@@ -7591,7 +7640,7 @@ export function App() {
     }
     return runAction("contracts_validate", async () => {
       const data = await apiCall(
-        `/v1/contracts/${encodeURIComponent(safeId)}/validate?workspace_id=${encodeURIComponent(workspaceId)}`,
+        `/v1/contracts/${encodeURIComponent(safeId)}/validate`,
         "POST",
         null
       );
@@ -7607,7 +7656,7 @@ export function App() {
     }
     return runAction("contracts_cancel", async () => {
       const data = await apiCall(
-        `/v1/contracts/${encodeURIComponent(safeId)}/cancel?workspace_id=${encodeURIComponent(workspaceId)}`,
+        `/v1/contracts/${encodeURIComponent(safeId)}/cancel`,
         "POST",
         null
       );
@@ -7623,7 +7672,7 @@ export function App() {
     }
     return runAction("contracts_process", async () => {
       const data = await apiCall(
-        `/v1/contracts/${encodeURIComponent(safeId)}/process?workspace_id=${encodeURIComponent(workspaceId)}`,
+        `/v1/contracts/${encodeURIComponent(safeId)}/process`,
         "POST",
         null
       );
@@ -14425,6 +14474,47 @@ function extractPythonSavedPath(outputText) {
             {artisanIssuedCode ? <p>{`Issued code: ${artisanIssuedCode}`}</p> : null}
           </section>
           <section className="panel">
+            <h2>Workspace Manager</h2>
+            <p>{`Current workspace: ${workspaceId}`}</p>
+            {workspaceList.length > 0 && (
+              <table className="data-table">
+                <thead><tr><th>Name</th><th>ID</th><th>Role</th><th>Status</th></tr></thead>
+                <tbody>
+                  {workspaceList.map((ws) => (
+                    <tr key={ws.id} className={ws.id === workspaceId ? "selected-row" : ""}>
+                      <td>{ws.name}</td>
+                      <td><code>{ws.id}</code></td>
+                      <td>{ws.role}</td>
+                      <td>{ws.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <button className="action" onClick={fetchMyWorkspace}>Refresh Workspaces</button>
+            {role === "steward" && (
+              <>
+                <h3>Create Workspace (Steward)</h3>
+                <div className="row">
+                  <input value={newWorkspaceName} onChange={(e) => setNewWorkspaceName(e.target.value)} placeholder="workspace name" />
+                  <input value={newWorkspaceOwner} onChange={(e) => setNewWorkspaceOwner(e.target.value)} placeholder="owner artisan_id" />
+                  <button className="action" onClick={createWorkspace}>Create Workspace</button>
+                </div>
+                <h3>Add Workspace Member (Steward)</h3>
+                <div className="row">
+                  <input value={addMemberWorkspaceId} onChange={(e) => setAddMemberWorkspaceId(e.target.value)} placeholder="workspace id" />
+                  <input value={addMemberArtisanId} onChange={(e) => setAddMemberArtisanId(e.target.value)} placeholder="artisan_id to add" />
+                  <select value={addMemberRole} onChange={(e) => setAddMemberRole(e.target.value)}>
+                    <option value="member">Member</option>
+                    <option value="owner">Owner</option>
+                    <option value="collaborator">Collaborator</option>
+                  </select>
+                  <button className="action" onClick={addWorkspaceMember}>Add Member</button>
+                </div>
+              </>
+            )}
+          </section>
+          <section className="panel">
             <h2>Booking Calendar</h2>
             <div className="row">
               <button className="action" onClick={() => {
@@ -18003,6 +18093,23 @@ function extractPythonSavedPath(outputText) {
       <aside className="sidebar">
         <div className="brand">Quantum Quackery Atelier<small>FOYER NAVIGATOR</small></div>
         <div className="nav">{NAV_ITEMS.map((item) => <button key={item} className={section === item ? "active" : ""} onClick={() => setSection(item)}>{item}</button>)}</div>
+        {workspaceList.length > 0 && (
+          <div className="workspace-switcher">
+            <small>Workspace</small>
+            <select
+              value={workspaceId}
+              onChange={(e) => {
+                const id = e.target.value;
+                setWorkspaceId(id);
+                localStorage.setItem("atelier.workspace", id);
+              }}
+            >
+              {workspaceList.map((ws) => (
+                <option key={ws.id} value={ws.id}>{ws.name} ({ws.role})</option>
+              ))}
+            </select>
+          </div>
+        )}
       </aside>
       <main className="content">
         <div className="hero">

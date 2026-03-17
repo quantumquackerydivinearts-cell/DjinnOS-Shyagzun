@@ -189,6 +189,9 @@ from .business_schemas import (
     PublicShopLeadRequest,
     PublicShopQuoteRequest,
     PublicShopCheckoutRequest,
+    WorkspaceCreate,
+    WorkspaceOut,
+    WorkspaceMemberAddInput,
 )
 from .rendering_schemas import (
     RendererTablesInput,
@@ -562,6 +565,18 @@ def _admin_gate_token(x_admin_gate_token: Optional[str] = Header(default=None)) 
 
 def _settings() -> Settings:
     return load_settings()
+
+
+def _workspace_id_dep(
+    workshop: WorkshopContext = Depends(_workshop_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> str:
+    """Resolve the authenticated artisan's primary workspace_id.
+
+    Falls back to 'main' for backwards compatibility when no membership
+    record exists (existing single-tenant deployments).
+    """
+    return svc.resolve_artisan_workspace_id(workshop.identity.artisan_id)
 
 
 def _shop_landing_html(settings: Settings) -> str:
@@ -1298,6 +1313,72 @@ def admin_gate_verify(
             ctx.actor_id,
             workshop.identity.workshop_id,
         ),
+    }
+
+
+@app.post("/v1/admin/workspaces")
+def create_workspace(
+    payload: WorkspaceCreate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> WorkspaceOut:
+    """Steward creates a named workspace and assigns an owner artisan."""
+    _enforce(ctx, "kernel.place")
+    if role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required")
+    return svc.create_workspace(payload, granted_by=workshop.identity.artisan_id)
+
+
+@app.get("/v1/workspaces")
+def list_my_workspaces(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    _: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> list[WorkspaceOut]:
+    """List all workspaces the current artisan is a member of."""
+    _enforce(ctx, "kernel.observe")
+    return svc.list_artisan_workspaces(workshop.identity.artisan_id)
+
+
+@app.post("/v1/admin/workspaces/{workspace_id}/members")
+def add_workspace_member(
+    workspace_id: str,
+    payload: WorkspaceMemberAddInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Dict[str, Any]:
+    """Steward adds an artisan as a member of an existing workspace."""
+    _enforce(ctx, "kernel.place")
+    if role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required")
+    svc.add_workspace_member(
+        workspace_id=workspace_id,
+        payload=payload,
+        granted_by=workshop.identity.artisan_id,
+    )
+    return {"ok": True, "workspace_id": workspace_id, "artisan_id": payload.artisan_id, "role": payload.role}
+
+
+@app.get("/v1/me/workspace")
+def get_my_workspace(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    _: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Dict[str, Any]:
+    """Return the current artisan's resolved workspace and full workspace list."""
+    _enforce(ctx, "kernel.observe")
+    workspace_id = svc.resolve_artisan_workspace_id(workshop.identity.artisan_id)
+    workspaces = svc.list_artisan_workspaces(workshop.identity.artisan_id)
+    return {
+        "artisan_id": workshop.identity.artisan_id,
+        "workspace_id": workspace_id,
+        "workspaces": [w.model_dump() for w in workspaces],
     }
 
 
@@ -2118,9 +2199,8 @@ def attest(
 
 @app.get("/v1/crm/contacts")
 def list_contacts(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[ContactOut]:
@@ -2133,20 +2213,19 @@ def list_contacts(
 def create_contact(
     payload: ContactCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ContactOut:
     _enforce(ctx, "crm.contacts.write")
     _enforce_role(role, "crm.contacts.write")
-    return svc.create_contact(payload)
+    return svc.create_contact(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/booking")
 def list_bookings(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[BookingOut]:
@@ -2159,20 +2238,19 @@ def list_bookings(
 def create_booking(
     payload: BookingCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> BookingOut:
     _enforce(ctx, "booking.write")
     _enforce_role(role, "booking.write")
-    return svc.create_booking(payload)
+    return svc.create_booking(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/lessons")
 def list_lessons(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[LessonOut]:
@@ -2185,22 +2263,22 @@ def list_lessons(
 def create_lesson(
     payload: LessonCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> LessonOut:
     _enforce(ctx, "lesson.write")
     _enforce_role(role, "lesson.write")
-    return svc.create_lesson(payload)
+    return svc.create_lesson(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/lessons/progress")
 def list_lesson_progress(
-    workspace_id: str,
     actor_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
-    svc: AtelierService = Depends(_kernel_only_service),
+    svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[LessonProgressOut]:
     _enforce(ctx, "lesson.read")
     _enforce_role(role, "lesson.read")
@@ -2211,19 +2289,19 @@ def list_lesson_progress(
 def consume_lesson(
     payload: LessonConsumeInput,
     ctx: CapabilityContext = Depends(_capability_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
-    svc: AtelierService = Depends(_kernel_only_service),
+    svc: AtelierService = Depends(_atelier_service),
 ) -> LessonProgressOut:
     _enforce(ctx, "lesson.write")
     _enforce_role(role, "lesson.write")
-    return svc.consume_lesson(payload)
+    return svc.consume_lesson(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/modules")
 def list_modules(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[ModuleOut]:
@@ -2236,20 +2314,19 @@ def list_modules(
 def create_module(
     payload: ModuleCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ModuleOut:
     _enforce(ctx, "module.write")
     _enforce_role(role, "module.write")
-    return svc.create_module(payload)
+    return svc.create_module(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/leads")
 def list_leads(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[LeadOut]:
@@ -2262,20 +2339,19 @@ def list_leads(
 def create_lead(
     payload: LeadCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> LeadOut:
     _enforce(ctx, "lead.write")
     _enforce_role(role, "lead.write")
-    return svc.create_lead(payload)
+    return svc.create_lead(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/clients")
 def list_clients(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[ClientOut]:
@@ -2288,20 +2364,19 @@ def list_clients(
 def create_client(
     payload: ClientCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ClientOut:
     _enforce(ctx, "client.write")
     _enforce_role(role, "client.write")
-    return svc.create_client(payload)
+    return svc.create_client(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/quotes")
 def list_quotes(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[QuoteOut]:
@@ -2314,20 +2389,19 @@ def list_quotes(
 def create_quote(
     payload: QuoteCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> QuoteOut:
     _enforce(ctx, "quote.write")
     _enforce_role(role, "quote.write")
-    return svc.create_quote(payload)
+    return svc.create_quote(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/orders")
 def list_orders(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[OrderOut]:
@@ -2338,9 +2412,8 @@ def list_orders(
 
 @app.get("/v1/contracts")
 def list_contracts(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[ContractOut]:
@@ -2353,22 +2426,21 @@ def list_contracts(
 def create_contract(
     payload: ContractCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ContractOut:
     _enforce(ctx, "contract.write")
     _enforce_role(role, "contract.write")
-    return svc.create_contract(payload)
+    return svc.create_contract(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.patch("/v1/contracts/{contract_id}")
 def update_contract(
     contract_id: str,
     payload: ContractUpdate,
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ContractOut:
@@ -2380,9 +2452,8 @@ def update_contract(
 @app.post("/v1/contracts/{contract_id}/validate")
 def validate_contract(
     contract_id: str,
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ContractOut:
@@ -2394,9 +2465,8 @@ def validate_contract(
 @app.post("/v1/contracts/{contract_id}/cancel")
 def cancel_contract(
     contract_id: str,
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ContractOut:
@@ -2408,9 +2478,8 @@ def cancel_contract(
 @app.post("/v1/contracts/{contract_id}/process")
 def process_contract(
     contract_id: str,
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ContractOut:
@@ -2421,11 +2490,10 @@ def process_contract(
 
 @app.get("/v1/ledger/entries")
 def list_ledger_entries(
-    workspace_id: str,
     account_type: Optional[str] = None,
     owner_id: Optional[str] = None,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[LedgerEntryOut]:
@@ -2436,10 +2504,9 @@ def list_ledger_entries(
 
 @app.get("/v1/ledger/payouts/summary")
 def ledger_payout_summary(
-    workspace_id: str,
     month: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> JSONResponse:
@@ -2452,11 +2519,10 @@ def ledger_payout_summary(
 
 @app.post("/v1/ledger/payouts/run")
 def ledger_payout_run(
-    workspace_id: str,
     month: str,
     dry_run: bool = False,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> JSONResponse:
@@ -2469,10 +2535,9 @@ def ledger_payout_run(
 
 @app.get("/v1/ledger/payouts/export", response_class=Response)
 def ledger_payout_export(
-    workspace_id: str,
     month: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Response:
@@ -2496,10 +2561,9 @@ def ledger_payout_export(
 
 @app.get("/v1/ledger/payouts/1099", response_class=Response)
 def ledger_payout_1099(
-    workspace_id: str,
     month: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Response:
@@ -2524,20 +2588,19 @@ def ledger_payout_1099(
 def create_order(
     payload: OrderCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> OrderOut:
     _enforce(ctx, "order.write")
     _enforce_role(role, "order.write")
-    return svc.create_order(payload)
+    return svc.create_order(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/inventory")
 def list_inventory_items(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[InventoryItemOut]:
@@ -2550,13 +2613,13 @@ def list_inventory_items(
 def create_inventory_item(
     payload: InventoryItemCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> InventoryItemOut:
     _enforce(ctx, "inventory.write")
     _enforce_role(role, "inventory.write")
-    return svc.create_inventory_item(payload)
+    return svc.create_inventory_item(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/game/characters")
@@ -4163,9 +4226,8 @@ def correct_shygazun(
 
 @app.get("/v1/suppliers")
 def list_suppliers(
-    workspace_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Sequence[SupplierOut]:
@@ -4178,22 +4240,22 @@ def list_suppliers(
 def create_supplier(
     payload: SupplierCreate,
     ctx: CapabilityContext = Depends(_capability_context),
-    _: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
 ) -> SupplierOut:
     _enforce(ctx, "supplier.write")
     _enforce_role(role, "supplier.write")
-    return svc.create_supplier(payload)
+    return svc.create_supplier(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
 @app.get("/v1/shop/items")
 def list_shop_items(
-    workspace_id: str,
     section_id: Optional[str] = None,
     artisan_id: Optional[str] = None,
     include_hidden: bool = False,
     ctx: CapabilityContext = Depends(_capability_context),
+    workspace_id: str = Depends(_workspace_id_dep),
     workshop: WorkshopContext = Depends(_workshop_context),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),

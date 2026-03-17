@@ -5,6 +5,35 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+
+# ── Workspace schemas ─────────────────────────────────────────────────────────
+
+class WorkspaceCreate(BaseModel):
+    name: str
+    owner_artisan_id: str
+
+
+class WorkspaceOut(BaseModel):
+    id: str
+    name: str
+    owner_artisan_id: str
+    status: str
+    role: str = "member"
+    created_at: datetime
+
+
+class WorkspaceMemberAddInput(BaseModel):
+    artisan_id: str
+    role: str = "member"
+
+
+class WorkspaceMembershipOut(BaseModel):
+    workspace_id: str
+    artisan_id: str
+    role: str
+    granted_by: str
+    created_at: datetime
+
 CANONICAL_GAME_SKILLS: tuple[str, ...] = (
     "barter",
     "energy_weapons",

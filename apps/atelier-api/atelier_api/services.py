@@ -47,6 +47,9 @@ from jsonschema import Draft202012Validator
 from shygazun.lesson_registry import load_lesson_registry
 
 from .business_schemas import (
+    WorkspaceCreate,
+    WorkspaceOut,
+    WorkspaceMemberAddInput,
     ArtisanBootstrapInput,
     ArtisanAccessIssueInput,
     ArtisanAccessIssueOut,
@@ -274,6 +277,8 @@ from .models import (
     WandKeyEpochRecord,
     WandRegistryRecord,
     GuildRegistryRecord,
+    Workspace,
+    WorkspaceMembership,
 )
 from .repositories import AtelierRepository
 from .validators import build_scene_graph_content_from_cobra, validate_cobra_content, validate_json_content, validate_scene_realm
@@ -13151,6 +13156,70 @@ class AtelierService:
 
     def list_skill_catalog(self) -> SkillCatalogOut:
         return SkillCatalogOut(skills=list(CANONICAL_GAME_SKILLS))
+
+    # ── Workspace management ──────────────────────────────────────────────────
+
+    def resolve_artisan_workspace_id(self, artisan_id: str) -> str:
+        """Return the primary workspace_id for this artisan, or 'main' fallback."""
+        ws_id = self._require_repo().resolve_artisan_workspace_id(artisan_id)
+        return ws_id if ws_id else "main"
+
+    def list_artisan_workspaces(self, artisan_id: str) -> list[WorkspaceOut]:
+        repo = self._require_repo()
+        rows = repo.list_artisan_workspaces(artisan_id)
+        out: list[WorkspaceOut] = []
+        for ws in rows:
+            membership = repo.get_workspace_membership(artisan_id, ws.id)
+            role = membership.role if membership else "member"
+            out.append(WorkspaceOut(
+                id=ws.id,
+                name=ws.name,
+                owner_artisan_id=ws.owner_artisan_id,
+                status=ws.status,
+                role=role,
+                created_at=ws.created_at,
+            ))
+        return out
+
+    def create_workspace(self, payload: WorkspaceCreate, granted_by: str) -> WorkspaceOut:
+        repo = self._require_repo()
+        ws = Workspace(
+            name=payload.name,
+            owner_artisan_id=payload.owner_artisan_id,
+            status="active",
+        )
+        ws = repo.create_workspace(ws)
+        membership = WorkspaceMembership(
+            workspace_id=ws.id,
+            artisan_id=payload.owner_artisan_id,
+            role="owner",
+            granted_by=granted_by,
+        )
+        repo.create_workspace_membership(membership)
+        return WorkspaceOut(
+            id=ws.id,
+            name=ws.name,
+            owner_artisan_id=ws.owner_artisan_id,
+            status=ws.status,
+            role="owner",
+            created_at=ws.created_at,
+        )
+
+    def add_workspace_member(
+        self, workspace_id: str, payload: WorkspaceMemberAddInput, granted_by: str
+    ) -> None:
+        repo = self._require_repo()
+        existing = repo.get_workspace_membership(payload.artisan_id, workspace_id)
+        if existing:
+            return  # idempotent
+        membership = WorkspaceMembership(
+            workspace_id=workspace_id,
+            artisan_id=payload.artisan_id,
+            role=payload.role,
+            granted_by=granted_by,
+        )
+        repo.create_workspace_membership(membership)
+
 
 # --- PYTHON PATH FIX ---
 # Get the Python running this API server

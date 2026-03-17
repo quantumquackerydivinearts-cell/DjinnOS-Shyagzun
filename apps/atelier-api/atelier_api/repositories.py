@@ -9,6 +9,8 @@ from .models import (
     ArtisanAccount,
     Booking,
     CRMContact,
+    Workspace,
+    WorkspaceMembership,
     CharacterDictionaryEntry,
     Client,
     FunctionStoreEntry,
@@ -51,6 +53,48 @@ class AtelierRepository:
 
     def ping(self) -> None:
         self._db.execute(text("SELECT 1"))
+
+    # ── Workspace management ──────────────────────────────────────────────────
+
+    def create_workspace(self, row: Workspace) -> Workspace:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def create_workspace_membership(self, row: WorkspaceMembership) -> WorkspaceMembership:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_workspace(self, workspace_id: str) -> Workspace | None:
+        return self._db.get(Workspace, workspace_id)
+
+    def list_artisan_workspaces(self, artisan_id: str) -> Sequence[Workspace]:
+        return self._db.scalars(
+            select(Workspace)
+            .join(WorkspaceMembership, WorkspaceMembership.workspace_id == Workspace.id)
+            .where(WorkspaceMembership.artisan_id == artisan_id)
+            .order_by(WorkspaceMembership.created_at)
+        ).all()
+
+    def get_workspace_membership(self, artisan_id: str, workspace_id: str) -> WorkspaceMembership | None:
+        return self._db.scalars(
+            select(WorkspaceMembership).where(
+                WorkspaceMembership.artisan_id == artisan_id,
+                WorkspaceMembership.workspace_id == workspace_id,
+            )
+        ).first()
+
+    def resolve_artisan_workspace_id(self, artisan_id: str) -> str | None:
+        row = self._db.scalars(
+            select(WorkspaceMembership)
+            .where(WorkspaceMembership.artisan_id == artisan_id)
+            .order_by(WorkspaceMembership.created_at)
+            .limit(1)
+        ).first()
+        return row.workspace_id if row else None
 
     def list_contacts(self, workspace_id: str) -> Sequence[CRMContact]:
         return self._db.scalars(select(CRMContact).where(CRMContact.workspace_id == workspace_id)).all()
