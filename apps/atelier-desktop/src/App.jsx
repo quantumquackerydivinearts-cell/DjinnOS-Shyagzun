@@ -17,7 +17,15 @@ function resolveRuntimeApiBase() {
     }
   } catch {
   }
-  return import.meta.env.VITE_API_BASE || "http://127.0.0.1:9000";
+  if (import.meta.env.VITE_API_BASE) return import.meta.env.VITE_API_BASE;
+  try {
+    const h = window.location.hostname;
+    if (h !== "localhost" && h !== "127.0.0.1" && h !== "") {
+      return "https://djinnos-shyagzun-atelier-api.onrender.com";
+    }
+  } catch {
+  }
+  return "http://127.0.0.1:9000";
 }
 
 const API_BASE = resolveRuntimeApiBase();
@@ -31,7 +39,15 @@ function resolveRuntimeKernelBase() {
     }
   } catch {
   }
-  return import.meta.env.VITE_KERNEL_BASE || "http://127.0.0.1:8000";
+  if (import.meta.env.VITE_KERNEL_BASE) return import.meta.env.VITE_KERNEL_BASE;
+  try {
+    const h = window.location.hostname;
+    if (h !== "localhost" && h !== "127.0.0.1" && h !== "") {
+      return "https://djinnos-shyagzun-kernel.onrender.com";
+    }
+  } catch {
+  }
+  return "http://127.0.0.1:8000";
 }
 
 const KERNEL_BASE = resolveRuntimeKernelBase();
