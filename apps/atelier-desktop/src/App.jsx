@@ -86,9 +86,11 @@ const NAV_ITEMS = [
   "Workshop",
   "Temple and Gardens",
   "Guild Hall",
+  "Guild Profiles",
   "Messages",
   "Studio Hub",
   "Asset Library",
+  "Kernel Fields",
   "Lesson Creation",
   "Module Creation",
   "Learning Hall",
@@ -5792,6 +5794,17 @@ export function App() {
   const [loginArtisanId, setLoginArtisanId] = useState("");
   const [loginArtisanCode, setLoginArtisanCode] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [onboardCode, setOnboardCode] = useState("");
+  const [onboardArtisanId, setOnboardArtisanId] = useState("");
+  const [onboardName, setOnboardName] = useState("");
+  const [onboardEmail, setOnboardEmail] = useState("");
+  const [onboardPassword, setOnboardPassword] = useState("");
+  const [onboardError, setOnboardError] = useState("");
+  const [onboardStatus, setOnboardStatus] = useState("idle");
+  const [issueInviteRole, setIssueInviteRole] = useState("artisan");
+  const [issueInviteNote, setIssueInviteNote] = useState("");
+  const [issueInviteMaxUses, setIssueInviteMaxUses] = useState(1);
+  const [issuedInviteCode, setIssuedInviteCode] = useState("");
   const [workspaceId, setWorkspaceId] = useState(() => localStorage.getItem("atelier.workspace") || "main");
   const [workspaceList, setWorkspaceList] = useState([]);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
@@ -6131,8 +6144,8 @@ export function App() {
   const [profileTimezone, setProfileTimezone] = useState(
     () => localStorage.getItem("atelier.profile_tz") || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
   );
-  const [entryAuthModalOpen, setEntryAuthModalOpen] = useState(true);
-  const [entryAuthMode, setEntryAuthMode] = useState("register");
+  const [entryAuthModalOpen, setEntryAuthModalOpen] = useState(!localStorage.getItem("atelier.auth_token"));
+  const [entryAuthMode, setEntryAuthMode] = useState("sign_in");
   const [artisanAccessInput, setArtisanAccessInput] = useState("");
   const [artisanAccessVerified, setArtisanAccessVerified] = useState(false);
   const [artisanIssuedCode, setArtisanIssuedCode] = useState("");
@@ -6362,6 +6375,16 @@ export function App() {
   const [combatRuleText, setCombatRuleText] = useState(
     "{\"workspace_id\":\"main\",\"actor_id\":\"player\",\"round_id\":\"r1\",\"attacker\":{\"id\":\"player\",\"hp\":100,\"attack\":18,\"defense\":6},\"defender\":{\"id\":\"wolf\",\"hp\":28,\"attack\":9,\"defense\":4}}"
   );
+  const [guildProfile, setGuildProfile] = useState(null);
+  const [guildProfileEdit, setGuildProfileEdit] = useState({ display_name: "", bio: "", portfolio_url: "", avatar_url: "", region: "", divisions: "", trades: "", is_public: false, show_region: true, show_trades: true, show_portfolio: true });
+  const [guildProfileStatus, setGuildProfileStatus] = useState("idle");
+  const [guildProfilesAdmin, setGuildProfilesAdmin] = useState([]);
+  const [guildDirectoryResults, setGuildDirectoryResults] = useState([]);
+  const [guildDirectoryQuery, setGuildDirectoryQuery] = useState("");
+  const [kernelFields, setKernelFields] = useState([]);
+  const [kernelFieldStatus, setKernelFieldStatus] = useState("idle");
+  const [kernelFieldLabel, setKernelFieldLabel] = useState("");
+  const [kernelFieldObserve, setKernelFieldObserve] = useState(null);
   const [assetManifests, setAssetManifests] = useState([]);
   const [assetManifestStatus, setAssetManifestStatus] = useState("idle");
   const [assetManifestSelected, setAssetManifestSelected] = useState("");
@@ -7536,6 +7559,51 @@ export function App() {
     setLoginError("");
   }
 
+  async function redeemInvite() {
+    setOnboardError("");
+    setOnboardStatus("redeeming");
+    try {
+      const data = await apiCall("/v1/auth/redeem-invite", "POST", {
+        code: onboardCode.trim().toUpperCase(),
+        artisan_id: onboardArtisanId.trim(),
+        profile_name: onboardName.trim(),
+        profile_email: onboardEmail.trim(),
+        artisan_code: onboardPassword,
+      });
+      // Auto-login with the returned token
+      localStorage.setItem("atelier.auth_token", data.token);
+      localStorage.setItem("atelier.artisan_id", data.artisan_id);
+      localStorage.setItem("atelier.workshop_id", data.workshop_id);
+      localStorage.setItem("atelier.role", data.role);
+      setAuthToken(data.token);
+      setArtisanId(data.artisan_id);
+      setWorkshopId(data.workshop_id);
+      setRole(data.role);
+      setOnboardCode("");
+      setOnboardArtisanId("");
+      setOnboardName("");
+      setOnboardEmail("");
+      setOnboardPassword("");
+      setOnboardStatus("done");
+    } catch (e) {
+      setOnboardError(String(e));
+      setOnboardStatus("idle");
+    }
+  }
+
+  async function issueInvite() {
+    await runAction("invite_issue", async () => {
+      const data = await apiCall("/v1/auth/invite", "POST", {
+        role: issueInviteRole,
+        note: issueInviteNote,
+        max_uses: issueInviteMaxUses,
+      });
+      setIssuedInviteCode(data.code);
+      setIssueInviteNote("");
+      return data;
+    });
+  }
+
   async function createWorkspace() {
     await runAction("workspace_create", async () => {
       const data = await apiCall("/v1/admin/workspaces", "POST", {
@@ -8259,6 +8327,84 @@ export function App() {
       void loadAssetManifests();
       return { ok: true };
     });
+  }
+
+  async function loadMyGuildProfile() {
+    try {
+      const data = await apiCall("/v1/guild/profile/me", "GET", null);
+      setGuildProfile(data);
+      if (data) setGuildProfileEdit({ display_name: data.display_name || "", bio: data.bio || "", portfolio_url: data.portfolio_url || "", avatar_url: data.avatar_url || "", region: data.region || "", divisions: data.divisions || "", trades: data.trades || "", is_public: data.is_public ?? false, show_region: data.show_region ?? true, show_trades: data.show_trades ?? true, show_portfolio: data.show_portfolio ?? true });
+    } catch (_) {}
+  }
+
+  async function saveGuildProfile() {
+    setGuildProfileStatus("saving");
+    try {
+      const data = await apiCall("/v1/guild/profile", "POST", guildProfileEdit);
+      setGuildProfile(data);
+      setGuildProfileStatus("idle");
+    } catch (e) {
+      setGuildProfileStatus("error");
+    }
+  }
+
+  async function loadGuildProfilesAdmin() {
+    try {
+      const data = await apiCall("/v1/guild/profiles", "GET", null);
+      setGuildProfilesAdmin(Array.isArray(data) ? data : []);
+    } catch (_) {}
+  }
+
+  async function approveGuildProfile(profileId) {
+    try {
+      await apiCall(`/v1/guild/profiles/${profileId}/approve`, "POST", {});
+      void loadGuildProfilesAdmin();
+    } catch (e) {
+      setNotice(`approve_guild_profile: ${e}`);
+    }
+  }
+
+  async function searchGuildDirectory() {
+    try {
+      const q = guildDirectoryQuery.trim();
+      const url = `/public/guild/artisans${q ? `?trade=${encodeURIComponent(q)}` : ""}`;
+      const data = await apiCall(url, "GET", null);
+      setGuildDirectoryResults(data?.artisans ?? []);
+    } catch (e) {
+      setNotice(`guild_directory: ${e}`);
+    }
+  }
+
+  async function loadKernelFields() {
+    setKernelFieldStatus("loading");
+    try {
+      const data = await apiCall("/v1/kernel/fields", "GET", null);
+      setKernelFields(Array.isArray(data) ? data : []);
+      setKernelFieldStatus("idle");
+    } catch (e) {
+      setKernelFieldStatus("error");
+    }
+  }
+
+  async function createKernelField() {
+    setKernelFieldStatus("creating");
+    try {
+      const data = await apiCall("/v1/kernel/fields", "POST", { label: kernelFieldLabel });
+      setKernelFieldLabel("");
+      void loadKernelFields();
+      setKernelFieldStatus("idle");
+    } catch (e) {
+      setKernelFieldStatus("error");
+    }
+  }
+
+  async function observeKernelField(fieldId) {
+    try {
+      const data = await apiCall(`/v1/kernel/fields/${encodeURIComponent(fieldId)}/observe`, "GET", null);
+      setKernelFieldObserve(data);
+    } catch (e) {
+      setKernelFieldObserve({ error: String(e) });
+    }
   }
 
   function applyAssetManifest() {
@@ -14587,10 +14733,93 @@ function extractPythonSavedPath(outputText) {
                   <button className="action" onClick={login}>Sign In</button>
                 </div>
                 {loginError && <p className="error-text">{loginError}</p>}
-                <p className="muted-text">No account yet? A steward must bootstrap your access first.</p>
+                <p className="muted-text">No account yet? Use an invite code below to register.</p>
               </div>
             )}
           </section>
+          {!authToken && (
+            <section className="panel">
+              <h2>Redeem Invite</h2>
+              <p className="muted-text">Enter your invite code and choose your credentials.</p>
+              {onboardStatus === "done" ? (
+                <p className="badge badge-ok">Welcome! You are now signed in.</p>
+              ) : (
+                <div>
+                  <div className="row">
+                    <input
+                      value={onboardCode}
+                      onChange={(e) => setOnboardCode(e.target.value)}
+                      placeholder="DJINN-XXXXXXXX"
+                      style={{ fontFamily: "monospace", textTransform: "uppercase" }}
+                    />
+                    <input
+                      value={onboardArtisanId}
+                      onChange={(e) => setOnboardArtisanId(e.target.value)}
+                      placeholder="choose artisan_id"
+                    />
+                  </div>
+                  <div className="row">
+                    <input
+                      value={onboardName}
+                      onChange={(e) => setOnboardName(e.target.value)}
+                      placeholder="display name"
+                    />
+                    <input
+                      value={onboardEmail}
+                      onChange={(e) => setOnboardEmail(e.target.value)}
+                      placeholder="email"
+                      type="email"
+                    />
+                    <input
+                      type="password"
+                      value={onboardPassword}
+                      onChange={(e) => setOnboardPassword(e.target.value)}
+                      placeholder="password (8+ chars)"
+                    />
+                    <button className="action" onClick={redeemInvite} disabled={onboardStatus === "redeeming"}>
+                      {onboardStatus === "redeeming" ? "Joining..." : "Join"}
+                    </button>
+                  </div>
+                  {onboardError && <p className="error-text">{onboardError}</p>}
+                </div>
+              )}
+            </section>
+          )}
+          {authToken && (role === "steward" || role === "senior_artisan") && (
+            <section className="panel">
+              <h2>Issue Invite</h2>
+              <div className="row">
+                <select value={issueInviteRole} onChange={(e) => setIssueInviteRole(e.target.value)}>
+                  <option value="apprentice">Apprentice</option>
+                  <option value="artisan">Artisan</option>
+                  <option value="senior_artisan">Senior Artisan</option>
+                </select>
+                <input
+                  value={issueInviteNote}
+                  onChange={(e) => setIssueInviteNote(e.target.value)}
+                  placeholder="optional note"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={issueInviteMaxUses}
+                  onChange={(e) => setIssueInviteMaxUses(Number(e.target.value))}
+                  style={{ width: 70 }}
+                  title="Max uses"
+                />
+                <button className="action" onClick={issueInvite}>Generate Code</button>
+              </div>
+              {issuedInviteCode && (
+                <div className="row">
+                  <span className="muted-text">Code:</span>
+                  <code style={{ userSelect: "all", cursor: "text" }}>{issuedInviteCode}</code>
+                  <button className="action" onClick={() => { navigator.clipboard?.writeText(issuedInviteCode); }}>Copy</button>
+                  <button className="action" onClick={() => setIssuedInviteCode("")}>Clear</button>
+                </div>
+              )}
+            </section>
+          )}
           <section className="panel">
             <h2>Session Control</h2>
             <div className="row">
@@ -18275,6 +18504,162 @@ function extractPythonSavedPath(outputText) {
         </>
       );
     }
+    if (section === "Guild Profiles") {
+      return (
+        <>
+          <section className="panel">
+            <h2>My Guild Profile</h2>
+            <p className="muted-text">Public profiles must be approved by a steward before they appear in the directory.</p>
+            <div className="row">
+              <button className="action" onClick={loadMyGuildProfile}>Load My Profile</button>
+              {guildProfile && (
+                <span className={`badge ${guildProfile.steward_approved ? "badge-ok" : "badge-warn"}`}>
+                  {guildProfile.steward_approved ? "Approved" : "Pending approval"}
+                </span>
+              )}
+              {guildProfile?.is_public && <span className="badge badge-ok">Public</span>}
+            </div>
+            <div className="row">
+              <input value={guildProfileEdit.display_name} onChange={(e) => setGuildProfileEdit((p) => ({ ...p, display_name: e.target.value }))} placeholder="display name" />
+              <input value={guildProfileEdit.region} onChange={(e) => setGuildProfileEdit((p) => ({ ...p, region: e.target.value }))} placeholder="region" />
+            </div>
+            <textarea
+              value={guildProfileEdit.bio}
+              onChange={(e) => setGuildProfileEdit((p) => ({ ...p, bio: e.target.value }))}
+              placeholder="bio"
+              rows={3}
+              style={{ width: "100%", marginBottom: 8 }}
+            />
+            <div className="row">
+              <input value={guildProfileEdit.portfolio_url} onChange={(e) => setGuildProfileEdit((p) => ({ ...p, portfolio_url: e.target.value }))} placeholder="portfolio URL" />
+              <input value={guildProfileEdit.avatar_url} onChange={(e) => setGuildProfileEdit((p) => ({ ...p, avatar_url: e.target.value }))} placeholder="avatar URL" />
+            </div>
+            <div className="row">
+              <input value={guildProfileEdit.divisions} onChange={(e) => setGuildProfileEdit((p) => ({ ...p, divisions: e.target.value }))} placeholder="divisions (comma-sep: sulphur, mercury, salt)" style={{ flex: 2 }} />
+              <input value={guildProfileEdit.trades} onChange={(e) => setGuildProfileEdit((p) => ({ ...p, trades: e.target.value }))} placeholder="trades (comma-sep tags)" style={{ flex: 2 }} />
+            </div>
+            <div className="row">
+              <label><input type="checkbox" checked={guildProfileEdit.is_public} onChange={(e) => setGuildProfileEdit((p) => ({ ...p, is_public: e.target.checked }))} /> Make public</label>
+              <label><input type="checkbox" checked={guildProfileEdit.show_region} onChange={(e) => setGuildProfileEdit((p) => ({ ...p, show_region: e.target.checked }))} /> Show region</label>
+              <label><input type="checkbox" checked={guildProfileEdit.show_trades} onChange={(e) => setGuildProfileEdit((p) => ({ ...p, show_trades: e.target.checked }))} /> Show trades</label>
+              <label><input type="checkbox" checked={guildProfileEdit.show_portfolio} onChange={(e) => setGuildProfileEdit((p) => ({ ...p, show_portfolio: e.target.checked }))} /> Show portfolio</label>
+            </div>
+            <div className="row" style={{ marginTop: 8 }}>
+              <button className="action" onClick={saveGuildProfile} disabled={guildProfileStatus === "saving"}>
+                {guildProfileStatus === "saving" ? "Saving..." : "Save Profile"}
+              </button>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h2>Public Directory</h2>
+            <div className="row">
+              <input value={guildDirectoryQuery} onChange={(e) => setGuildDirectoryQuery(e.target.value)} placeholder="search by trade tag" onKeyDown={(e) => { if (e.key === "Enter") void searchGuildDirectory(); }} />
+              <button className="action" onClick={searchGuildDirectory}>Search</button>
+            </div>
+            {guildDirectoryResults.length > 0 ? (
+              <table className="data-table">
+                <thead><tr><th>Name</th><th>Rank</th><th>Region</th><th>Trades</th><th>Since</th></tr></thead>
+                <tbody>
+                  {guildDirectoryResults.map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.display_name}</td>
+                      <td><span className="badge">{a.guild_rank}</span></td>
+                      <td>{a.region || "—"}</td>
+                      <td>{(a.trades || []).join(", ") || "—"}</td>
+                      <td>{a.member_since}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : <p>No results. Search above or no public profiles yet.</p>}
+          </section>
+
+          {(role === "steward") && (
+            <section className="panel">
+              <h2>Steward: Profile Approvals</h2>
+              <button className="action" onClick={loadGuildProfilesAdmin}>Load All Profiles</button>
+              {guildProfilesAdmin.length > 0 ? (
+                <table className="data-table">
+                  <thead><tr><th>Artisan</th><th>Name</th><th>Public</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    {guildProfilesAdmin.map((p) => (
+                      <tr key={p.id}>
+                        <td><code>{p.artisan_id}</code></td>
+                        <td>{p.display_name}</td>
+                        <td>{p.is_public ? "yes" : "no"}</td>
+                        <td>
+                          <span className={`badge ${p.steward_approved ? "badge-ok" : "badge-warn"}`}>
+                            {p.steward_approved ? "approved" : "pending"}
+                          </span>
+                        </td>
+                        <td>
+                          {!p.steward_approved && p.is_public && (
+                            <button className="action" onClick={() => approveGuildProfile(p.id)}>Approve</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <p>No profiles loaded.</p>}
+            </section>
+          )}
+        </>
+      );
+    }
+    if (section === "Kernel Fields") {
+      return (
+        <>
+          <section className="panel">
+            <h2>My Kernel Field</h2>
+            <p className="muted-text">Each artisan has one dedicated kernel field (F-register) for tracking their personal CEG state.</p>
+            <div className="row">
+              <input
+                value={kernelFieldLabel}
+                onChange={(e) => setKernelFieldLabel(e.target.value)}
+                placeholder="Optional label"
+              />
+              <button className="action" onClick={createKernelField} disabled={kernelFieldStatus === "creating"}>
+                {kernelFieldStatus === "creating" ? "Creating..." : "Provision Field"}
+              </button>
+              <button className="action" onClick={loadKernelFields} disabled={kernelFieldStatus === "loading"}>Refresh</button>
+            </div>
+          </section>
+          <section className="panel">
+            <h2>Active Fields</h2>
+            {kernelFields.length > 0 ? (
+              <table className="data-table">
+                <thead>
+                  <tr><th>Field ID</th><th>Label</th><th>Created</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {kernelFields.map((f) => (
+                    <tr key={f.id}>
+                      <td><code>{f.field_id}</code></td>
+                      <td>{f.label || <span className="muted-text">—</span>}</td>
+                      <td>{f.created_at ? new Date(f.created_at).toLocaleDateString() : "—"}</td>
+                      <td>
+                        <button className="action" onClick={() => observeKernelField(f.field_id)}>Observe</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No kernel fields yet. Provision one above.</p>
+            )}
+          </section>
+          {kernelFieldObserve && (
+            <section className="panel">
+              <h2>Field Observation</h2>
+              <pre style={{ overflowX: "auto", maxHeight: 400 }}>{JSON.stringify(kernelFieldObserve, null, 2)}</pre>
+              <button className="action" onClick={() => setKernelFieldObserve(null)}>Clear</button>
+            </section>
+          )}
+        </>
+      );
+    }
     if (section === "Calculator") {
       return <CalculatorPanel />;
     }
@@ -18363,61 +18748,126 @@ function extractPythonSavedPath(outputText) {
       {entryAuthModalOpen ? (
         <div className="modal-backdrop">
           <div className="modal-card">
-            <h3>Sign In / Register</h3>
-            <p>This prompt appears on app entry so the active profile, ArtisanID status, and workshop access are explicit before you move deeper into the Atelier.</p>
-            <div className="row">
-              <button
-                className={`action ${entryAuthMode === "register" ? "active" : ""}`}
-                onClick={() => setEntryAuthMode("register")}
-              >
-                Register
-              </button>
-              <button
-                className={`action ${entryAuthMode === "sign_in" ? "active" : ""}`}
-                onClick={() => setEntryAuthMode("sign_in")}
-              >
-                Sign In
-              </button>
-              <button className="action" onClick={fetchArtisanAccessStatus}>Refresh Status</button>
-            </div>
-            <div className="row">
-              <input value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder="display name" />
-              <input value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} placeholder="email" />
-              <input value={profileTimezone} onChange={(e) => setProfileTimezone(e.target.value)} placeholder="timezone (IANA)" />
-            </div>
-            <div className="row">
-              <span className={`badge ${artisanAccessVerified ? "badge-ok" : "badge-warn"}`}>{`Access: ${artisanAccessVerified ? "verified" : "unverified"}`}</span>
-              <span className="badge">{`Role: ${role}`}</span>
-              <span className="badge">{`Workspace: ${workspaceId}`}</span>
-            </div>
-            <div className="row">
-              <input
-                value={artisanAccessInput}
-                onChange={(e) => setArtisanAccessInput(e.target.value)}
-                placeholder="artisan ID access code"
-              />
-              {entryAuthMode === "register" ? (
-                <button
-                  className="action"
-                  onClick={issueArtisanAccessCode}
-                  disabled={!profileIsComplete(profileName, profileEmail)}
-                >
-                  Register / Issue Code
-                </button>
-              ) : (
-                <button
-                  className="action"
-                  onClick={verifyArtisanAccess}
-                  disabled={!profileIsComplete(profileName, profileEmail) || !normalizeProfileText(artisanAccessInput)}
-                >
-                  Sign In / Verify
-                </button>
-              )}
-              <button className="action" onClick={() => setEntryAuthModalOpen(false)}>Dismiss</button>
-            </div>
-            <p>{`Profile schema: ${normalizeProfileText(profileName, "Artisan")} / ${normalizeProfileText(profileEmail, "no email")} / ${normalizeProfileText(profileTimezone, "UTC")}`}</p>
-            {artisanIssuedCode ? <p>{`Issued code: ${artisanIssuedCode}`}</p> : null}
-            <p>{profileIsComplete(profileName, profileEmail) ? "Profile is complete enough for register/sign-in." : "Register/sign-in requires both display name and email."}</p>
+            {authToken ? (
+              <>
+                <h3>Welcome back</h3>
+                <div className="row">
+                  <span className="badge badge-ok">{artisanId}</span>
+                  <span className="badge">{role}</span>
+                  <span className="badge">{`ws: ${workspaceId}`}</span>
+                </div>
+                <div className="row" style={{ marginTop: 12 }}>
+                  <button className="action" onClick={() => setEntryAuthModalOpen(false)}>Enter Atelier</button>
+                  <button className="action" onClick={() => { logout(); setEntryAuthMode("sign_in"); }}>Sign Out</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>Quantum Quackery Virtual Atelier</h3>
+                <div className="row">
+                  <button
+                    className={`action ${entryAuthMode === "sign_in" ? "active" : ""}`}
+                    onClick={() => setEntryAuthMode("sign_in")}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    className={`action ${entryAuthMode === "redeem" ? "active" : ""}`}
+                    onClick={() => setEntryAuthMode("redeem")}
+                  >
+                    Redeem Invite
+                  </button>
+                  <button className="action" onClick={() => setEntryAuthModalOpen(false)}>Skip</button>
+                </div>
+
+                {entryAuthMode === "sign_in" && (
+                  <div>
+                    <div className="row" style={{ marginTop: 8 }}>
+                      <input
+                        value={loginArtisanId}
+                        onChange={(e) => setLoginArtisanId(e.target.value)}
+                        placeholder="artisan_id"
+                        autoFocus
+                      />
+                      <input
+                        type="password"
+                        value={loginArtisanCode}
+                        onChange={(e) => setLoginArtisanCode(e.target.value)}
+                        placeholder="password"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void login().then(() => { if (authToken) setEntryAuthModalOpen(false); });
+                        }}
+                      />
+                      <button
+                        className="action"
+                        onClick={() => void login().then(() => setEntryAuthModalOpen(false))}
+                      >
+                        Sign In
+                      </button>
+                    </div>
+                    {loginError && <p className="error-text">{loginError}</p>}
+                    <p className="muted-text">No account? Get an invite code from a steward and use the Redeem tab.</p>
+                  </div>
+                )}
+
+                {entryAuthMode === "redeem" && (
+                  <div>
+                    {onboardStatus === "done" ? (
+                      <div>
+                        <p className="badge badge-ok">Account created — you are signed in!</p>
+                        <button className="action" style={{ marginTop: 8 }} onClick={() => setEntryAuthModalOpen(false)}>Enter Atelier</button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="row" style={{ marginTop: 8 }}>
+                          <input
+                            value={onboardCode}
+                            onChange={(e) => setOnboardCode(e.target.value)}
+                            placeholder="DJINN-XXXXXXXX"
+                            style={{ fontFamily: "monospace", textTransform: "uppercase" }}
+                            autoFocus
+                          />
+                          <input
+                            value={onboardArtisanId}
+                            onChange={(e) => setOnboardArtisanId(e.target.value)}
+                            placeholder="choose artisan_id"
+                          />
+                        </div>
+                        <div className="row">
+                          <input
+                            value={onboardName}
+                            onChange={(e) => setOnboardName(e.target.value)}
+                            placeholder="display name"
+                          />
+                          <input
+                            type="email"
+                            value={onboardEmail}
+                            onChange={(e) => setOnboardEmail(e.target.value)}
+                            placeholder="email"
+                          />
+                          <input
+                            type="password"
+                            value={onboardPassword}
+                            onChange={(e) => setOnboardPassword(e.target.value)}
+                            placeholder="password (8+ chars)"
+                          />
+                        </div>
+                        <div className="row">
+                          <button
+                            className="action"
+                            onClick={() => void redeemInvite().then(() => { if (onboardStatus === "done" || authToken) setEntryAuthModalOpen(false); })}
+                            disabled={onboardStatus === "redeeming"}
+                          >
+                            {onboardStatus === "redeeming" ? "Joining..." : "Create Account"}
+                          </button>
+                        </div>
+                        {onboardError && <p className="error-text">{onboardError}</p>}
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       ) : null}

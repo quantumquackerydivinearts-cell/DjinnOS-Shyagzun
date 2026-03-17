@@ -12426,6 +12426,107 @@ class AtelierService:
         row.storage_state = "deleted"
         repo.save_asset_manifest(row)
 
+    def create_artisan_field(
+        self,
+        *,
+        artisan_id: str,
+        workspace_id: str,
+        label: str,
+        kernel_client: Any,
+    ) -> "KernelFieldOut":
+        from .business_schemas import KernelFieldOut
+        from .models import KernelField as KernelFieldModel
+        import uuid as _uuid_mod
+        repo = self._require_repo()
+        field_id = f"A:{artisan_id}"
+        existing = repo.get_kernel_field_by_field_id(field_id)
+        if existing is None:
+            try:
+                kernel_client.field_create(field_id=field_id, owner_id=artisan_id)
+            except Exception as exc:
+                raise ValueError(f"kernel_field_create_failed:{exc}") from exc
+            row = KernelFieldModel(
+                id=str(_uuid_mod.uuid4()),
+                field_id=field_id,
+                owner_artisan_id=artisan_id,
+                workspace_id=workspace_id,
+                label=label or "",
+                created_at=datetime.utcnow(),
+            )
+            repo.create_kernel_field(row)
+            existing = row
+        return KernelFieldOut(
+            id=existing.id,
+            field_id=existing.field_id,
+            owner_artisan_id=existing.owner_artisan_id,
+            workspace_id=existing.workspace_id,
+            label=existing.label,
+            created_at=existing.created_at,
+        )
+
+    def list_artisan_fields(
+        self,
+        *,
+        artisan_id: str,
+        workspace_id: Optional[str] = None,
+    ) -> Sequence["KernelFieldOut"]:
+        from .business_schemas import KernelFieldOut
+        repo = self._require_repo()
+        if workspace_id:
+            rows = [r for r in repo.list_kernel_fields_for_workspace(workspace_id) if r.owner_artisan_id == artisan_id]
+        else:
+            rows = list(repo.list_kernel_fields_for_artisan(artisan_id))
+        return [
+            KernelFieldOut(
+                id=r.id,
+                field_id=r.field_id,
+                owner_artisan_id=r.owner_artisan_id,
+                workspace_id=r.workspace_id,
+                label=r.label,
+                created_at=r.created_at,
+            )
+            for r in rows
+        ]
+
+    def observe_artisan_field(
+        self,
+        *,
+        field_id: str,
+        artisan_id: str,
+        kernel_client: Any,
+    ) -> Mapping[str, Any]:
+        repo = self._require_repo()
+        row = repo.get_kernel_field_by_field_id(field_id)
+        if row is None or row.owner_artisan_id != artisan_id:
+            raise ValueError("field_not_found")
+        return dict(kernel_client.field_observe(field_id))
+
+    def get_artisan_field_ceg(
+        self,
+        *,
+        field_id: str,
+        artisan_id: str,
+        kernel_client: Any,
+    ) -> Mapping[str, Any]:
+        repo = self._require_repo()
+        row = repo.get_kernel_field_by_field_id(field_id)
+        if row is None or row.owner_artisan_id != artisan_id:
+            raise ValueError("field_not_found")
+        return dict(kernel_client.field_ceg(field_id))
+
+    def get_artisan_field_frontiers(
+        self,
+        *,
+        field_id: str,
+        artisan_id: str,
+        kernel_client: Any,
+    ) -> Sequence[Mapping[str, Any]]:
+        repo = self._require_repo()
+        row = repo.get_kernel_field_by_field_id(field_id)
+        if row is None or row.owner_artisan_id != artisan_id:
+            raise ValueError("field_not_found")
+        return [dict(f) for f in kernel_client.field_frontiers(field_id)]
+
     def list_realms(self) -> Sequence[RealmOut]:
         rows = self._require_repo().list_realms()
         return [
@@ -13308,6 +13409,217 @@ class AtelierService:
             workshop_id=row.workshop_id,
             profile_name=row.profile_name,
             profile_email=row.profile_email,
+        )
+
+    def _guild_profile_out(self, row: Any) -> "GuildProfileOut":
+        from .business_schemas import GuildProfileOut
+        return GuildProfileOut(
+            id=row.id,
+            artisan_id=row.artisan_id,
+            display_name=row.display_name,
+            bio=row.bio,
+            portfolio_url=row.portfolio_url,
+            avatar_url=row.avatar_url,
+            region=row.region,
+            divisions=row.divisions,
+            trades=row.trades,
+            guild_rank=row.guild_rank,
+            is_public=row.is_public,
+            show_region=row.show_region,
+            show_trades=row.show_trades,
+            show_portfolio=row.show_portfolio,
+            steward_approved=row.steward_approved,
+            approved_by=row.approved_by,
+            approved_at=row.approved_at,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+    def upsert_guild_profile(
+        self,
+        *,
+        artisan_id: str,
+        payload: "GuildProfileUpsertInput",
+    ) -> "GuildProfileOut":
+        from .models import GuildArtisanProfile
+        import uuid as _uuid_mod
+        repo = self._require_repo()
+        row = repo.get_guild_profile(artisan_id)
+        now = datetime.utcnow()
+        if row is None:
+            row = GuildArtisanProfile(
+                id=str(_uuid_mod.uuid4()),
+                artisan_id=artisan_id,
+                guild_rank="artisan",
+                steward_approved=False,
+                approved_by="",
+                approved_at=None,
+                created_at=now,
+                updated_at=now,
+            )
+        row.display_name = payload.display_name
+        row.bio = payload.bio
+        row.portfolio_url = payload.portfolio_url
+        row.avatar_url = payload.avatar_url
+        row.region = payload.region
+        row.divisions = payload.divisions
+        row.trades = payload.trades
+        row.is_public = payload.is_public
+        row.show_region = payload.show_region
+        row.show_trades = payload.show_trades
+        row.show_portfolio = payload.show_portfolio
+        row.updated_at = now
+        # Editing resets steward approval so changes get re-reviewed
+        if row.steward_approved:
+            row.steward_approved = False
+            row.approved_by = ""
+            row.approved_at = None
+        saved = repo.save_guild_profile(row)
+        return self._guild_profile_out(saved)
+
+    def get_my_guild_profile(self, artisan_id: str) -> Optional["GuildProfileOut"]:
+        repo = self._require_repo()
+        row = repo.get_guild_profile(artisan_id)
+        return None if row is None else self._guild_profile_out(row)
+
+    def approve_guild_profile(self, *, profile_id: str, approved_by: str) -> "GuildProfileOut":
+        repo = self._require_repo()
+        row = repo.get_guild_profile_by_id(profile_id)
+        if row is None:
+            raise ValueError("profile_not_found")
+        row.steward_approved = True
+        row.approved_by = approved_by
+        row.approved_at = datetime.utcnow()
+        return self._guild_profile_out(repo.save_guild_profile(row))
+
+    def list_guild_profiles_admin(self) -> Sequence["GuildProfileOut"]:
+        return [self._guild_profile_out(r) for r in self._require_repo().list_guild_profiles_all()]
+
+    def issue_invite(
+        self,
+        *,
+        issued_by: str,
+        payload: "InviteIssueInput",
+        workshop_id: str,
+        secret: str,
+    ) -> "InviteIssueOut":
+        from .business_schemas import InviteIssueInput, InviteIssueOut
+        from .models import InviteCode
+        import uuid as _uuid_mod
+        import string, random
+        repo = self._require_repo()
+        # Generate a short readable code: DJINN-XXXXXX
+        alphabet = string.ascii_uppercase + string.digits
+        suffix = "".join(random.SystemRandom().choice(alphabet) for _ in range(8))
+        code = f"DJINN-{suffix}"
+        # Use caller's workshop if not specified in payload
+        effective_workshop = (payload.workshop_id or "").strip() or workshop_id
+        expires_at = None
+        if payload.expires_in_days and payload.expires_in_days > 0:
+            expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + __import__("datetime").timedelta(days=payload.expires_in_days)
+        row = InviteCode(
+            id=str(_uuid_mod.uuid4()),
+            code=code,
+            issued_by=issued_by,
+            role=payload.role or "artisan",
+            workshop_id=effective_workshop,
+            max_uses=max(1, payload.max_uses),
+            uses_count=0,
+            note=payload.note or "",
+            expires_at=expires_at,
+            created_at=datetime.utcnow(),
+        )
+        repo.create_invite_code(row)
+        return InviteIssueOut(
+            id=row.id,
+            code=row.code,
+            role=row.role,
+            workshop_id=row.workshop_id,
+            max_uses=row.max_uses,
+            uses_count=row.uses_count,
+            note=row.note,
+            expires_at=row.expires_at,
+            created_at=row.created_at,
+        )
+
+    def redeem_invite(
+        self,
+        *,
+        payload: "InviteRedeemInput",
+        secret: str,
+    ) -> "InviteRedeemOut":
+        from .business_schemas import InviteRedeemInput, InviteRedeemOut
+        from .roles import ROLE_CAPABILITIES
+        from .auth import create_auth_token
+        repo = self._require_repo()
+        row = repo.get_invite_code_by_code(payload.code.strip().upper())
+        if row is None:
+            raise ValueError("invalid_invite_code")
+        if row.uses_count >= row.max_uses:
+            raise ValueError("invite_code_exhausted")
+        if row.expires_at is not None:
+            now = datetime.utcnow()
+            exp = row.expires_at.replace(tzinfo=None) if row.expires_at.tzinfo else row.expires_at
+            if now > exp:
+                raise ValueError("invite_code_expired")
+        artisan_id = payload.artisan_id.strip()
+        if not artisan_id:
+            raise ValueError("artisan_id_required")
+        if repo.get_artisan_account(artisan_id) is not None:
+            raise ValueError("artisan_id_already_taken")
+        # Validate artisan_code strength — at least 8 chars
+        if len(payload.artisan_code) < 8:
+            raise ValueError("artisan_code_too_short")
+        # Bootstrap the artisan account
+        from .models import ArtisanAccount, Workspace, WorkspaceMembership
+        account = ArtisanAccount(
+            artisan_id=artisan_id,
+            role=row.role,
+            workshop_id=row.workshop_id,
+            profile_name=payload.profile_name.strip(),
+            profile_email=payload.profile_email.strip(),
+            artisan_code_hash=self._hash_code(payload.artisan_code),
+            artisan_access_verified=True,
+            created_at=datetime.utcnow(),
+        )
+        repo.save_artisan_account(account)
+        # Auto-provision personal workspace
+        display_name = payload.profile_name.strip() or artisan_id
+        ws = Workspace(
+            name=f"{display_name}'s Workspace",
+            owner_artisan_id=artisan_id,
+            status="active",
+        )
+        ws = repo.create_workspace(ws)
+        repo.create_workspace_membership(WorkspaceMembership(
+            workspace_id=ws.id,
+            artisan_id=artisan_id,
+            role="owner",
+            granted_by=artisan_id,
+        ))
+        # Consume invite use
+        row.uses_count += 1
+        repo.save_invite_code(row)
+        # Issue token
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        exp_ts = now_ts + 60 * 60 * 24 * 30
+        caps = ROLE_CAPABILITIES.get(row.role, frozenset())
+        token = create_auth_token(
+            actor_id=artisan_id,
+            capabilities=tuple(sorted(caps)),
+            role=row.role,
+            secret=secret,
+            exp=exp_ts,
+            iat=now_ts,
+        )
+        return InviteRedeemOut(
+            token=token,
+            expires_at=exp_ts,
+            artisan_id=artisan_id,
+            role=row.role,
+            workshop_id=row.workshop_id,
+            profile_name=payload.profile_name.strip(),
+            profile_email=payload.profile_email.strip(),
         )
 
     @staticmethod

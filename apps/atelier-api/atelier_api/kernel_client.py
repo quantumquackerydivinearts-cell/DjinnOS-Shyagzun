@@ -41,6 +41,16 @@ class KernelClient(Protocol):
         policy: Mapping[str, Any],
     ) -> Mapping[str, Any]: ...
 
+    def field_create(self, *, field_id: str, owner_id: str) -> Mapping[str, Any]: ...
+
+    def field_list(self) -> Mapping[str, Any]: ...
+
+    def field_observe(self, field_id: str) -> ObserveResponse: ...
+
+    def field_ceg(self, field_id: str) -> Mapping[str, Any]: ...
+
+    def field_frontiers(self, field_id: str) -> Sequence[FrontierObj]: ...
+
     def validate_wand_damage_attestation(
         self,
         *,
@@ -207,4 +217,24 @@ class HttpKernelClient:
                 "payload": dict(payload),
             },
         )
+
+    def field_create(self, *, field_id: str, owner_id: str) -> Mapping[str, Any]:
+        return self._call("POST", "/v0.1/fields", body={"field_id": field_id, "owner_id": owner_id})
+
+    def field_list(self) -> Mapping[str, Any]:
+        return self._call("GET", "/v0.1/fields")
+
+    def field_observe(self, field_id: str) -> ObserveResponse:
+        data = self._call("POST", f"/v0.1/observe/{field_id}", body={})
+        return cast(ObserveResponse, data)
+
+    def field_ceg(self, field_id: str) -> Mapping[str, Any]:
+        return self._call("GET", f"/v0.1/ceg/{field_id}")
+
+    def field_frontiers(self, field_id: str) -> Sequence[FrontierObj]:
+        data = self._call("GET", f"/v0.1/frontiers/{field_id}")
+        frontiers_obj = data.get("frontiers")
+        if not isinstance(frontiers_obj, list):
+            return []
+        return [cast(FrontierObj, item) for item in frontiers_obj if isinstance(item, dict)]
 

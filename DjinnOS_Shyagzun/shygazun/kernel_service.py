@@ -68,6 +68,11 @@ class ReplayRequest(BaseModel):
     bundle: Dict[str, Any]
 
 
+class FieldCreateBody(BaseModel):
+    field_id: Optional[str] = None
+    owner_id: Optional[str] = ""
+
+
 class AkinenwunLookupRequest(BaseModel):
     akinenwun: str
     mode: Literal["engine", "prose"] = "prose"
@@ -992,6 +997,13 @@ _akinenwun_dictionary = AkinenwunDictionary()
 _lesson_registry = load_lesson_registry()
 _shop_rate_limits: dict[str, list[float]] = {}
 
+# Per-artisan field registry: field_id -> (InMemoryField, Kernel)
+# F0 is the global shared field; artisan fields use the scheme "A:{artisan_id}".
+_fields_registry: Dict[str, tuple[InMemoryField, Kernel]] = {
+    "F0": (_field, _kernel),
+}
+_field_owners: Dict[str, str] = {"F0": ""}  # field_id -> artisan_id
+
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)
@@ -1149,13 +1161,19 @@ def health() -> Mapping[str, Any]:
 
 
 def _assert_field_id_or_default(field_id: Optional[str]) -> str:
-    if field_id is None:
+    if field_id is None or field_id == "null":
         return _field.field_id
-    if field_id == "null":
-        return _field.field_id
-    if field_id != _field.field_id:
-        raise HTTPException(status_code=404, detail="Not Found")
+    if field_id not in _fields_registry:
+        raise HTTPException(status_code=404, detail="field_not_found")
     return field_id
+
+
+def _kernel_for(field_id: str) -> Kernel:
+    """Return the Kernel instance for the given (already-validated) field_id."""
+    entry = _fields_registry.get(field_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="field_not_found")
+    return entry[1]
 
 
 def _extract_raw(req: PlaceRequest) -> str:
@@ -1183,6 +1201,14 @@ def place(req: PlaceRequest) -> Response:
 @app.post("/observe")
 def observe() -> Response:
     result = _kernel.observe()
+    return _json_response(result)
+
+
+@app.post("/v0.1/observe/{field_id}")
+def v1_observe_field(field_id: str) -> Response:
+    """Observe a specific field (global F0 or per-artisan field)."""
+    fid = _assert_field_id_or_default(field_id)
+    result = _kernel_for(fid).observe()
     return _json_response(result)
 
 
@@ -1221,10 +1247,11 @@ def v1_place(req: PlaceRequest) -> Response:
         field_id = None
     else:
         field_id = str(field_id_obj)
-    _assert_field_id_or_default(field_id)
+    fid = _assert_field_id_or_default(field_id)
+    k = _kernel_for(fid)
 
     raw = _extract_raw(req)
-    result = _kernel.place(raw=raw, context=context, addressing=req.addressing, metadata=req.metadata)
+    result = k.place(raw=raw, context=context, addressing=req.addressing, metadata=req.metadata)
 
     payload: Dict[str, Any] = {
         "field_id": result.field_id,
@@ -1238,8 +1265,9 @@ def v1_place(req: PlaceRequest) -> Response:
 
 @app.post("/v0.1/evaluate_eligibility")
 def v1_evaluate_eligibility(req: EligibilityRequest) -> Response:
-    _assert_field_id_or_default(req.field_id)
-    observed = _kernel.observe()
+    fid = _assert_field_id_or_default(req.field_id)
+    k = _kernel_for(fid)
+    observed = k.observe()
 
     eligible: Dict[str, List[Dict[str, str]]] = {}
     for frontier_id, candidates in observed.eligible_by_frontier.items():
@@ -1254,20 +1282,50 @@ def v1_evaluate_eligibility(req: EligibilityRequest) -> Response:
     return _json_response(payload)
 
 
+@app.post("/v0.1/fields")
+def v1_create_field(body: FieldCreateBody) -> Response:
+    """Create a new per-artisan field. Idempotent: returns existing if field_id already registered."""
+    requested_id = (body.field_id or "").strip()
+    field_id = requested_id if requested_id else f"F{len(_fields_registry)}"
+    if field_id in _fields_registry:
+        return _json_response({
+            "field_id": field_id,
+            "owner_id": _field_owners.get(field_id, ""),
+            "created": False,
+        })
+    new_field = InMemoryField(field_id=field_id, clock=Clock(tick=0, causal_epoch="0"))
+    new_kernel = Kernel(field=new_field, registers=cast(List[RegisterPlugin], list(ALL_REGISTERS)))
+    _fields_registry[field_id] = (new_field, new_kernel)
+    _field_owners[field_id] = body.owner_id or ""
+    return _json_response({"field_id": field_id, "owner_id": body.owner_id or "", "created": True})
+
+
+@app.get("/v0.1/fields")
+def v1_list_fields() -> Response:
+    """List all registered fields (global F0 + per-artisan fields)."""
+    fields = [
+        {"field_id": fid, "owner_id": _field_owners.get(fid, "")}
+        for fid in _fields_registry
+    ]
+    return _json_response({"fields": fields})
+
+
 @app.get("/v0.1/ceg/{field_id}")
 def v1_ceg(field_id: str) -> Response:
-    _assert_field_id_or_default(field_id)
+    fid = _assert_field_id_or_default(field_id)
+    k = _kernel_for(fid)
     result = {
-        "events": list(_kernel.get_events()),
-        "edges": list(_kernel.get_edges()),
+        "events": list(k.get_events()),
+        "edges": list(k.get_edges()),
     }
     return _json_response(result)
 
 
 @app.get("/v0.1/frontiers/{field_id}")
 def v1_frontiers(field_id: str) -> Response:
-    _assert_field_id_or_default(field_id)
-    sorted_frontiers: List[Frontier] = sorted(_kernel.frontiers, key=lambda f: f.id)
+    fid = _assert_field_id_or_default(field_id)
+    k = _kernel_for(fid)
+    sorted_frontiers: List[Frontier] = sorted(k.frontiers, key=lambda f: f.id)
     result = {
         "frontiers": [{"id": frontier.id, "status": frontier.status} for frontier in sorted_frontiers]
     }
@@ -1276,7 +1334,7 @@ def v1_frontiers(field_id: str) -> Response:
 
 @app.post("/v0.1/request_commit")
 def v1_request_commit(req: RequestCommitBody) -> Response:
-    _assert_field_id_or_default(req.field_id)
+    _assert_field_id_or_default(req.field_id)  # validates; commit is field-agnostic structural no-op
     # Structural no-op: kernel does not auto-commit.
     result = {
         "accepted": True,

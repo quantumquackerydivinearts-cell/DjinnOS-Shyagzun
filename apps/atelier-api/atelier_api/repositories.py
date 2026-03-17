@@ -44,6 +44,9 @@ from .models import (
     WandDamageAttestationRecord,
     WandKeyEpochRecord,
     WandRegistryRecord,
+    KernelField,
+    InviteCode,
+    GuildArtisanProfile,
 )
 
 
@@ -566,6 +569,70 @@ class AtelierRepository:
         self._db.commit()
         self._db.refresh(row)
         return row
+
+    def create_kernel_field(self, row: KernelField) -> KernelField:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_kernel_field_by_field_id(self, field_id: str) -> KernelField | None:
+        return self._db.scalar(select(KernelField).where(KernelField.field_id == field_id))
+
+    def list_kernel_fields_for_artisan(self, owner_artisan_id: str) -> list[KernelField]:
+        return list(self._db.scalars(
+            select(KernelField)
+            .where(KernelField.owner_artisan_id == owner_artisan_id)
+            .order_by(KernelField.created_at)
+        ).all())
+
+    def list_kernel_fields_for_workspace(self, workspace_id: str) -> list[KernelField]:
+        return list(self._db.scalars(
+            select(KernelField)
+            .where(KernelField.workspace_id == workspace_id)
+            .order_by(KernelField.created_at)
+        ).all())
+
+    def create_invite_code(self, row: InviteCode) -> InviteCode:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_invite_code_by_code(self, code: str) -> InviteCode | None:
+        return self._db.scalar(select(InviteCode).where(InviteCode.code == code))
+
+    def save_invite_code(self, row: InviteCode) -> InviteCode:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_guild_profile(self, artisan_id: str) -> GuildArtisanProfile | None:
+        return self._db.scalar(select(GuildArtisanProfile).where(GuildArtisanProfile.artisan_id == artisan_id))
+
+    def get_guild_profile_by_id(self, profile_id: str) -> GuildArtisanProfile | None:
+        return self._db.scalar(select(GuildArtisanProfile).where(GuildArtisanProfile.id == profile_id))
+
+    def save_guild_profile(self, row: GuildArtisanProfile) -> GuildArtisanProfile:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_guild_profiles_all(self, *, limit: int = 200, offset: int = 0) -> list[GuildArtisanProfile]:
+        return list(self._db.scalars(
+            select(GuildArtisanProfile)
+            .order_by(GuildArtisanProfile.display_name)
+            .offset(offset).limit(limit)
+        ).all())
+
+    def list_guild_profiles_public(self) -> list[GuildArtisanProfile]:
+        return list(self._db.scalars(
+            select(GuildArtisanProfile)
+            .where(GuildArtisanProfile.is_public == True, GuildArtisanProfile.steward_approved == True)
+            .order_by(GuildArtisanProfile.display_name)
+        ).all())
 
     def create_guild_message_envelope_record(self, row: GuildMessageEnvelopeRecord) -> GuildMessageEnvelopeRecord:
         self._db.add(row)

@@ -91,6 +91,14 @@ from .business_schemas import (
     AssetUploadRequestInput,
     AssetUploadRequestOut,
     AssetConfirmUploadOut,
+    KernelFieldOut,
+    KernelFieldCreateInput,
+    InviteIssueInput,
+    InviteIssueOut,
+    InviteRedeemInput,
+    InviteRedeemOut,
+    GuildProfileUpsertInput,
+    GuildProfileOut,
     ContentValidateInput,
     ContentValidateOut,
     RealmOut,
@@ -1335,6 +1343,91 @@ def artisan_login(
         )
     except ValueError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@app.post("/v1/auth/invite")
+def issue_invite(
+    payload: InviteIssueInput,
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> InviteIssueOut:
+    """Steward-only: issue an invite code for onboarding a new artisan."""
+    if role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required")
+    try:
+        return svc.issue_invite(
+            issued_by=workshop.identity.artisan_id,
+            payload=payload,
+            workshop_id=workshop.identity.workshop_id,
+            secret=settings.auth_token_secret,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/auth/redeem-invite")
+def redeem_invite(
+    payload: InviteRedeemInput,
+    svc: AtelierService = Depends(_atelier_service),
+    settings: Settings = Depends(_settings),
+) -> InviteRedeemOut:
+    """Public endpoint — redeem an invite code to create an account and receive a JWT."""
+    try:
+        return svc.redeem_invite(payload=payload, secret=settings.auth_token_secret)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/guild/profile/me")
+def get_my_guild_profile(
+    workshop: WorkshopContext = Depends(_workshop_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Optional[GuildProfileOut]:
+    """Return the calling artisan's own guild profile, or null if none exists."""
+    return svc.get_my_guild_profile(workshop.identity.artisan_id)
+
+
+@app.post("/v1/guild/profile")
+def upsert_guild_profile(
+    payload: GuildProfileUpsertInput,
+    workshop: WorkshopContext = Depends(_workshop_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> GuildProfileOut:
+    """Create or update the calling artisan's guild profile."""
+    return svc.upsert_guild_profile(artisan_id=workshop.identity.artisan_id, payload=payload)
+
+
+@app.get("/v1/guild/profiles")
+def list_guild_profiles_admin(
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[GuildProfileOut]:
+    """Steward-only: list all guild profiles including pending/unapproved."""
+    if role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required")
+    return svc.list_guild_profiles_admin()
+
+
+@app.post("/v1/guild/profiles/{profile_id}/approve")
+def approve_guild_profile(
+    profile_id: str,
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> GuildProfileOut:
+    """Steward-only: approve a guild profile for public directory listing."""
+    if role.role != ROLE_STEWARD:
+        raise HTTPException(status_code=403, detail="steward_required")
+    try:
+        return svc.approve_guild_profile(
+            profile_id=profile_id,
+            approved_by=workshop.identity.artisan_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.get("/v1/atelier/admin/gate/status")
@@ -3356,6 +3449,88 @@ def delete_asset(
     try:
         svc.delete_asset(workspace_id=workspace_id, asset_id=asset_id, settings=settings)
         return {"ok": True, "asset_id": asset_id}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/v1/kernel/fields")
+def create_kernel_field(
+    payload: KernelFieldCreateInput,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
+    svc: AtelierService = Depends(_atelier_service),
+    kernel: KernelClient = Depends(_kernel_client),
+) -> KernelFieldOut:
+    """Create (or return existing) per-artisan kernel field."""
+    artisan_id = workshop.identity.artisan_id
+    try:
+        return svc.create_artisan_field(
+            artisan_id=artisan_id,
+            workspace_id=workspace_id,
+            label=payload.label,
+            kernel_client=kernel,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/kernel/fields")
+def list_kernel_fields(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    workspace_id: str = Depends(_workspace_id_dep),
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[KernelFieldOut]:
+    """List kernel fields owned by the current artisan in this workspace."""
+    artisan_id = workshop.identity.artisan_id
+    return svc.list_artisan_fields(artisan_id=artisan_id, workspace_id=workspace_id)
+
+
+@app.get("/v1/kernel/fields/{field_id}/observe")
+def observe_kernel_field(
+    field_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    svc: AtelierService = Depends(_atelier_service),
+    kernel: KernelClient = Depends(_kernel_client),
+) -> Dict[str, Any]:
+    """Observe a per-artisan kernel field (returns CEG state)."""
+    artisan_id = workshop.identity.artisan_id
+    try:
+        return dict(svc.observe_artisan_field(field_id=field_id, artisan_id=artisan_id, kernel_client=kernel))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/v1/kernel/fields/{field_id}/ceg")
+def get_kernel_field_ceg(
+    field_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    svc: AtelierService = Depends(_atelier_service),
+    kernel: KernelClient = Depends(_kernel_client),
+) -> Dict[str, Any]:
+    """Get CEG snapshot for a per-artisan kernel field."""
+    artisan_id = workshop.identity.artisan_id
+    try:
+        return dict(svc.get_artisan_field_ceg(field_id=field_id, artisan_id=artisan_id, kernel_client=kernel))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/v1/kernel/fields/{field_id}/frontiers")
+def get_kernel_field_frontiers(
+    field_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    svc: AtelierService = Depends(_atelier_service),
+    kernel: KernelClient = Depends(_kernel_client),
+) -> Sequence[Dict[str, Any]]:
+    """Get eligible frontiers for a per-artisan kernel field."""
+    artisan_id = workshop.identity.artisan_id
+    try:
+        return list(svc.get_artisan_field_frontiers(field_id=field_id, artisan_id=artisan_id, kernel_client=kernel))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

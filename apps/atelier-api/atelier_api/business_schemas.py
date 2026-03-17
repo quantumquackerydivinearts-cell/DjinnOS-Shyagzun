@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -1772,6 +1772,93 @@ class AssetConfirmUploadOut(BaseModel):
     id: str
     storage_state: str
     public_url: str | None
+
+
+class KernelFieldOut(BaseModel):
+    id: str
+    field_id: str
+    owner_artisan_id: str
+    workspace_id: str
+    label: str
+    created_at: datetime
+
+
+class KernelFieldCreateInput(BaseModel):
+    label: str = ""
+
+
+class GuildProfileUpsertInput(BaseModel):
+    display_name: str = ""
+    bio: str = ""
+    portfolio_url: str = ""
+    avatar_url: str = ""
+    region: str = ""
+    divisions: str = ""   # comma-separated: sulphur, mercury, salt
+    trades: str = ""      # comma-separated tags
+    is_public: bool = False
+    show_region: bool = True
+    show_trades: bool = True
+    show_portfolio: bool = True
+
+
+class GuildProfileOut(BaseModel):
+    id: str
+    artisan_id: str
+    display_name: str
+    bio: str
+    portfolio_url: str
+    avatar_url: str
+    region: str
+    divisions: str
+    trades: str
+    guild_rank: str
+    is_public: bool
+    show_region: bool
+    show_trades: bool
+    show_portfolio: bool
+    steward_approved: bool
+    approved_by: str
+    approved_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+
+
+class InviteIssueInput(BaseModel):
+    role: str = "artisan"
+    workshop_id: str = ""
+    max_uses: int = 1
+    note: str = ""
+    expires_in_days: Optional[int] = None
+
+
+class InviteIssueOut(BaseModel):
+    id: str
+    code: str
+    role: str
+    workshop_id: str
+    max_uses: int
+    uses_count: int
+    note: str
+    expires_at: Optional[datetime]
+    created_at: datetime
+
+
+class InviteRedeemInput(BaseModel):
+    code: str
+    artisan_id: str
+    profile_name: str
+    profile_email: str
+    artisan_code: str  # the password the artisan is choosing
+
+
+class InviteRedeemOut(BaseModel):
+    token: str
+    expires_at: int
+    artisan_id: str
+    role: str
+    workshop_id: str
+    profile_name: str
+    profile_email: str
 
 
 class RealmOut(BaseModel):

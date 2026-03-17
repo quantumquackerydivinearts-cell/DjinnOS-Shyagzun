@@ -496,6 +496,32 @@ class AssetManifest(Base):
     workspace: Mapped[Workspace] = relationship()
 
 
+class KernelField(Base):
+    __tablename__ = "kernel_fields"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    field_id: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    owner_artisan_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    workspace_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    label: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class InviteCode(Base):
+    __tablename__ = "invite_codes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    issued_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    role: Mapped[str] = mapped_column(String(50), nullable=False, default="artisan")
+    workshop_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    max_uses: Mapped[int] = mapped_column(nullable=False, default=1)
+    uses_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    note: Mapped[str] = mapped_column(String(300), nullable=False, default="")
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
 class GuildMessageEnvelopeRecord(Base):
     __tablename__ = "guild_message_envelopes"
 
