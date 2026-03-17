@@ -483,7 +483,7 @@ def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str, shop_
     for section in _shop_sections():
         tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
         override = link_overrides.get(section["id"], "")
-        cta_url = override or f"{atelier_url.rstrip('/')}/"
+        cta_url = override or f"{atelier_url.rstrip('/')}/?panel={section['id']}"
         details_url = f"{shop_url.rstrip('/')}/{section['id']}"
         cards.append(
             f"""<section class="card">

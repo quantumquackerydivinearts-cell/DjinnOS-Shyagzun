@@ -60,6 +60,27 @@ const WAND_DAMAGE_ALLOWED_IMAGE_MIME_TYPES = [
   "image/webp",
 ];
 
+const PANEL_SLUG_MAP = {
+  "consultations":    "Booking System",
+  "licenses":         "Orders",
+  "catalog":          "Inventory",
+  "custom-orders":    "Quotes",
+  "digital":          "Orders",
+  "land-assessments": "Booking System",
+};
+
+function resolveInitialSection() {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const panel = q.get("panel");
+    if (panel) {
+      const mapped = PANEL_SLUG_MAP[panel] || panel;
+      if (NAV_ITEMS.includes(mapped)) return mapped;
+    }
+  } catch {}
+  return localStorage.getItem("atelier.section") || "Foyer";
+}
+
 const NAV_ITEMS = [
   "Foyer",
   "Workshop",
@@ -5755,7 +5776,7 @@ function readRendererLocalState() {
 const RENDERER_SYNC_CHANNEL = "atelier-renderer-sync-v1";
 
 export function App() {
-  const [section, setSection] = useState(() => localStorage.getItem("atelier.section") || "Foyer");
+  const [section, setSection] = useState(resolveInitialSection);
   const [role, setRole] = useState(() => localStorage.getItem("atelier.role") || "senior_artisan");
   const [workspaceId, setWorkspaceId] = useState(() => localStorage.getItem("atelier.workspace") || "main");
   const [output, setOutput] = useState("{}");
