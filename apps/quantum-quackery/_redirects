@@ -4,7 +4,7 @@
 # API calls from the landing page proxy to Render
 # (alternative to calling Render directly — avoids mixed content
 #  and keeps the API URL consistent if you ever move hosts)
-/api/*  https://atelier-api.quantumquackery.com/:splat  200
+/api/*  https://djinnos-shyagzun-atelier-api.onrender.com/:splat  200
 
 # Route clean paths to HTML files
 /encyclopedia  /encyclopedia-esoterica.html  200
