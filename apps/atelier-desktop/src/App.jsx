@@ -6102,6 +6102,8 @@ export function App() {
 
   const [bookingStart, setBookingStart] = useState("");
   const [bookingEnd, setBookingEnd] = useState("");
+  const [bookingContactId, setBookingContactId] = useState("");
+  const [bookingNotes, setBookingNotes] = useState("");
   const [bookings, setBookings] = useState([]);
   const [bookingFilter, setBookingFilter] = useState("");
   const [profileName, setProfileName] = useState(() => localStorage.getItem("atelier.profile_name") || "Artisan");
@@ -6147,12 +6149,15 @@ export function App() {
   const [leadEmail, setLeadEmail] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
   const [leadDetails, setLeadDetails] = useState("");
+  const [leadSource, setLeadSource] = useState("internal");
+  const [leadNotes, setLeadNotes] = useState("");
   const [leads, setLeads] = useState([]);
   const [leadFilter, setLeadFilter] = useState("");
 
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+  const [clientNotes, setClientNotes] = useState("");
   const [clients, setClients] = useState([]);
   const [clientFilter, setClientFilter] = useState("");
 
@@ -6160,12 +6165,17 @@ export function App() {
   const [quoteAmount, setQuoteAmount] = useState("");
   const [quoteCurrency, setQuoteCurrency] = useState("USD");
   const [quotePublic, setQuotePublic] = useState(false);
+  const [quoteLeadId, setQuoteLeadId] = useState("");
+  const [quoteNotes, setQuoteNotes] = useState("");
   const [quotes, setQuotes] = useState([]);
   const [quoteFilter, setQuoteFilter] = useState("");
 
   const [orderTitle, setOrderTitle] = useState("");
   const [orderAmount, setOrderAmount] = useState("");
   const [orderCurrency, setOrderCurrency] = useState("USD");
+  const [orderQuoteId, setOrderQuoteId] = useState("");
+  const [orderClientId, setOrderClientId] = useState("");
+  const [orderNotes, setOrderNotes] = useState("");
   const [orders, setOrders] = useState([]);
   const [orderFilter, setOrderFilter] = useState("");
   const [contracts, setContracts] = useState([]);
@@ -14779,13 +14789,16 @@ function extractPythonSavedPath(outputText) {
                     phone: leadPhone || null,
                     details: leadDetails,
                     status: "new",
-                    source: "internal"
+                    source: leadSource,
+                    notes: leadNotes
                   },
                   () => {
                     setLeadName("");
                     setLeadEmail("");
                     setLeadPhone("");
                     setLeadDetails("");
+                    setLeadSource("internal");
+                    setLeadNotes("");
                   },
                   listLeads
                 )
@@ -14795,7 +14808,24 @@ function extractPythonSavedPath(outputText) {
             </button>
             <button className="action" onClick={listLeads}>Refresh</button>
           </div>
-          <div className="row"><input value={leadDetails} onChange={(e) => setLeadDetails(e.target.value)} placeholder="lead details" /><input value={leadFilter} onChange={(e) => setLeadFilter(e.target.value)} placeholder="filter leads" /></div>
+          <div className="row">
+            <input value={leadDetails} onChange={(e) => setLeadDetails(e.target.value)} placeholder="lead details" />
+            <select value={leadSource} onChange={(e) => setLeadSource(e.target.value)}>
+              <option value="internal">internal</option>
+              <option value="referral">referral</option>
+              <option value="shop:consultations">shop:consultations</option>
+              <option value="shop:licenses">shop:licenses</option>
+              <option value="shop:catalog">shop:catalog</option>
+              <option value="shop:custom-orders">shop:custom-orders</option>
+              <option value="shop:digital">shop:digital</option>
+              <option value="shop:land-assessments">shop:land-assessments</option>
+              <option value="other">other</option>
+            </select>
+          </div>
+          <div className="row">
+            <textarea value={leadNotes} onChange={(e) => setLeadNotes(e.target.value)} placeholder="lead notes" />
+            <input value={leadFilter} onChange={(e) => setLeadFilter(e.target.value)} placeholder="filter leads" />
+          </div>
           <pre>{JSON.stringify(filteredLeads, null, 2)}</pre>
         </section>
       );
@@ -14808,10 +14838,13 @@ function extractPythonSavedPath(outputText) {
             <input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="client name" />
             <input value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="client email" />
             <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="client phone" />
-            <button className="action" onClick={() => createEntity("clients_create", "/v1/clients", { workspace_id: workspaceId, full_name: clientName, email: clientEmail || null, phone: clientPhone || null, status: "active" }, () => { setClientName(""); setClientEmail(""); setClientPhone(""); }, listClients)}>Create</button>
+            <button className="action" onClick={() => createEntity("clients_create", "/v1/clients", { workspace_id: workspaceId, full_name: clientName, email: clientEmail || null, phone: clientPhone || null, status: "active", notes: clientNotes }, () => { setClientName(""); setClientEmail(""); setClientPhone(""); setClientNotes(""); }, listClients)}>Create</button>
             <button className="action" onClick={listClients}>Refresh</button>
           </div>
-          <div className="row"><input value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} placeholder="filter clients" /></div>
+          <div className="row">
+            <textarea value={clientNotes} onChange={(e) => setClientNotes(e.target.value)} placeholder="client notes" />
+            <input value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} placeholder="filter clients" />
+          </div>
           <pre>{JSON.stringify(filteredClients, null, 2)}</pre>
         </section>
       );
