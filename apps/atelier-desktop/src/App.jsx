@@ -6538,7 +6538,7 @@ export function App() {
   const [distributionProtocolVersion, setDistributionProtocolVersion] = useState("v1");
   const [distributionSupportedProtocolVersionsText, setDistributionSupportedProtocolVersionsText] = useState('[\n  "v1"\n]');
   const [distributionGuildIdsText, setDistributionGuildIdsText] = useState('[\n  "guild.atelier"\n]');
-  const [distributionMetadataText, setDistributionMetadataText] = useState('{\n  "source": "atelier.desktop.guild_hall",\n  "website_url": "https://www.quantumquackery.org",\n  "api_url": "https://djinnos-shyagzun-atelier-api.onrender.com",\n  "kernel_url": "https://atelier-api.quantumquackery.com"\n}');
+  const [distributionMetadataText, setDistributionMetadataText] = useState('{\n  "source": "atelier.desktop.guild_hall",\n  "website_url": "https://quantumquackery.org/",\n  "api_url": "https://djinnos-shyagzun-atelier-api.onrender.com",\n  "kernel_url": "https://djinnos-shyagzun-kernel.onrender.com"\n}');
   const [distributionRegistryList, setDistributionRegistryList] = useState([]);
   const [distributionRegistryOutput, setDistributionRegistryOutput] = useState(null);
   const [distributionShopWorkspaceId, setDistributionShopWorkspaceId] = useState("");
@@ -14298,7 +14298,7 @@ function extractPythonSavedPath(outputText) {
             <div className="foyer-link-grid">
               <a
                 className="foyer-link-card"
-                href="https://www.quantumquackery.org"
+                href="https://quantumquackery.org/"
                 target="_blank"
                 rel="noreferrer"
               >
