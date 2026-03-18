@@ -4,8 +4,8 @@ Adds artisan marketplace columns to shop_items and stripe_account_id to
 guild_artisan_profiles, enabling the QQDA Artisan Marketplace with Stripe
 Connect payout routing.
 
-Revision ID: 0024_artisan_marketplace_fields
-Revises: 0023_add_contracts
+Revision ID: 0034_artisan_marketplace_fields
+Revises: 0033_multiverse_stack_fields
 Create Date: 2026-03-18
 
 NOTE: For local SQLite dev use `alembic stamp head` (NOT upgrade head).
@@ -16,8 +16,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0024_artisan_marketplace_fields"
-down_revision = "0023_add_contracts"
+revision = "0034_artisan_marketplace_fields"
+down_revision = "0033_multiverse_stack_fields"
 branch_labels = None
 depends_on = None
 
