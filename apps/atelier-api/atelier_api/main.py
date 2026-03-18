@@ -237,6 +237,11 @@ from .privacy_manifest import build_privacy_manifest
 from .repositories import AtelierRepository
 from .roles import ROLE_STEWARD, RoleContext, role_allows
 from .services import AtelierService
+from .multiverse_stack import (
+    MultiverseStackService, GAME_REGISTRY, PROPAGATION_RULES,
+    VITRIOL_STATS, VITRIOL_BUDGET, VITRIOL_STAT_MIN, VITRIOL_STAT_MAX,
+    VOID_WRAITHS,
+)
 from .types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse
 from .workshop import (
     ArtisanIdentity,
@@ -2643,6 +2648,209 @@ def get_guild_conversation(
         return svc.get_guild_conversation(conversation_id=conversation_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+# ── Orrery / Multiverse Stack ─────────────────────────────────────────────────
+
+def _multiverse_stack(db: Session = Depends(get_db)) -> MultiverseStackService:
+    return MultiverseStackService(db)
+
+
+@app.post("/v1/orrery/record")
+def orrery_record_action(
+    payload: dict,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    stack: MultiverseStackService = Depends(_multiverse_stack),
+) -> Mapping[str, Any]:
+    """
+    Record a player action into the multiverse stack and walk it to L11 archive.
+    Sulphera evaluates nonlocal consequences automatically.
+
+    Body: { game_id, action_kind, actor_id, ...arbitrary payload }
+    """
+    game_id    = str(payload.get("game_id", ""))
+    action_kind = str(payload.get("action_kind", ""))
+    actor_id   = str(payload.get("actor_id", ctx.artisan_id or "unknown"))
+    if not game_id or not action_kind:
+        raise HTTPException(status_code=422, detail="game_id and action_kind are required")
+    archived = stack.record_and_archive(
+        workspace_id=workshop.workspace_id,
+        game_id=game_id,
+        action_kind=action_kind,
+        actor_id=actor_id,
+        payload={k: v for k, v in payload.items() if k not in ("game_id", "action_kind", "actor_id")},
+    )
+    return {"archived_node_id": archived.id, "node_key": archived.node_key}
+
+
+@app.get("/v1/orrery/query")
+def orrery_query(
+    game_id: Optional[str] = None,
+    prior_subset_key: Optional[str] = None,
+    action_kind: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    stack: MultiverseStackService = Depends(_multiverse_stack),
+) -> Mapping[str, Any]:
+    """
+    Query the Orrery — the full multiverse state for this player workspace.
+    Optionally filter by game slug, prior subset key, or action kind.
+    This is Sulphera's view: outside time, seeing the whole stack.
+    """
+    return stack.orrery_query(
+        workspace_id=workshop.workspace_id,
+        game_id=game_id,
+        prior_subset_key=prior_subset_key,
+        action_kind=action_kind,
+    )
+
+
+@app.get("/v1/orrery/luminyx")
+def orrery_luminyx_timeline(
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    stack: MultiverseStackService = Depends(_multiverse_stack),
+) -> Mapping[str, Any]:
+    """Current Luminyx timeline state for this player."""
+    return {
+        "timeline": stack.luminyx_timeline(workspace_id=workshop.workspace_id),
+        "zero_kill_run": stack.zero_kill_check(workspace_id=workshop.workspace_id),
+    }
+
+
+@app.post("/v1/orrery/vitriol")
+def orrery_assign_vitriol(
+    payload: dict,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    stack: MultiverseStackService = Depends(_multiverse_stack),
+) -> Mapping[str, Any]:
+    """
+    Record a VITRIOL stat assignment from Ko's dream sequence.
+
+    Body: {
+      game_id: str,
+      stats: { vitality, introspection, reflectivity, tactility,
+               ingenuity, ostentation, levity },  — must sum to 31
+      invoked_ohadame: bool  (optional, default false)
+    }
+    """
+    game_id = str(payload.get("game_id", ""))
+    stats   = payload.get("stats", {})
+    invoked = bool(payload.get("invoked_ohadame", False))
+    actor_id = str(payload.get("actor_id", ctx.artisan_id or "unknown"))
+    if not game_id:
+        raise HTTPException(status_code=422, detail="game_id is required")
+    try:
+        archived = stack.assign_vitriol(
+            workspace_id=workshop.workspace_id,
+            game_id=game_id,
+            actor_id=actor_id,
+            stats=stats,
+            invoked_ohadame=invoked,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {
+        "archived_node_id": archived.id,
+        "game_id": game_id,
+        "stats": stats,
+        "total": sum(stats.values()),
+        "invoked_ohadame": invoked,
+    }
+
+
+@app.get("/v1/orrery/vitriol/{game_id}")
+def orrery_get_vitriol(
+    game_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    stack: MultiverseStackService = Depends(_multiverse_stack),
+) -> Mapping[str, Any]:
+    """Retrieve the current VITRIOL stat assignment for a game instance."""
+    stats = stack.get_vitriol(workspace_id=workshop.workspace_id, game_id=game_id)
+    return {
+        "game_id": game_id,
+        "stats": stats,
+        "assigned": stats is not None,
+        "schema": VITRIOL_STATS,
+        "budget": VITRIOL_BUDGET,
+        "range": [VITRIOL_STAT_MIN, VITRIOL_STAT_MAX],
+    }
+
+
+@app.post("/v1/orrery/void_wraith")
+def orrery_void_wraith_observe(
+    payload: dict,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    stack: MultiverseStackService = Depends(_multiverse_stack),
+) -> Mapping[str, Any]:
+    """
+    Record a Void Wraith observation from the game engine.
+
+    Body: {
+      game_id: str,
+      observation_kind: "kill" | "silence" | "omission",
+      subject: str,       — what was killed / not said / not done
+      context: {}         — optional: scene, tick, opportunity_count, etc.
+    }
+
+    The game engine handles omission pattern detection before calling this.
+    """
+    game_id  = str(payload.get("game_id", ""))
+    kind     = str(payload.get("observation_kind", ""))
+    subject  = str(payload.get("subject", ""))
+    context  = payload.get("context", {})
+    if not game_id or not kind or not subject:
+        raise HTTPException(status_code=422, detail="game_id, observation_kind, and subject are required")
+    try:
+        node = stack.record_void_wraith_observation(
+            workspace_id=workshop.workspace_id,
+            game_id=game_id,
+            observation_kind=kind,
+            subject=subject,
+            context=context,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"archived_node_id": node.id, "observation_kind": kind, "subject": subject}
+
+
+@app.get("/v1/orrery/void_wraith")
+def orrery_void_wraith_profile(
+    game_id: Optional[str] = None,
+    ctx: CapabilityContext = Depends(_capability_context),
+    workshop: WorkshopContext = Depends(_workshop_context),
+    stack: MultiverseStackService = Depends(_multiverse_stack),
+) -> Mapping[str, Any]:
+    """
+    Return the full Void Wraith profile — what the Wraiths have observed
+    across the player's multiverse: kills, silences, omission patterns.
+    """
+    return stack.void_wraith_profile(
+        workspace_id=workshop.workspace_id,
+        game_id=game_id,
+    )
+
+
+@app.get("/v1/orrery/registry")
+def orrery_registry() -> Mapping[str, Any]:
+    """Returns the game registry and loaded propagation rule labels — read-only metadata."""
+    return {
+        "game_registry": GAME_REGISTRY,
+        "propagation_rules": [
+            {"source": f"{src[0]}::{src[1]}", "rules": [r.label for r in rules]}
+            for src, rules in PROPAGATION_RULES.items()
+        ],
+        "void_wraiths": VOID_WRAITHS,
+        "vitriol": {
+            "stats": VITRIOL_STATS,
+            "budget": VITRIOL_BUDGET,
+            "range": [VITRIOL_STAT_MIN, VITRIOL_STAT_MAX],
+        },
+    }
 
 
 @app.get("/v1/atelier/timeline")

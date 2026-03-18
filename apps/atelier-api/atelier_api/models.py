@@ -432,6 +432,9 @@ class LayerNode(Base):
     node_key: Mapped[str] = mapped_column(String(200), nullable=False)
     payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     payload_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Multiverse stack fields — NULL for cross-game / Sulphera-level nodes
+    game_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    prior_subset_key: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
     workspace: Mapped[Workspace] = relationship()
