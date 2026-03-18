@@ -8904,6 +8904,13 @@ export function App() {
       setTileRows("72");
       setTileCellPx("16");
       setTileSvgExportScale("2");
+      return;
+    }
+    if (preset === "4K") {
+      setTileCols("240");
+      setTileRows("135");
+      setTileCellPx("16");
+      setTileSvgExportScale("2");
     }
   }
 
@@ -17448,6 +17455,7 @@ function extractPythonSavedPath(outputText) {
                   <button className="action" onClick={() => applyResolutionPreset("SD")}>Preset SD</button>
                   <button className="action" onClick={() => applyResolutionPreset("HD")}>Preset HD</button>
                   <button className="action" onClick={() => applyResolutionPreset("2K")}>Preset 2K</button>
+                  <button className="action" onClick={() => applyResolutionPreset("4K")}>Preset 4K</button>
                   <button className="action" onClick={applyAssetGenProfileV1}>Load asset-gen-v1</button>
                 </div>
                 <div className="row">
