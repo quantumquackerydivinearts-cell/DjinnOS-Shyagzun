@@ -3320,8 +3320,9 @@ class AtelierService:
                     recorded_at=datetime.fromisoformat(now.replace("Z", "+00:00")),
                 )
                 self._repo.create_guild_message_envelope_record(row)
-                return {
+                db_result = {
                     "message_id": message_id,
+                    "conversation_id": envelope_obj.get("conversation_id"),
                     "recorded_at": now,
                     "guild_id": envelope_obj.get("guild_id"),
                     "channel_id": envelope_obj.get("channel_id"),
@@ -3331,6 +3332,8 @@ class AtelierService:
                     "semantic_storage_bucket": self._semantic_storage_bucket(semantic_dispatch) if semantic_dispatch else "database",
                     "storage_backend": "database",
                 }
+                self._publish_guild_message_event(envelope_obj, message_id, now)
+                return db_result
             except Exception:
                 pass
         guild_component = self._safe_storage_component(str(envelope_obj.get("guild_id") or ""), "guild")
@@ -3342,7 +3345,7 @@ class AtelierService:
         target_dir.mkdir(parents=True, exist_ok=True)
         target = target_dir / f"{message_id}.json"
         target.write_text(json.dumps({**payload, "message_id": message_id}, indent=2, ensure_ascii=False), encoding="utf-8")
-        return {
+        file_result = {
             "message_id": message_id,
             "conversation_id": envelope_obj.get("conversation_id"),
             "conversation_kind": envelope_obj.get("conversation_kind"),
@@ -3356,6 +3359,28 @@ class AtelierService:
             "storage_path": str(target.relative_to(self._security_state_dir())),
             "storage_backend": "file",
         }
+        self._publish_guild_message_event(envelope_obj, message_id, now)
+        return file_result
+
+    def _publish_guild_message_event(
+        self, envelope_obj: Mapping[str, Any], message_id: str, recorded_at: str
+    ) -> None:
+        """Best-effort SSE push when a guild message is persisted."""
+        conversation_id = str(envelope_obj.get("conversation_id") or "").strip()
+        if not conversation_id:
+            return
+        try:
+            from . import event_bus
+            event_bus.publish_sync(conversation_id, {
+                "type": "guild_message",
+                "conversation_id": conversation_id,
+                "message_id": message_id,
+                "sender_id": str(envelope_obj.get("sender_id") or ""),
+                "sender_member_id": str(envelope_obj.get("sender_member_id") or ""),
+                "recorded_at": recorded_at,
+            })
+        except Exception:
+            pass
 
     def update_guild_message_relay_status(
         self,
@@ -5010,7 +5035,9 @@ class AtelierService:
             counter += 1
         return bytes(a ^ b for a, b in zip(ciphertext, keystream)).decode("utf-8")
 
-    def _conv_out(self, row: "ClientConversation") -> "ClientConversationOut":
+    def _conv_out(
+        self, row: "ClientConversation", unread_count: int = 0
+    ) -> "ClientConversationOut":
         import json
         from .business_schemas import ClientConversationOut
         return ClientConversationOut(
@@ -5024,6 +5051,7 @@ class AtelierService:
             participant_artisan_ids=json.loads(row.participant_artisan_ids_json or "[]"),
             min_rank=row.min_rank or "apprentice",
             status=row.status,
+            unread_count=unread_count,
             created_at=row.created_at.isoformat() if row.created_at else "",
             updated_at=row.updated_at.isoformat() if row.updated_at else "",
         )
@@ -5104,7 +5132,11 @@ class AtelierService:
             if not workspace_id:
                 raise ValueError("workspace_id_required")
             rows = repo.list_client_conversations_by_workspace(workspace_id)
-        return [self._conv_out(r) for r in rows]
+        results = []
+        for r in rows:
+            unread = repo.count_unread_for_reader(r.id, actor_id)
+            results.append(self._conv_out(r, unread_count=unread))
+        return results
 
     def get_client_conversation(self, *, conversation_id: str) -> "ClientConversationOut":
         repo = self._require_repo()
@@ -5186,6 +5218,19 @@ class AtelierService:
         # Touch conversation updated_at
         conv.updated_at = datetime.now(timezone.utc)
         repo.save_client_conversation(conv)
+        # Push real-time notification to SSE subscribers (best-effort, never blocks send)
+        try:
+            from . import event_bus
+            event_bus.publish_sync(conversation_id, {
+                "type": "message",
+                "conversation_id": conversation_id,
+                "message_id": row.id,
+                "sender_id": sender_id,
+                "sender_kind": sender_kind,
+                "sent_at": row.sent_at.isoformat() if row.sent_at else "",
+            })
+        except Exception:
+            pass
         return self._msg_out(row, root_key)
 
     def list_client_messages(
@@ -5194,7 +5239,20 @@ class AtelierService:
         repo = self._require_repo()
         root_key = self._client_conv_root_key(conversation_id, secret)
         rows = repo.list_client_messages(conversation_id)
-        repo.mark_client_messages_read(conversation_id, reader_id)
+        marked = repo.mark_client_messages_read(conversation_id, reader_id)
+        # Push read_receipt SSE event to notify the sender(s) their messages were read
+        if marked > 0:
+            try:
+                from . import event_bus
+                event_bus.publish_sync(conversation_id, {
+                    "type": "read_receipt",
+                    "conversation_id": conversation_id,
+                    "reader_id": reader_id,
+                    "marked_count": marked,
+                    "read_at": datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception:
+                pass
         return [self._msg_out(r, root_key) for r in rows]
 
     def list_quotes(self, workspace_id: str) -> Sequence[QuoteOut]:

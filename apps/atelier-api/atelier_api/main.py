@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import json as _json
 import re
 from typing import Any, Dict, Mapping, Optional, Sequence
 
@@ -8,7 +10,7 @@ import stripe
 from uuid import uuid4
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, Response, ORJSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response, ORJSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, Mapped, mapped_column
 from sqlalchemy import Boolean, DateTime, String, Text
@@ -1197,6 +1199,13 @@ def shop_section(
 
 
 @app.on_event("startup")
+async def startup_capture_event_loop() -> None:
+    """Capture the running asyncio loop so event_bus.publish_sync can post to it."""
+    from . import event_bus
+    event_bus.set_loop(asyncio.get_event_loop())
+
+
+@app.on_event("startup")
 def startup_probe_dependencies() -> None:
     # Run DB migrations on startup so deploys to Render auto-migrate.
     try:
@@ -1631,6 +1640,94 @@ def client_list_messages(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/client/conversations/{conversation_id}/events")
+async def client_conversation_events(
+    conversation_id: str,
+    authorization: Optional[str] = Header(default=None),
+    token: Optional[str] = None,  # query param fallback for EventSource (no header support)
+    settings: Settings = Depends(_settings),
+) -> StreamingResponse:
+    """SSE stream — push new message notifications to subscribers in real time.
+
+    Yields:
+      event: connected  — on successful subscribe
+      event: message    — on new message (data: JSON with message_id, sender_id, sender_kind, sent_at)
+      : keepalive       — comment every 25 s to prevent proxy timeouts
+
+    Auth: Bearer token via Authorization header OR ?token= query param (for EventSource).
+    """
+    from .auth import decode_auth_token
+    from . import event_bus
+
+    raw_token = token or (authorization or "").removeprefix("Bearer ").strip()
+    if not raw_token:
+        raise HTTPException(status_code=401, detail="missing_token")
+    claims = decode_auth_token(raw_token, settings.auth_token_secret)
+    if claims is None:
+        raise HTTPException(status_code=401, detail="invalid_token")
+    if claims.get("role") not in ("client", "artisan", "senior_artisan", "steward"):
+        raise HTTPException(status_code=403, detail="forbidden")
+
+    async def stream():
+        q = event_bus.subscribe(conversation_id)
+        try:
+            yield f"event: connected\ndata: {_json.dumps({'conversation_id': conversation_id})}\n\n"
+            while True:
+                try:
+                    payload = await asyncio.wait_for(q.get(), timeout=25.0)
+                    yield f"event: message\ndata: {_json.dumps(payload)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            event_bus.unsubscribe(conversation_id, q)
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/v1/guild/conversations/{conversation_id}/events")
+async def guild_conversation_events(
+    conversation_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    _: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+) -> StreamingResponse:
+    """SSE stream for a guild conversation (DM or channel).
+
+    Yields event: connected, event: guild_message, and keepalive comments.
+    Artisan-auth required (lesson.read capability).
+    """
+    from . import event_bus
+    _enforce(ctx, "lesson.read")
+    _enforce_role(role, "lesson.read")
+
+    async def stream():
+        q = event_bus.subscribe(conversation_id)
+        try:
+            yield f"event: connected\ndata: {_json.dumps({'conversation_id': conversation_id})}\n\n"
+            while True:
+                try:
+                    payload = await asyncio.wait_for(q.get(), timeout=25.0)
+                    yield f"event: guild_message\ndata: {_json.dumps(payload)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            event_bus.unsubscribe(conversation_id, q)
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/v1/guild/profile/me")

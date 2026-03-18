@@ -4,6 +4,11 @@ import { consumeInboxBatch } from "./engineInbox";
 import { applyRenderPack, createRenderPack, validateRenderPack } from "./rendererCore";
 import { GuildHallPanel } from "./panels/GuildHallPanel";
 import { MessagesPanel } from "./panels/MessagesPanel";
+import { ClientConversationsPanel } from "./panels/ClientConversationsPanel";
+import { GuildDMPanel } from "./panels/GuildDMPanel";
+import { deriveRendererSettingsFromProjection } from "./shygazunRendererBridge";
+import { buildCollisionMap, drawCollisionOverlay, exportCollisionMap } from "./collisionMap";
+import { voxelsToGlb, parseGltfFile } from "./gltfBridge";
 import { CalculatorPanel } from "./panels/CalculatorPanel";
 import { RenderLabPanel } from "./panels/RenderLabPanel";
 import { LotusPanel } from "./panels/LotusPanel";
@@ -5915,6 +5920,9 @@ export function App() {
   const [shygazunTranslateOutput, setShygazunTranslateOutput] = useState(null);
   const [shygazunInterpretOutput, setShygazunInterpretOutput] = useState(null);
   const [shygazunProjectOutput, setShygazunProjectOutput] = useState(null);
+  const [shygazunProjectionBridge, setShygazunProjectionBridge] = useState(null);
+  const [collisionMap, setCollisionMap] = useState(null);
+  const [showCollisionOverlay, setShowCollisionOverlay] = useState(false);
   const [shygazunCorrectOutput, setShygazunCorrectOutput] = useState(null);
   const [moduleCatalog, setModuleCatalog] = useState([]);
   const [moduleSelectedId, setModuleSelectedId] = useState("module.shygazun.interpret");
@@ -11627,10 +11635,18 @@ function extractPythonSavedPath(outputText) {
       return undefined;
     }
     drawVoxelScene(canvas, rendererMotionVoxels, effectiveVoxelSettings);
-    const handleResize = () => drawVoxelScene(canvas, rendererMotionVoxels, effectiveVoxelSettings);
+    if (showCollisionOverlay && collisionMap) {
+      drawCollisionOverlay(canvas, collisionMap, effectiveVoxelSettings);
+    }
+    const handleResize = () => {
+      drawVoxelScene(canvas, rendererMotionVoxels, effectiveVoxelSettings);
+      if (showCollisionOverlay && collisionMap) {
+        drawCollisionOverlay(canvas, collisionMap, effectiveVoxelSettings);
+      }
+    };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [rendererMotionVoxels, effectiveVoxelSettings, section]);
+  }, [rendererMotionVoxels, effectiveVoxelSettings, section, showCollisionOverlay, collisionMap]);
 
   const derivedBusinessArchitectureSpec = useMemo(
     () => deriveBusinessArchitectureSpec(rendererTables, rendererPipeline, studioFiles),
@@ -13647,6 +13663,77 @@ function extractPythonSavedPath(outputText) {
       setShygazunProjectOutput(data || {});
       return data;
     });
+  };
+
+  const applyProjectionToRenderer = () => {
+    if (!shygazunProjectOutput) return;
+    const result = deriveRendererSettingsFromProjection(shygazunProjectOutput, voxelSettings);
+    if (Object.keys(result.patch).length === 0) return;
+    setVoxelSettings((prev) => ({ ...prev, ...result.patch }));
+    setShygazunProjectionBridge(result);
+  };
+
+  const handleBuildCollisionMap = () => {
+    const map = buildCollisionMap(rendererMotionVoxels);
+    setCollisionMap(map);
+  };
+
+  const handleToggleCollisionOverlay = (enabled) => {
+    setShowCollisionOverlay(enabled);
+    const canvas = unifiedRendererCanvasRef.current;
+    if (!canvas) return;
+    if (enabled && collisionMap) {
+      drawCollisionOverlay(canvas, collisionMap, voxelSettings);
+    }
+  };
+
+  const handleExportCollisionMap = () => {
+    if (!collisionMap) return;
+    const data = exportCollisionMap(collisionMap, rendererRealmId || "unknown");
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `collision_map_${data.pack_id}_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const [gltfImportStatus, setGltfImportStatus] = useState("idle");
+  const gltfImportRef = useRef(null);
+
+  const handleExportGlb = () => {
+    if (rendererMotionVoxels.length === 0) return;
+    const glb = voxelsToGlb(rendererMotionVoxels, {
+      tile:   voxelSettings.tile   ?? 16,
+      zScale: voxelSettings.zScale ?? 8,
+    });
+    const blob = new Blob([glb], { type: "model/gltf-binary" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `scene_${rendererRealmId || "export"}_${Date.now()}.glb`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportGltf = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setGltfImportStatus("loading");
+    try {
+      const voxels = await parseGltfFile(file, {
+        tile:   voxelSettings.tile   ?? 16,
+        zScale: voxelSettings.zScale ?? 8,
+      });
+      if (voxels.length === 0) throw new Error("No voxels extracted — check mesh names/positions");
+      setRendererJson(JSON.stringify({ voxels }, null, 2));
+      setGltfImportStatus(`imported: ${voxels.length} voxels`);
+    } catch (err) {
+      setGltfImportStatus(`error: ${err.message}`);
+    }
+    // Reset file input so the same file can be re-imported
+    if (gltfImportRef.current) gltfImportRef.current.value = "";
   };
 
   const registerGuildConversation = async () => {
@@ -15913,6 +16000,62 @@ function extractPythonSavedPath(outputText) {
                 <button className="action" onClick={openFullscreenRenderer}>Open Fullscreen</button>
               </div>
               <div className="row">
+                <button className="action" onClick={handleBuildCollisionMap} disabled={rendererMotionVoxels.length === 0}>
+                  Build Collision Map
+                </button>
+                {collisionMap && (
+                  <>
+                    <label className="inline-toggle">
+                      <input
+                        type="checkbox"
+                        checked={showCollisionOverlay}
+                        onChange={(e) => handleToggleCollisionOverlay(e.target.checked)}
+                      />
+                      Show Overlay
+                    </label>
+                    <button className="action" onClick={handleExportCollisionMap}>Export Collision JSON</button>
+                    <span className="badge" style={{ color: "var(--accent-green, #2ecc71)" }}>
+                      {`Pass: ${collisionMap.stats.passable_count}`}
+                    </span>
+                    <span className="badge" style={{ color: "var(--danger, #e74c3c)" }}>
+                      {`Block: ${collisionMap.stats.impassable_count}`}
+                    </span>
+                    {collisionMap.stats.inferred_count > 0 && (
+                      <span className="badge" style={{ color: "var(--warn, #f39c12)" }}>
+                        {`Inferred: ${collisionMap.stats.inferred_count}`}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="row">
+                <button
+                  className="action"
+                  onClick={handleExportGlb}
+                  disabled={rendererMotionVoxels.length === 0}
+                >
+                  Export .glb
+                </button>
+                <label className="action" style={{ cursor: "pointer" }}>
+                  Import .glb / .gltf
+                  <input
+                    ref={gltfImportRef}
+                    type="file"
+                    accept=".glb,.gltf"
+                    style={{ display: "none" }}
+                    onChange={handleImportGltf}
+                  />
+                </label>
+                {gltfImportStatus !== "idle" && (
+                  <span
+                    className="badge"
+                    style={{ color: gltfImportStatus.startsWith("error") ? "var(--danger, #e74c3c)" : gltfImportStatus.startsWith("imported") ? "var(--accent-green, #2ecc71)" : "inherit" }}
+                  >
+                    {gltfImportStatus}
+                  </span>
+                )}
+              </div>
+              <div className="row">
                 <input
                   value={rendererPlayerId}
                   onChange={(e) => setRendererPlayerId(e.target.value)}
@@ -16679,18 +16822,41 @@ function extractPythonSavedPath(outputText) {
                 placeholder="source text for translation"
               />
               {shygazunSemanticSummary ? (
-                <div className="row">
-                  <span className="badge">{`Authority: ${shygazunSemanticSummary.authorityLevel}`}</span>
-                  <span className="badge">{`Trust: ${shygazunSemanticSummary.trustGrade}`}</span>
-                  <span className="badge">{`Aster chirality: ${(shygazunSemanticSummary.chirality || []).join(", ") || "n/a"}`}</span>
-                  <span className="badge">{`Time topology: ${(shygazunSemanticSummary.timeTopology || []).join(", ") || "n/a"}`}</span>
-                  <span className="badge">{`Space op: ${(shygazunSemanticSummary.spaceOperator || []).join(", ") || "n/a"}`}</span>
-                  <span className="badge">{`Network role: ${(shygazunSemanticSummary.networkRole || []).join(", ") || "n/a"}`}</span>
-                  <span className="badge">{`Cluster role: ${(shygazunSemanticSummary.clusterRole || []).join(", ") || "n/a"}`}</span>
-                  <span className="badge">{`Axis: ${(shygazunSemanticSummary.axis || []).join(", ") || "n/a"}`}</span>
-                  <span className="badge">{`Projection: ${(shygazunSemanticSummary.tongueProjection || []).join(", ") || "n/a"}`}</span>
-                  <span className="badge">{`Cannabis mode: ${(shygazunSemanticSummary.cannabisMode || []).join(", ") || "n/a"}`}</span>
-                </div>
+                <>
+                  <div className="row">
+                    <span className="badge">{`Authority: ${shygazunSemanticSummary.authorityLevel}`}</span>
+                    <span className="badge">{`Trust: ${shygazunSemanticSummary.trustGrade}`}</span>
+                    <span className="badge">{`Aster chirality: ${(shygazunSemanticSummary.chirality || []).join(", ") || "n/a"}`}</span>
+                    <span className="badge">{`Time topology: ${(shygazunSemanticSummary.timeTopology || []).join(", ") || "n/a"}`}</span>
+                    <span className="badge">{`Space op: ${(shygazunSemanticSummary.spaceOperator || []).join(", ") || "n/a"}`}</span>
+                    <span className="badge">{`Network role: ${(shygazunSemanticSummary.networkRole || []).join(", ") || "n/a"}`}</span>
+                    <span className="badge">{`Cluster role: ${(shygazunSemanticSummary.clusterRole || []).join(", ") || "n/a"}`}</span>
+                    <span className="badge">{`Axis: ${(shygazunSemanticSummary.axis || []).join(", ") || "n/a"}`}</span>
+                    <span className="badge">{`Projection: ${(shygazunSemanticSummary.tongueProjection || []).join(", ") || "n/a"}`}</span>
+                    <span className="badge">{`Cannabis mode: ${(shygazunSemanticSummary.cannabisMode || []).join(", ") || "n/a"}`}</span>
+                  </div>
+                  <div className="row">
+                    <button className="action" onClick={applyProjectionToRenderer}>
+                      Apply Projection to Renderer
+                    </button>
+                    {shygazunProjectionBridge && (
+                      <span className="badge" style={{ color: "var(--accent-green, #2ecc71)" }}>
+                        {`${shygazunProjectionBridge.coverage.fields_mapped}/${shygazunProjectionBridge.coverage.fields_total} fields mapped`}
+                      </span>
+                    )}
+                    {shygazunProjectionBridge?.coverage?.unmapped?.length > 0 && (
+                      <span className="badge" style={{ opacity: 0.6 }}>
+                        {`unmapped: ${shygazunProjectionBridge.coverage.unmapped.join(", ")}`}
+                      </span>
+                    )}
+                  </div>
+                  {shygazunProjectionBridge && (
+                    <details style={{ fontSize: "0.8em", marginTop: "0.25rem" }}>
+                      <summary style={{ cursor: "pointer", opacity: 0.7 }}>Projection bridge trace</summary>
+                      <pre style={{ marginTop: "0.25rem" }}>{JSON.stringify(shygazunProjectionBridge.trace, null, 2)}</pre>
+                    </details>
+                  )}
+                </>
               ) : null}
               <pre>{JSON.stringify(shygazunProjectOutput || {}, null, 2)}</pre>
               <pre>{JSON.stringify(shygazunInterpretOutput || {}, null, 2)}</pre>
@@ -18116,30 +18282,51 @@ function extractPythonSavedPath(outputText) {
 
     if (section === "Messages") {
       return (
-        <MessagesPanel
-          messageDraft={messageDraft}
-          setMessageDraft={setMessageDraft}
-          encryptGuildMessage={encryptGuildMessage}
-          decryptGuildMessage={decryptGuildMessage}
-          profileName={profileName}
-          profileEmail={profileEmail}
-          activeProfileMemberId={activeProfileMemberId}
-          guildWandStatus={guildWandStatus}
-          guildId={guildId}
-          guildChannelId={guildChannelId}
-          guildWandId={guildWandId}
-          guildWandPasskeyWard={guildWandPasskeyWard}
-          guildConversationId={guildConversationId}
-          guildConversationKind={guildConversationKind}
-          guildConversationTitle={guildConversationTitle}
-          guildRecipientActorId={guildRecipientActorId}
-          guildRecipientDistributionId={guildRecipientDistributionId}
-          guildRecipientGuildId={guildRecipientGuildId}
-          guildPersistOutput={guildPersistOutput}
-          guildMessageHistory={guildMessageHistory}
-          guildDecryptOutput={guildDecryptOutput}
-          messageLog={messageLog}
-        />
+        <>
+          <MessagesPanel
+            messageDraft={messageDraft}
+            setMessageDraft={setMessageDraft}
+            encryptGuildMessage={encryptGuildMessage}
+            decryptGuildMessage={decryptGuildMessage}
+            profileName={profileName}
+            profileEmail={profileEmail}
+            activeProfileMemberId={activeProfileMemberId}
+            guildWandStatus={guildWandStatus}
+            guildId={guildId}
+            guildChannelId={guildChannelId}
+            guildWandId={guildWandId}
+            guildWandPasskeyWard={guildWandPasskeyWard}
+            guildConversationId={guildConversationId}
+            guildConversationKind={guildConversationKind}
+            guildConversationTitle={guildConversationTitle}
+            guildRecipientActorId={guildRecipientActorId}
+            guildRecipientDistributionId={guildRecipientDistributionId}
+            guildRecipientGuildId={guildRecipientGuildId}
+            guildPersistOutput={guildPersistOutput}
+            guildMessageHistory={guildMessageHistory}
+            guildDecryptOutput={guildDecryptOutput}
+            messageLog={messageLog}
+          />
+          <ClientConversationsPanel
+            apiBase={API_BASE}
+            authToken={authToken}
+            workspaceId={workspaceId}
+          />
+          <GuildDMPanel
+            apiBase={API_BASE}
+            apiCall={apiCall}
+            guildId={guildId}
+            guildChannelId={guildChannelId}
+            activeProfileMemberId={activeProfileMemberId}
+            artisanId={artisanId}
+            guildWandId={guildWandId}
+            guildWandPasskeyWard={guildWandPasskeyWard}
+            buildTempleEntropySourcePayload={buildTempleEntropySourcePayload}
+            buildTheatreEntropySourcePayload={buildTheatreEntropySourcePayload}
+            workspaceId={workspaceId}
+            authToken={authToken}
+          />
+        </>
       );
     }
 

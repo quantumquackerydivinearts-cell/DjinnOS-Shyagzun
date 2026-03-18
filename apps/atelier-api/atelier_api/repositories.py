@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from typing import Sequence
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from .models import (
@@ -272,8 +272,11 @@ class AtelierRepository:
             select(ClientMessageEnvelope).where(ClientMessageEnvelope.id == message_id)
         ).first()
 
-    def mark_client_messages_read(self, conversation_id: str, reader_id: str) -> None:
-        """Mark all messages in this conversation as read for a non-sender."""
+    def mark_client_messages_read(self, conversation_id: str, reader_id: str) -> int:
+        """Mark unread messages in this conversation as read for reader_id.
+
+        Returns the count of messages that were newly marked.
+        """
         msgs = self._db.scalars(
             select(ClientMessageEnvelope).where(
                 ClientMessageEnvelope.conversation_id == conversation_id,
@@ -281,11 +284,25 @@ class AtelierRepository:
                 ClientMessageEnvelope.read_at.is_(None),
             )
         ).all()
+        if not msgs:
+            return 0
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc)
         for msg in msgs:
             msg.read_at = now
         self._db.commit()
+        return len(msgs)
+
+    def count_unread_for_reader(self, conversation_id: str, reader_id: str) -> int:
+        """Count messages not sent by reader_id that have not yet been read."""
+        result = self._db.scalar(
+            select(func.count(ClientMessageEnvelope.id)).where(
+                ClientMessageEnvelope.conversation_id == conversation_id,
+                ClientMessageEnvelope.sender_id != reader_id,
+                ClientMessageEnvelope.read_at.is_(None),
+            )
+        )
+        return result or 0
 
     def list_quotes(self, workspace_id: str) -> Sequence[Quote]:
         return self._db.scalars(select(Quote).where(Quote.workspace_id == workspace_id)).all()
