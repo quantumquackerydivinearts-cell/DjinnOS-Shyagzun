@@ -2853,6 +2853,59 @@ def orrery_registry() -> Mapping[str, Any]:
     }
 
 
+@app.post("/v1/orrery/sanity/delta")
+def orrery_sanity_delta(
+    payload: dict,
+    svc: MultiverseStackService = Depends(_multiverse_stack),
+):
+    """
+    Apply a live sanity delta to one or more dimensions for a workspace.
+    Called by game encounters as they resolve.
+
+    Body:
+      workspace_id  str
+      game_id       str
+      actor_id      str
+      deltas        {dimension: float}   — e.g. {"alchemical": 0.05, "narrative": -0.1}
+      context       dict  (optional)
+    """
+    workspace_id = payload.get("workspace_id", "")
+    game_id      = payload.get("game_id", "")
+    actor_id     = payload.get("actor_id", "")
+    deltas       = payload.get("deltas", {})
+    context      = payload.get("context")
+
+    node = svc.record_sanity_delta(
+        workspace_id=workspace_id,
+        game_id=game_id,
+        actor_id=actor_id,
+        deltas=deltas,
+        context=context,
+    )
+    return {
+        "node_id": node.id,
+        "sanity": svc.get_sanity(workspace_id),
+        "consonance_axis": svc.sanity_consonance_axis(workspace_id),
+    }
+
+
+@app.get("/v1/orrery/sanity")
+def orrery_sanity(
+    workspace_id: str,
+    svc: MultiverseStackService = Depends(_multiverse_stack),
+):
+    """
+    Read the current live sanity scores for a workspace.
+    Also returns the derived consonance/dissonance axis.
+    """
+    scores = svc.get_sanity(workspace_id)
+    return {
+        "workspace_id": workspace_id,
+        "sanity": scores,
+        "consonance_axis": svc.sanity_consonance_axis(workspace_id),
+    }
+
+
 @app.get("/v1/atelier/timeline")
 def timeline(
     last: Optional[int] = None,

@@ -604,6 +604,10 @@ class PerkUnlockInput(BaseModel):
     actor_level: int = 1
     required_skills: dict[str, int] = Field(default_factory=dict)
     actor_skills: dict[str, int] = Field(default_factory=dict)
+    # Quest-gated perks: perk is locked until this quest id is completed.
+    # None means no quest requirement.
+    required_quest: str | None = None
+    completed_quests: list[str] = Field(default_factory=list)
 
 
 class PerkUnlockOut(BaseModel):

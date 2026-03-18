@@ -73,6 +73,7 @@ LAYER_NAMES = [
 ]
 LAYER_DJINN_BINDING = 12
 LAYER_ARCHIVED      = 11
+LAYER_RAW           = 0
 
 # ── VITRIOL stat system ───────────────────────────────────────────────────────
 # The 7 player stats, each ruled by one of the 7 sin rulers of Sulphera.
@@ -194,53 +195,97 @@ class PropagationRule:
     label: str = ""
 
 
-def _luminyx_killed_consequence(source_payload: dict, ctx: "OrreryContext") -> dict:
+def _resolve_game1_timeline(safety_axis: str, ctx: "OrreryContext") -> dict:
     """
-    Killing Luminyx in Game 7 selects a diminished timeline for her in Game 1.
+    Game 1 timeline selection is a 2×2 system.
 
-    In Game 1 Luminyx is ALIVE and mortal — the player is the disembodied spirit
-    who guides her, not the other way around.  She does not become a spirit until
-    she dies in 1782, after which she guides the player through Games 2–6.
+    Axis 1 — sense of safety:   "sovereign" | "wounded_sovereign"
+    Axis 2 — sanity of influence: "consonance" | "dissonance"
+      Derived from the player's 4-fold sanity construct:
+        Alchemical, Narrative, Terrestrial, Cosmic
+      Each expressed as a percentage value.  The aggregate consonance/dissonance
+      state across the four types produces the second axis.
 
-    A Game 7 kill selects a timeline where she enters Game 1 wounded in purpose —
-    her disposition toward the player is more guarded, her starting position
-    displaced from her sovereign threshold.
+    The 2×2 produces four distinct starting locations in Game 1 (Earthly cities):
+      London | Kyoto | New Amsterdam/New York | La Paz, Peru
+      City-to-quadrant mapping TBD — awaiting design confirmation.
+
+    Luminyx is ALWAYS alive and mortal in Game 1 across all four timelines.
+    Spirit form is only valid post-1782 (Games 2–6).
     """
+    # Sanity scores are derived from ending coherence across the Orrery pool
+    # (computed by MultiverseStackService.compute_sanity before this runs).
+    # Each score is a float 0.0–1.0 representing cross-ending coherence
+    # within that dimension.  Consonance = scores are mutually reinforcing
+    # (low variance); dissonance = scores diverge (high variance).
+    sanity = ctx.sanity
+    alchemical  = float(sanity.get("alchemical",  0.5))
+    narrative   = float(sanity.get("narrative",   0.5))
+    terrestrial = float(sanity.get("terrestrial", 0.5))
+    cosmic      = float(sanity.get("cosmic",       0.5))
+
+    values = [alchemical, narrative, terrestrial, cosmic]
+    mean = sum(values) / 4
+    variance = sum((v - mean) ** 2 for v in values) / 4
+    sanity_axis = "consonance" if variance < 0.05 else "dissonance"
+
+    # 2×2 grid — canonical city mapping:
+    #   City A — La Paz, Peru          (sovereign    + consonance)
+    #   City B — Kyoto                 (sovereign    + dissonance)
+    #   City C — New York              (wounded_sovereign + consonance)
+    #   City D — London                (wounded_sovereign + dissonance)
+    LOCATION_MAP = {
+        ("sovereign",         "consonance"):  "La Paz, Peru",
+        ("sovereign",         "dissonance"):  "Kyoto",
+        ("wounded_sovereign", "consonance"):  "New York",
+        ("wounded_sovereign", "dissonance"):  "London",
+    }
+    starting_location = LOCATION_MAP.get((safety_axis, sanity_axis))
+
     return {
         "constant": "luminyx",
-        "timeline": "wounded_sovereign",
-        "disposition_toward_player": "guarded",
-        "starting_location": "the_outer_threshold",
+        "safety_axis": safety_axis,
+        "sanity_axis": sanity_axis,
+        "sanity_detail": {
+            "alchemical": alchemical,
+            "narrative": narrative,
+            "terrestrial": terrestrial,
+            "cosmic": cosmic,
+            "variance": variance,
+        },
+        "starting_location": starting_location,   # London | Kyoto | New Amsterdam | La Paz
         "note": (
-            "Luminyx is alive and mortal in Game 1 across all timelines. "
-            "Her Game 7 death selects a timeline where she begins Game 1 "
-            "displaced and guarded — purpose diminished but not extinguished."
+            "Luminyx is alive and mortal in Game 1 across all four timelines. "
+            "Starting location from 2×2: safety axis (sovereign/wounded_sovereign) "
+            "× sanity axis (consonance/dissonance from ending coherence across Orrery pool)."
         ),
-        "source_game": "7_KLGS",
-        "source_action": source_payload.get("action_kind", ""),
     }
+
+
+def _luminyx_killed_consequence(source_payload: dict, ctx: "OrreryContext") -> dict:
+    """
+    Killing Luminyx in Game 7 sets the safety axis to wounded_sovereign.
+    Sanity axis is derived from the player's 4-fold sanity construct at time of selection.
+    Together they produce one of four Earthly starting locations in Game 1.
+    """
+    result = _resolve_game1_timeline("wounded_sovereign", ctx)
+    result["disposition_toward_player"] = "guarded"
+    result["source_game"] = "7_KLGS"
+    result["source_action"] = source_payload.get("action_kind", "")
+    return result
 
 
 def _luminyx_spared_consequence(source_payload: dict, ctx: "OrreryContext") -> dict:
     """
-    Sparing / saving Luminyx in Game 7 keeps her in her sovereign timeline.
-
-    She enters Game 1 with full agency — alive, mortal, purposeful.
-    The player (as disembodied spirit) guides her from a position of
-    mutual recognition rather than compensatory grief.
+    Sparing Luminyx in Game 7 sets the safety axis to sovereign.
+    Sanity axis is derived from the player's 4-fold sanity construct at time of selection.
+    Together they produce one of four Earthly starting locations in Game 1.
     """
-    return {
-        "constant": "luminyx",
-        "timeline": "sovereign",
-        "disposition_toward_player": "purposeful",
-        "starting_location": "the_luminous_threshold",
-        "note": (
-            "Luminyx is alive and mortal in Game 1. Sovereign timeline: "
-            "she stands at her threshold with full purpose intact."
-        ),
-        "source_game": "7_KLGS",
-        "source_action": source_payload.get("action_kind", ""),
-    }
+    result = _resolve_game1_timeline("sovereign", ctx)
+    result["disposition_toward_player"] = "purposeful"
+    result["source_game"] = "7_KLGS"
+    result["source_action"] = source_payload.get("action_kind", "")
+    return result
 
 
 def _earth_saved_all_six_condition(ctx: "OrreryContext") -> bool:
@@ -360,6 +405,15 @@ class OrreryContext:
     archived_nodes: list[LayerNode] = field(default_factory=list)
     kill_count: int = 0
     early_game_slugs: set[str] = field(default_factory=set)
+    # Sanity scores derived from ending coherence across the Orrery pool.
+    # Each is a float 0.0–1.0 (coherence percentage).  Populated by
+    # MultiverseStackService.compute_sanity() before consequence fns run.
+    sanity: dict[str, float] = field(default_factory=lambda: {
+        "alchemical": 0.5,
+        "narrative":  0.5,
+        "terrestrial": 0.5,
+        "cosmic":      0.5,
+    })
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -814,12 +868,102 @@ class MultiverseStackService:
         # Early game slugs are Games 1-6 (all registered slugs except _KLGS and later)
         early = {g for g in GAME_REGISTRY if g != "_KLGS"}
 
+        sanity = self.get_sanity(workspace_id)
+
         return OrreryContext(
             workspace_id=workspace_id,
             archived_nodes=list(archived),
             kill_count=kill_count,
             early_game_slugs=early,
+            sanity=sanity,
         )
+
+    # ── Sanity ────────────────────────────────────────────────────────────────
+
+    SANITY_DIMENSIONS = ("alchemical", "narrative", "terrestrial", "cosmic")
+    SANITY_NODE_KEY   = "sanity.live"
+
+    def get_sanity(self, workspace_id: str) -> dict[str, float]:
+        """
+        Read the current live sanity scores for a workspace.
+        Returns a dict with keys: alchemical, narrative, terrestrial, cosmic.
+        Each value is a float 0.0–1.0.  Defaults to 0.5 if not yet set.
+        """
+        from sqlalchemy import select
+        node = self._db.scalars(
+            select(LayerNode).where(
+                LayerNode.workspace_id == workspace_id,
+                LayerNode.node_key == self.SANITY_NODE_KEY,
+            ).order_by(LayerNode.created_at.desc()).limit(1)
+        ).first()
+
+        defaults = {d: 0.5 for d in self.SANITY_DIMENSIONS}
+        if not node:
+            return defaults
+        stored = _load_payload(node.payload_json)
+        return {d: float(stored.get(d, 0.5)) for d in self.SANITY_DIMENSIONS}
+
+    def record_sanity_delta(
+        self,
+        workspace_id: str,
+        game_id: str,
+        actor_id: str,
+        deltas: dict[str, float],
+        context: dict | None = None,
+    ) -> LayerNode:
+        """
+        Apply a sanity delta to one or more dimensions and persist the new
+        live score.  Encounters call this as they resolve.
+
+        deltas: {dimension: float}  — positive = toward consonance,
+                                       negative = toward dissonance.
+                                       Values are clamped to [0.0, 1.0].
+
+        Only recognised dimensions (alchemical, narrative, terrestrial, cosmic)
+        are applied; unknown keys are ignored.
+        """
+        current = self.get_sanity(workspace_id)
+        updated = dict(current)
+        applied = {}
+
+        for dim, delta in deltas.items():
+            if dim not in self.SANITY_DIMENSIONS:
+                continue
+            new_val = round(max(0.0, min(1.0, current[dim] + delta)), 4)
+            updated[dim] = new_val
+            applied[dim] = {"before": current[dim], "delta": delta, "after": new_val}
+
+        payload = {
+            **updated,
+            "applied": applied,
+            "actor_id": actor_id,
+            "game_id": game_id,
+            "context": context or {},
+        }
+        node = _make_node(
+            workspace_id=workspace_id,
+            layer_index=LAYER_RAW,
+            node_key=self.SANITY_NODE_KEY,
+            payload=payload,
+            game_id=game_id,
+        )
+        self._db.add(node)
+        self._db.commit()
+        self._db.refresh(node)
+        return node
+
+    def sanity_consonance_axis(self, workspace_id: str) -> str:
+        """
+        Derive the sanity axis ("consonance" | "dissonance") from live scores.
+        Consonance = low variance across the four dimensions.
+        Dissonance = high variance (dimensions pulling in different directions).
+        Threshold: variance < 0.05 → consonance.
+        """
+        scores = self.get_sanity(workspace_id)
+        values = list(scores.values())
+        mean = sum(values) / len(values)
+        variance = sum((v - mean) ** 2 for v in values) / len(values)
+        return "consonance" if variance < 0.05 else "dissonance"
 
     def _evaluate_and_propagate(
         self,
