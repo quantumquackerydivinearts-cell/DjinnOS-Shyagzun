@@ -232,7 +232,7 @@ export const CHARACTERS = [
   { id: "2009_DMON",  name: "Zukoru",              type: "DMON" },
 
   // Demi-gods
-  { id: "2010_DEMI",  name: "Shapier",             type: "DEMI" },
+  { id: "2010_DEMI",  name: "Shapieru",            type: "DEMI" },
   { id: "2011_DEMI",  name: "Lanzu",               type: "DEMI" },
   { id: "2012_DEMI",  name: "Tagame",              type: "DEMI" },
 
