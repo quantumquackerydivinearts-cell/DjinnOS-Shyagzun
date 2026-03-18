@@ -377,6 +377,19 @@ class ShopItem(Base):
     section_id: Mapped[str] = mapped_column(String(80), nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Artisan marketplace fields (added migration 0024)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    item_type: Mapped[str] = mapped_column(String(40), nullable=False, default="")
+    price_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="usd")
+    stripe_product_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    stripe_price_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    thumbnail_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_featured: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    inventory_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Legacy / steward-managed fields
     price_label: Mapped[str] = mapped_column(String(120), nullable=False, default="")
     tags_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     link_url: Mapped[str] = mapped_column(String(400), nullable=False, default="")
@@ -386,8 +399,6 @@ class ShopItem(Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-
-    workspace: Mapped[Workspace] = relationship()
 
     workspace: Mapped[Workspace] = relationship()
 
@@ -726,5 +737,7 @@ class GuildArtisanProfile(Base):
     steward_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     approved_by: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Stripe Connect account ID — populated when artisan completes Connect onboarding
+    stripe_account_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)

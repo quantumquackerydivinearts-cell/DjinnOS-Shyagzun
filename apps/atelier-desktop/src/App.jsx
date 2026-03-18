@@ -12,6 +12,7 @@ import { voxelsToGlb, parseGltfFile } from "./gltfBridge";
 import { CalculatorPanel } from "./panels/CalculatorPanel";
 import { RenderLabPanel } from "./panels/RenderLabPanel";
 import { LotusPanel } from "./panels/LotusPanel";
+import { AlchemySubjectPanel } from "./panels/AlchemySubjectPanel";
 
 function resolveRuntimeApiBase() {
   try {
@@ -120,7 +121,8 @@ const NAV_ITEMS = [
   "Renderer Lab",
   "Privacy",
   "Calculator",
-  "Lotus"
+  "Lotus",
+  "Alchemy Lab"
 ];
 
 function capabilitiesForRole(role) {
@@ -18867,6 +18869,9 @@ function extractPythonSavedPath(outputText) {
     }
     if (section === "Lotus") {
       return <LotusPanel />;
+    }
+    if (section === "Alchemy Lab") {
+      return <AlchemySubjectPanel apiBase={API_BASE} />;
     }
     return <section className="panel"><h2>Tooling</h2><p>Select a section.</p></section>;
   }
