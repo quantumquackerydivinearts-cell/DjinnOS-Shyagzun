@@ -13738,6 +13738,46 @@ class AtelierService:
         saved = repo.save_artisan_account(existing)
         return self._to_access_status(saved)
 
+    def first_steward_bootstrap(
+        self,
+        *,
+        artisan_id: str,
+        profile_name: str,
+        profile_email: str,
+    ) -> ArtisanAccessIssueOut:
+        """
+        Bootstrap the very first steward on a fresh deployment.
+        Blocked if any steward account already exists.
+        """
+        from .models import Workspace
+        repo = self._require_repo()
+        if repo.has_any_steward():
+            raise ValueError("steward_already_exists")
+        ws = Workspace(
+            name=f"{profile_name or artisan_id}'s Workspace",
+            owner_artisan_id=artisan_id,
+            status="active",
+        )
+        ws = repo.create_workspace(ws)
+        row = repo.upsert_artisan_account(
+            artisan_id=artisan_id,
+            role="steward",
+            workshop_id=ws.id,
+            profile_name=profile_name,
+            profile_email=profile_email,
+        )
+        code = self._derive_artisan_code(
+            artisan_id=artisan_id,
+            profile_name=profile_name,
+            profile_email=profile_email,
+            role="steward",
+            workshop_id=ws.id,
+        )
+        row.artisan_code_hash = self._hash_code(code)
+        row.artisan_access_verified = True
+        saved = repo.save_artisan_account(row)
+        return ArtisanAccessIssueOut(artisan_code=code, status=self._to_access_status(saved))
+
     def bootstrap_artisan_access(
         self,
         *,

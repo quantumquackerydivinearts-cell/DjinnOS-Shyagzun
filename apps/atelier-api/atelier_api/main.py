@@ -1331,6 +1331,31 @@ def artisan_id_status(
     )
 
 
+@app.post("/v1/admin/artisans/first-steward")
+def first_steward_setup(
+    payload: ArtisanBootstrapInput,
+    settings: Settings = Depends(_settings),
+    svc: AtelierService = Depends(_atelier_service),
+) -> ArtisanAccessIssueOut:
+    """
+    One-time endpoint to bootstrap the first Steward account on a fresh deployment.
+    Requires only the ADMIN_GATE_CODE — no auth token needed.
+    Blocked with 409 if any Steward account already exists.
+    """
+    if payload.gate_code != settings.admin_gate_code:
+        raise HTTPException(status_code=403, detail="invalid_admin_gate")
+    try:
+        return svc.first_steward_bootstrap(
+            artisan_id=payload.artisan_id,
+            profile_name=payload.profile_name,
+            profile_email=payload.profile_email,
+        )
+    except ValueError as exc:
+        if "steward_already_exists" in str(exc):
+            raise HTTPException(status_code=409, detail="steward_already_exists — use normal login")
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.post("/v1/admin/artisans/bootstrap")
 def bootstrap_artisan_account(
     payload: ArtisanBootstrapInput,

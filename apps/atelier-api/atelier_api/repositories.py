@@ -453,6 +453,12 @@ class AtelierRepository:
         self._db.refresh(row)
         return row
 
+    def has_any_steward(self) -> bool:
+        count = self._db.scalar(
+            select(func.count()).select_from(ArtisanAccount).where(ArtisanAccount.role == "steward")
+        )
+        return (count or 0) > 0
+
     def list_character_dictionary_entries(self, workspace_id: str) -> Sequence[CharacterDictionaryEntry]:
         return self._db.scalars(
             select(CharacterDictionaryEntry).where(CharacterDictionaryEntry.workspace_id == workspace_id)

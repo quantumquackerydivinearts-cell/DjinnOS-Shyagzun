@@ -6163,6 +6163,12 @@ export function App() {
   );
   const [entryAuthModalOpen, setEntryAuthModalOpen] = useState(!localStorage.getItem("atelier.auth_token"));
   const [entryAuthMode, setEntryAuthMode] = useState("sign_in");
+  const [firstSetupArtisanId, setFirstSetupArtisanId] = useState("");
+  const [firstSetupName, setFirstSetupName] = useState("");
+  const [firstSetupEmail, setFirstSetupEmail] = useState("");
+  const [firstSetupGateCode, setFirstSetupGateCode] = useState("");
+  const [firstSetupStatus, setFirstSetupStatus] = useState("idle");
+  const [firstSetupCode, setFirstSetupCode] = useState("");
   const [artisanAccessInput, setArtisanAccessInput] = useState("");
   const [artisanAccessVerified, setArtisanAccessVerified] = useState(false);
   const [artisanIssuedCode, setArtisanIssuedCode] = useState("");
@@ -7605,6 +7611,23 @@ export function App() {
     } catch (e) {
       setOnboardError(String(e));
       setOnboardStatus("idle");
+    }
+  }
+
+  async function firstStewardSetup() {
+    setFirstSetupStatus("working");
+    setFirstSetupCode("");
+    try {
+      const data = await apiCall("/v1/admin/artisans/first-steward", "POST", {
+        artisan_id: firstSetupArtisanId.trim(),
+        profile_name: firstSetupName.trim(),
+        profile_email: firstSetupEmail.trim(),
+        gate_code: firstSetupGateCode.trim(),
+      });
+      setFirstSetupCode(data.artisan_code);
+      setFirstSetupStatus("done");
+    } catch (e) {
+      setFirstSetupStatus(String(e));
     }
   }
 
@@ -18989,6 +19012,12 @@ function extractPythonSavedPath(outputText) {
                   >
                     Redeem Invite
                   </button>
+                  <button
+                    className={`action ${entryAuthMode === "first_setup" ? "active" : ""}`}
+                    onClick={() => setEntryAuthMode("first_setup")}
+                  >
+                    First Setup
+                  </button>
                   <button className="action" onClick={() => setEntryAuthModalOpen(false)}>Skip</button>
                 </div>
 
@@ -19019,6 +19048,39 @@ function extractPythonSavedPath(outputText) {
                     </div>
                     {loginError && <p className="error-text">{loginError}</p>}
                     <p className="muted-text">No account? Get an invite code from a steward and use the Redeem tab.</p>
+                  </div>
+                )}
+
+                {entryAuthMode === "first_setup" && (
+                  <div>
+                    {firstSetupStatus === "done" ? (
+                      <div>
+                        <p className="badge badge-ok">Steward account created. Copy your code — it will not be shown again.</p>
+                        <p className="muted-text" style={{ fontFamily: "monospace", marginTop: 8 }}>{firstSetupCode}</p>
+                        <p className="muted-text">Sign in with the artisan_id and code above.</p>
+                        <button className="action" style={{ marginTop: 8 }} onClick={() => { setEntryAuthMode("sign_in"); setFirstSetupStatus("idle"); }}>Go to Sign In</button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="muted-text" style={{ marginTop: 8 }}>One-time setup for the first Steward on a fresh deployment. Blocked once any Steward exists.</p>
+                        <div className="row" style={{ marginTop: 8 }}>
+                          <input value={firstSetupArtisanId} onChange={(e) => setFirstSetupArtisanId(e.target.value)} placeholder="artisan_id (your username)" />
+                          <input value={firstSetupName} onChange={(e) => setFirstSetupName(e.target.value)} placeholder="display name" />
+                        </div>
+                        <div className="row" style={{ marginTop: 4 }}>
+                          <input value={firstSetupEmail} onChange={(e) => setFirstSetupEmail(e.target.value)} placeholder="email" />
+                          <input type="password" value={firstSetupGateCode} onChange={(e) => setFirstSetupGateCode(e.target.value)} placeholder="ADMIN_GATE_CODE" />
+                        </div>
+                        <div className="row" style={{ marginTop: 4 }}>
+                          <button className="action" onClick={() => void firstStewardSetup()} disabled={firstSetupStatus === "working"}>
+                            {firstSetupStatus === "working" ? "Creating..." : "Create Steward Account"}
+                          </button>
+                        </div>
+                        {firstSetupStatus !== "idle" && firstSetupStatus !== "working" && firstSetupStatus !== "done" && (
+                          <p className="error-text">{firstSetupStatus}</p>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
 
