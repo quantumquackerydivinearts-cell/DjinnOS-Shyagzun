@@ -40,20 +40,24 @@ def _validate_quest_templates() -> list[str]:
     for path in sorted(template_dir.glob("*.json")):
         try:
             payload = _load_json(path)
-            graph = QuestGraphUpsertInput.model_validate(payload)
-            if graph.metadata.get("runtime_schema_version") != "v1":
-                errors.append(f"{path}:runtime_schema_version_must_be_v1")
-            step_ids = [step.step_id for step in graph.steps]
-            if len(step_ids) != len(set(step_ids)):
-                errors.append(f"{path}:duplicate_step_id")
-            edge_ids: list[str] = []
-            for step in graph.steps:
-                for edge in step.edges:
-                    edge_ids.append(edge.edge_id)
-                    if edge.to_step_id not in step_ids:
-                        errors.append(f"{path}:unknown_to_step_id:{edge.to_step_id}")
-            if len(edge_ids) != len(set(edge_ids)):
-                errors.append(f"{path}:duplicate_edge_id")
+            # Support bundle files: {"graphs": [...]} or a single graph object.
+            candidates: list[Any] = payload["graphs"] if isinstance(payload, dict) and "graphs" in payload else [payload]
+            for raw in candidates:
+                graph = QuestGraphUpsertInput.model_validate(raw)
+                label = f"{path}:{graph.quest_id}"
+                if graph.metadata.get("runtime_schema_version") != "v1":
+                    errors.append(f"{label}:runtime_schema_version_must_be_v1")
+                step_ids = [step.step_id for step in graph.steps]
+                if len(step_ids) != len(set(step_ids)):
+                    errors.append(f"{label}:duplicate_step_id")
+                edge_ids: list[str] = []
+                for step in graph.steps:
+                    for edge in step.edges:
+                        edge_ids.append(edge.edge_id)
+                        if edge.to_step_id not in step_ids:
+                            errors.append(f"{label}:unknown_to_step_id:{edge.to_step_id}")
+                if len(edge_ids) != len(set(edge_ids)):
+                    errors.append(f"{label}:duplicate_edge_id")
         except Exception as exc:  # pragma: no cover
             errors.append(f"{path}:{exc}")
     return errors
