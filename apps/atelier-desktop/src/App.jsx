@@ -14,6 +14,7 @@ import { RenderLabPanel } from "./panels/RenderLabPanel";
 import { LotusPanel } from "./panels/LotusPanel";
 import { AlchemySubjectPanel } from "./panels/AlchemySubjectPanel";
 import { ShopManagerPanel } from "./panels/ShopManagerPanel";
+import { Q3Panel } from "./panels/Q3Panel";
 
 function resolveRuntimeApiBase() {
   try {
@@ -124,7 +125,8 @@ const NAV_ITEMS = [
   "Calculator",
   "Lotus",
   "Alchemy Lab",
-  "Shop Manager"
+  "Shop Manager",
+  "Q3"
 ];
 
 function capabilitiesForRole(role) {
@@ -18900,6 +18902,9 @@ function extractPythonSavedPath(outputText) {
     }
     if (section === "Shop Manager") {
       return <ShopManagerPanel apiBase={API_BASE} authToken={authToken} artisanId={artisanId} />;
+    }
+    if (section === "Q3") {
+      return <Q3Panel apiBase={API_BASE} authToken={authToken} />;
     }
     return <section className="panel"><h2>Tooling</h2><p>Select a section.</p></section>;
   }

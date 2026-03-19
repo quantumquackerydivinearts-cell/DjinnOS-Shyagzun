@@ -216,6 +216,10 @@ from .business_schemas import (
     ConversationParticipantPatchInput,
     ClientMessageSendInput,
     ClientMessageOut,
+    Q3MotionInput,
+    Q3MotionOut,
+    Q3VoteInput,
+    Q3VoteAudit,
 )
 from .rendering_schemas import (
     RendererTablesInput,
@@ -237,6 +241,8 @@ from .privacy_manifest import build_privacy_manifest
 from .repositories import AtelierRepository
 from .roles import ROLE_STEWARD, RoleContext, role_allows
 from .services import AtelierService
+from .models import Q3Motion, Q3Vote
+from . import shygazun_physix
 from .multiverse_stack import (
     MultiverseStackService, GAME_REGISTRY, PROPAGATION_RULES,
     VITRIOL_STATS, VITRIOL_BUDGET, VITRIOL_STAT_MIN, VITRIOL_STAT_MAX,
@@ -1818,6 +1824,153 @@ def approve_guild_profile(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/v1/q3/motions")
+def q3_create_motion(
+    payload: Q3MotionInput,
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    db: Session = Depends(get_db),
+) -> Q3MotionOut:
+    """Create a Q3 motion. Requires senior_artisan or steward."""
+    if role.role not in ("senior_artisan", ROLE_STEWARD):
+        raise HTTPException(status_code=403, detail="q3_membership_required")
+    if payload.motion_type not in ("accept", "refuse", "promote", "manage"):
+        raise HTTPException(status_code=400, detail="invalid_motion_type")
+    from datetime import datetime as _dt
+    now = _dt.utcnow()
+    motion = Q3Motion(
+        title=payload.title,
+        description=payload.description,
+        motion_type=payload.motion_type,
+        source_ref=payload.source_ref,
+        opened_by=workshop.identity.artisan_id,
+        closes_at=payload.closes_at,
+        created_at=now,
+    )
+    db.add(motion)
+    db.commit()
+    db.refresh(motion)
+    count = db.query(Q3Vote).filter(Q3Vote.motion_id == motion.id).count()
+    return Q3MotionOut(
+        id=motion.id, title=motion.title, description=motion.description,
+        motion_type=motion.motion_type, source_ref=motion.source_ref,
+        status=motion.status, resolution=motion.resolution,
+        opened_by=motion.opened_by, closes_at=motion.closes_at,
+        vote_count=count, created_at=motion.created_at,
+    )
+
+
+@app.get("/v1/q3/motions")
+def q3_list_motions(
+    status: Optional[str] = None,
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    db: Session = Depends(get_db),
+) -> list[Q3MotionOut]:
+    """List Q3 motions. Requires senior_artisan or steward."""
+    if role.role not in ("senior_artisan", ROLE_STEWARD):
+        raise HTTPException(status_code=403, detail="q3_membership_required")
+    q = db.query(Q3Motion)
+    if status:
+        q = q.filter(Q3Motion.status == status)
+    motions = q.order_by(Q3Motion.created_at.desc()).all()
+    result = []
+    for m in motions:
+        count = db.query(Q3Vote).filter(Q3Vote.motion_id == m.id).count()
+        result.append(Q3MotionOut(
+            id=m.id, title=m.title, description=m.description,
+            motion_type=m.motion_type, source_ref=m.source_ref,
+            status=m.status, resolution=m.resolution,
+            opened_by=m.opened_by, closes_at=m.closes_at,
+            vote_count=count, created_at=m.created_at,
+        ))
+    return result
+
+
+@app.post("/v1/q3/motions/{motion_id}/vote")
+def q3_cast_vote(
+    motion_id: str,
+    payload: Q3VoteInput,
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Cast a Shygazun Physix vote on a motion. Requires senior_artisan or steward."""
+    if role.role not in ("senior_artisan", ROLE_STEWARD):
+        raise HTTPException(status_code=403, detail="q3_membership_required")
+    motion = db.query(Q3Motion).filter(Q3Motion.id == motion_id).first()
+    if not motion:
+        raise HTTPException(status_code=404, detail="motion_not_found")
+    if motion.status != "open":
+        raise HTTPException(status_code=409, detail="motion_not_open")
+    existing = db.query(Q3Vote).filter(
+        Q3Vote.motion_id == motion_id,
+        Q3Vote.voter_artisan_id == workshop.identity.artisan_id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="already_voted")
+    # Derive Shygazun Physix tags
+    raw = {
+        "field_valence": payload.field_valence,
+        "placements": [p.model_dump() for p in payload.placements],
+    }
+    try:
+        tagged = shygazun_physix.derive(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    from datetime import datetime as _dt
+    import json as _json
+    vote = Q3Vote(
+        motion_id=motion_id,
+        physix_json=_json.dumps(tagged, ensure_ascii=False),
+        voter_artisan_id=workshop.identity.artisan_id,
+        cast_at=_dt.utcnow(),
+    )
+    db.add(vote)
+    db.commit()
+    return {"ok": True, "motion_id": motion_id, "shygazun_tags": tagged}
+
+
+@app.get("/v1/q3/motions/{motion_id}/audit")
+def q3_motion_audit(
+    motion_id: str,
+    workshop: WorkshopContext = Depends(_workshop_context),
+    role: RoleContext = Depends(_role_context),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Full audit view — vote configurations fully exposed, voter identities omitted.
+    Requires senior_artisan or steward.
+    """
+    if role.role not in ("senior_artisan", ROLE_STEWARD):
+        raise HTTPException(status_code=403, detail="q3_membership_required")
+    motion = db.query(Q3Motion).filter(Q3Motion.id == motion_id).first()
+    if not motion:
+        raise HTTPException(status_code=404, detail="motion_not_found")
+    import json as _json
+    votes = db.query(Q3Vote).filter(Q3Vote.motion_id == motion_id).all()
+    audit_records = []
+    for v in votes:
+        tagged = _json.loads(v.physix_json)
+        audit_records.append(Q3VoteAudit(
+            id=v.id,
+            motion_id=v.motion_id,
+            field_valence=tagged["field_valence"],
+            placements=[{"shygazun_tags": p["shygazun_tags"]} for p in tagged.get("placements", [])],
+            cast_at=v.cast_at,
+        ))
+    return {
+        "motion": Q3MotionOut(
+            id=motion.id, title=motion.title, description=motion.description,
+            motion_type=motion.motion_type, source_ref=motion.source_ref,
+            status=motion.status, resolution=motion.resolution,
+            opened_by=motion.opened_by, closes_at=motion.closes_at,
+            vote_count=len(votes), created_at=motion.created_at,
+        ),
+        "votes": audit_records,
+    }
 
 
 @app.get("/v1/atelier/admin/gate/status")

@@ -2141,3 +2141,57 @@ class FibonacciOrderingOut(BaseModel):
     lineage_nodes_by_layer: dict[int, list[str]] = Field(default_factory=dict)
     function_store_id: str | None = None
     function_hash: str | None = None
+
+
+
+# ---------------------------------------------------------------------------
+# Q3 — Quantum Quackery Quinary voting schemas
+# ---------------------------------------------------------------------------
+
+class PhysixPlacement(BaseModel):
+    shape: str                    # triangle|square|pentagon|hexagon|heptagon|circle
+    x: float                      # 0.0–1.0 normalized
+    y: float                      # 0.0–1.0 normalized
+    scale: float                  # 0.0–1.0 volume basis
+    init_degree: int              # 1–8
+
+
+class Q3VoteInput(BaseModel):
+    motion_id: str
+    field_valence: float          # 0.0 (white/false) – 1.0 (black/true)
+    placements: List[PhysixPlacement] = Field(default_factory=list)
+
+
+class Q3MotionInput(BaseModel):
+    title: str
+    description: str = ""
+    motion_type: str              # accept|refuse|promote|manage
+    source_ref: Optional[str] = None
+    closes_at: Optional[datetime] = None
+
+
+class Q3PlacementAudit(BaseModel):
+    shygazun_tags: dict
+
+
+class Q3VoteAudit(BaseModel):
+    """Public audit record — voter identity omitted, vote content fully exposed."""
+    id: str
+    motion_id: str
+    field_valence: dict
+    placements: List[Q3PlacementAudit]
+    cast_at: datetime
+
+
+class Q3MotionOut(BaseModel):
+    id: str
+    title: str
+    description: str
+    motion_type: str
+    source_ref: Optional[str]
+    status: str
+    resolution: Optional[str]
+    opened_by: str
+    closes_at: Optional[datetime]
+    vote_count: int
+    created_at: datetime
