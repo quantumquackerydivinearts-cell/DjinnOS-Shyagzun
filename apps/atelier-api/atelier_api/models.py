@@ -741,3 +741,29 @@ class GuildArtisanProfile(Base):
     stripe_account_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class Q3Motion(Base):
+    __tablename__ = "q3_motions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    motion_type: Mapped[str] = mapped_column(String(40), nullable=False)   # accept|refuse|promote|manage
+    source_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    status: Mapped[str] = mapped_column(String(40), nullable=False, default="open")
+    resolution: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    opened_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    closes_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)
+
+
+class Q3Vote(Base):
+    __tablename__ = "q3_votes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    motion_id: Mapped[str] = mapped_column(String(36), ForeignKey("q3_motions.id"), nullable=False)
+    physix_json: Mapped[str] = mapped_column(Text, nullable=False)   # full tagged Shygazun Physix record
+    voter_artisan_id: Mapped[str] = mapped_column(String(100), nullable=False)  # never surfaced in audit
+    cast_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False, default=datetime.utcnow)
