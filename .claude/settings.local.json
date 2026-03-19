@@ -11,7 +11,9 @@
       "Bash(CLOUDFLARE_API_TOKEN=Rzo0frAs19SBDCxf6Clloj2SBMPgyy7LzmCE6AtZ CLOUDFLARE_ACCOUNT_ID=54d3e7319956514bd85bd3d1e25a8d76 npx wrangler pages deploy \"apps/quantum-quackery\" --project-name quantum-quackery --branch main --commit-dirty=true)",
       "Bash(wc -l atelier_api/*.py)",
       "Bash(npm list:*)",
-      "Bash(python -c \"from atelier_api.core.config import load_settings; s = load_settings\\(\\); print\\(f''DB: {s.database_url}''\\)\")"
+      "Bash(python -c \"from atelier_api.core.config import load_settings; s = load_settings\\(\\); print\\(f''DB: {s.database_url}''\\)\")",
+      "Bash(grep -rn \"Open Atelier\\\\|openAtelier\\\\|atelier.*button\" c:/DjinnOS/ --include=*.html --include=*.jsx --include=*.js)",
+      "Bash(find c:/DjinnOS -name *.html -not -path */node_modules/* -not -path */.git/*)"
     ]
   }
 }
