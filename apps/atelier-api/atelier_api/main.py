@@ -1755,6 +1755,15 @@ def upsert_guild_profile(
     return svc.upsert_guild_profile(artisan_id=workshop.identity.artisan_id, payload=payload)
 
 
+@app.get("/public/guild/artisans")
+def list_guild_artisans_public(
+    limit: int = 24,
+    svc: AtelierService = Depends(_atelier_service),
+) -> Sequence[GuildProfileOut]:
+    """Public directory of steward-approved artisans who opted in to public listing."""
+    return svc.list_guild_profiles_public(limit=limit)
+
+
 @app.get("/v1/guild/profiles")
 def list_guild_profiles_admin(
     workshop: WorkshopContext = Depends(_workshop_context),

@@ -13896,6 +13896,10 @@ class AtelierService:
         row.approved_at = datetime.utcnow()
         return self._guild_profile_out(repo.save_guild_profile(row))
 
+    def list_guild_profiles_public(self, *, limit: int = 24) -> list["GuildProfileOut"]:
+        rows = self._require_repo().list_guild_profiles_public()
+        return [self._guild_profile_out(r) for r in rows[:limit]]
+
     def list_guild_profiles_admin(self) -> Sequence["GuildProfileOut"]:
         return [self._guild_profile_out(r) for r in self._require_repo().list_guild_profiles_all()]
 

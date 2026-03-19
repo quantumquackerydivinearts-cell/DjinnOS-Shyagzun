@@ -13,6 +13,7 @@ import { CalculatorPanel } from "./panels/CalculatorPanel";
 import { RenderLabPanel } from "./panels/RenderLabPanel";
 import { LotusPanel } from "./panels/LotusPanel";
 import { AlchemySubjectPanel } from "./panels/AlchemySubjectPanel";
+import { ShopManagerPanel } from "./panels/ShopManagerPanel";
 
 function resolveRuntimeApiBase() {
   try {
@@ -122,7 +123,8 @@ const NAV_ITEMS = [
   "Privacy",
   "Calculator",
   "Lotus",
-  "Alchemy Lab"
+  "Alchemy Lab",
+  "Shop Manager"
 ];
 
 function capabilitiesForRole(role) {
@@ -18872,6 +18874,9 @@ function extractPythonSavedPath(outputText) {
     }
     if (section === "Alchemy Lab") {
       return <AlchemySubjectPanel apiBase={API_BASE} />;
+    }
+    if (section === "Shop Manager") {
+      return <ShopManagerPanel apiBase={API_BASE} authToken={authToken} artisanId={artisanId} />;
     }
     return <section className="panel"><h2>Tooling</h2><p>Select a section.</p></section>;
   }
