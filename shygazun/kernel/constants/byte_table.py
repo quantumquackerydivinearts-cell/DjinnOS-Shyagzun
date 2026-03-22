@@ -383,6 +383,108 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 407,110010111,Archaeplastida,Shakazh,Fire-Incidental 6 — competitive exclusion / Fire displacing Fire
 408,110011000,Archaeplastida,Shakvekna,Fire-Incidental 7 — lateral facilitation / Na embedded / accidental beneficence / the integrative principle in passing contact
 409,110011001,Archaeplastida,Shakzotmel,Fire-Incidental 8 — environmental stochasticity / Zot+Mel inside Shak / Earth+Water inside Fire / transformation from nowhere belonging to nothing
+410,110011010,Myxozoa,Ive,Iv 1 — identity as trajectory / actinospore floating toward undetected host / self = direction before the other is found
+411,110011011,Myxozoa,Ivi,Iv 2 — identity as apex / contact moment / spore reaches its necessary other / peak of the free phase
+412,110011100,Myxozoa,Ivu,Iv 3 — identity as compression / sporoplasm at maximum density minimum volume / everything present nothing visible
+413,110011101,Myxozoa,Ivo,Iv 4 — identity as directed depth / injection vector / polar capsule thread into host tissue / specific-direction-inward
+414,110011110,Myxozoa,Iva,Iv 5 — identity as open approach / pre-encounter / selfhood entirely approach before any specific direction fixes
+415,110011111,Myxozoa,Ivoe,Iv 6 — identity as reduced neutrality / spore suspended between phases / operative floor of the Iv axis
+416,110100000,Myxozoa,Oave,Oa 1 — identity as boundary-persistence / parasitic cell maintaining membrane within host cytoplasm / boundary inside another's boundary
+417,110100001,Myxozoa,Oavi,Oa 2 — identity as apex-from-below / parasite orienting to host architecture from within / knowing structure by inhabiting it
+418,110100010,Myxozoa,Oavu,Oa 3 — identity as contained-ground / myxospore cyst in fish muscle / enclosed ground within another's ground
+419,110100011,Myxozoa,Oavo,Oa 4 — identity as depth-ground / parasite inhabiting deepest host spaces / neural tissue / most interior inhabitation
+420,110100100,Myxozoa,Oava,Oa 5 — identity as open-ground / blood-distributed parasite / no fixed location / ground without edges within another
+421,110100101,Myxozoa,Oavoe,Oa 6 — identity as reduced-ground / minimally active parasite dormant within host / minimum inside another's full operation
+422,110100110,Myxozoa,Navsh,Nav 1 — fire-identity / polar capsule discharge / the explosive injection event / selfhood as the event that fires
+423,110100111,Myxozoa,Navp,Nav 2 — air-identity / spore dispersal / directionality before host is found / selfhood as movement through medium
+424,110101000,Myxozoa,Navm,Nav 3 — water-identity / tissue infiltration / the penetrating pervasive self / selfhood as permeation
+425,110101001,Myxozoa,Navz,Nav 4 — earth-identity / cyst structure / mineralized walls / selfhood as the ground it builds around itself
+426,110101010,Myxozoa,Navk,Nav 5 — Kael-identity / 500-million-year evolutionary plasticity / generative excess that makes radical reduction possible
+427,110101011,Myxozoa,Ivelo,Iv-lo 1 — trajectory as arrival / moving toward ≠ reaching / direction mistaken for destination
+428,110101100,Myxozoa,Ivilo,Iv-lo 2 — apex as completion / contact event mistaken for total selfhood / beginning ≠ fulfillment
+429,110101101,Myxozoa,Ivulo,Iv-lo 3 — compression as simplicity / maximum density mistaken for minimum complexity / dense ≠ empty
+430,110101110,Myxozoa,Ivolo,Iv-lo 4 — injection as interiority / inserting self into other ≠ becoming interior to other
+431,110101111,Myxozoa,Ivalo,Iv-lo 5 — seeking as openness / undirected approach ≠ genuine openness / moving without target ≠ having no direction
+432,110110000,Myxozoa,Ivoelo,Iv-lo 6 — suspension as universal floor / phase-between state ≠ zero point of all selfhood / one suspension ≠ all suspension
+433,110110001,Myxozoa,Oavelo,Oa-lo 1 — boundary-persistence as boundary-making / maintaining integrity within another ≠ creating the separating boundary
+434,110110010,Myxozoa,Oavilo,Oa-lo 2 — interior-orientation as being interior / reading architecture from within ≠ being the architecture
+435,110110011,Myxozoa,Oavulo,Oa-lo 3 — contained-ground as containing / being held ≠ holding / cyst enclosed mistaking its state for enclosure
+436,110110100,Myxozoa,Oavolo,Oa-lo 4 — depth-inhabitation as depth / inhabiting the deepest space ≠ being depth
+437,110110101,Myxozoa,Oavalo,Oa-lo 5 — distributed ground as universal ground / being everywhere within one ≠ being ground itself
+438,110110110,Myxozoa,Oavoelo,Oa-lo 6 — dormant minimum as irreducible ground / dormancy within host ≠ floor of all existence
+439,110110111,Myxozoa,Navshlo,Nav-lo 1 — fire universalized / because I inject all selfhood is injection / the most violent universalization
+440,110111000,Myxozoa,Navplo,Nav-lo 2 — air universalized / because I disperse all selfhood is dispersal
+441,110111001,Myxozoa,Navmlo,Nav-lo 3 — water universalized / because I penetrate all selfhood is penetration
+442,110111010,Myxozoa,Navzlo,Nav-lo 4 — earth universalized / because I build my cyst all selfhood is substrate-building
+443,110111011,Myxozoa,Navklo,Nav-lo 5 — Kael universalized / radical plasticity declared the criterion / infinite openness as sole selfhood requirement / the deepest error of the minimum form
+444,110111100,Archaea,Ethe,Eth 1 — identity as tolerance-edge / self defined by what it can withstand / the chemical boundary where most life ends and this life begins
+445,110111101,Archaea,Ethi,Eth 2 — identity as thermal apex / hyperthermophile / selfhood as the furthest forward point on the heat axis before denaturation
+446,110111110,Archaea,Ethu,Eth 3 — identity as pressure-threshold / barophile / self = the organism that requires weight to be correctly itself
+447,110111111,Archaea,Etho,Eth 4 — identity as chemical depth-threshold / the self that finds its ground in pH that dissolves other organisms
+448,111000000,Archaea,Etha,Eth 5 — identity as open-threshold / pre-specific extremophily / what selfhood is before it finds its specific hostile medium
+449,111000001,Archaea,Ethoe,Eth 6 — identity as reduced-threshold / minimum viable existence at the chemical extreme / operative floor of the Eth axis
+450,111000010,Archaea,Urge,Urg 1 — identity as boundary-held-within-extreme / ether-linked membrane that persists where ester bonds break / chemistry that holds at the limit
+451,111000011,Archaea,Urgi,Urg 2 — identity as apex-within-extreme / organism at 121°C / being the farthest confirmed point that life has reached
+452,111000100,Archaea,Urgu,Urg 3 — identity as compressed-within / piezophile at maximum pressure / optimal function under conditions that would crush other cellular architecture
+453,111000101,Archaea,Urgo,Urg 4 — identity as depth-within-chemical-extreme / methanogen in anoxic sediment / archaeon in hypersaline pool / occupying the most extreme available medium
+454,111000110,Archaea,Urga,Urg 5 — identity as open-within-extreme / no retreat from the hostile medium / self = ground that opens into the extreme rather than escaping it
+455,111000111,Archaea,Urgoe,Urg 6 — identity as reduced-within-extreme / dormant archaeon in permafrost or hypersaline crystal / minimum operation within maximum hostility / double extremity
+456,111001000,Archaea,Krevsh,Krev 1 — fire-inversion / hyperthermophile / heat that sustains rather than destroys / the element that kills others IS this organism's medium
+457,111001001,Archaea,Krevp,Krev 2 — air-inversion / strict anaerobe / oxygen is poison / absence of what most life requires IS this organism's viability condition
+458,111001010,Archaea,Krevm,Krev 3 — water-inversion / halophile / saturated brine as correct medium / proteins that denature in fresh water
+459,111001011,Archaea,Krevz,Krev 4 — earth-inversion / lithotroph / mineral substrate as energy source / earth eaten not stood upon / rock oxidized for electrons
+460,111001100,Archaea,Krevk,Krev 5 — Kael-inversion / 3.5-billion-year metabolic invention / survivability-excess as Kael event at cellular scale / capacity to occupy any extreme
+461,111001101,Archaea,Ethelo,Eth-lo 1 — tolerance-edge as universal boundary / because my limit defines me all selfhood is defined by its limit
+462,111001110,Archaea,Ethilo,Eth-lo 2 — thermal apex as completion / living at extremes ≠ living at apex of all selfhood
+463,111001111,Archaea,Ethulo,Eth-lo 3 — pressure-threshold as simplicity / maximum pressure resistance ≠ minimum complexity
+464,111010000,Archaea,Etholo,Eth-lo 4 — chemical depth-threshold as depth itself / inhabiting pH 0 ≠ being the property of chemical depth
+465,111010001,Archaea,Ethalo,Eth-lo 5 — open-threshold as openness / undirected approach to the limit ≠ genuine openness
+466,111010010,Archaea,Ethoelo,Eth-lo 6 — reduced-threshold as universal floor / minimum viable at the chemical extreme ≠ minimum of all viability
+467,111010011,Archaea,Urgelo,Urg-lo 1 — boundary-held-within-extreme as boundary-making / ether-linked persistence ≠ originating the distinction between self and not-self
+468,111010100,Archaea,Urgilo,Urg-lo 2 — apex-within-extreme as the apex / most heat-tolerant confirmed organism ≠ the apex of all possible tolerance
+469,111010101,Archaea,Urgulo,Urg-lo 3 — compressed-within as containment / optimal function under pressure ≠ being compression
+470,111010110,Archaea,Urgolo,Urg-lo 4 — depth-within-chemical-extreme as depth / most hostile medium inhabited ≠ being the property of hostility
+471,111010111,Archaea,Urgalo,Urg-lo 5 — open-within-extreme as universal medium / thriving in brine ≠ defining what a medium is
+472,111011000,Archaea,Urgoelo,Urg-lo 6 — reduced-within-extreme as irreducible ground / dormancy in hypersaline crystal ≠ floor of all existence
+473,111011001,Archaea,Krevshlo,Krev-lo 1 — fire-inversion universalized / because heat sustains me all life requires heat-as-sustainer
+474,111011010,Archaea,Krevplo,Krev-lo 2 — air-inversion universalized / because oxygen is my poison all genuine life finds sustenance in what biology calls toxic
+475,111011011,Archaea,Krevmlo,Krev-lo 3 — water-inversion universalized / because brine is my ocean all ocean is correctly salt
+476,111011100,Archaea,Krevzlo,Krev-lo 4 — earth-inversion universalized / because I eat rock all sustenance is mineral
+477,111011101,Archaea,Krevklo,Krev-lo 5 — Kael-inversion universalized / radical viability declared the criterion / survival-excess as the sole measure of selfhood / the deepest error of the threshold form
+478,111011110,Protist,Aeve,Ae 1 — identity as categorical boundary-between / neither fully open nor fully bounded / the in-between as stable position not failure to arrive
+479,111011111,Protist,Aevi,Ae 2 — identity as neither/nor at height / most complex Protist / neither apex nor minimum / selfhood at the highest point of categorical in-between
+480,111100000,Protist,Aevu,Ae 3 — identity as neither/nor compressed / maximum categorical density without requiring extremity
+481,111100001,Protist,Aevo,Ae 4 — identity as depth-between / depth without being the abyss / reaching deepest without crossing into any defined kingdom
+482,111100010,Protist,Aeva,Ae 5 — identity as open-between / most open possible categorical in-between / no edge fixed no ground named
+483,111100011,Protist,Aevoe,Ae 6 — identity as reduced neither/nor / minimum viable existence while occupying categorical in-between / operative floor of the Ae axis
+484,111100100,Protist,Oive,Oi 1 — identity as edge-of-crossing / selfhood defined by traversal across categorical space / the moving boundary between what it is not
+485,111100101,Protist,Oivi,Oi 2 — identity as apex-of-crossing / most complex categorical traversal / organism with animal-like and plant-like characteristics simultaneously
+486,111100110,Protist,Oivu,Oi 3 — identity as compressed-crossing / maximum categorical work in minimum space / traverses between kingdoms without occupying volume in any
+487,111100111,Protist,Oivo,Oi 4 — identity as depth-of-crossing / deepest categorical traversal / furthest from any defining shore
+488,111101000,Protist,Oiva,Oi 5 — identity as open-crossing / no fixed trajectory across categorical space / maximum categorical openness in motion
+489,111101001,Protist,Oivoe,Oi 6 — identity as reduced-crossing / minimum viable existence while traversing categorical space / floor of the Oi axis
+490,111101010,Protist,Grevsh,Grev 1 — fire-exclusion / not-plant / excluded from the fire-mediated photosynthetic kingdom / identity as what has been excluded from fire-transformation
+491,111101011,Protist,Grevp,Grev 2 — air-exclusion / not-animal / excluded from the air-mediated motility kingdom / non-defining aerobic characteristic
+492,111101100,Protist,Grevm,Grev 3 — water-exclusion / not-fungus / excluded from the osmotrophic water-mediated kingdom / non-fungal relation to dissolution
+493,111101101,Protist,Grevz,Grev 4 — earth-exclusion / no fixed morphological ground / excluded from all substrate-defined forms / selfhood as the organism with no stable earth-relationship
+494,111101110,Protist,Grevk,Grev 5 — Kael-exclusion / the remainder after all other kingdoms found their language / excluded even from Kael's generative naming / the residue of the residue
+495,111101111,Protist,Aevelo,Ae-lo 1 — in-between as universal position / because I occupy between-positions all selfhood exists between positions / the in-between declared the only authentic location
+496,111110000,Protist,Aevilo,Ae-lo 2 — neither/nor at height as the apex / true complexity requires categorical exclusion / in-between universalized as sophistication
+497,111110001,Protist,Aevulo,Ae-lo 3 — categorical compression as simplicity / dense exclusion ≠ absence of content
+498,111110010,Protist,Aevolo,Ae-lo 4 — depth-between as depth itself / reaching deepest without crossing any kingdom ≠ being the property of depth
+499,111110011,Protist,Aevalo,Ae-lo 5 — open-between as openness / not-belonging-anywhere ≠ being free
+500,111110100,Protist,Aevoelo,Ae-lo 6 — reduced neither/nor as universal floor / minimum categorical in-between ≠ minimum of all existence / this residue ≠ all residue
+501,111110101,Protist,Oivelo,Oi-lo 1 — edge-of-crossing as boundary-making / traversal-boundary ≠ originating the concept of categorical boundary
+502,111110110,Protist,Oivilo,Oi-lo 2 — apex-of-crossing as the apex / crossing furthest across categorical space ≠ reaching highest of all selfhood
+503,111110111,Protist,Oivulo,Oi-lo 3 — compressed-crossing as containment / maximum categorical work in minimum space ≠ being compression itself
+504,111111000,Protist,Oivolo,Oi-lo 4 — depth-of-crossing as depth / furthest from any defining shore ≠ being the property of depth
+505,111111001,Protist,Oivalo,Oi-lo 5 — open-crossing as universal openness / no fixed categorical trajectory ≠ defining what openness is
+506,111111010,Protist,Oivoelo,Oi-lo 6 — reduced-crossing as irreducible ground / minimum existence while traversing ≠ the floor of all existence
+507,111111011,Protist,Grevshlo,Grev-lo 1 — fire-exclusion universalized / because I am not-plant genuine selfhood is defined by exclusion from fire-mediated lineage
+508,111111100,Protist,Grevplo,Grev-lo 2 — air-exclusion universalized / because I am not-animal authentic selfhood excludes the air-mediated kingdom
+509,111111101,Protist,Grevmlo,Grev-lo 3 — water-exclusion universalized / because I am not-fungus correct selfhood excludes osmotrophic dissolution
+510,111111110,Protist,Grevzlo,Grev-lo 4 — earth-exclusion universalized / because I have no fixed morphological ground true selfhood has no earth-relationship / groundlessness as criterion
+511,111111111,Protist,Grevklo,Grev-lo 5 — Kael-exclusion universalized / no category was sufficient / namelessness declared the criterion of all selfhood / the deepest error of the negative-definition form / byte 511 / 111111111 / the 9-bit space ends here
 """
 
 def _parse_rows(csv_text: str) -> tuple[ShygazunByteEntry, ...]:

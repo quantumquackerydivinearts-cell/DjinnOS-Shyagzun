@@ -14,7 +14,9 @@
       "Bash(python -c \"from atelier_api.core.config import load_settings; s = load_settings\\(\\); print\\(f''DB: {s.database_url}''\\)\")",
       "Bash(grep -rn \"Open Atelier\\\\|openAtelier\\\\|atelier.*button\" c:/DjinnOS/ --include=*.html --include=*.jsx --include=*.js)",
       "Bash(find c:/DjinnOS -name *.html -not -path */node_modules/* -not -path */.git/*)",
-      "Bash(curl -s --max-time 10 \"https://atelier-api.quantumquackery.com/ready\")"
+      "Bash(curl -s --max-time 10 \"https://atelier-api.quantumquackery.com/ready\")",
+      "Bash(find c:/DjinnOS/DjinnOS_Shyagzun/shygazun/kernel/policy -type f -name *.py)",
+      "Bash(grep -n \"def frontier_for_akinenwun\\\\|def apply_frontier_policy\" c:/DjinnOS/DjinnOS_Shyagzun/shygazun/kernel/policy/*.py)"
     ]
   }
 }
