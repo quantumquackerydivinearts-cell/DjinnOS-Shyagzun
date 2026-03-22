@@ -1896,6 +1896,7 @@ def q3_cast_vote(
     workshop: WorkshopContext = Depends(_workshop_context),
     role: RoleContext = Depends(_role_context),
     db: Session = Depends(get_db),
+    kernel: KernelClient = Depends(_kernel_client),
 ) -> Dict[str, Any]:
     """Cast a Shygazun Physix vote on a motion. Requires senior_artisan or steward."""
     if role.role not in ("senior_artisan", ROLE_STEWARD):
@@ -1911,6 +1912,7 @@ def q3_cast_vote(
     ).first()
     if existing:
         raise HTTPException(status_code=409, detail="already_voted")
+
     # Derive Shygazun Physix tags
     raw = {
         "field_valence": payload.field_valence,
@@ -1920,17 +1922,47 @@ def q3_cast_vote(
         tagged = shygazun_physix.derive(raw)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # Compose Shygazun utterance and place into the kernel's CEG.
+    # Best-effort: vote is committed regardless of kernel availability.
+    utterance = shygazun_physix.compose_utterance(tagged)
+    kernel_placement: Dict[str, Any] = {"placed": False, "utterance": utterance}
+    try:
+        placement_result = kernel.place(
+            raw=utterance,
+            context={
+                "source": "q3_vote",
+                "motion_id": motion_id,
+                "motion_title": motion.title,
+            },
+        )
+        kernel_placement = {
+            "placed": True,
+            "utterance": utterance,
+            "field_id": placement_result.get("field_id"),
+            "clock": placement_result.get("clock"),
+            "placement_event": placement_result.get("placement_event"),
+        }
+    except Exception as exc:
+        kernel_placement["error"] = str(exc)
+
     from datetime import datetime as _dt
     import json as _json
+    stored = {**tagged, "kernel_placement": kernel_placement}
     vote = Q3Vote(
         motion_id=motion_id,
-        physix_json=_json.dumps(tagged, ensure_ascii=False),
+        physix_json=_json.dumps(stored, ensure_ascii=False),
         voter_artisan_id=workshop.identity.artisan_id,
         cast_at=_dt.utcnow(),
     )
     db.add(vote)
     db.commit()
-    return {"ok": True, "motion_id": motion_id, "shygazun_tags": tagged}
+    return {
+        "ok": True,
+        "motion_id": motion_id,
+        "shygazun_tags": tagged,
+        "kernel_placement": kernel_placement,
+    }
 
 
 @app.get("/v1/q3/motions/{motion_id}/audit")

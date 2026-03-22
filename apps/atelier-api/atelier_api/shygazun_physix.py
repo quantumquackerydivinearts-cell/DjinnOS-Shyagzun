@@ -72,6 +72,40 @@ VALID_INIT_DEGREES = set(_INIT_DEGREE_TAGS.keys())
 
 
 # ---------------------------------------------------------------------------
+# Utterance composition
+# ---------------------------------------------------------------------------
+
+def compose_utterance(tagged: dict[str, Any]) -> str:
+    """
+    Compose a Shygazun utterance from a derived Physix record.
+
+    Grammar:
+      <valence_symbol> [<shape_symbol><init_symbol> ...]
+
+    The field valence (Ha/Ga/Na) sets the polarity of the whole utterance.
+    Each placement becomes a shape-cognition compound: shape symbol fused
+    with the init_degree symbol (no separator — akinenwun compounding).
+    Placements are space-separated from each other.
+
+    Example output: "Ha MekTa TyDa KaelNe"
+    """
+    parts: list[str] = []
+
+    valence_tag = tagged.get("field_valence", {})
+    valence_symbol = valence_tag.get("symbol", "Na")
+    parts.append(valence_symbol)
+
+    for p in tagged.get("placements", []):
+        tags = p.get("shygazun_tags", {})
+        shape_sym  = tags.get("shape", {}).get("symbol", "")
+        degree_sym = tags.get("init_degree", {}).get("symbol", "")
+        if shape_sym or degree_sym:
+            parts.append(f"{shape_sym}{degree_sym}")
+
+    return " ".join(parts)
+
+
+# ---------------------------------------------------------------------------
 # Derivation
 # ---------------------------------------------------------------------------
 
