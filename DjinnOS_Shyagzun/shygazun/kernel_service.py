@@ -26,6 +26,12 @@ from shygazun.kernel.policy.akinenwun_dictionary import AkinenwunDictionary
 from shygazun.kernel.policy.recombiner import frontier_hash, frontier_to_obj
 from shygazun.kernel.types import Clock, Edge, Frontier
 from shygazun.kernel.types.events import KernelEventObj
+from shygazun.sanctum.manifold import (
+    resolve_manifold_position,
+    project_through_cannabis,
+    check_reachability,
+    GaohOperator,
+)
 
 
 @dataclass
@@ -78,6 +84,16 @@ class AkinenwunLookupRequest(BaseModel):
     mode: Literal["engine", "prose"] = "prose"
     ingest: bool = True
     policy: Dict[str, Any] = Field(default_factory=dict)
+    density_vector: Optional[Dict[int, float]] = Field(
+        default=None,
+        description=(
+            "Breath of Ko density vector keyed by byte-table decimal address. "
+            "When provided, enables topological manifold analysis: manifold position, "
+            "Cannabis functor projections, and Dragon Tongue reachability check. "
+            "Non-zero weight on an Excavata-tongue address counts as a confirmed "
+            "Excavata frontier opening for TOPOLOGICAL_INCONSISTENCY detection."
+        ),
+    )
 
 
 class AttestRequest(BaseModel):
@@ -1408,6 +1424,85 @@ def v1_replay(req: ReplayRequest) -> Response:
     return _json_response({"canonical": canonical})
 
 
+def _manifold_topology(frontier: Any, density_vector: Optional[Dict[int, float]]) -> Dict[str, Any]:
+    """
+    Compute topological manifold fields for a MeaningFrontier.
+
+    Collects all decimal addresses across all paths, then:
+      - resolves manifold position (stage, orientability, tongue coverage)
+      - projects through the Cannabis functor (3×10 structure)
+      - checks Dragon Tongue reachability if density_vector provided
+    """
+    addresses: list[int] = []
+    seen: set[int] = set()
+    for path in getattr(frontier, "paths", ()):
+        for dec in getattr(path, "decimals", ()):
+            if dec not in seen:
+                addresses.append(dec)
+                seen.add(dec)
+
+    position = resolve_manifold_position(addresses)
+    projections = project_through_cannabis(addresses)
+
+    pos_obj: Dict[str, Any] = {
+        "addresses": position.addresses,
+        "tongues_present": position.tongues_present,
+        "tongue_indices": position.tongue_indices,
+        "highest_tongue_index": position.highest_tongue_index,
+        "stage": position.stage,
+        "is_orientable": position.is_orientable,
+        "has_non_orientable_entry": position.has_non_orientable_entry,
+        "coil_layer_tongues": position.coil_layer_tongues,
+    }
+
+    proj_obj: Dict[str, Any] = {
+        "projections": [
+            {
+                "axis": p.axis,
+                "source_tongue": p.source_tongue,
+                "projected_byte": p.projected_byte,
+                "projected_symbol": p.projected_symbol,
+                "projected_meaning": p.projected_meaning,
+                "is_shadow": p.is_shadow,
+                "is_terminal": p.is_terminal,
+            }
+            for p in projections.projections
+        ],
+        "grapevine_projection_failure": projections.grapevine_projection_failure,
+        "shadow_entries": projections.shadow_entries,
+        "beyond_functor": projections.beyond_functor,
+    }
+
+    topology: Dict[str, Any] = {
+        "gaoh_operator": {
+            "byte": GaohOperator.BYTE,
+            "symbol": GaohOperator.SYMBOL,
+            "meaning": GaohOperator.MEANING,
+            "identification": "0 \u2261 12 mod 12",
+            "note": (
+                "Topological S\u00b9 identification map — not a scalar. "
+                "Folds the integer clock into a circle; "
+                "the Möbius coil is self-closing because of this identification."
+            ),
+        },
+        "manifold_position": pos_obj,
+        "cannabis_projections": proj_obj,
+    }
+
+    if density_vector is not None:
+        reach = check_reachability(addresses, density_vector)
+        topology["reachability"] = {
+            "dragon_addresses": reach.dragon_addresses,
+            "has_dragon_entries": reach.has_dragon_entries,
+            "excavata_density": reach.excavata_density,
+            "reachable": reach.reachable,
+            "topological_inconsistency": reach.topological_inconsistency,
+            "inconsistency_note": reach.inconsistency_note,
+        }
+
+    return topology
+
+
 @app.post("/v0.1/akinenwun/lookup")
 def v1_akinenwun_lookup(req: AkinenwunLookupRequest) -> Response:
     try:
@@ -1416,6 +1511,8 @@ def v1_akinenwun_lookup(req: AkinenwunLookupRequest) -> Response:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     policy = req.policy if isinstance(req.policy, dict) else {}
+    topology = _manifold_topology(frontier, req.density_vector)
+
     if req.ingest:
         entry = _akinenwun_dictionary.ingest_frontier(frontier)
         frontier_obj = entry.frontier_obj
@@ -1429,6 +1526,7 @@ def v1_akinenwun_lookup(req: AkinenwunLookupRequest) -> Response:
             "dictionary_size": len(_akinenwun_dictionary.entries()),
             "stored": True,
             "frontier_policy": policy,
+            "topology": topology,
         }
         return _json_response(payload)
 
@@ -1443,6 +1541,7 @@ def v1_akinenwun_lookup(req: AkinenwunLookupRequest) -> Response:
         "dictionary_size": len(_akinenwun_dictionary.entries()),
         "stored": False,
         "frontier_policy": policy,
+        "topology": topology,
     }
     return _json_response(payload_no_ingest)
 
