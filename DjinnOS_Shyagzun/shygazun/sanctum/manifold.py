@@ -51,12 +51,22 @@ from shygazun.sanctum.Layers import LAYER_ENTRIES, coil_distance  # noqa: F401 �
 # Tongue ordering — derived at runtime from SHYGAZUN_BYTE_ROWS
 # ---------------------------------------------------------------------------
 
+_NON_TONGUE_MARKERS: frozenset[str] = frozenset({"Reserved"})
+
+
 def _build_tongue_order() -> dict[str, int]:
-    """Map tongue name → 1-based tongue index (order of first appearance in table)."""
+    """
+    Map tongue name → 1-based tongue index (order of first appearance in table).
+
+    Skips Reserved entries (bytes 124–127, multiversal cluster headers).
+    These are structural directory addresses, not tongue members.
+    """
     seen: dict[str, int] = {}
     idx = 1
     for row in SHYGAZUN_BYTE_ROWS:
         t = row["tongue"]
+        if t in _NON_TONGUE_MARKERS:
+            continue
         if t not in seen:
             seen[t] = idx
             idx += 1
@@ -346,6 +356,8 @@ def resolve_manifold_position(addresses: list[int]) -> ManifoldPosition:
         if entry is None:
             continue
         t = entry["tongue"]
+        if t in _NON_TONGUE_MARKERS:
+            continue
         if t not in seen_set:
             seen_tongues.append(t)
             seen_set.add(t)
@@ -397,6 +409,8 @@ def project_through_cannabis(addresses: list[int]) -> CannabisProjections:
         if entry is None:
             continue
         t = entry["tongue"]
+        if t in _NON_TONGUE_MARKERS:
+            continue
 
         if t in _CANNABIS_CLEAN_TONGUES:
             # Clean projection: one cell per axis

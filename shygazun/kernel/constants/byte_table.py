@@ -139,10 +139,10 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 121,01111001,AppleBlossom,Fozt,Dust (Earth,Air)
 122,01111010,AppleBlossom,Mazi,Sediment (Earth,Water)
 123,01111011,AppleBlossom,Zaot,Salt (Earth,Earth)
-124,01111100,Cluster,YeGaoh-Index,Master index for the YeGaoh Group — full 24-tongue cluster (Ye-×Gaoh-=24)
-125,01111101,Cluster,YeGaoh-1-8,Directory for Tongues 1–8 (Lotus–Cannabis) — addresses 0–255
-126,01111110,Cluster,YeGaoh-9-16,Directory for Tongues 9–16 (Dragon–Protist) — addresses 256–511
-127,01111111,Cluster,YeGaoh-17-24,Directory for Tongues 17–24 (unknown) — addresses 512+
+124,01111100,Reserved,YeGaoh-Index,Master index for the YeGaoh Group — full 24-tongue cluster (Ye-×Gaoh-=24)
+125,01111101,Reserved,YeGaoh-1-8,Directory for Tongues 1–8 (Lotus–Cannabis) — addresses 0–255
+126,01111110,Reserved,YeGaoh-9-16,Directory for Tongues 9–16 (Dragon–Protist) — addresses 256–511
+127,01111111,Reserved,YeGaoh-17-24,Directory for Tongues 17–24 (unknown) — addresses 512+
 128,10000000,Aster,Ry,Right-chiral red
 129,10000001,Aster,Oth,Right-chiral orange
 130,10000010,Aster,Le,Right-chiral yellow
