@@ -512,17 +512,17 @@
   </footer>
 
   <script>
-    const API = "https://atelier-api.quantumquackery.com";
+    const API = "https://djinnos-shyagzun-atelier-api.onrender.com";
 
     async function checkApiStatus() {
       const dot  = document.getElementById("api-dot");
       const text = document.getElementById("api-status-text");
       try {
-        const res  = await fetch(`${API}/ready`, { signal: AbortSignal.timeout(5000) });
+        const res  = await fetch(`${API}/ready`, { signal: AbortSignal.timeout(8000) });
         const data = await res.json();
-        if (data.ok) {
+        if (data.ok || data.status === "ready" || data.status === "not_ready") {
           dot.classList.add("live");
-          text.textContent = "atelier live";
+          text.textContent = data.status === "not_ready" ? "degraded" : "atelier live";
         } else {
           dot.classList.add("error");
           text.textContent = "degraded";
