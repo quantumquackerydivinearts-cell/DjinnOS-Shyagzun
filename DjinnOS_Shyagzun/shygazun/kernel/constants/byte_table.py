@@ -485,6 +485,76 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 509,111111101,Protist,Grevmlo,Grev-lo 3 — water-exclusion universalized / because I am not-fungus correct selfhood excludes osmotrophic dissolution
 510,111111110,Protist,Grevzlo,Grev-lo 4 — earth-exclusion universalized / because I have no fixed morphological ground true selfhood has no earth-relationship / groundlessness as criterion
 511,111111111,Protist,Grevklo,Grev-lo 5 — Kael-exclusion universalized / no category was sufficient / namelessness declared the criterion of all selfhood / the deepest error of the negative-definition form / byte 511 / 111111111 / the 9-bit space ends here
+512,1000000000,Immune,Sive,Siv 1 — surface-pattern recognition / pattern detection at the cell boundary / first contact of recognition before interior signature is known
+513,1000000001,Immune,Sivi,Siv 2 — high-specificity recognition / lock-and-key binding / T-cell receptor binding its MHC-peptide complex / recognition as singular geometric fit
+514,1000000010,Immune,Sivu,Siv 3 — compressed recognition / minimum necessary pattern information to discriminate / the epitope / pattern reduced to its essential distinction
+515,1000000011,Immune,Sivo,Siv 4 — internal antigen presentation / MHC-I presenting peptide fragments from inside the cell / recognition that reaches inward rather than detecting at the surface
+516,1000000100,Immune,Siva,Siv 5 — broad-spectrum recognition / TLRs reading PAMPs / open innate recognition before specificity forms / first sweep across widest pattern categories
+517,1000000101,Immune,Sivoe,Siv 6 — threshold recognition / minimum pattern information sufficient to trigger response / below this no signal / operative floor of the Siv axis
+518,1000000110,Immune,Reke,Rek 1 — boundary response / local inflammation / immediate edge-response to pattern recognition / heat and redness at the interface
+519,1000000111,Immune,Reki,Rek 2 — apex response / peak adaptive immunity / clonal expansion of the exact right lymphocyte / system at maximum discriminatory resolution
+520,1000001000,Immune,Reku,Rek 3 — minimum viable response / least response that resolves the detected threat / precise not excessive
+521,1000001001,Immune,Reko,Rek 4 — systemic response / cytokine cascade / body-wide signaling coordinating response across all immune compartments
+522,1000001010,Immune,Reka,Rek 5 — broad innate response / non-specific inflammatory response before adaptive specificity develops / first action without knowing exactly what is acted against
+523,1000001011,Immune,Rekoe,Rek 6 — baseline surveillance / continuous minimum monitoring for deviation from stored self-pattern / operative floor of the Rek axis
+524,1000001100,Immune,Trevsh,Trev 1 — fire-memory / inflammatory memory trace / strongest recall / rapid and hot on re-encounter / memory as combustive readiness
+525,1000001101,Immune,Trevp,Trev 2 — air-memory / dispersed immunological memory / distributed across lymph nodes / no single location holds it
+526,1000001110,Immune,Trevm,Trev 3 — water-memory / circulating antibody trace / memory that flows continuously through blood and lymph / persistent humoral record
+527,1000001111,Immune,Trevz,Trev 4 — earth-memory / long-lived bone marrow plasma cells / structural immune memory persisting for decades / the ground of immunological recall
+528,1000010000,Immune,Trevk,Trev 5 — Kael-memory / somatic hypermutation and VDJ recombination / immune system generating novel recognition within a single lifetime / memory as generative excess
+529,1000010001,Immune,Sivelo,Siv-lo 1 — surface-pattern as total pattern / recognizing at the boundary ≠ knowing the interior signature
+530,1000010010,Immune,Sivilo,Siv-lo 2 — maximum-specificity as exhaustive recognition / precision binding to one epitope ≠ knowing the full antigen
+531,1000010011,Immune,Sivulo,Siv-lo 3 — compressed recognition as simple pattern / minimum necessary pattern ≠ simple pattern / the epitope is not simple
+532,1000010100,Immune,Sivolo,Siv-lo 4 — internal presentation as interiority / displaying peptides via MHC-I ≠ knowing the interior of the cell
+533,1000010101,Immune,Sivalo,Siv-lo 5 — broad-spectrum recognition as universal recognition / innate breadth ≠ total pattern coverage
+534,1000010110,Immune,Sivoelo,Siv-lo 6 — threshold recognition as the recognition floor / minimum pattern sufficient to trigger ≠ minimum of all recognizable patterns
+535,1000010111,Immune,Rekelo,Rek-lo 1 — boundary response as boundary-making / local inflammation ≠ defining the boundary between self and non-self
+536,1000011000,Immune,Rekilo,Rek-lo 2 — peak adaptive response as completion / maximum clonal expansion ≠ the total response
+537,1000011001,Immune,Rekulo,Rek-lo 3 — minimum viable response as simplicity / least response that resolves ≠ simple response / precision ≠ absence of complexity
+538,1000011010,Immune,Rekolo,Rek-lo 4 — systemic response as depth / cytokine cascade ≠ being depth / the immune storm that believes its propagation is the total system
+539,1000011011,Immune,Rekalo,Rek-lo 5 — broad innate response as universal response / non-specific first-sweep ≠ appropriate response to all patterns / autoimmune analog
+540,1000011100,Immune,Rekoelo,Rek-lo 6 — baseline surveillance as the ground of all immunity / continuous monitoring ≠ foundation of all immune function
+541,1000011101,Immune,Trevshlo,Trev-lo 1 — fire-memory universalized / strongest memory is inflammatory therefore all recall should be hot and rapid / allergic hyperreactivity as criterion
+542,1000011110,Immune,Trevplo,Trev-lo 2 — dispersed memory universalized / because memory is distributed no specific memory matters more / failure of specificity declared the criterion
+543,1000011111,Immune,Trevmlo,Trev-lo 3 — water-memory universalized / all immunity should be humoral / circulating antibody declared the only trace worth maintaining
+544,1000100000,Immune,Trevzlo,Trev-lo 4 — earth-memory universalized / all memory should be permanently structural / long-lived plasma cell as the only model / adaptive responsiveness lost
+545,1000100001,Immune,Trevklo,Trev-lo 5 — Kael-memory universalized / capacity to generate novel recognition mistaken for mandate to always generate novel responses / all prior learning discarded / each encounter treated as unprecedented / the deepest error of the recognition form
+546,1000100010,Neural,Vele,Vel 1 — signal at the sensory surface / mechanoreceptor or chemoreceptor activation at the boundary / graded potential forming before threshold / input before commitment
+547,1000100011,Neural,Veli,Vel 2 — threshold crossing / receptor potential reaching action potential threshold / the binary commitment event / fire or do not fire / the only resolution the nerve net makes
+548,1000100100,Neural,Velu,Vel 3 — receptor adaptation / signal amplitude decreasing under sustained stimulus / input as differential not absolute / reporting change rather than magnitude
+549,1000100101,Neural,Velo,Vel 4 — internal signal / stretch receptor in the gastroderm / input from within the organism's body / the nerve net sensing its own interior state
+550,1000100110,Neural,Vela,Vel 5 — polymodal reception / mechanoreceptor responding to both touch and chemical gradient / reception before strict modality
+551,1000100111,Neural,Veloe,Vel 6 — subthreshold potential / graded signal that has not committed / input accumulating below threshold / minimum operational state of the Vel axis
+552,1000101000,Neural,Nale,Nal 1 — bidirectional propagation / nerve net signal traveling all directions from point of activation simultaneously / no designated direction / the defining characteristic of the nerve net
+553,1000101001,Neural,Nali,Nal 2 — facilitation / repeated stimulation producing increased signal amplitude / net becoming more responsive / sensitization not memory / the net getting louder
+554,1000101010,Neural,Nalu,Nal 3 — signal decrement / attenuation as signal propagates from source / the cost of distance in a system without myelination
+555,1000101011,Neural,Nalo,Nal 4 — through-conduction / signal traveling full length of organism / tentacle tip to pedal disc / maximum propagation range / full extent of the net in one event
+556,1000101100,Neural,Nala,Nal 5 — diffuse spread / signal activating muscle fibers across entire surface simultaneously / nerve net's equivalent of a decision / everything fires at once
+557,1000101101,Neural,Naloe,Nal 6 — threshold propagation / minimum signal energy sufficient to cross one synaptic junction / floor of net propagation
+558,1000101110,Neural,Dreve,Drev 1 — local contraction / muscle cell adjacent to activated nerve cell contracting / output without travel / most direct sensorimotor connection
+559,1000101111,Neural,Drevi,Drev 2 — coordinated contraction / synchronized activation of multiple muscle cells / medusa bell contraction / nematocyst volley / output as pattern across many effectors
+560,1000110000,Neural,Drevu,Drev 3 — nematocyst discharge / explosive irreversible output / coiled thread ejected for prey capture or defense / output as absolute commitment / cannot be re-cocked
+561,1000110001,Neural,Drevo,Drev 4 — peristaltic wave / sequential coordinated activation traveling through organism / output as propagating temporal pattern
+562,1000110010,Neural,Dreva,Drev 5 — diffuse contraction / whole-body response to strong stimulus / every muscle cell activating / maximum output spread
+563,1000110011,Neural,Drevoe,Drev 6 — minimum effector activation / threshold output producing just-detectable motor response / operative floor of the Drev axis
+564,1000110100,Neural,Velelo,Vel-lo 1 — surface signal as total input / receptor activation at boundary ≠ knowing what arrived / the nerve cell that fires does not know what touched it
+565,1000110101,Neural,Velilo,Vel-lo 2 — threshold crossing as semantic commitment / action potential commits to firing not to meaning / binary resolution ≠ meaning resolution
+566,1000110110,Neural,Velulo,Vel-lo 3 — receptor adaptation as simplification / adapted receptor reports differently not less / not simpler: differently complex
+567,1000110111,Neural,Velolo,Vel-lo 4 — internal signal as interiority / stretch receptor firing ≠ organism knowing its interior / sensing depth ≠ being depth
+568,1000111000,Neural,Velalo,Vel-lo 5 — polymodal reception as universal coverage / responding to multiple types ≠ covering all types / broad ≠ complete
+569,1000111001,Neural,Veloelo,Vel-lo 6 — subthreshold accumulation as signal floor / pre-commitment potential ≠ minimum of all receivable signals / this threshold ≠ the threshold
+570,1000111010,Neural,Nalelo,Nal-lo 1 — bidirectional propagation as total coverage / signal traveling all directions ≠ reaching all points / fires everywhere / contacts nowhere in particular
+571,1000111011,Neural,Nalilo,Nal-lo 2 — facilitation as learning / increased responsiveness ≠ encoding what was repeated / the net gets louder / it remembers nothing
+572,1000111100,Neural,Nalulo,Nal-lo 3 — signal decrement as content loss / attenuation ≠ loss of signal structure / quieter ≠ emptier
+573,1000111101,Neural,Nalolo,Nal-lo 4 — through-conduction as depth-traversal / maximum propagation range ≠ reaching depth of what is propagated / the signal travels full length and touches nothing
+574,1000111110,Neural,Nalalo,Nal-lo 5 — diffuse spread as total response / activating everywhere ≠ responding to totality / wide ≠ complete / loud ≠ comprehensive
+575,1000111111,Neural,Naloelo,Nal-lo 6 — threshold junction as net floor / minimum energy to cross one synapse ≠ minimum of all neural propagation / this net's floor ≠ all floors
+576,1001000000,Neural,Drevelo,Drev-lo 1 — local contraction as local knowledge / muscle firing adjacent to neuron ≠ organism responding locally in any meaningful sense / contraction happened / nothing was understood
+577,1001000001,Neural,Drevilo,Drev-lo 2 — coordinated contraction as cognition / synchronized bell contraction ≠ decision / the medusa pulses perfectly / it understands nothing about swimming / pattern ≠ intent
+578,1001000010,Neural,Drevulo,Drev-lo 3 — nematocyst discharge as situational commitment / irreversible output ≠ response to the specific threat / the nematocyst fired / it evaluated nothing
+579,1001000011,Neural,Drevolo,Drev-lo 4 — peristaltic wave as directed movement / propagating sequential activation ≠ movement with destination / the wave travels / the body goes nowhere in particular
+580,1001000100,Neural,Drevalo,Drev-lo 5 — whole-body response as total comprehension / every muscle firing ≠ organism having processed total stimulus / all cells contracted / nothing was understood
+581,1001000101,Neural,Drevoelo,Drev-lo 6 — minimum effector activation as output floor / threshold muscle twitch ≠ minimum of all possible outputs / this net's floor ≠ the floor of all neural output
 """
 
 def _parse_rows(csv_text: str) -> tuple[ShygazunByteEntry, ...]:
