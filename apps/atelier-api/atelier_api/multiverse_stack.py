@@ -91,8 +91,8 @@ LAYER_RAW           = 0
 VITRIOL_STATS: dict[str, dict] = {
     "vitality":      {"initial": "V", "ruler": "Asmodeus",  "sin": "Lust",     "secondary": "Vitality"},
     "introspection": {"initial": "I", "ruler": "Satan",     "sin": "Wrath",    "secondary": "Introspection"},
-    "reflectivity":  {"initial": "R", "ruler": "Belphegor", "sin": "Sloth",    "secondary": "Reflectivity"},
     "tactility":     {"initial": "T", "ruler": "Beelzebub", "sin": "Gluttony", "secondary": "Tactility"},
+    "reflectivity":  {"initial": "R", "ruler": "Belphegor", "sin": "Sloth",    "secondary": "Reflectivity"},
     "ingenuity":     {"initial": "I", "ruler": "Leviathan", "sin": "Envy",     "secondary": "Ingenuity"},
     "ostentation":   {"initial": "O", "ruler": "Mammon",    "sin": "Greed",    "secondary": "Ostentation"},
     "levity":        {"initial": "L", "ruler": "Lucifer",   "sin": "Pride",    "secondary": "Levity"},
@@ -101,7 +101,54 @@ VITRIOL_STATS: dict[str, dict] = {
 VITRIOL_BUDGET    = 31   # Total points across 7 stats — equals the 31-game series
 VITRIOL_STAT_MIN  = 1
 VITRIOL_STAT_MAX  = 10
-VITRIOL_STAT_KEYS = list(VITRIOL_STATS.keys())  # canonical order: V I R T I O L
+VITRIOL_STAT_KEYS = list(VITRIOL_STATS.keys())  # canonical order: V I T R I O L
+
+
+# ── Tongue → VITRIOL mapping ──────────────────────────────────────────────────
+# Each Shygazun tongue presses one VITRIOL stat when its words are placed in the CEG.
+# Placing words from a tongue accumulates pressure on the corresponding stat —
+# the Orrery reads this pressure when computing cross-game resonance and
+# Sulphera's nonlocal affect writes.
+#
+# Distribution: V=5  I(nt)=3  T=4  R=4  I(ng)=6  O=4  L=3  (29 tongues total)
+#
+# Two stats share the initial "I": Introspection (Satan/Wrath) and Ingenuity
+# (Leviathan/Envy). Context distinguishes — use the full key not the initial.
+TONGUE_VITRIOL_MAP: dict[str, str] = {
+    # Tongues 1–8
+    "Lotus":          "vitality",       # material/embodied ground
+    "Rose":           "ingenuity",      # mathematical intelligence
+    "Sakura":         "reflectivity",   # relational mirroring, orientation
+    "Daisy":          "tactility",      # structural mechanics, hands-on assembly
+    "AppleBlossom":   "ingenuity",      # alchemical intelligence
+    "Aster":          "reflectivity",   # chiral reflection, time handedness
+    "Grapevine":      "ostentation",    # network display, federation
+    "Cannabis":       "ostentation",    # awareness projecting across all tongues
+    # Tongues 9–16 (YeGaoh Group — biological)
+    "Dragon":         "introspection",  # defense of inward knowing against sincere hollowing
+    "Virus":          "tactility",      # molecular contact, transmission by touch
+    "Bacteria":       "vitality",       # electrodynamic life force — charge differential IS life
+    "Excavata":       "reflectivity",   # Möbius single-surface — the fold with no outside
+    "Archaeplastida": "vitality",       # constitutive life relationships — endosymbiosis as Vitality
+    "Myxozoa":        "introspection",  # identity dissolution — Introspection collapsing
+    "Archaea":        "ingenuity",      # extremophile systematic survival — Ingenuity at the limit
+    "Protist":        "levity",         # residue of all classification — beyond taxonomy
+    # Tongues 17–24
+    "Immune":         "introspection",  # self/non-self recognition — Introspection's molecular form
+    "Neural":         "tactility",      # sensory contact, the nerve net receiving
+    "Serpent":        "vitality",       # elemental threshold states — the water-fire boundary is alive
+    "Beast":          "vitality",       # the helix body itself — Vitality as physical form
+    "Cherub":         "ostentation",    # encounter as display event
+    "Chimera":        "ingenuity",      # knowing and choosing your own constitution
+    "Faerie":         "ostentation",    # elemental sovereignty as declaration
+    "Djinn":          "levity",         # pure consciousness field, unbounded by form
+    # Tongues 25–29 (topological/mathematical)
+    "Fold":           "reflectivity",   # manifold folding back on itself
+    "Topology":       "ingenuity",      # mathematical space invariants
+    "Phase":          "levity",         # transition, liminal suspension between states
+    "Gradient":       "tactility",      # field as sensory substrate
+    "Curvature":      "ingenuity",      # geometric intelligence across all scales
+}
 
 
 # ── Void Wraith observation system ───────────────────────────────────────────
@@ -803,14 +850,23 @@ class MultiverseStackService:
 
         ctx = self._build_orrery_context(workspace_id)
 
+        # VITRIOL pressure and dissonance — per game if scoped, else cross-game aggregate
+        vitriol_pressure = self.get_vitriol_pressure(workspace_id, game_id)
+        dissonance = (
+            self.compute_dissonance(workspace_id, game_id)
+            if game_id else None
+        )
+
         return {
-            "workspace_id": workspace_id,
-            "queried_at": datetime.utcnow().isoformat(),
-            "total_archived": len(nodes),
-            "kill_count": ctx.kill_count,
-            "zero_kill_run": ctx.kill_count == 0,
+            "workspace_id":    workspace_id,
+            "queried_at":      datetime.utcnow().isoformat(),
+            "total_archived":  len(nodes),
+            "kill_count":      ctx.kill_count,
+            "zero_kill_run":   ctx.kill_count == 0,
             "luminyx_timeline": self.luminyx_timeline(workspace_id),
-            "by_game": by_game,
+            "vitriol_pressure": vitriol_pressure,
+            "dissonance":       dissonance,
+            "by_game":         by_game,
         }
 
     def luminyx_timeline(self, workspace_id: str) -> str:
@@ -964,6 +1020,198 @@ class MultiverseStackService:
         mean = sum(values) / len(values)
         variance = sum((v - mean) ** 2 for v in values) / len(values)
         return "consonance" if variance < 0.05 else "dissonance"
+
+    # ── VITRIOL pressure accumulator ─────────────────────────────────────────
+
+    def record_tongue_pressure(
+        self,
+        workspace_id: str,
+        game_id: str,
+        actor_id: str,
+        decimals: list[int],
+        context: dict | None = None,
+    ) -> LayerNode:
+        """
+        Record a tongue pressure event from a Shygazun word placement.
+
+        decimals: the byte addresses of the symbols placed in this action.
+        Each decimal is resolved to its VITRIOL stat at sub-axis granularity.
+        -lo (mode-captured) entries are flagged separately as dissonant pressure.
+
+        Pressure is accumulated across all calls for a workspace — the running
+        sum is the demonstrated tongue signature.
+        """
+        from shygazun.kernel.constants.byte_table import byte_entry as _byte_entry
+        from shygazun.kernel.policy.recombiner import (
+            _vitriol_stat_for_entry,
+            _is_dissonant,
+        )
+
+        pressure: dict[str, float] = {k: 0.0 for k in VITRIOL_STAT_KEYS}
+        dissonant_pressure: dict[str, float] = {k: 0.0 for k in VITRIOL_STAT_KEYS}
+        entries_recorded: list[dict] = []
+
+        for decimal in decimals:
+            try:
+                entry = _byte_entry(decimal)
+            except Exception:
+                continue
+            stat = _vitriol_stat_for_entry(entry)
+            captured = _is_dissonant(decimal)
+            if captured:
+                dissonant_pressure[stat] += 1.0
+            else:
+                pressure[stat] += 1.0
+            entries_recorded.append({
+                "decimal": decimal,
+                "symbol": entry["symbol"],
+                "tongue": entry["tongue"],
+                "stat": stat,
+                "dissonant": captured,
+            })
+
+        return self.record_and_archive(
+            workspace_id=workspace_id,
+            game_id=game_id,
+            action_kind="vitriol.pressure",
+            actor_id=actor_id,
+            payload={
+                "decimals": decimals,
+                "pressure": pressure,
+                "dissonant_pressure": dissonant_pressure,
+                "entries": entries_recorded,
+                "context": context or {},
+            },
+        )
+
+    def get_vitriol_pressure(
+        self,
+        workspace_id: str,
+        game_id: str | None = None,
+    ) -> dict:
+        """
+        Aggregate all recorded tongue pressure events for this workspace.
+
+        Returns per-stat clean pressure, dissonant pressure, combined totals,
+        normalized fractions, and per-stat capture ratio (dissonant / combined).
+        Optionally scoped to a single game.
+        """
+        from sqlalchemy import select
+
+        q = select(LayerNode).where(
+            LayerNode.workspace_id == workspace_id,
+            LayerNode.layer_index == LAYER_ARCHIVED,
+        )
+        if game_id:
+            q = q.where(LayerNode.game_id == game_id)
+
+        pressure: dict[str, float] = {k: 0.0 for k in VITRIOL_STAT_KEYS}
+        dissonant: dict[str, float] = {k: 0.0 for k in VITRIOL_STAT_KEYS}
+
+        for node in self._db.scalars(q).all():
+            pl = _load_payload(node.payload_json)
+            if pl.get("action_kind") != "vitriol.pressure":
+                continue
+            for k in VITRIOL_STAT_KEYS:
+                pressure[k]  += float(pl.get("pressure",          {}).get(k, 0.0))
+                dissonant[k] += float(pl.get("dissonant_pressure", {}).get(k, 0.0))
+
+        combined       = {k: pressure[k] + dissonant[k] for k in VITRIOL_STAT_KEYS}
+        total_clean    = sum(pressure.values())
+        total_dissonant = sum(dissonant.values())
+        total          = total_clean + total_dissonant
+
+        return {
+            "workspace_id":        workspace_id,
+            "game_id_filter":      game_id,
+            "pressure":            pressure,
+            "dissonant_pressure":  dissonant,
+            "combined":            combined,
+            "total_clean":         total_clean,
+            "total_dissonant":     total_dissonant,
+            "total":               total,
+            "pressure_fractions":  {k: pressure[k]  / total if total else 0.0 for k in VITRIOL_STAT_KEYS},
+            "dissonant_fractions": {k: dissonant[k] / total if total else 0.0 for k in VITRIOL_STAT_KEYS},
+            "combined_fractions":  {k: combined[k]  / total if total else 0.0 for k in VITRIOL_STAT_KEYS},
+            # Capture ratio: what fraction of each stat's total pressure is mode-captured
+            "capture_ratio": {
+                k: round(dissonant[k] / combined[k], 4) if combined[k] else 0.0
+                for k in VITRIOL_STAT_KEYS
+            },
+        }
+
+    def compute_dissonance(
+        self,
+        workspace_id: str,
+        game_id: str,
+    ) -> dict:
+        """
+        Compute the dissonance metric for a game instance.
+
+        Compares the player's declared VITRIOL (from Ko's dream assignment)
+        against their demonstrated tongue pressure (actual word placements).
+
+        gap[stat] = declared_fraction[stat] − demonstrated_fraction[stat]
+          > 0 : over-declared / under-demonstrated —
+                the player claims this ground but does not operate from it.
+          < 0 : under-declared / over-demonstrated —
+                the player operates here more than they recognize.
+
+        dissonance_magnitude: mean absolute gap across all stats (0.0–1.0).
+        capture_ratio: per stat, proportion of pressure that is -lo / mode-captured.
+
+        Returns status='no_vitriol_assignment' if Ko's dream has not yet run
+        for this game, or status='no_pressure_data' if no words have been placed.
+        """
+        declared = self.get_vitriol(workspace_id, game_id)
+        if not declared:
+            return {
+                "workspace_id": workspace_id,
+                "game_id":      game_id,
+                "status":       "no_vitriol_assignment",
+            }
+
+        pressure_data = self.get_vitriol_pressure(workspace_id, game_id)
+        if pressure_data["total"] == 0.0:
+            return {
+                "workspace_id": workspace_id,
+                "game_id":      game_id,
+                "status":       "no_pressure_data",
+                "declared":     declared,
+            }
+
+        declared_total     = sum(declared.values()) or 1
+        declared_fractions = {k: declared.get(k, 0) / declared_total for k in VITRIOL_STAT_KEYS}
+        demonstrated_fractions = pressure_data["combined_fractions"]
+        capture_ratio          = pressure_data["capture_ratio"]
+
+        gap = {
+            k: round(declared_fractions[k] - demonstrated_fractions[k], 4)
+            for k in VITRIOL_STAT_KEYS
+        }
+        dissonance_magnitude = round(
+            sum(abs(v) for v in gap.values()) / len(gap), 4
+        )
+
+        return {
+            "workspace_id":            workspace_id,
+            "game_id":                 game_id,
+            "status":                  "computed",
+            "declared":                declared,
+            "declared_fractions":      declared_fractions,
+            "demonstrated_fractions":  demonstrated_fractions,
+            "gap":                     gap,
+            "capture_ratio":           capture_ratio,
+            "dissonance_magnitude":    dissonance_magnitude,
+            "total_placements":        pressure_data["total"],
+            "note": (
+                "gap > 0: stat over-declared, under-demonstrated — "
+                "the player claims this ground but does not inhabit it. "
+                "gap < 0: stat under-declared, over-demonstrated — "
+                "the player operates here more than they know. "
+                "capture_ratio > 0: portion of this stat's pressure is -lo / mode-captured."
+            ),
+        }
 
     def _evaluate_and_propagate(
         self,

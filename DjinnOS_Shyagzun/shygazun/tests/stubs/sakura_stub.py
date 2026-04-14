@@ -1,11 +1,5 @@
 # tests/stubs/sakura_stub.py
-from kernel.types import (
-    CandidateCompletion,
-    Preconditions,
-    PrioritySignature,
-    Provenance,
-    LotusRequirement,
-)
+from shygazun.kernel.types.candidate import CandidateCompletion, Preconditions, PrioritySignature
 
 class SakuraStub:
     name = "sakura"
@@ -18,17 +12,14 @@ class SakuraStub:
             CandidateCompletion(
                 id="sakura.await.lotus",
                 preconditions=Preconditions(
-                    lotus_requirement=LotusRequirement(
-                        kind="await_attestation",
-                        attestation_tag="lotus"
-                    )
+                    lotus_requirement={"kind": "await_attestation", "attestation_tag": "lotus"}
                 ),
                 effects={},
                 costs=[],
                 priority_signature=PrioritySignature(
                     tail_markers=["closure"]
                 ),
-                provenance=[Provenance(source="register", name="sakura")],
+                provenance=[{"source": "register", "kind": "sakura"}],
             )
         ]
 

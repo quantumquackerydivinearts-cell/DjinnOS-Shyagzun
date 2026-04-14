@@ -1,10 +1,5 @@
 # tests/stubs/rose_stub.py
-from kernel.types import (
-    CandidateCompletion,
-    Preconditions,
-    PrioritySignature,
-    Provenance,
-)
+from shygazun.kernel.types.candidate import CandidateCompletion, Preconditions, PrioritySignature
 
 class RoseStub:
     name = "rose"
@@ -21,7 +16,7 @@ class RoseStub:
             effects={},
             costs=[],
             priority_signature=PrioritySignature(),
-            provenance=[Provenance(source="register", name="rose")],
+            provenance=[{"source": "register", "kind": "rose"}],
         )
 
         c2 = CandidateCompletion(
@@ -32,7 +27,7 @@ class RoseStub:
             effects={},
             costs=[],
             priority_signature=PrioritySignature(),
-            provenance=[Provenance(source="register", name="rose")],
+            provenance=[{"source": "register", "kind": "rose"}],
         )
 
         return [c1, c2]

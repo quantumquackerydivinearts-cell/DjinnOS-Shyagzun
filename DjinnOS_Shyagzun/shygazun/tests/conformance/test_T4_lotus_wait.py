@@ -14,7 +14,7 @@ class _Field:
 def test_T4_lotus_never_self_resolves() -> None:
     kernel = Kernel(
         field=_Field(field_id="F0", clock=Clock(tick=0, causal_epoch="0")),
-        registers=[SakuraStub()],
+        registers=[SakuraStub()],  # type: ignore[list-item]
     )
     kernel.place(raw="B")
 

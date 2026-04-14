@@ -14,7 +14,7 @@ class _Field:
 def test_T1_multifrontier_survival() -> None:
     kernel = Kernel(
         field=_Field(field_id="F0", clock=Clock(tick=0, causal_epoch="0")),
-        registers=[RoseStub()],
+        registers=[RoseStub()],  # type: ignore[list-item]
     )
 
     kernel.place(raw="A")

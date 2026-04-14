@@ -12,13 +12,16 @@ class PlacementEventObj(TypedDict):
     at: Dict[str, Any]
 
 
-class EligibilityEventObj(TypedDict, total=False):
+class _EligibilityEventObjRequired(TypedDict):
     id: str
     kind: str
+    at: Dict[str, Any]
+
+
+class EligibilityEventObj(_EligibilityEventObjRequired, total=False):
     frontier_id: str
     candidate_id: str
     candidate_hash: str
-    at: Dict[str, Any]
     candidate_snapshot: Any
 
 

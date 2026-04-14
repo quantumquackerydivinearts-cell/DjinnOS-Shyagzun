@@ -352,6 +352,7 @@ class BreathOfKo:
 
         img = Image.new("RGB", (width, height), (0, 0, 0))
         pixels = img.load()
+        assert pixels is not None
 
         gaoh = GAOH_CONSTANT
 

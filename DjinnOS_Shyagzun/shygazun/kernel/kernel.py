@@ -15,12 +15,14 @@ from typing import (
     Tuple,
     TypedDict,
     Union,
-    runtime_checkable,
 )
 
-from shygazun.kernel.ceg import CEG, KernelEventObj
-from shygazun.kernel.attestation import Attestation, Refusal, intent_hash_for_candidate
-from shygazun.kernel.types.events import AttestationEventObj
+from .ceg import CEG, KernelEventObj
+from .attestation import (
+    Attestation, Refusal, intent_hash_for_candidate,
+    CandidateLike as CandidateCompletionLike,
+)
+from .types.events import AttestationEventObj
 
 # Import only stable public surface types.
 # FieldLike is structural; kernel advances time. CEG is append-only.
@@ -46,13 +48,16 @@ class PlacementEventObj(TypedDict):
     at: Dict[str, Any]  # clock as JSON object
 
 
-class EligibilityEventObj(TypedDict, total=False):
+class _EligibilityEventObjRequired(TypedDict):
     id: str
     kind: str  # "eligibility"
+    at: Dict[str, Any]
+
+
+class EligibilityEventObj(_EligibilityEventObjRequired, total=False):
     frontier_id: str
     candidate_id: str
     candidate_hash: str
-    at: Dict[str, Any]
     # Debug-only; MUST NOT be used for semantics or hashing.
     candidate_snapshot: Any
 
@@ -65,41 +70,6 @@ class RefusalEventObj(TypedDict):
     candidate_id: str
     details: Dict[str, Any]
     at: Dict[str, Any]
-
-
-# ---------------------------------------------------------------------------
-# Candidate / Preconditions structural protocols
-# ---------------------------------------------------------------------------
-
-@runtime_checkable
-class LotusRequirementLike(Protocol):
-    kind: str
-    attestation_tag: str
-
-
-@runtime_checkable
-class PreconditionsLike(Protocol):
-    forbids_candidates: Sequence[str]
-    lotus_requirement: Optional[LotusRequirementLike]
-
-
-@runtime_checkable
-class PrioritySignatureLike(Protocol):
-    relation_weight: float
-    closure_weight: float
-    tail_markers: Sequence[str]
-
-
-@runtime_checkable
-class CandidateCompletionLike(Protocol):
-    id: str
-    preconditions: PreconditionsLike
-    costs: Sequence[Any]
-    effects: Mapping[str, Any]
-    priority_signature: PrioritySignatureLike
-
-    # Optional canonical serializer. If present, used for hash.
-    def to_canonical_obj(self) -> Any: ...
 
 
 # ---------------------------------------------------------------------------

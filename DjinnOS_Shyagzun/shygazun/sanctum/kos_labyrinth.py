@@ -480,15 +480,50 @@ class BookEntry:
 
 
 BOOK_ORDER: Tuple[BookEntry, ...] = (
-    BookEntry(1,  "Princess of Eclipses",       False, None),
-    BookEntry(2,  "Knights of the Veil",         False, None),
-    BookEntry(3,  "Fullmetal Forest",            False, None),
-    BookEntry(4,  "Secrets of Neverland",        False, None),
-    BookEntry(5,  "Truth Be Told",               True,  "lower"),   # Hub: assembling what is true
-    BookEntry(6,  "As Within So Without",        False, None),
-    BookEntry(7,  "Alchemist's Labor of Love",   True,  "upper"),   # Hub: working with truth
-    BookEntry(8,  "Reign of Nobody",             False, None),
-    # Books 9–31 to be determined
+    # ── Arc 1: Earth and the first wound (Games 1–4) ─────────────────────────
+    BookEntry(1,  "Princess of Eclipses",          False, None),   # Luminyx mortal; timeline split 5237/1728; Great Obscenity origin
+    BookEntry(2,  "Knights of the Veil",            False, None),   # Thool Society merger; Templar→Illuminati; narrative control begins
+    BookEntry(3,  "Fullmetal Forest",               False, None),   # Cybernetic forest internet; chimera experiments; nuclear event
+    BookEntry(4,  "Secrets of Neverland",           False, None),   # ~200yr post-nuclear; Sulphera leakage; Threshold Events introduced
+    # ── Hub 1 — Truth Be Told (Game 5) ───────────────────────────────────────
+    BookEntry(5,  "Truth Be Told",                  True,  "lower"),   # Hub: assembling what is true. Minerva Moon. Early space empire.
+    # ── Arc 2: The Great Obscenity and the Labyrinth (Games 6–7) ────────────
+    BookEntry(6,  "As Within So Without",           False, None),   # Late 33rd C; Great Obscenity trigger; Hypnotic Threshold Event
+    # ── Hub 2 — An Alchemist's Labor of Love (Game 7) ────────────────────────
+    BookEntry(7,  "An Alchemist's Labor of Love",   True,  "upper"),   # Hub: working with truth. Ko's Labyrinth (Aeralune). Saelith born.
+    # ── Arc 3: After the Labyrinth (Games 8–11) ──────────────────────────────
+    BookEntry(8,  "Reign of Nobody",                False, None),
+    BookEntry(9,  "Rise of Alzedros",               False, None),   # New entity: Alzedros
+    BookEntry(10, "The Voice of Ko",                False, None),   # Ko-centered game
+    BookEntry(11, "Icons of Time",                  False, None),
+    # ── Arc 4: Sha's Arc (Games 12–13) ───────────────────────────────────────
+    BookEntry(12, "Students of Sha",                False, None),   # Sha — Phoenix of intellect; Ko's counterpart; the intellectual journey
+    BookEntry(13, "Ghosts of Azoth",                False, None),   # Azoth = complex number in BreathOfKo; alchemical throughline
+    # ── Arc 5: Archon War and the Lost (Games 14–16) ─────────────────────────
+    BookEntry(14, "Chimeras of The Archons",        False, None),   # Breaking the Gnostic mythology of evil over the back of cellular liberation
+    BookEntry(15, "Lost Yokai",                     False, None),
+    BookEntry(16, "Battered Stars",                 False, None),
+    # ── Arc 6: Saelith's Arc (Game 17) ───────────────────────────────────────
+    BookEntry(17, "Saelith's Mercy",                False, None),   # Saelith's own arc; FaeDjinn hybrid; born in Game 7; The Test homage
+    # ── Convergence: Mystic Pines × KLGS (Game 18) ───────────────────────────
+    BookEntry(18, "Mystic Blood",                   False, None),   # YuYu (0001_MYPN); the ONE sanctioned-kill game; St. Alaro erasure
+    # ── Arc 7: The Cause and Hidden Knowledge (Games 19–21) ──────────────────
+    BookEntry(19, "Tides of The Cause",             False, None),
+    BookEntry(20, "Daath Most Have Seen",           False, None),   # Daath — Kabbalistic hidden knowledge
+    BookEntry(21, "Callsigns of Thool",             False, None),   # Thool Society network legibility; learning to read their signals
+    # ── Arc 8: Void and Requiem (Games 22–24) ────────────────────────────────
+    BookEntry(22, "Horrors of The Void",            False, None),
+    BookEntry(23, "Requiem of Po'Elfan",            False, None),   # Po'Elfan — Demon of Anxiety; trial: facing death; Thool/Po'Elfan link
+    BookEntry(24, "Polar Shift",                    False, None),
+    # ── Arc 9: Galactic and Fires (Games 25–26) ──────────────────────────────
+    BookEntry(25, "Galactic Hallows",               False, None),
+    BookEntry(26, "Fires of Sha",                   False, None),   # Sha's purifying end; bookends with Game 12; Ko←→Sha eternal cycle
+    # ── Arc 10: Toward the Great Work (Games 27–31) ──────────────────────────
+    BookEntry(27, "Gourds of Ash",                  False, None),
+    BookEntry(28, "Legacy of Luminyx",              False, None),   # Luminyx honored near series end; spirit after 1782
+    BookEntry(29, "Barkeep of Broken Dreams",       False, None),
+    BookEntry(30, "Death of an Empress",            False, None),
+    BookEntry(31, "The Great Work",                 False, None),   # Series conclusion — alchemical Magnum Opus
 )
 
 BOOK_BY_NUMBER: Dict[int, BookEntry] = {b.book_number: b for b in BOOK_ORDER}

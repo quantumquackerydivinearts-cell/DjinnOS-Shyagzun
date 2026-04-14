@@ -38,7 +38,7 @@ class KernelRegistry:
                     inconsistency_proof=None,
                 )
             ],
-            registers=list(ALL_REGISTERS),
+            registers=list(ALL_REGISTERS),  # type: ignore[arg-type]
         )
 
         self._kernels[field_id] = kernel

@@ -48,7 +48,7 @@ def test_order_is_decimal_ascending() -> None:
 
 
 def test_snapshot_is_copy() -> None:
-    snapshot = byte_table_snapshot()
+    snapshot = dict(byte_table_snapshot())
     snapshot[0] = {
         "decimal": 0,
         "binary": "11111111",

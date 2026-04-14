@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 from shygazun.kernel.kernel import Kernel
 from shygazun.kernel.register.rose_stub import RoseStub
@@ -15,7 +16,7 @@ class _Field:
 def test_T1_multi_frontier_survival_via_structural_divergence() -> None:
     k = Kernel(
         field=_Field(field_id="F0", clock=Clock(tick=0, causal_epoch="0")),
-        registers=[RoseStub(), SakuraStub()],
+        registers=[RoseStub(), SakuraStub()],  # type: ignore[list-item]
     )
 
     k.place(raw="A")
@@ -25,7 +26,7 @@ def test_T1_multi_frontier_survival_via_structural_divergence() -> None:
     assert "rose.link.alpha" in ids
     assert "rose.link.beta" in ids
 
-    events = list(k.get_events())
+    events: list[Any] = list(k.get_events())
     elig_events = [e for e in events if e["kind"] == "eligibility" and e["frontier_id"] == "F0"]
     alpha_e = next(e for e in elig_events if e["candidate_id"] == "rose.link.alpha")
     beta_e = next(e for e in elig_events if e["candidate_id"] == "rose.link.beta")
@@ -38,7 +39,7 @@ def test_T1_multi_frontier_survival_via_structural_divergence() -> None:
 def test_T4_lotus_wait_never_resolves_internally_and_is_localized() -> None:
     k = Kernel(
         field=_Field(field_id="F0", clock=Clock(tick=0, causal_epoch="0")),
-        registers=[RoseStub(), SakuraStub()],
+        registers=[RoseStub(), SakuraStub()],  # type: ignore[list-item]
     )
     k.place(raw="A")
 

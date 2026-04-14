@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException #type: ignore
 
-from shygazun.api import KernelRegistry
 from shygazun.api.models import (
     PlaceRequest,
     EligibilityRequest,

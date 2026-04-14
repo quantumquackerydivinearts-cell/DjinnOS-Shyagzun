@@ -2,21 +2,25 @@
 shygazun.sanctum.manifold — Topological Manifold Navigator
 ===========================================================
 
-The 16-tongue Shygazun manifold is a cumulative self-knowing space.
+The 29-tongue Shygazun manifold is a cumulative self-knowing space.
 Each tongue adds a structural property to the space. This module computes
 manifold positions, Cannabis functor projections, and Dragon Tongue
 reachability checks from lists of byte-table addresses.
 
-Stage progression of the 16-tongue linear fundament:
-  Ground (1–3):        Lotus, Rose, Sakura — metric, spectral, relational
-  Structure (4–5):     Daisy, AppleBlossom — mechanical, phase-change
-  Chirality (6):       Aster — handedness introduced
-  Network (7):         Grapevine — graph topology / adjacency
-  Functor (8):         Cannabis — 3×10 functor (6 clean + 3 shadow + 1 terminal)
-  Sampling (9–11):     Dragon, Virus, Bacteria — orientable-space samplers
-  Non-orientable (12): Excavata — Möbius bundle, non-orientability introduced
-  Relation (13):       Archaeplastida — relational structure on non-orientable space
-  Complement (14–16):  Myxozoa and beyond — cokernel / residual operators
+Stage progression across all 29 tongues:
+  Ground (1–3):           Lotus, Rose, Sakura — metric, spectral, relational
+  Structure (4–5):        Daisy, AppleBlossom — mechanical, phase-change
+  Chirality (6):          Aster — handedness introduced
+  Network (7):            Grapevine — graph topology / adjacency
+  Functor (8):            Cannabis — 3×10 functor (6 clean + 3 shadow + 1 terminal)
+  Sampling (9–11):        Dragon, Virus, Bacteria — orientable-space samplers
+  Non-orientable (12):    Excavata — Möbius bundle, non-orientability introduced
+  Relation (13):          Archaeplastida — relational structure on non-orientable space
+  Complement (14–16):     Myxozoa, Archaea, Protist — cokernel / residual operators
+  Recognition (17–18):    Immune, Neural — set-mutation begins to be observable
+  Elemental (19):         Serpent — ontic vowel axis; Garden of Shakti
+  Constitutional (20–24): Beast, Cherub, Chimera, Faerie, Djinn — sovereign-form register
+  Geometric (25–29):      Fold, Topology, Phase, Gradient, Curvature — pure structure
 
 Key topological facts encoded here:
   - Gaoh (byte 31) is the S¹ identification map (0 ≡ 12 mod 12), NOT a scalar.
@@ -99,22 +103,49 @@ def tongue_name_for_index(idx: int) -> str | None:
 # tongue name: structural, not positional.
 
 _TONGUE_STAGES: dict[str, str] = {
-    "Lotus":         "Ground",
-    "Rose":          "Ground",
-    "Sakura":        "Ground",
-    "Daisy":         "Structure",
-    "AppleBlossom":  "Structure",
-    "Aster":         "Chirality",
-    "Grapevine":     "Network",
-    "Cannabis":      "Functor",
-    "Dragon":        "Sampling",
-    "Virus":         "Sampling",
-    "Bacteria":      "Sampling",
-    "Excavata":      "Non-orientable",
-    "Archaeplastida":"Relation",
-    # Tongues 14–16 and beyond are Complement by default
+    # Ground — the three metric/spectral/relational primitives
+    "Lotus":          "Ground",
+    "Rose":           "Ground",
+    "Sakura":         "Ground",
+    # Structure — mechanical transitions
+    "Daisy":          "Structure",
+    "AppleBlossom":   "Structure",
+    # Chirality — handedness
+    "Aster":          "Chirality",
+    # Network — graph topology / adjacency
+    "Grapevine":      "Network",
+    # Functor — 3×10 projection functor
+    "Cannabis":       "Functor",
+    # Sampling — orientable-space samplers (void / relational / electrodynamic)
+    "Dragon":         "Sampling",
+    "Virus":          "Sampling",
+    "Bacteria":       "Sampling",
+    # Non-orientable — Möbius bundle
+    "Excavata":       "Non-orientable",
+    # Relation — relational structure on non-orientable space
+    "Archaeplastida": "Relation",
+    # Complement — cokernel / residual operators; -lo universalization active
+    "Myxozoa":        "Complement",
+    "Archaea":        "Complement",
+    "Protist":        "Complement",
+    # Recognition — set-mutation begins to be observable; Cluster 3 threshold
+    "Immune":         "Recognition",
+    "Neural":         "Recognition",
+    # Elemental — ontic vowel axis (A/O/I/E/Y/U = Mind±/Space±/Time±); Garden of Shakti
+    "Serpent":        "Elemental",
+    # Constitutional — sovereign-form register; full organism / angelic / chimeric / fae / Djinn
+    "Beast":          "Constitutional",
+    "Cherub":         "Constitutional",
+    "Chimera":        "Constitutional",
+    "Faerie":         "Constitutional",
+    "Djinn":          "Constitutional",
+    # Geometric — pure structural manifold (fold, curvature, phase, gradient)
+    "Fold":           "Geometric",
+    "Topology":       "Geometric",
+    "Phase":          "Geometric",
+    "Gradient":       "Geometric",
+    "Curvature":      "Geometric",
 }
-_COMPLEMENT_THRESHOLD: str = "Archaeplastida"  # anything with higher tongue index → Complement
 
 
 def _stage_for_tongue(idx: int) -> str:
@@ -124,15 +155,7 @@ def _stage_for_tongue(idx: int) -> str:
     name = tongue_name_for_index(idx)
     if name is None:
         return "Beyond"
-    stage = _TONGUE_STAGES.get(name)
-    if stage is not None:
-        return stage
-    # Any tongue beyond Archaeplastida is in the Complement stage
-    threshold_idx = _TONGUE_ORDER.get(_COMPLEMENT_THRESHOLD, 0)
-    if threshold_idx > 0 and idx > threshold_idx:
-        return "Complement"
-    # Cluster or other structural meta-tongues
-    return "Structural"
+    return _TONGUE_STAGES.get(name, "Structural")
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +284,7 @@ class GaohOperator:
 @dataclass
 class ManifoldPosition:
     """
-    Topological position of a compound on the 16-tongue manifold.
+    Topological position of a compound on the 29-tongue manifold.
 
     Derived from a list of byte-table addresses. Tongue ranges are
     always resolved from the live byte table, never hardcoded.
@@ -490,7 +513,7 @@ def check_reachability(
     """
     dragon_addresses: list[int] = [
         addr for addr in addresses
-        if SHYGAZUN_BYTE_TABLE.get(addr, {}).get("tongue") == "Dragon"
+        if addr in SHYGAZUN_BYTE_TABLE and SHYGAZUN_BYTE_TABLE[addr]["tongue"] == "Dragon"
     ]
 
     # Collect all Excavata-tongue byte addresses from the live table

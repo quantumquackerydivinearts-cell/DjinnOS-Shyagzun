@@ -204,7 +204,7 @@ _DJINN_RAW: Final[tuple[dict, ...]] = (
 
 
 def _build_djinn_registry(raw: tuple[dict, ...]) -> tuple[DjinnEntry, ...]:
-    return tuple(DjinnEntry(**entry) for entry in raw)  # type: ignore[misc]
+    return tuple(DjinnEntry(**entry) for entry in raw)  # type: ignore[misc, typeddict-item]
 
 
 DJINN_ENTRIES: Final[tuple[DjinnEntry, ...]] = _build_djinn_registry(_DJINN_RAW)

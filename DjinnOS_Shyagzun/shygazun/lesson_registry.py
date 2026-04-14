@@ -329,7 +329,8 @@ class LessonRegistry:
                 continue
             token = str(entry_obj.get("token") or "").strip()
             english_alias = str(entry_obj.get("english_alias") or "").strip()
-            person = int(entry_obj.get("person")) if entry_obj.get("person") is not None else 0
+            _person_raw = entry_obj.get("person")
+            person = int(_person_raw) if isinstance(_person_raw, (int, float, str)) else 0
             number = str(entry_obj.get("number") or "").strip()
             distance = str(entry_obj.get("distance_from_speaker_mind") or "").strip()
             if token == "" or english_alias == "" or person <= 0 or number == "":
@@ -340,7 +341,7 @@ class LessonRegistry:
                 decimals = _decimals_for_symbols(symbols)
             except ValueError:
                 symbols = _loose_symbols_for_surface(token)
-                decimals = _decimals_for_symbols(symbols) if symbols else []
+                decimals = _decimals_for_symbols(symbols) if symbols else ()
             self._pronoun_aliases[token] = {
                 "lesson_id": lesson.lesson_id,
                 "english_alias": english_alias,
@@ -375,7 +376,7 @@ class LessonRegistry:
                 decimals = _decimals_for_symbols(symbols)
             except ValueError:
                 symbols = _loose_symbols_for_surface(token)
-                decimals = _decimals_for_symbols(symbols) if symbols else []
+                decimals = _decimals_for_symbols(symbols) if symbols else ()
             self._lexeme_aliases[token] = {
                 "lesson_id": lesson.lesson_id,
                 "english_alias": english_alias,
@@ -408,7 +409,7 @@ class LessonRegistry:
                 decimals = _decimals_for_symbols(symbols)
             except ValueError:
                 symbols = _loose_symbols_for_surface(token)
-                decimals = _decimals_for_symbols(symbols) if symbols else []
+                decimals = _decimals_for_symbols(symbols) if symbols else ()
             self._feature_aliases[token] = {
                 "lesson_id": lesson.lesson_id,
                 "english_alias": english_alias,
@@ -1339,7 +1340,8 @@ def _token_matches_slot(token_obj: Mapping[str, Any], slot: ProjectionSlot) -> b
         return False
     if slot.person is not None:
         try:
-            if int(token_obj.get("person")) != slot.person:
+            _p = token_obj.get("person")
+            if not isinstance(_p, (int, float, str)) or int(_p) != slot.person:
                 return False
         except (TypeError, ValueError):
             return False

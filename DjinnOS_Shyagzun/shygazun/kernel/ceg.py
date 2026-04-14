@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import List, Sequence
 
-from shygazun.kernel.types import Edge
-from shygazun.kernel.types.events import KernelEventObj
+from .types import Edge
+from .types.events import KernelEventObj
 
 __all__ = ["CEG", "KernelEventObj"]
 

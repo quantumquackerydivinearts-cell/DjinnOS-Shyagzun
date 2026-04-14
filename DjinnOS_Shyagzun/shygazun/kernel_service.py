@@ -13,20 +13,20 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 
-from shygazun.lesson_registry import (
+from .lesson_registry import (
     LessonValidationError,
     load_lesson_registry,
     validate_lesson_payloads,
 )
-from shygazun.kernel.kernel import Kernel, RegisterPlugin
-from shygazun.kernel.registers import ALL_REGISTERS
-from shygazun.kernel.attestation import Attestation as StructuredAttestation, intent_hash_for_candidate
-from shygazun.kernel.policy import apply_frontier_policy, frontier_for_akinenwun
-from shygazun.kernel.policy.akinenwun_dictionary import AkinenwunDictionary
-from shygazun.kernel.policy.recombiner import frontier_hash, frontier_to_obj
-from shygazun.kernel.types import Clock, Edge, Frontier
-from shygazun.kernel.types.events import KernelEventObj
-from shygazun.sanctum.manifold import (
+from .kernel.kernel import Kernel, RegisterPlugin
+from .kernel.registers import ALL_REGISTERS
+from .kernel.attestation import Attestation as StructuredAttestation, intent_hash_for_candidate
+from .kernel.policy import apply_frontier_policy, frontier_for_akinenwun
+from .kernel.policy.akinenwun_dictionary import AkinenwunDictionary
+from .kernel.policy.recombiner import frontier_hash, frontier_to_obj
+from .kernel.types import Clock, Edge, Frontier
+from .kernel.types.events import KernelEventObj
+from .sanctum.manifold import (
     resolve_manifold_position,
     project_through_cannabis,
     check_reachability,
@@ -503,7 +503,7 @@ def _shop_cards_html(*, atelier_url: str, docs_url: str, website_url: str, shop_
     cards: list[str] = []
     for section in _shop_sections():
         tags = "".join(f'<span class="tag">{tag}</span>' for tag in section["tags"])  # type: ignore[arg-type]
-        override = link_overrides.get(section["id"], "")
+        override = link_overrides.get(str(section["id"]), "")
         cta_url = override or f"{atelier_url.rstrip('/')}/?panel={section['id']}"
         details_url = f"{shop_url.rstrip('/')}/{section['id']}"
         cards.append(
@@ -1047,22 +1047,22 @@ def shop_section_root(request: Request) -> str:
     notice = request.query_params.get("submitted")
     return _shop_section_html(section_id, notice=notice)
 @app.post("/public/shop/leads")
-def public_shop_lead(payload: dict) -> Response:
+def public_shop_lead(payload: dict) -> Response:  # type: ignore[empty-body]
     # store lead in your CRM/DB
     ...
 
-@app.post("/public/shop/quotes")  
-def public_shop_quote(payload: dict) -> Response:
+@app.post("/public/shop/quotes")
+def public_shop_quote(payload: dict) -> Response:  # type: ignore[empty-body]
     # store quote request in your DB
     ...
 
 @app.get("/public/shop/items")
-def public_shop_items(workspace_id: str, section_id: str) -> Response:
+def public_shop_items(workspace_id: str, section_id: str) -> Response:  # type: ignore[empty-body]
     # return items for this section from your DB
     ...
 
 @app.post("/public/shop/checkout-session")
-def public_shop_checkout(payload: dict) -> Response:
+def public_shop_checkout(payload: dict) -> Response:  # type: ignore[empty-body]
     # create Stripe checkout session, return {"url": stripe_url}
     ...
 
@@ -1084,10 +1084,10 @@ def shop_lead(
     quantity: str = Form(""),
     shipping_destination: str = Form(""),
     items: str = Form(""),
-) -> str:
+) -> Response:
     valid, reason = _validate_shop_submission(request=request, honeypot=company, ts=ts, section_id=section_id)
     if not valid:
-        return _shop_submission_html(ok=False, title="Request failed", detail=reason)
+        return HTMLResponse(_shop_submission_html(ok=False, title="Request failed", detail=reason))
     parts = []
     if organization: parts.append(f"Organisation: {organization}")
     if subtype: parts.append(f"Type: {subtype}")
@@ -1099,7 +1099,7 @@ def shop_lead(
     if items: parts.append(f"Items:\n{items}")
     if details: parts.append(details)
     full_details = "\n".join(parts)
-    payload = {
+    payload: dict[str, object] = {
         "full_name": full_name,
         "email": email or None,
         "phone": phone or None,
@@ -1109,7 +1109,7 @@ def shop_lead(
     ok, detail = _submit_shop_payload("/public/shop/leads", payload)
     if ok:
         return RedirectResponse(url=f"/{section_id}?submitted=lead", status_code=303)
-    return _shop_submission_html(ok=ok, title="Request failed", detail=detail)
+    return HTMLResponse(_shop_submission_html(ok=ok, title="Request failed", detail=detail))
 
 
 @app.post("/shop/quote", response_class=HTMLResponse)
@@ -1126,17 +1126,17 @@ def shop_quote(
     organization: str = Form(""),
     budget_range: str = Form(""),
     timeline: str = Form(""),
-) -> str:
+) -> Response:
     valid, reason = _validate_shop_submission(request=request, honeypot=company, ts=ts, section_id=section_id)
     if not valid:
-        return _shop_submission_html(ok=False, title="Quote request failed", detail=reason)
+        return HTMLResponse(_shop_submission_html(ok=False, title="Quote request failed", detail=reason))
     parts = []
     if organization: parts.append(f"Organisation: {organization}")
     if budget_range: parts.append(f"Budget: {budget_range}")
     if timeline: parts.append(f"Timeline: {timeline}")
     if details: parts.append(details)
     full_details = "\n".join(parts)
-    payload = {
+    payload_obj: dict[str, object] = {
         "full_name": full_name,
         "email": email or None,
         "phone": phone or None,
@@ -1144,21 +1144,21 @@ def shop_quote(
         "details": full_details,
         "section_id": section_id or "custom-orders",
     }
-    ok, detail = _submit_shop_payload("/public/shop/quotes", payload)
+    ok, detail = _submit_shop_payload("/public/shop/quotes", payload_obj)
     if ok:
         return RedirectResponse(url=f"/{section_id}?submitted=quote", status_code=303)
-    return _shop_submission_html(ok=ok, title="Quote request failed", detail=detail)
+    return HTMLResponse(_shop_submission_html(ok=ok, title="Quote request failed", detail=detail))
 
 
 @app.get("/shop/checkout")
 def shop_checkout(section: str) -> Response:
     section_id = str(section or "").strip()
     if not section_id:
-        return _shop_submission_html(ok=False, title="Checkout failed", detail="section_required")
+        return HTMLResponse(_shop_submission_html(ok=False, title="Checkout failed", detail="section_required"))
     ok, detail = _request_checkout_url(section_id)
     if ok:
         return RedirectResponse(url=detail, status_code=303)
-    return _shop_submission_html(ok=False, title="Checkout failed", detail=detail)
+    return HTMLResponse(_shop_submission_html(ok=False, title="Checkout failed", detail=detail))
 
 
 @app.get("/shop/{section_id}", response_class=HTMLResponse)
@@ -1565,10 +1565,10 @@ def v1_shygazun_lesson(lesson_id: str) -> Response:
 def v1_shygazun_project(req: BilingualProjectRequest) -> Response:
     try:
         payload = _lesson_registry.project_text(req.source_text)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except LessonValidationError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _json_response(payload)
 
 
@@ -1576,10 +1576,10 @@ def v1_shygazun_project(req: BilingualProjectRequest) -> Response:
 def v1_shygazun_cobra_surface(req: BilingualProjectRequest) -> Response:
     try:
         payload = _lesson_registry.cobra_surface(req.source_text)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except LessonValidationError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _json_response(payload)
 
 
@@ -1631,7 +1631,7 @@ def v1_lotus_pending(field_id: str) -> Response:
             lr = c.preconditions.lotus_requirement if hasattr(c.preconditions, "lotus_requirement") else None
             if lr is None:
                 continue
-            prov = list(c.provenance) if c.provenance else []
+            prov = list(getattr(c, "provenance", None) or [])
             tongue = prov[0].get("source") if prov else None
             pending.append({
                 "candidate_id": c.id,
@@ -1667,12 +1667,15 @@ def v1_attest_process(req: ProcessAttestRequest) -> Response:
         return _json_response({"accepted": True, "event": result})
 
     # Refusal (dataclass or dict)
-    refusal_obj = result if isinstance(result, dict) else {
-        "reason": getattr(result, "reason", "refusal"),
-        "frontier_id": getattr(result, "frontier_id", req.frontier_id),
-        "agent_id": getattr(result, "agent_id", req.agent_id),
-        "clock": getattr(result, "clock", _field.clock.tick),
-    }
+    refusal_obj: dict[str, Any] = (
+        cast(dict[str, Any], result) if isinstance(result, dict)
+        else {
+            "reason": getattr(result, "reason", "refusal"),
+            "frontier_id": getattr(result, "frontier_id", req.frontier_id),
+            "agent_id": getattr(result, "agent_id", req.agent_id),
+            "clock": getattr(result, "clock", _field.clock.tick),
+        }
+    )
     return _json_response({"accepted": False, "refusal": refusal_obj})
 
 

@@ -45,32 +45,32 @@ for _p in [_SHYGAZUN]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from shygazun.kernel.constants.byte_table import SHYGAZUN_BYTE_ROWS  # noqa: E402
-from shygazun.sanctum.Layers import coil_distance                     # noqa: E402
+from shygazun.kernel.constants.byte_table import SHYGAZUN_BYTE_ROWS, ShygazunByteEntry  # noqa: E402
+from shygazun.sanctum.Layers import coil_distance                                       # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Derived tongue ranges from the byte table at module load time.
 # NEVER use magic integers for tongue membership — derive from SHYGAZUN_BYTE_ROWS.
 # ---------------------------------------------------------------------------
 
-def _rows_for_tongue(tongue: str) -> list[dict]:
+def _rows_for_tongue(tongue: str) -> list[ShygazunByteEntry]:
     return [r for r in SHYGAZUN_BYTE_ROWS if r["tongue"] == tongue]
 
-def _rows_for_tongues(*tongues: str) -> list[dict]:
+def _rows_for_tongues(*tongues: str) -> list[ShygazunByteEntry]:
     return [r for r in SHYGAZUN_BYTE_ROWS if r["tongue"] in tongues]
 
 
 # Rose spine: counting values Gaoh (0/12) through Aonkiel (11)
 # The task spec gives decimals 31–42.  We derive this from the byte table.
-_ROSE_ALL: Final[list[dict]] = _rows_for_tongue("Rose")
+_ROSE_ALL: Final[list[ShygazunByteEntry]] = _rows_for_tongue("Rose")
 
-_SPINE_ROWS: Final[list[dict]] = [
+_SPINE_ROWS: Final[list[ShygazunByteEntry]] = [
     r for r in _ROSE_ALL
     if r["meaning"].startswith("Number ")
 ]
 # Maps spine decimal → Möbius value 0–11
 # Gaoh is "Number 12 / 0" → value 0.  Ao is "Number 1" → value 1. Etc.
-def _spine_value(row: dict) -> int:
+def _spine_value(row: ShygazunByteEntry) -> int:
     meaning = row["meaning"]
     if "12 / 0" in meaning or "12/0" in meaning:
         return 0
@@ -81,16 +81,16 @@ def _spine_value(row: dict) -> int:
             continue
     return 0
 
-_SPINE_BY_DECIMAL: Final[dict[int, dict]] = {r["decimal"]: r for r in _SPINE_ROWS}
-_SPINE_BY_VALUE:   Final[dict[int, dict]] = {_spine_value(r): r for r in _SPINE_ROWS}
+_SPINE_BY_DECIMAL: Final[dict[int, ShygazunByteEntry]] = {r["decimal"]: r for r in _SPINE_ROWS}
+_SPINE_BY_VALUE:   Final[dict[int, ShygazunByteEntry]] = {_spine_value(r): r for r in _SPINE_ROWS}
 
 # Primordial operators (Rose, Ha/Ga/Wu/Na/Ung — decimals 43–47)
 _PRIMORDIAL_SYMBOLS: Final[frozenset[str]] = frozenset({"Ha", "Ga", "Wu", "Na", "Ung"})
-_PRIMORDIAL_ROWS: Final[list[dict]] = [r for r in _ROSE_ALL if r["symbol"] in _PRIMORDIAL_SYMBOLS]
-_PRIMORDIAL_BY_SYMBOL: Final[dict[str, dict]] = {r["symbol"]: r for r in _PRIMORDIAL_ROWS}
+_PRIMORDIAL_ROWS: Final[list[ShygazunByteEntry]] = [r for r in _ROSE_ALL if r["symbol"] in _PRIMORDIAL_SYMBOLS]
+_PRIMORDIAL_BY_SYMBOL: Final[dict[str, ShygazunByteEntry]] = {r["symbol"]: r for r in _PRIMORDIAL_ROWS}
 
 # Spectral operators (Rose, Ru–AE — frequency/color axis)
-_SPECTRAL_ROWS: Final[list[dict]] = [
+_SPECTRAL_ROWS: Final[list[ShygazunByteEntry]] = [
     r for r in _ROSE_ALL
     if r["symbol"] not in _PRIMORDIAL_SYMBOLS
     and r["symbol"] != "Gaoh"
@@ -100,20 +100,20 @@ _SPECTRAL_ROWS: Final[list[dict]] = [
 # Dimensional operator rows: every row that is NOT on the spine
 # Includes: Rose spectral, Rose Primordials, all other tongues
 # Excludes: reserved bytes 124–127
-_DIM_ROWS: Final[list[dict]] = [
+_DIM_ROWS: Final[list[ShygazunByteEntry]] = [
     r for r in SHYGAZUN_BYTE_ROWS
     if r["decimal"] not in _SPINE_BY_DECIMAL
     and not (124 <= r["decimal"] <= 127)
 ]
-_DIM_BY_DECIMAL: Final[dict[int, dict]] = {r["decimal"]: r for r in _DIM_ROWS}
+_DIM_BY_DECIMAL: Final[dict[int, ShygazunByteEntry]] = {r["decimal"]: r for r in _DIM_ROWS}
 
 # All tongue entry lists, keyed by tongue name, used for dimensional projection
-_TONGUE_ROWS: Final[dict[str, list[dict]]] = {}
+_TONGUE_ROWS: Final[dict[str, list[ShygazunByteEntry]]] = {}
 for _r in SHYGAZUN_BYTE_ROWS:
     _TONGUE_ROWS.setdefault(_r["tongue"], []).append(_r)
 
 # Gaoh constant (used for Gaoh-fold operation and as reference for value 0)
-_GAOH_ROW: Final[dict] = _SPINE_BY_VALUE[0]
+_GAOH_ROW: Final[ShygazunByteEntry] = _SPINE_BY_VALUE[0]
 
 # ---------------------------------------------------------------------------
 # Data structures
@@ -435,22 +435,22 @@ def resolve_compound(state: CalculatorState) -> CompoundAddress:
 # Convenience: enumerate entries for the keyboard UI
 # ---------------------------------------------------------------------------
 
-def spine_entries() -> list[dict]:
+def spine_entries() -> list[ShygazunByteEntry]:
     """Return spine rows in coil order (Gaoh=0 first, Aonkiel=11 last)."""
     return sorted(_SPINE_ROWS, key=_spine_value)
 
 
-def spectral_entries() -> list[dict]:
+def spectral_entries() -> list[ShygazunByteEntry]:
     """Return Rose spectral entries (Ru through AE) in address order."""
     return sorted(_SPECTRAL_ROWS, key=lambda r: r["decimal"])
 
 
-def primordial_entries() -> list[dict]:
+def primordial_entries() -> list[ShygazunByteEntry]:
     """Return Rose Primordial entries (Ha, Ga, Wu, Na, Ung) in address order."""
     return sorted(_PRIMORDIAL_ROWS, key=lambda r: r["decimal"])
 
 
-def tongue_entries(tongue: str) -> list[dict]:
+def tongue_entries(tongue: str) -> list[ShygazunByteEntry]:
     """Return all byte table entries for a given tongue, in address order.
     Excludes reserved bytes 124–127."""
     rows = [
