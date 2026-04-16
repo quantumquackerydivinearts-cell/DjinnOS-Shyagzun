@@ -43,10 +43,10 @@ from ..site_models.schemas import (
     ValidateContentResponse,
 )
 from ..site_services.atlas import apply_sprite_animator, create_atlas_from_png_bytes
-from ..site_services.cobra import (
+from ..site_services.kobra import (
+    compile_kobra_scene,
     entities_to_voxels,
-    parse_cobra,
-    semantic_to_bilingual_trust,
+    scene_to_bilingual_trust,
 )
 from ..site_services.daisy import bodyplan_to_voxels, build_bodyplan
 from ..site_services.tick_engine import apply_tick
@@ -107,71 +107,70 @@ async def sync_renderer_tables(req: SyncTablesRequest) -> SyncTablesResponse:
     )
 
 
-# ── 3. Compile Cobra source → renderer JSON + engine state ───────────────────
+# ── 3. Compile Kobra source → renderer JSON + engine state ───────────────────
 
 @router.post(
-    "/scene/compile_cobra",
+    "/scene/compile_kobra",
     response_model=CompileCobraResponse,
-    summary="Compile a Cobra source document into a renderer-ready scene",
+    summary="Compile a Kobra source document into a renderer-ready scene",
 )
-async def compile_cobra(req: CompileCobraRequest) -> CompileCobraResponse:
-    if len(req.cobra_source.encode()) > 256_000:
+async def compile_kobra(req: CompileCobraRequest) -> CompileCobraResponse:
+    if len(req.kobra_source.encode()) > 256_000:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="cobra_source exceeds 256 KB limit",
+            detail="kobra_source exceeds 256 KB limit",
         )
 
-    parsed = parse_cobra(req.cobra_source, strict=False)
-    voxels = entities_to_voxels(parsed.entities)
+    scene = compile_kobra_scene(req.kobra_source)
+    voxels = entities_to_voxels(scene.entities)
+    trust = scene_to_bilingual_trust(scene)
 
     scene_id = req.scene_id or f"{req.realm_id}/renderer-lab"
 
     renderer_json: dict[str, Any] = {
-        "schema":    "qqva.renderer.v1",
-        "scene_id":  scene_id,
-        "scene_name": req.scene_name or scene_id,
-        "voxels":    voxels,
-        "entities":  [],
-        "settings":  parsed.settings,
-        "rules":     [
-            {"id": r.id, "condition": r.condition, "effect": r.effect}
-            for r in parsed.rules
-        ],
-        "semantic":  parsed.semantic,
+        "schema":      "qqva.renderer.v1",
+        "scene_id":    scene_id,
+        "scene_name":  req.scene_name or scene_id,
+        "voxels":      voxels,
+        "entities":    [],
+        "settings":    {},
+        "semantic":    trust,
         "compiled_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
 
     engine_state: dict[str, Any] = {
-        "scene_id":    scene_id,
+        "scene_id":      scene_id,
         "world_time_ms": 0,
-        "entities":    {v["id"]: v for v in voxels},
-        "tables":      {},
-        "post_inbox":  [],
-        **parsed.settings,
+        "entities":      {v["id"]: v for v in voxels},
+        "tables":        {},
+        "post_inbox":    [],
     }
 
-    # Record in lineage
-    lineage_id = f"cobra_compile_{uuid4().hex[:12]}"
+    lineage_id = f"kobra_compile_{uuid4().hex[:12]}"
     store = get_lineage_store()
     record = store.create_record(
         lineage_id=lineage_id,
         workspace_id=req.workspace_id,
         actor_id="system",
-        action_kind="scene.compile_cobra",
+        action_kind="scene.compile_kobra",
     )
-    record.set_layer(0, {"source_bytes": len(req.cobra_source), "scene_id": scene_id})
-    record.set_layer(1, {"entity_count": len(voxels), "warnings": parsed.warnings})
+    record.set_layer(0, {"source_bytes": len(req.kobra_source), "scene_id": scene_id})
+    record.set_layer(1, {
+        "entity_count":  len(voxels),
+        "warnings":      scene.warnings,
+        "frontier_open": scene.frontier_open,
+    })
     record.set_layer(6, renderer_json)
     store.append(record)
 
     return CompileCobraResponse(
-        ok=True,
+        ok=not scene.errors,
         scene_id=scene_id,
         renderer_json=renderer_json,
         engine_state=engine_state,
         voxels=voxels,
         entities=[],
-        warnings=parsed.warnings,
+        warnings=scene.warnings + scene.errors,
         lineage_id=lineage_id,
     )
 
@@ -188,18 +187,18 @@ async def validate_content(req: ValidateContentRequest) -> ValidateContentRespon
     warnings: list[str] = []
     bilingual_trust_dict: dict[str, Any] = {}
 
-    if req.source_type == "cobra":
-        parsed = parse_cobra(req.payload, strict=req.strict_bilingual)
-        errors.extend(parsed.errors)
-        warnings.extend(parsed.warnings)
-        bilingual_trust_dict = semantic_to_bilingual_trust(parsed.semantic)
+    if req.source_type in ("kobra", "cobra"):
+        scene = compile_kobra_scene(req.payload)
+        errors.extend(scene.errors)
+        warnings.extend(scene.warnings)
+        bilingual_trust_dict = scene_to_bilingual_trust(scene)
 
         if req.strict_bilingual:
             bt = bilingual_trust_dict
             if bt.get("authority_level") == "unknown":
-                errors.append("strict_bilingual: §AUTHORITY annotation required")
+                errors.append("strict_bilingual: authority unresolved — parse produced Echo")
             if bt.get("trust_grade") == "unknown":
-                errors.append("strict_bilingual: §TRUST annotation required")
+                errors.append("strict_bilingual: trust unattested — FrontierOpen unresolved")
 
     elif req.source_type == "json":
         try:
@@ -437,20 +436,18 @@ async def apply_sprite_animator_endpoint(
     summary="Interpret Shygazun source and return semantic summary (BilingualTrust)",
 )
 async def shygazun_interpret(req: ShygazunInterpretRequest) -> ShygazunInterpretResponse:
-    # Parse Cobra to extract §-prefixed semantic annotations
-    parsed = parse_cobra(req.source, strict=req.strict)
-    trust_dict = semantic_to_bilingual_trust(parsed.semantic)
+    scene = compile_kobra_scene(req.source)
+    trust_dict = scene_to_bilingual_trust(scene)
 
-    # Any non-§ ENTITY lines become the output string
     entity_lines = [
-        f"{e.kind} {e.id} @ ({e.x},{e.y},{e.z})"
-        for e in parsed.entities
+        f"{e.kind or 'entity'} {e.id} @ ({e.x},{e.y},{e.z})"
+        for e in scene.entities
     ]
     output = "\n".join(entity_lines) if entity_lines else "(no entities)"
 
     from ..site_models.schemas import BilingualTrust
     return ShygazunInterpretResponse(
-        ok=True,
+        ok=not scene.errors,
         output=output,
         semantic_summary=BilingualTrust(**trust_dict),
         tokens_used=len(req.source.split()),

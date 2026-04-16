@@ -1,0 +1,1266 @@
+{
+  "game_slug": "7_KLGS",
+  "characters": [
+    {
+      "id": "0000_test",
+      "name": "User1",
+      "type": "test"
+    },
+    {
+      "id": "0000_0451",
+      "name": "Alexandria Sophia Hypatia",
+      "type": "HIST",
+      "full_name": "Alexandria Sophia Hypatia",
+      "note": "The developer Alexi's avatar. ID uses historical year reference (Hypatia of Alexandria). Protagonist/player character across the series. NPC in Sulphera's Royal Ring."
+    },
+    {
+      "id": "0001_TOWN",
+      "name": "Joannah",
+      "type": "TOWN"
+    },
+    {
+      "id": "0002_TOWN",
+      "name": "Wells",
+      "type": "TOWN"
+    },
+    {
+      "id": "0003_TOWN",
+      "name": "Lavelle",
+      "type": "TOWN"
+    },
+    {
+      "id": "0004_TOWN",
+      "name": "Sidhal",
+      "type": "TOWN"
+    },
+    {
+      "id": "0005_WTCH",
+      "name": "Kore",
+      "type": "WTCH"
+    },
+    {
+      "id": "0006_WTCH",
+      "name": "Alfir",
+      "type": "WTCH",
+      "role": "mentor",
+      "teaches": "infernal_meditation",
+      "note": "Teaches Infernal Meditation early in Game 7. Gateway to Sulphera access."
+    },
+    {
+      "id": "0007_WTCH",
+      "name": "Forest",
+      "type": "WTCH"
+    },
+    {
+      "id": "0008_PRST",
+      "name": "Saffron",
+      "type": "PRST"
+    },
+    {
+      "id": "0009_PRST",
+      "name": "Lucion",
+      "type": "PRST"
+    },
+    {
+      "id": "0010_PRST",
+      "name": "Rachelle",
+      "type": "PRST"
+    },
+    {
+      "id": "0011_ASSN",
+      "name": "Hue",
+      "type": "ASSN"
+    },
+    {
+      "id": "0012_ASSN",
+      "name": "Cyrus",
+      "type": "ASSN"
+    },
+    {
+      "id": "0013_ASSN",
+      "name": "Asmoth",
+      "type": "ASSN"
+    },
+    {
+      "id": "0014_ROYL",
+      "name": "Chancellor Kelly",
+      "type": "ROYL"
+    },
+    {
+      "id": "0015_ROYL",
+      "name": "King Bombastus",
+      "type": "ROYL"
+    },
+    {
+      "id": "0016_ROYL",
+      "name": "Queen Hildegarde",
+      "type": "ROYL"
+    },
+    {
+      "id": "0017_ROYL",
+      "name": "Lord Nexiott",
+      "type": "ROYL"
+    },
+    {
+      "id": "0018_ROYL",
+      "name": "Duke Eomann",
+      "type": "ROYL"
+    },
+    {
+      "id": "0019_ROYL",
+      "name": "Princess Luminyx",
+      "type": "ROYL",
+      "note": "Luminyx is a Princess in Game 7. She becomes the mortal in Game 1 (alive/mortal). She does not become a spirit until 1782."
+    },
+    {
+      "id": "1001_GNOM",
+      "name": "Clint",
+      "type": "GNOM"
+    },
+    {
+      "id": "1002_GNOM",
+      "name": "Gnolan",
+      "type": "GNOM"
+    },
+    {
+      "id": "1003_GNOM",
+      "name": "Winnona",
+      "type": "GNOM"
+    },
+    {
+      "id": "1004_NYMP",
+      "name": "Amelia",
+      "type": "NYMP"
+    },
+    {
+      "id": "1005_NYMP",
+      "name": "Echo",
+      "type": "NYMP"
+    },
+    {
+      "id": "1006_NYMP",
+      "name": "Karlia",
+      "type": "NYMP"
+    },
+    {
+      "id": "1007_UNDI",
+      "name": "Sophia",
+      "type": "UNDI"
+    },
+    {
+      "id": "1008_UNDI",
+      "name": "Lectura",
+      "type": "UNDI"
+    },
+    {
+      "id": "1009_UNDI",
+      "name": "Faygoru",
+      "type": "UNDI"
+    },
+    {
+      "id": "1010_SALA",
+      "name": "Chazak",
+      "type": "SALA"
+    },
+    {
+      "id": "1011_SALA",
+      "name": "Axiozul",
+      "type": "SALA"
+    },
+    {
+      "id": "1012_SALA",
+      "name": "Savvi",
+      "type": "SALA"
+    },
+    {
+      "id": "1013_DRYA",
+      "name": "Eukala",
+      "type": "DRYA"
+    },
+    {
+      "id": "1014_DRYA",
+      "name": "Tymona",
+      "type": "DRYA"
+    },
+    {
+      "id": "1015_DRYA",
+      "name": "Vajil",
+      "type": "DRYA"
+    },
+    {
+      "id": "1016_DJNN",
+      "name": "Giann",
+      "type": "DJNN"
+    },
+    {
+      "id": "1017_DJNN",
+      "name": "Keshi",
+      "type": "DJNN"
+    },
+    {
+      "id": "1018_DJNN",
+      "name": "Drovitth",
+      "type": "DJNN",
+      "note": "Drovitth is the Djinn who built the Orrery alongside the 7 Sin Rulers and King Paimon."
+    },
+    {
+      "id": "2001_VDWR",
+      "name": "Haldoro",
+      "type": "VDWR",
+      "title": "Knower of Minds",
+      "observes": "silence"
+    },
+    {
+      "id": "2002_VDWR",
+      "name": "Vios",
+      "type": "VDWR",
+      "title": "Knower of Souls",
+      "observes": "omission"
+    },
+    {
+      "id": "2003_VDWR",
+      "name": "Negaya",
+      "type": "VDWR",
+      "title": "Knower of Bodies",
+      "observes": "kill"
+    },
+    {
+      "id": "2004_DMON",
+      "name": "Otheiru",
+      "type": "DMON"
+    },
+    {
+      "id": "2005_DMON",
+      "name": "Kielum",
+      "type": "DMON"
+    },
+    {
+      "id": "2006_DMON",
+      "name": "Ruzoa",
+      "type": "DMON"
+    },
+    {
+      "id": "2007_DMON",
+      "name": "Po'Elfan",
+      "type": "DMON"
+    },
+    {
+      "id": "2008_DMON",
+      "name": "Kaganue",
+      "type": "DMON"
+    },
+    {
+      "id": "2009_DMON",
+      "name": "Zukoru",
+      "type": "DMON"
+    },
+    {
+      "id": "2010_DMON",
+      "name": "St. Alaro",
+      "type": "DMON",
+      "alias": "Alastor",
+      "note": "The Radio Demon of Pride. Operating in Aeralune under the alias St. Alaro. Encountered through the secret ending arc — not a traversal-path NPC. Offers a Faustian pact: power and a game in exchange for a permanent mark on the player's BreathOfKo (his signature written into the fractal save state). The mark persists across all subsequent games and is erasable only in Game 18 (Mystic Blood) through continuous righteous playthroughs. He and Hypatia are peers — both navigating the deep structure of the 9th Ring."
+    },
+    {
+      "id": "2010_DEMI",
+      "name": "Shapieru",
+      "type": "DEMI"
+    },
+    {
+      "id": "2011_DEMI",
+      "name": "Lanzu",
+      "type": "DEMI"
+    },
+    {
+      "id": "2012_DEMI",
+      "name": "Tagame",
+      "type": "DEMI"
+    },
+    {
+      "id": "2013_SOLD",
+      "name": "Captain Lanvaki",
+      "type": "SOLD"
+    },
+    {
+      "id": "2014_SOLD",
+      "name": "Sgt. Akande",
+      "type": "SOLD"
+    },
+    {
+      "id": "2015_SOLD",
+      "name": "Pvt. Kilesha",
+      "type": "SOLD"
+    },
+    {
+      "id": "2016_GODS",
+      "name": "Moshize",
+      "type": "GODS",
+      "domain": "Attainment and Harmony",
+      "note": "Simultaneously Goddess AND God — the only deity formally mirroring Shygazun dual-aspect."
+    },
+    {
+      "id": "2017_GODS",
+      "name": "Shakzefan",
+      "type": "GODS",
+      "domain": "Growth and Loss",
+      "note": "Canonical spelling: Shakzefan (NOT Shakzebar)"
+    },
+    {
+      "id": "2018_GODS",
+      "name": "Lakota",
+      "type": "GODS",
+      "domain": "River of Fire of Sulphera, Wisdom",
+      "note": "Father of the Salamanders. Fire = clarification-primary, not destruction-primary."
+    },
+    {
+      "id": "2019_GODS",
+      "name": "Jabiru",
+      "type": "GODS",
+      "domain": "Stories, Language, Knowledge",
+      "note": "Shygazun kernel is Jabiru's domain. The byte table is sacred text in his province."
+    },
+    {
+      "id": "2020_GODS",
+      "name": "Ohadame",
+      "type": "GODS",
+      "domain": "Past Life Memory",
+      "note": "Bridges Ko's fresh-dream with accumulated player history when invoked."
+    },
+    {
+      "id": "2021_GODS",
+      "name": "Ko",
+      "type": "GODS",
+      "domain": "Dreams, The Unconscious, The Moon",
+      "note": "Black Ouroboros, 10 arms, 7 spirals. Assigns VITRIOL stats in dream sequences."
+    },
+    {
+      "id": "2022_GODS",
+      "name": "Koga",
+      "type": "GODS",
+      "domain": "Magic and Mystery"
+    },
+    {
+      "id": "2023_GODS",
+      "name": "Mona",
+      "type": "GODS",
+      "domain": "Play and Torment",
+      "note": "Governs Faekin temperament. For Faekin, play IS torment and torment IS play — unified."
+    },
+    {
+      "id": "2024_GODS",
+      "name": "Zoha",
+      "type": "GODS",
+      "domain": "Tranquility and Warriordom"
+    },
+    {
+      "id": "2025_PRIM",
+      "name": "Ga",
+      "type": "PRIM"
+    },
+    {
+      "id": "2026_PRIM",
+      "name": "Na",
+      "type": "PRIM"
+    },
+    {
+      "id": "2027_PRIM",
+      "name": "Ha",
+      "type": "PRIM"
+    },
+    {
+      "id": "2028_PRIM",
+      "name": "Ung",
+      "type": "PRIM"
+    },
+    {
+      "id": "2029_PRIM",
+      "name": "Wu",
+      "type": "PRIM"
+    },
+    {
+      "id": "2030_PRIM",
+      "name": "Kael",
+      "type": "PRIM",
+      "note": "Aether element that reflexively achieves Primordial status."
+    },
+    {
+      "id": "3001_ANMU",
+      "name": "Lapidus",
+      "type": "ANMU",
+      "realm": "Overworld",
+      "note": "Spirit of the Overworld — the animating World Soul of the surface/material realm."
+    },
+    {
+      "id": "3002_ANMU",
+      "name": "Mercurie",
+      "type": "ANMU",
+      "realm": "Faewilds",
+      "note": "Spirit of the Faewilds — the animating World Soul of the orthogonal realm. The Faewilds does not sit between Overworld and Underworld; it is perpendicular to that axis entirely."
+    },
+    {
+      "id": "3003_ANMU",
+      "name": "Sulphera",
+      "type": "ANMU",
+      "realm": "Underworld",
+      "note": "Spirit of the Underworld. Realm and spirit are the same entity. When Sulphera reads/writes the Orrery it is the World Soul of the Underworld acting as substrate."
+    },
+    {
+      "id": "3004_ANMU",
+      "name": "Pythia Solunikae",
+      "type": "ANMU",
+      "dual_type": "PRIM",
+      "realm": null,
+      "note": "Has touched and been touched by all three realms (Overworld, Faewilds, Underworld). Born of all their affects as a production of the Primordial drama. Both ANMU and PRIM by association — the only being who holds both."
+    }
+  ],
+  "quests": [
+    {
+      "id": "0001_KLST",
+      "name": "Fate Knocks",
+      "slug": "0001_KLST"
+    },
+    {
+      "id": "0002_KLST",
+      "name": "Destiny Calls",
+      "slug": "0002_KLST"
+    },
+    {
+      "id": "0003_KLST",
+      "name": "Yellow Brick Road",
+      "slug": "0003_KLST"
+    },
+    {
+      "id": "0004_KLST",
+      "name": "The Golden Path",
+      "slug": "0004_KLST"
+    },
+    {
+      "id": "0005_KLST",
+      "name": "Darker Secrets",
+      "slug": "0005_KLST"
+    },
+    {
+      "id": "0006_KLST",
+      "name": "Twaddlespeak",
+      "slug": "0006_KLST"
+    },
+    {
+      "id": "0007_KLST",
+      "name": "Dream of Glass",
+      "slug": "0007_KLST"
+    },
+    {
+      "id": "0008_KLST",
+      "name": "Bunsen For Hire",
+      "slug": "0008_KLST"
+    },
+    {
+      "id": "0009_KLST",
+      "name": "Demons and Diamonds",
+      "note": "Unlocked by completing prior quests and establishing sufficient Lapidus market presence to have goods smuggled into Sulphera. An unnamed imp visits the player's home shop at the witching hour and offers a trade: one Desire Crystal for Hypatia's Dagger. Three outcomes: (1) steal the crystal from his corpse — it shatters; (2) accept the trade — crystal fades to dust after one use, enough to enter Ring 1 (Pride) without Infernal Meditation; (3) reject the trade — the imp asks instead for a bottle of absinthe.",
+      "slug": "0009_KLST"
+    },
+    {
+      "id": "0010_KLST",
+      "name": "Perfect Circles",
+      "slug": "0010_KLST"
+    },
+    {
+      "id": "0011_KLST",
+      "name": "The Siren Sounds",
+      "slug": "0011_KLST"
+    },
+    {
+      "id": "0012_KLST",
+      "name": "The Mines",
+      "slug": "0012_KLST"
+    },
+    {
+      "id": "0013_KLST",
+      "name": "War Never Changes",
+      "slug": "0013_KLST"
+    },
+    {
+      "id": "0014_KLST",
+      "name": "Bombast",
+      "slug": "0014_KLST"
+    },
+    {
+      "id": "0015_KLST",
+      "name": "Underworld",
+      "slug": "0015_KLST"
+    },
+    {
+      "id": "0016_KLST",
+      "name": "Transcendental",
+      "slug": "0016_KLST"
+    },
+    {
+      "id": "0017_KLST",
+      "name": "Loss, I Fear",
+      "slug": "0017_KLST"
+    },
+    {
+      "id": "0018_KLST",
+      "name": "Growing Pains",
+      "slug": "0018_KLST"
+    },
+    {
+      "id": "0019_KLST",
+      "name": "Wish Upon a Horse",
+      "slug": "0019_KLST"
+    },
+    {
+      "id": "0020_KLST",
+      "name": "Wish Upon a Falling Star",
+      "slug": "0020_KLST"
+    },
+    {
+      "id": "0021_KLST",
+      "name": "Starlight Shows",
+      "slug": "0021_KLST"
+    },
+    {
+      "id": "0022_KLST",
+      "name": "Good Soldiers",
+      "slug": "0022_KLST"
+    },
+    {
+      "id": "0023_KLST",
+      "name": "Mercenary Type",
+      "slug": "0023_KLST"
+    },
+    {
+      "id": "0024_KLST",
+      "name": "Death Hallows",
+      "slug": "0024_KLST"
+    },
+    {
+      "id": "0025_KLST",
+      "name": "Assassination",
+      "slug": "0025_KLST"
+    },
+    {
+      "id": "0026_KLST",
+      "name": "Good Grief",
+      "slug": "0026_KLST"
+    },
+    {
+      "id": "0027_KLST",
+      "name": "Echoes of the Past",
+      "slug": "0027_KLST"
+    },
+    {
+      "id": "0028_KLST",
+      "name": "A Haunting Notion",
+      "slug": "0028_KLST"
+    },
+    {
+      "id": "0029_KLST",
+      "name": "Doom and Gloom",
+      "slug": "0029_KLST"
+    },
+    {
+      "id": "0030_KLST",
+      "name": "Plasma Freeze",
+      "slug": "0030_KLST"
+    },
+    {
+      "id": "0031_KLST",
+      "name": "Master Koga",
+      "slug": "0031_KLST"
+    },
+    {
+      "id": "0032_KLST",
+      "name": "Mona Lisa",
+      "slug": "0032_KLST"
+    },
+    {
+      "id": "0033_KLST",
+      "name": "Zoha are",
+      "slug": "0033_KLST"
+    },
+    {
+      "id": "0034_KLST",
+      "name": "Children? By Atom!",
+      "slug": "0034_KLST"
+    },
+    {
+      "id": "0035_KLST",
+      "name": "Choices in Hell",
+      "slug": "0035_KLST"
+    },
+    {
+      "id": "0036_KLST",
+      "name": "Consequence",
+      "slug": "0036_KLST"
+    },
+    {
+      "id": "0037_KLST",
+      "name": "Witching Hour",
+      "slug": "0037_KLST"
+    },
+    {
+      "id": "0038_KLST",
+      "name": "Wild Things",
+      "slug": "0038_KLST"
+    },
+    {
+      "id": "0039_KLST",
+      "name": "Storybook",
+      "slug": "0039_KLST"
+    },
+    {
+      "id": "0040_KLST",
+      "name": "Priceless",
+      "slug": "0040_KLST"
+    },
+    {
+      "id": "0041_KLST",
+      "name": "Poisons and Lectures",
+      "slug": "0041_KLST"
+    },
+    {
+      "id": "0042_KLST",
+      "name": "Meaning Less",
+      "slug": "0042_KLST"
+    },
+    {
+      "id": "0043_KLST",
+      "name": "Less is More",
+      "slug": "0043_KLST"
+    },
+    {
+      "id": "0044_KLST",
+      "name": "Voracity",
+      "slug": "0044_KLST"
+    },
+    {
+      "id": "0045_KLST",
+      "name": "Good old .45",
+      "slug": "0045_KLST"
+    },
+    {
+      "id": "0046_KLST",
+      "name": "Most Obscenities",
+      "slug": "0046_KLST"
+    },
+    {
+      "id": "0047_KLST",
+      "name": "Shaped Charge",
+      "slug": "0047_KLST"
+    },
+    {
+      "id": "0048_KLST",
+      "name": "De Lucion",
+      "slug": "0048_KLST"
+    },
+    {
+      "id": "0049_KLST",
+      "name": "Had Me in the First Half",
+      "slug": "0049_KLST"
+    },
+    {
+      "id": "0050_KLST",
+      "name": "Prophet of Ko",
+      "slug": "0050_KLST"
+    },
+    {
+      "id": "0051_KLST",
+      "name": "Eclipse!",
+      "slug": "0051_KLST"
+    },
+    {
+      "id": "0052_KLST",
+      "name": "The Abyss",
+      "slug": "0052_KLST"
+    },
+    {
+      "id": "0053_KLST",
+      "name": "Chosen Dues",
+      "slug": "0053_KLST"
+    },
+    {
+      "id": "0054_KLST",
+      "name": "Stolen Valor",
+      "slug": "0054_KLST"
+    },
+    {
+      "id": "0055_KLST",
+      "name": "Ring-a-Ding-Ding",
+      "slug": "0055_KLST"
+    },
+    {
+      "id": "0056_KLST",
+      "name": "Priestly Affair",
+      "slug": "0056_KLST"
+    },
+    {
+      "id": "0057_KLST",
+      "name": "Fairly, a Priestess",
+      "slug": "0057_KLST"
+    },
+    {
+      "id": "0058_KLST",
+      "name": "Rouse The Depths",
+      "slug": "0058_KLST"
+    },
+    {
+      "id": "0059_KLST",
+      "name": "The Woods",
+      "slug": "0059_KLST"
+    },
+    {
+      "id": "0060_KLST",
+      "name": "In Service To Starlight",
+      "slug": "0060_KLST"
+    },
+    {
+      "id": "0061_KLST",
+      "name": "Ko's Great Tale",
+      "slug": "0061_KLST"
+    }
+  ],
+  "items": [
+    {
+      "id": "0035_KLIT",
+      "name": "Health Potion",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Cherry",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Apple",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Pomegranate",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Barley",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Pine Needle",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Acorn",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Lotus Flower",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Lotus Seed",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Pine Nut",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Necklace",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Ring",
+      "stackable": true
+    },
+    {
+      "id": null,
+      "name": "Ingot",
+      "stackable": true
+    },
+    {
+      "id": null,
+      "name": "Coin",
+      "stackable": true
+    },
+    {
+      "id": null,
+      "name": "Dagger",
+      "stackable": true
+    },
+    {
+      "id": null,
+      "name": "Sword",
+      "stackable": true
+    },
+    {
+      "id": null,
+      "name": "Shield",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Bow",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Arrow",
+      "stackable": true
+    },
+    {
+      "id": null,
+      "name": "Staff",
+      "stackable": true
+    },
+    {
+      "id": null,
+      "name": "Desire Crystal",
+      "stackable": false,
+      "note": "Asmodean material. Structurally a time crystal — desire is forward-temporal. Swallowing deposits the bearer in the timeline most consonant with their dominant desire. In 0009_KLST: offered by the imp in trade for Hypatia's Dagger. Fades to dust after one use — sufficient for a single entry into Ring 1 (Pride) without Infernal Meditation. If stolen instead of traded, it shatters on the imp's corpse."
+    },
+    {
+      "id": null,
+      "name": "Hypatia's Dagger",
+      "stackable": false,
+      "note": "Forged by Hypatia and left with the player at their first meeting. Designed for processing raw reagents. The imp's desired trade item in 0009_KLST."
+    },
+    {
+      "id": null,
+      "name": "Absinthe",
+      "stackable": false,
+      "note": "The imp's fallback ask in 0009_KLST if the Desire Crystal trade is rejected."
+    },
+    {
+      "id": null,
+      "name": "Wormwood",
+      "stackable": true
+    },
+    {
+      "id": null,
+      "name": "Anise",
+      "stackable": true
+    },
+    {
+      "id": null,
+      "name": "Fennel",
+      "stackable": true
+    },
+    {
+      "id": null,
+      "name": "White Wine",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Aqua Vitae",
+      "stackable": false,
+      "note": "Distilled white wine. Brandy of white wine. Ingredient in Absinthe."
+    },
+    {
+      "id": null,
+      "name": "Angelic Spear",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Angelic Gun",
+      "stackable": false
+    },
+    {
+      "id": null,
+      "name": "Demonic Irons",
+      "stackable": false
+    }
+  ],
+  "objects": [
+    {
+      "id": "8000_KLOB",
+      "name": "Mortar",
+      "default_trait": 0
+    },
+    {
+      "id": "2000_KLOB",
+      "name": "Pestle",
+      "default_trait": 1
+    },
+    {
+      "id": null,
+      "name": "Rag",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Stand",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Retort",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Volume Flask",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Reagent Bottle",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Sand",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Refined Sand",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Furnace",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Wooden Spoon",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Copper Spoon",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Iron Spoon",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Steel Spoon",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Granite Spoon",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Bellows",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Crucible",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Bottle",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Jar",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Diatom Earth",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Glycerine",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Petrolium Jelly",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Saltpeter",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Sulphur",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Charcoal",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Tin",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Iron",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Gold",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Copper",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Mercury",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Silver",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Lead",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Nickel",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Cyanide",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Ashes",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Caustic Lye",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Potassium",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Phosphorus",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Arsenic",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Water",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Wood",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Flint",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Shark Tooth",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Granite",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Obsidian",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Chalk",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Gypsum",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Quartz",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Pumice",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Amythest",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Ruby",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Sapphire",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Emerald",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Diamond",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Jade",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Crucible Tongs",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Ring Mold",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Ingot Mold",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Anvil",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Hammer",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Lathe Chuck",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Lathe",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Chizel",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Ring Blank",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Moldavite",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Desert Glass",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Pearl",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Black Pearl",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Pulp",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Paper",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Ink",
+      "default_trait": null
+    },
+    {
+      "id": null,
+      "name": "Pen",
+      "default_trait": null
+    }
+  ],
+  "recipes": [
+    {
+      "output": "Absinthe",
+      "ingredients": [
+        "Wormwood",
+        "Anise",
+        "Fennel",
+        "Aqua Vitae"
+      ],
+      "note": "Required for the absinthe-path resolution of 0009_KLST (Demons and Diamonds) if the Desire Crystal trade is rejected."
+    },
+    {
+      "output": "Aqua Vitae",
+      "ingredients": [
+        "White Wine"
+      ],
+      "note": "Distilled white wine. Base spirit for Absinthe."
+    }
+  ]
+}

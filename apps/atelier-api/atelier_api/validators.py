@@ -14,24 +14,91 @@ class ContentValidationResult:
     stats: Dict[str, object]
 
 
-def _split_akinenwun(word: str) -> List[str]:
-    raw = word.strip()
-    if raw == "":
-        return []
-    parts = []
-    current = ""
-    for ch in raw:
-        if ch.isupper() and current:
+# ---------------------------------------------------------------------------
+# Kernel helpers — lazy import so atelier-api starts without the kernel path
+# ---------------------------------------------------------------------------
+
+def _kernel_segment(word: str) -> tuple[List[str], str]:
+    """
+    Segment an Akinenwun token into akinen symbols via the kernel sub-layer.
+
+    Returns (symbol_list, remainder).  remainder is non-empty when the token
+    contains characters not found in the byte table.
+
+    Falls back to the legacy uppercase-split heuristic if the kernel is not
+    importable (e.g. in CI without the DjinnOS_Shyagzun tree on sys.path).
+    """
+    try:
+        import sys as _sys
+        from pathlib import Path as _Path
+        _root = str(_Path(__file__).resolve().parents[3] / "DjinnOS_Shyagzun")
+        if _root not in _sys.path:
+            _sys.path.insert(0, _root)
+        from shygazun.kernel import segment_kobra  # type: ignore
+        descriptors, remainder = segment_kobra(word.strip())
+        return [d.symbol for d in descriptors], remainder
+    except Exception:
+        # Legacy fallback: split on uppercase boundaries.
+        # Broken for multi-char symbols but keeps the validator working offline.
+        raw = word.strip()
+        if not raw:
+            return [], ""
+        parts: List[str] = []
+        current = ""
+        for ch in raw:
+            if ch.isupper() and current:
+                parts.append(current)
+                current = ch
+            else:
+                current += ch
+        if current:
             parts.append(current)
-            current = ch
-        else:
-            current += ch
-    if current:
-        parts.append(current)
-    return parts or [raw]
+        return parts or [raw], ""
+
+
+def _kernel_parse_wunashako(akinenwun_str: str) -> Optional[object]:
+    """
+    Parse an Akinenwun string as a single-token Wunashako via the kernel parser.
+
+    Returns the ParseResult (Resolved / Echo / FrontierOpen) or None if the
+    kernel is not importable.
+    """
+    try:
+        import sys as _sys
+        from pathlib import Path as _Path
+        _root = str(_Path(__file__).resolve().parents[3] / "DjinnOS_Shyagzun")
+        if _root not in _sys.path:
+            _sys.path.insert(0, _root)
+        from shygazun.kernel import parse_kobra  # type: ignore
+        token = akinenwun_str.strip()
+        if not token:
+            return None
+        return parse_kobra(f"[{token}]")
+    except Exception:
+        return None
+
+
+def _split_akinenwun(word: str) -> List[str]:
+    """
+    Split a compound Akinenwun string into its constituent akinen symbols.
+
+    Uses the kernel sub-layer (greedy longest-match against the byte table).
+    Falls back to the legacy uppercase-boundary heuristic when the kernel is
+    unavailable — that heuristic breaks on multi-char symbols like Shak, Mel,
+    Kazho, etc., but keeps the validator operational in offline environments.
+    """
+    symbols, _ = _kernel_segment(word)
+    return symbols or [word]
 
 
 def _load_symbol_index() -> Optional[Dict[str, object]]:
+    """
+    Load the byte-table symbol index directly.
+
+    Retained for backward-compatibility with callers that pre-date the kernel
+    integration.  Prefer ``_kernel_segment`` / ``_kernel_parse_wunashako`` for
+    new code.
+    """
     try:
         from shygazun.kernel.constants.byte_table import SHYGAZUN_SYMBOL_INDEX  # type: ignore
 
@@ -42,43 +109,16 @@ def _load_symbol_index() -> Optional[Dict[str, object]]:
     return None
 
 
-def _parse_cobra_entities(source: str) -> List[Dict[str, object]]:
-    entities: List[Dict[str, object]] = []
-    current: Optional[Dict[str, object]] = None
-    for raw_line in source.splitlines():
-        indent = len(raw_line) - len(raw_line.lstrip(" "))
-        line = raw_line.strip()
-        if line == "" or line.startswith("#"):
-            continue
-        if indent > 0 and current is not None:
-            colon = line.find(":")
-            if colon > 0:
-                key = line[:colon].strip()
-                value = line[colon + 1 :].strip()
-            else:
-                parts = line.split(maxsplit=1)
-                key = parts[0]
-                value = parts[1] if len(parts) == 2 else ""
-            meta = current.setdefault("meta", {})
-            if isinstance(meta, dict):
-                meta[key] = value
-            if key in ("lex", "akinenwun", "shygazun"):
-                current["akinenwun"] = value
-            continue
-        if line.startswith("entity "):
-            parts = line.split()
-            current = {
-                "id": parts[1] if len(parts) > 1 else "anon",
-                "x": int(parts[2]) if len(parts) > 2 and parts[2].lstrip("-").isdigit() else 0,
-                "y": int(parts[3]) if len(parts) > 3 and parts[3].lstrip("-").isdigit() else 0,
-                "tag": parts[4] if len(parts) > 4 else "none",
-                "meta": {},
-                "akinenwun": "",
-            }
-            entities.append(current)
-            continue
-        current = None
-    return entities
+def _compile_kobra(source: str):
+    """
+    Compile a Kobra source string via site_services.kobra.
+    Returns a KobraSceneResult or None if the service is unavailable.
+    """
+    try:
+        from .site_services.kobra import compile_kobra_scene  # type: ignore
+        return compile_kobra_scene(source)
+    except Exception:
+        return None
 
 
 def _layer_for_entity(entity: Dict[str, object]) -> str:
@@ -119,7 +159,7 @@ def validate_scene_realm(scene_id: str, realm_id: str) -> Optional[str]:
     return None
 
 
-def validate_cobra_content(
+def validate_kobra_content(
     source: str,
     *,
     realm_id: str,
@@ -128,67 +168,61 @@ def validate_cobra_content(
     errors: List[str] = []
     warnings: List[str] = []
     stats: Dict[str, object] = {}
+
     realm_error = validate_scene_realm(scene_id, realm_id)
     if realm_error:
         errors.append(realm_error)
 
-    symbol_index = _load_symbol_index()
-    if symbol_index is None:
-        warnings.append("symbol_inventory_unavailable")
-
-    entities = _parse_cobra_entities(source)
-    unresolved_total: List[str] = []
-    if symbol_index is not None:
-        for entity in entities:
-            entity_id = str(entity.get("id", "entity"))
-            meta_obj = entity.get("meta")
-            meta = meta_obj if isinstance(meta_obj, dict) else {}
-            for coeff_key in ("reference_coeff_bp", "recursion_coeff_bp", "djinn_reference_coeff_bp", "djinn_recursion_coeff_bp"):
-                raw = str(meta.get(coeff_key, "")).strip()
-                if raw == "":
-                    continue
-                if not re.fullmatch(r"-?\d+", raw):
-                    warnings.append(f"invalid_coeff_format:{entity_id}:{coeff_key}")
-                    continue
-                parsed = int(raw)
-                if parsed < 0 or parsed > 10000:
-                    warnings.append(f"coeff_out_of_range:{entity_id}:{coeff_key}:{parsed}")
-            akinenwun = str(entity.get("akinenwun") or "").strip()
-            if not akinenwun:
+    scene = _compile_kobra(source)
+    if scene is None:
+        warnings.append("kobra_compiler_unavailable: falling back to token scan")
+        # Offline fallback: validate individual tokens via kernel segment
+        unresolved: List[str] = []
+        for token in source.split():
+            if token in ("[]{}();:"):
                 continue
-            entity_unresolved: List[str] = []
-            for symbol in _split_akinenwun(akinenwun):
-                if symbol not in symbol_index:
-                    unresolved_total.append(symbol)
-                    entity_unresolved.append(symbol)
-            if entity_unresolved:
-                warnings.append(f"unresolved:{entity_id}:{'|'.join(entity_unresolved)}")
-            try:
-                from qqva.shygazun_compiler import derive_bilingual_cobra_surface  # type: ignore
+            result = _kernel_parse_wunashako(token)
+            if result is not None and type(result).__name__ == "Echo":
+                unresolved.append(token)
+                warnings.append(f"unresolved:{token}")
+        stats["unresolved_count"] = len(unresolved)
+        stats["unresolved_symbols"] = unresolved
+        stats["entities"] = 0
+    else:
+        errors.extend(scene.errors)
+        warnings.extend(scene.warnings)
+        for span in scene.frontier_open:
+            if not scene.cannabis_active:
+                warnings.append(f"ambiguous_unattested:{span}")
+        stats["entities"] = len(scene.entities)
+        stats["frontier_open"] = len(scene.frontier_open)
+        stats["cannabis_active"] = scene.cannabis_active
+        stats["tongue_inventory"] = scene.tongue_inventory
 
-                bilingual_surface = derive_bilingual_cobra_surface(akinenwun)
-            except Exception:
-                bilingual_surface = None
-            if isinstance(bilingual_surface, dict):
-                trust = bilingual_surface.get("trust_contract", {})
-                readiness = trust.get("downstream_readiness", {}) if isinstance(trust, dict) else {}
-                if isinstance(readiness, dict):
-                    if readiness.get("code_surface_safe") is not True:
-                        warnings.append(f"bilingual_code_surface_not_safe:{entity_id}")
-                    if readiness.get("placement_graph_safe") is not True:
-                        warnings.append(f"bilingual_placement_graph_not_safe:{entity_id}")
-                    if readiness.get("anatomy_surface_safe") is not True:
-                        warnings.append(f"bilingual_anatomy_surface_not_safe:{entity_id}")
-
-    stats["entities"] = len(entities)
-    stats["unresolved_count"] = len(unresolved_total)
-    stats["unresolved_symbols"] = unresolved_total
-    bilingual_warnings = [warning for warning in warnings if warning.startswith("bilingual_")]
-    stats["bilingual_warning_count"] = len(bilingual_warnings)
-    stats["bilingual_warnings"] = bilingual_warnings
+        try:
+            from qqva.shygazun_compiler import derive_bilingual_kobra_surface  # type: ignore
+            for entity in scene.entities:
+                bilingual_surface = derive_bilingual_kobra_surface(entity.id)
+                if isinstance(bilingual_surface, dict):
+                    trust = bilingual_surface.get("trust_contract", {})
+                    readiness = trust.get("downstream_readiness", {}) if isinstance(trust, dict) else {}
+                    if isinstance(readiness, dict):
+                        for key, label in (
+                            ("code_surface_safe",      "bilingual_code_surface_not_safe"),
+                            ("placement_graph_safe",   "bilingual_placement_graph_not_safe"),
+                            ("anatomy_surface_safe",   "bilingual_anatomy_surface_not_safe"),
+                        ):
+                            if readiness.get(key) is not True:
+                                warnings.append(f"{label}:{entity.id}")
+        except Exception:
+            pass
 
     ok = len(errors) == 0
     return ContentValidationResult(ok=ok, errors=errors, warnings=warnings, stats=stats)
+
+
+# Backward-compatible alias
+validate_cobra_content = validate_kobra_content
 
 
 def validate_json_content(
@@ -218,7 +252,7 @@ def validate_json_content(
     return ContentValidationResult(ok=ok, errors=errors, warnings=warnings, stats=stats)
 
 
-def build_scene_graph_content_from_cobra(
+def build_scene_graph_content_from_kobra(
     source: str,
     *,
     realm_id: str,
@@ -227,23 +261,28 @@ def build_scene_graph_content_from_cobra(
     realm_error = validate_scene_realm(scene_id, realm_id)
     if realm_error:
         raise ValueError(realm_error)
-    entities = _parse_cobra_entities(source)
+
+    scene = _compile_kobra(source)
     nodes: List[Dict[str, object]] = []
-    for entity in entities:
-        layer = _layer_for_entity(entity)
-        z = _z_for_entity(entity, layer)
-        node_id = str(entity.get("id") or "anon")
-        nodes.append(
-            {
-                "node_id": node_id,
-                "kind": str(entity.get("tag") or "none"),
-                "x": float(entity.get("x") or 0),
-                "y": float(entity.get("y") or 0),
+
+    if scene is not None:
+        for entity in scene.entities:
+            nodes.append({
+                "node_id": entity.id,
+                "kind":    entity.kind or "none",
+                "x":       float(entity.x),
+                "y":       float(entity.y),
                 "metadata": {
-                    "layer": layer,
-                    "z": z,
-                    "akinenwun": str(entity.get("akinenwun") or "").strip(),
+                    "layer":    entity.layer,
+                    "z":        entity.z,
+                    "material": entity.material,
+                    "color":    entity.color,
+                    "opacity":  entity.opacity,
                 },
-            }
-        )
+            })
+
     return {"nodes": nodes, "edges": []}
+
+
+# Backward-compatible alias
+build_scene_graph_content_from_cobra = build_scene_graph_content_from_kobra

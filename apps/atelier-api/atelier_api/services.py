@@ -281,7 +281,7 @@ from .models import (
     WorkspaceMembership,
 )
 from .repositories import AtelierRepository
-from .validators import build_scene_graph_content_from_cobra, validate_cobra_content, validate_json_content, validate_scene_realm
+from .validators import build_scene_graph_content_from_kobra, validate_kobra_content, validate_json_content, validate_scene_realm
 from .types import EdgeObj, FrontierObj, KernelEventObj, ObserveResponse
 
 
@@ -12958,8 +12958,8 @@ class AtelierService:
         stats: dict[str, object] = {}
         if not realm_validation.ok:
             errors.append(f"unknown_realm:{payload.realm_id}")
-        if payload.source == "cobra":
-            result = validate_cobra_content(payload.payload, realm_id=payload.realm_id, scene_id=payload.scene_id)
+        if payload.source in ("cobra", "kobra"):
+            result = validate_kobra_content(payload.payload, realm_id=payload.realm_id, scene_id=payload.scene_id)
         else:
             result = validate_json_content(payload.payload, realm_id=payload.realm_id, scene_id=payload.scene_id)
         errors.extend(result.errors)
@@ -13104,9 +13104,9 @@ class AtelierService:
             edges_emitted=result.edges_emitted,
         )
 
-    def create_scene_from_cobra(self, payload: SceneCompileInput) -> SceneOut:
-        content = build_scene_graph_content_from_cobra(
-            payload.cobra_source,
+    def create_scene_from_kobra(self, payload: SceneCompileInput) -> SceneOut:
+        content = build_scene_graph_content_from_kobra(
+            payload.kobra_source,
             realm_id=payload.realm_id,
             scene_id=payload.scene_id,
         )

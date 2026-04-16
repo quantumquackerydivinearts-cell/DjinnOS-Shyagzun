@@ -230,6 +230,15 @@ export const CHARACTERS = [
   { id: "2007_DMON",  name: "Po'Elfan",            type: "DMON" },
   { id: "2008_DMON",  name: "Kaganue",             type: "DMON" },
   { id: "2009_DMON",  name: "Zukoru",              type: "DMON" },
+  { id: "2010_DMON",  name: "St. Alaro",           type: "DMON",
+    alias: "Alastor",
+    note: "The Radio Demon of Pride. Operating in Aeralune under the alias St. Alaro. " +
+          "Encountered through the secret ending arc — not a traversal-path NPC. " +
+          "Offers a Faustian pact: power and a game in exchange for a permanent mark on " +
+          "the player's BreathOfKo (his signature written into the fractal save state). " +
+          "The mark persists across all subsequent games and is erasable only in Game 18 " +
+          "(Mystic Blood) through continuous righteous playthroughs. " +
+          "He and Hypatia are peers — both navigating the deep structure of the 9th Ring." },
 
   // Demi-gods
   { id: "2010_DEMI",  name: "Shapieru",            type: "DEMI" },
@@ -325,7 +334,21 @@ export const ITEMS = [
   { id: null,        name: "Staff",          stackable: true  },   // ()Staff
   { id: null,        name: "Desire Crystal", stackable: false,
     note: "Asmodean material. Structurally a time crystal — desire is forward-temporal. " +
-          "Swallowing deposits the bearer in the timeline most consonant with their dominant desire." },
+          "Swallowing deposits the bearer in the timeline most consonant with their dominant desire. " +
+          "In 0009_KLST: offered by the imp in trade for Hypatia's Dagger. Fades to dust after one use " +
+          "— sufficient for a single entry into Ring 1 (Pride) without Infernal Meditation. " +
+          "If stolen instead of traded, it shatters on the imp's corpse." },
+  { id: null,        name: "Hypatia's Dagger", stackable: false,
+    note: "Forged by Hypatia and left with the player at their first meeting. " +
+          "Designed for processing raw reagents. The imp's desired trade item in 0009_KLST." },
+  { id: null,        name: "Absinthe",      stackable: false,
+    note: "The imp's fallback ask in 0009_KLST if the Desire Crystal trade is rejected." },
+  { id: null,        name: "Wormwood",      stackable: true },
+  { id: null,        name: "Anise",         stackable: true },
+  { id: null,        name: "Fennel",        stackable: true },
+  { id: null,        name: "White Wine",    stackable: false },
+  { id: null,        name: "Aqua Vitae",    stackable: false,
+    note: "Distilled white wine. Brandy of white wine. Ingredient in Absinthe." },
   { id: null,        name: "Angelic Spear",  stackable: false },
   { id: null,        name: "Angelic Gun",    stackable: false },
   { id: null,        name: "Demonic Irons",  stackable: false },
@@ -343,8 +366,13 @@ export const QUESTS = [
   { id: "0007_KLST", name: "Dream of Glass" },
   { id: "0008_KLST", name: "Bunsen For Hire" },
   { id: "0009_KLST", name: "Demons and Diamonds",
-    note: "Delivers the inciting token that grants access to Sulphera's Visitor's Ring (Ring 8). " +
-          "Prerequisite: Infernal Meditation skill (taught by Alfir, 0006_WTCH)." },
+    note: "Unlocked by completing prior quests and establishing sufficient Lapidus market presence " +
+          "to have goods smuggled into Sulphera. An unnamed imp visits the player's home shop at " +
+          "the witching hour and offers a trade: one Desire Crystal for Hypatia's Dagger. " +
+          "Three outcomes: (1) steal the crystal from his corpse — it shatters; " +
+          "(2) accept the trade — crystal fades to dust after one use, enough to enter Ring 1 " +
+          "(Pride) without Infernal Meditation; " +
+          "(3) reject the trade — the imp asks instead for a bottle of absinthe." },
   { id: "0010_KLST", name: "Perfect Circles" },
   { id: "0011_KLST", name: "The Siren Sounds" },
   { id: "0012_KLST", name: "The Mines" },
@@ -398,6 +426,25 @@ export const QUESTS = [
   { id: "0060_KLST", name: "In Service To Starlight" },
   { id: "0061_KLST", name: "Ko's Great Tale" },
 ];
+
+// ── Recipes ───────────────────────────────────────────────────────────────────
+// Each recipe: { output, ingredients: [string, ...], note? }
+// Ingredients are item names matching entries in ITEMS.
+export const RECIPES = [
+  {
+    output:      "Absinthe",
+    ingredients: ["Wormwood", "Anise", "Fennel", "Aqua Vitae"],
+    note: "Required for the absinthe-path resolution of 0009_KLST (Demons and Diamonds) " +
+          "if the Desire Crystal trade is rejected.",
+  },
+  {
+    output:      "Aqua Vitae",
+    ingredients: ["White Wine"],
+    note: "Distilled white wine. Base spirit for Absinthe.",
+  },
+];
+
+export const RECIPE_BY_OUTPUT = Object.fromEntries(RECIPES.map(r => [r.output, r]));
 
 // ── Lookup helpers ────────────────────────────────────────────────────────────
 

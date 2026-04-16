@@ -76,7 +76,7 @@ class SyncTablesResponse(BaseModel):
     hash: str
 
 
-# ── Cobra compile ─────────────────────────────────────────────────────────────
+# ── Kobra compile ─────────────────────────────────────────────────────────────
 
 class CompileCobraRequest(BaseModel):
     workspace_id: str
@@ -84,13 +84,13 @@ class CompileCobraRequest(BaseModel):
     scene_id: str = ""
     scene_name: str = ""
     description: str = ""
-    cobra_source: str
+    kobra_source: str
 
-    @field_validator("cobra_source")
+    @field_validator("kobra_source")
     @classmethod
     def not_empty(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError("cobra_source must not be empty")
+            raise ValueError("kobra_source must not be empty")
         return v
 
 

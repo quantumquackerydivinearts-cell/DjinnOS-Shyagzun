@@ -28,6 +28,10 @@ from .types.events import AttestationEventObj
 # FieldLike is structural; kernel advances time. CEG is append-only.
 from .types import Clock, Frontier, Edge
 
+# Kobra — Shygazun programming substrate (deterministic, no CEG mutation)
+from .kobra import parse as _kobra_parse
+from .kobra.types import ParseResult as KobraParseResult
+
 
 # ---------------------------------------------------------------------------
 # Structural event shapes (JSON-first)
@@ -420,6 +424,20 @@ class Kernel:
                     },
                 )
                 self.ceg.add_edge(e)
+
+    # ---------------- Cobra ----------------
+
+    def parse_kobra(self, source: str) -> KobraParseResult:
+        """
+        Parse a Kobra source string.
+
+        Deterministic and read-only — does not advance the clock or mutate
+        the CEG.  Returns a Resolved, Echo, or FrontierOpen parse result.
+
+        The caller decides whether to materialise the result into the field
+        (via ``place``) or act on it directly.
+        """
+        return _kobra_parse(source)
 
     # ---------------- Phase D2 handoff hooks ----------------
 

@@ -3796,7 +3796,7 @@ def emit_scene_from_library(
 
 
 @app.post("/v1/game/scenes/compile")
-def compile_scene_from_cobra(
+def compile_scene_from_kobra(
     payload: SceneCompileInput,
     ctx: CapabilityContext = Depends(_capability_context),
     _: WorkshopContext = Depends(_workshop_context),
@@ -3806,7 +3806,7 @@ def compile_scene_from_cobra(
     _enforce(ctx, "scene.write")
     _enforce_role(role, "scene.write")
     try:
-        return svc.create_scene_from_cobra(payload)
+        return svc.create_scene_from_kobra(payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
