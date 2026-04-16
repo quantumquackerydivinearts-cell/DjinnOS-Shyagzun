@@ -180,6 +180,16 @@ def _validate_field_first(body: dict[str, Any]) -> list[str]:
     """
     Enforce process-ontology authoring order.
     Returns a list of validation errors (empty = valid).
+
+    FieldProperty has three authored modes:
+      shygazun   — the ontological claim (the word from the byte table)
+      narrative  — the lore / story resonance
+      somatic    — the sensory / embodied description
+
+    The fourth engagement mode (cosmological / Dragon Tongue) is NOT authored
+    here — it is derived from the shygazun word via the kernel register at
+    runtime.  Authoring it as a text field would be redundant with the register
+    and could diverge from it.  Do NOT add a dragon_tongue field.
     """
     errors: list[str] = []
     props = body.get("field", {}).get("properties", [])
@@ -188,9 +198,18 @@ def _validate_field_first(body: dict[str, Any]) -> list[str]:
         return errors
 
     prop = props[0]
-    for mode in ("shygazun", "dragon_tongue", "narrative", "somatic"):
+    for mode in ("shygazun", "narrative", "somatic"):
         if not str(prop.get(mode, "")).strip():
-            errors.append(f"field.properties[0].{mode} is required — describe the field in all four modes")
+            errors.append(
+                f"field.properties[0].{mode} is required — "
+                f"describe the field in all three authored modes (shygazun, narrative, somatic)"
+            )
+
+    if prop.get("dragon_tongue"):
+        errors.append(
+            "field.properties[0].dragon_tongue must not be authored — "
+            "the Dragon Tongue organism is derived from the shygazun word via the kernel register"
+        )
 
     if not str(prop.get("axis", "")).strip():
         errors.append("field.properties[0].axis is required (mental | spatial | temporal)")
