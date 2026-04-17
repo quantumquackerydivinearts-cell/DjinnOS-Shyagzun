@@ -17,7 +17,12 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import anthropic
+try:
+    import anthropic
+    _ANTHROPIC_AVAILABLE = True
+except ImportError:
+    anthropic = None  # type: ignore[assignment]
+    _ANTHROPIC_AVAILABLE = False
 
 # ---------------------------------------------------------------------------
 # Byte table — inline so the router is self-contained.

@@ -1221,6 +1221,11 @@ async def startup_capture_event_loop() -> None:
 
 @app.on_event("startup")
 def startup_probe_dependencies() -> None:
+    # Skip all I/O probes in test environments — avoids retry backoff delays in CI.
+    if os.getenv("ATELIER_TESTING", "").lower() in ("1", "true", "yes"):
+        print("[startup] ATELIER_TESTING=1 — skipping db migration and kernel probe")
+        return
+
     # Run DB migrations on startup so deploys to Render auto-migrate.
     try:
         from alembic.config import Config as AlembicConfig

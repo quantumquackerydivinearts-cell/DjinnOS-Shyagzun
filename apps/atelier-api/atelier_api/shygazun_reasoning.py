@@ -24,7 +24,12 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import anthropic
+try:
+    import anthropic
+    _ANTHROPIC_AVAILABLE = True
+except ImportError:
+    anthropic = None  # type: ignore[assignment]
+    _ANTHROPIC_AVAILABLE = False
 
 from shygazun.kernel.constants.tongue_topology import TONGUE_REGISTRY, GROUP_REGISTRY
 from shygazun.kernel.constants.shygazun_corpus import ALL_EXAMPLES, examples_by_type
@@ -342,7 +347,9 @@ class ShygazunReasoningService:
     def __init__(self) -> None:
         self._client: Optional[anthropic.Anthropic] = None
 
-    def _get_client(self) -> anthropic.Anthropic:
+    def _get_client(self):  # type: ignore[return]
+        if not _ANTHROPIC_AVAILABLE:
+            raise HTTPException(status_code=503, detail="anthropic package not installed")
         if self._client is None:
             api_key = os.getenv("ANTHROPIC_API_KEY")
             if not api_key:

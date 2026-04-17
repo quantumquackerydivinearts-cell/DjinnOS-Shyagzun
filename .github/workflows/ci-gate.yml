@@ -34,6 +34,8 @@ jobs:
       - name: Determinism checks
         env:
           PYTHONPATH: apps/atelier-api:DjinnOS_Shyagzun:.
+          ATELIER_TESTING: "1"
+          ADMIN_GATE_CODE: "STEWARD_DEV_GATE"
         run: |
           python -m pytest -q tests/test_kernel_conformance_invariants.py::test_replay_canonical_is_deterministic
           python -m pytest -q tests/test_atelier_api_boundary.py::test_game_runtime_replay_reexecutes_stored_plan_and_verifies_hash
