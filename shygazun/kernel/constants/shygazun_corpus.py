@@ -332,9 +332,9 @@ DECOMPOSITION: Final[Tuple[Example, ...]] = (
         reasoning=(
             "Zot- : Earth elemental band marker. Maximum material density, concrete "
             "instantiation, the ground register. "
-            "Ko- : correct traversal (same as Melkowuvu). "
+            "Ko- : experience (same as Melkowuvu). "
             "Wuvu : organism suffix. "
-            "The canid is the organism for whom correct traversal and Earth-being are "
+            "The canid is the organism for whom experience and Earth-being are "
             "the same thing. Dogs navigate the ground correctly — not merely by living "
             "on it but by tracking, following, reading terrain, moving in faithful "
             "correspondence with the Earth register. Pack-bound, ground-reading, "
@@ -343,7 +343,7 @@ DECOMPOSITION: Final[Tuple[Example, ...]] = (
         output=(
             "Canid. The organism whose identity is correct Earth-traversal. "
             "Zotkowuvu and Melkowuvu share Ko, making whale and dog structurally "
-            "related: both are defined by correct traversal of their element."
+            "related: both are defined by experience of their element."
         ),
         structural_note=(
             "The shared Ko between Melkowuvu (whale) and Zotkowuvu (canid) is visible "
