@@ -25,6 +25,7 @@ import structlog
 
 from .core.config import Settings, get_settings
 from .routers import game, render_lab, export as export_router
+from .routers.cosmology import router as cosmology_router
 from .shygazun_router import router as shygazun_router
 from .shygazun_reasoning import router as shygazun_reasoning_router
 
@@ -1143,6 +1144,7 @@ register_shop_routes(app)
 register_guild_routes(app)
 app.include_router(render_lab.router)
 app.include_router(export_router.router)
+app.include_router(cosmology_router)
 app.include_router(shygazun_router, prefix="/shygazun", tags=["shygazun"])
 app.include_router(shygazun_reasoning_router, prefix="/v1/shygazun", tags=["shygazun-reasoning"])
 
@@ -1237,6 +1239,43 @@ def startup_probe_dependencies() -> None:
     except Exception as exc:
         print(f"[startup] alembic upgrade head failed: {exc}")
 
+    # Safety net: create any tables whose migrations were stamped but not applied.
+    # Idempotent — skips tables that already exist.  Catches stamp-vs-upgrade drift
+    # that accumulates in local SQLite dev.
+    try:
+        from . import models as _models  # noqa: ensure all models registered
+        from .db import Base as _Base, engine as _engine
+        _Base.metadata.create_all(_engine, checkfirst=True)
+        print("[startup] schema create_all ok")
+    except Exception as exc:
+        print(f"[startup] schema create_all failed: {exc}")
+
+    # Add any columns that were stamped-but-not-applied on existing tables.
+    # SQLite does not support full ALTER TABLE rewrites, so we patch column-by-column.
+    try:
+        from .db import engine as _engine
+        import sqlalchemy as _sa
+        _col_patches = [
+            ("layer_nodes",  "game_id",         "TEXT"),
+            ("layer_nodes",  "prior_subset_key", "TEXT"),
+        ]
+        with _engine.connect() as _conn:
+            for _table, _col, _coltype in _col_patches:
+                _existing = [
+                    r[1] for r in _conn.execute(
+                        _sa.text(f"PRAGMA table_info({_table})")
+                    )
+                ]
+                if _col not in _existing:
+                    _conn.execute(_sa.text(
+                        f"ALTER TABLE {_table} ADD COLUMN {_col} {_coltype}"
+                    ))
+                    _conn.commit()
+                    print(f"[startup] added column {_table}.{_col}")
+        print("[startup] column patch ok")
+    except Exception as exc:
+        print(f"[startup] column patch failed: {exc}")
+
     settings = load_settings()
     kernel_url = settings.kernel_internal_base_url or settings.kernel_base_url
     kernel = HttpKernelClient(
@@ -1252,6 +1291,73 @@ def startup_probe_dependencies() -> None:
         )
     except Exception as exc:
         print(f"[startup] kernel_probe degraded base={kernel_url} detail={exc}")
+
+
+@app.on_event("startup")
+def startup_init_game_registry() -> None:
+    """
+    Ensure every existing workspace has an Orrery registration node for 7_KLGS.
+
+    This is idempotent — workspaces that already have a game.registered node for
+    7_KLGS are skipped.  New workspaces receive their registration node the first
+    time they start a game session (via record_and_archive), so this startup hook
+    is only for workspaces that existed before the Orrery was wired in.
+    """
+    if os.getenv("ATELIER_TESTING", "").lower() in ("1", "true", "yes"):
+        return
+    try:
+        from .db import SessionLocal as _SessionLocal
+        from .models import LayerNode, Workspace
+        from .multiverse_stack import MultiverseStackService, GAME_REGISTRY
+        import json, hashlib, uuid as _uuid
+        from datetime import datetime
+
+        db = _SessionLocal()
+        try:
+            workspaces = db.query(Workspace).all()
+            seeded = 0
+            for ws in workspaces:
+                exists = (
+                    db.query(LayerNode)
+                    .filter(
+                        LayerNode.workspace_id == ws.id,
+                        LayerNode.node_key     == "game.registered",
+                        LayerNode.game_id      == "7_KLGS",
+                    )
+                    .first()
+                )
+                if exists:
+                    continue
+                payload = {
+                    "action_kind":      "game.registered",
+                    "game_id":          "7_KLGS",
+                    "workspace_id":     ws.id,
+                    "prior_subset_key": GAME_REGISTRY.get("7_KLGS", ""),
+                    "note":             "Orrery registration — seeded at startup",
+                }
+                raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+                node = LayerNode(
+                    id=str(_uuid.uuid4()),
+                    workspace_id=ws.id,
+                    layer_index=0,   # L0: raw_input
+                    node_key="game.registered",
+                    payload_json=json.dumps(payload, sort_keys=True),
+                    payload_hash=hashlib.sha256(raw.encode()).hexdigest(),
+                    game_id="7_KLGS",
+                    prior_subset_key=GAME_REGISTRY.get("7_KLGS") or None,
+                    created_at=datetime.utcnow(),
+                )
+                db.add(node)
+                seeded += 1
+            db.commit()
+            if seeded:
+                print(f"[startup] orrery 7_KLGS game.registered seeded for {seeded} workspace(s)")
+            else:
+                print("[startup] orrery 7_KLGS already registered for all workspaces")
+        finally:
+            db.close()
+    except Exception as exc:
+        print(f"[startup] orrery init failed: {exc}")
 
 
 @app.get("/health")

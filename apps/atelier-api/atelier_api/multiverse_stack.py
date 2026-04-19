@@ -222,7 +222,7 @@ GAME_REGISTRY: dict[str, str] = {
     # Slugs follow the format: {game_number}_KLGS
     # prior_subset_key = sorted prior names joined by "+" — fill in as each game is designed.
     # The 31 entries will be the complete power set of {Ha, Ga, Na, Ung, Wu}.
-    "7_KLGS":  "",   # Ko's Labyrnth Game Set (prior subset TBD)
+    "7_KLGS":  "Ga+Ha+Na+Wu",   # Ko's Labyrinth — {Ga, Ha, Na, Wu} (Ung absent)
     # "1_KLGS":  "",  # Game 1  (prior subset TBD)
     # "5_KLGS":  "",  # Game 5  (prior subset TBD)
     # "8_KLGS":  "",  # Game 8 — Reign of Nobody (prior subset TBD)

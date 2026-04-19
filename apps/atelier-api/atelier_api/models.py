@@ -767,3 +767,51 @@ class Q3Vote(Base):
     physix_json: Mapped[str] = mapped_column(Text, nullable=False)   # full tagged Shygazun Physix record
     voter_artisan_id: Mapped[str] = mapped_column(String(100), nullable=False)  # never surfaced in audit
     cast_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False, default=datetime.utcnow)
+
+
+# ── Cosmology governance ───────────────────────────────────────────────────────
+
+class Cosmology(Base):
+    __tablename__ = "cosmologies"
+
+    id: Mapped[str]                 = mapped_column(String(64),  primary_key=True)
+    slug: Mapped[str]               = mapped_column(String(100), nullable=False, unique=True)
+    name: Mapped[str]               = mapped_column(String(200), nullable=False)
+    description: Mapped[str]        = mapped_column(Text,        nullable=False, default="")
+    steward_artisan_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    # open_contribution: if True, any Artisan may submit; if False, invite-only
+    open_contribution: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # kernel_anchored: KLGS and other Kernel-rooted cosmologies; structural validation enforced
+    kernel_anchored: Mapped[bool]   = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class CosmologyMembership(Base):
+    __tablename__ = "cosmology_memberships"
+
+    id: Mapped[str]           = mapped_column(String(36),  primary_key=True, default=_uuid)
+    cosmology_id: Mapped[str] = mapped_column(String(64),  ForeignKey("cosmologies.id"), nullable=False)
+    artisan_id: Mapped[str]   = mapped_column(String(100), nullable=False)
+    # role: contributor | moderator
+    role: Mapped[str]         = mapped_column(String(50),  nullable=False, default="contributor")
+    invited_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    joined_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class CosmologySubmission(Base):
+    __tablename__ = "cosmology_submissions"
+
+    id: Mapped[str]              = mapped_column(String(36),  primary_key=True, default=_uuid)
+    cosmology_id: Mapped[str]    = mapped_column(String(64),  ForeignKey("cosmologies.id"), nullable=False)
+    contributor_id: Mapped[str]  = mapped_column(String(100), nullable=False)
+    # content_type: zone | npc | quest | item | dialogue | sprite | shader | other
+    content_type: Mapped[str]    = mapped_column(String(50),  nullable=False)
+    content_label: Mapped[str]   = mapped_column(String(200), nullable=False, default="")
+    content_data: Mapped[str]    = mapped_column(Text,        nullable=False, default="{}")
+    # status: pending | approved | rejected | withdrawn
+    status: Mapped[str]          = mapped_column(String(20),  nullable=False, default="pending")
+    steward_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # kernel_valid: True once Kernel structural validation has passed
+    kernel_valid: Mapped[bool]   = mapped_column(Boolean, nullable=False, default=False)
+    submitted_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

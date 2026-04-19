@@ -9,6 +9,7 @@
  *   Quests:     {####}_KLST   (e.g. 0009_KLST, zero-padded to 4 digits)
  *   Characters: {####}_{TYPE} where TYPE is one of:
  *     test  — test/dev placeholders
+ *     HIST  — Historical / Autobiographical avatar (Alexi = 0000_0451; ID references Hypatia of Alexandria ~415 CE)
  *     TOWN  — Townsperson
  *     WTCH  — Witch
  *     PRST  — Priest
@@ -27,6 +28,9 @@
  *     GODS  — God
  *     PRIM  — Primordial
  *     ANMU  — Anima Mundi / World Soul (Sulphera, Lapidus, Mercurie, Pythia Solunikae)
+ *
+ *   dual_type: optional secondary type for beings that hold two natures simultaneously.
+ *     Only Pythia Solunikae currently carries this — type: "ANMU", dual_type: "PRIM".
  *
  * Item prefix convention:
  *   ()ItemName — stackable item (can have quantity > 1)
@@ -230,7 +234,7 @@ export const CHARACTERS = [
   { id: "2007_DMON",  name: "Po'Elfan",            type: "DMON" },
   { id: "2008_DMON",  name: "Kaganue",             type: "DMON" },
   { id: "2009_DMON",  name: "Zukoru",              type: "DMON" },
-  { id: "2010_DMON",  name: "St. Alaro",           type: "DMON",
+  { id: "2011_DMON",  name: "St. Alaro",           type: "DMON",
     alias: "Alastor",
     note: "The Radio Demon of Pride. Operating in Aeralune under the alias St. Alaro. " +
           "Encountered through the secret ending arc — not a traversal-path NPC. " +
@@ -241,9 +245,9 @@ export const CHARACTERS = [
           "He and Hypatia are peers — both navigating the deep structure of the 9th Ring." },
 
   // Demi-gods
-  { id: "2010_DEMI",  name: "Shapieru",            type: "DEMI" },
-  { id: "2011_DEMI",  name: "Lanzu",               type: "DEMI" },
-  { id: "2012_DEMI",  name: "Tagame",              type: "DEMI" },
+  { id: "2012_DEMI",  name: "Shapieru",            type: "DEMI" },
+  { id: "2013_DEMI",  name: "Lanzu",               type: "DEMI" },
+  { id: "2014_DEMI",  name: "Tagame",              type: "DEMI" },
 
   // Soldiers
   { id: "2013_SOLD",  name: "Captain Lanvaki",     type: "SOLD" },
@@ -457,11 +461,22 @@ export const OBJECT_BY_NAME    = Object.fromEntries(OBJECTS.map(o => [o.name, o]
 
 /**
  * Return all characters of a given type code.
- * @param {string} type  — e.g. "WTCH", "ROYL", "VDWR"
+ * Includes characters whose dual_type matches when includeDual is true.
+ * @param {string} type        — e.g. "WTCH", "ROYL", "VDWR", "HIST"
+ * @param {boolean} includeDual — also match dual_type field (default true)
  */
-export function charactersByType(type) {
-  return CHARACTERS.filter(c => c.type === type);
+export function charactersByType(type, includeDual = true) {
+  return CHARACTERS.filter(c =>
+    c.type === type || (includeDual && c.dual_type === type)
+  );
 }
+
+/** All known TYPE codes — use to validate incoming character type strings. */
+export const KNOWN_TYPES = new Set([
+  "test", "HIST", "TOWN", "WTCH", "PRST", "ASSN", "ROYL",
+  "GNOM", "NYMP", "UNDI", "SALA", "DRYA", "DJNN",
+  "VDWR", "DMON", "DEMI", "SOLD", "GODS", "PRIM", "ANMU",
+]);
 
 /** The 3 Void Wraiths, keyed by their observes field. */
 export const VOID_WRAITH_BY_OBSERVATION = Object.fromEntries(
