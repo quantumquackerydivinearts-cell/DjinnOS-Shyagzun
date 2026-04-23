@@ -1,0 +1,458 @@
+
+<style>
+* { box-sizing: border-box; }
+.env { padding: 1rem 0; font-family: var(--font-sans); }
+.sr-only { position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0); }
+textarea { width:100%; font-family:var(--font-mono); font-size:12px; border:0.5px solid var(--color-border-secondary); border-radius:var(--border-radius-md); padding:10px 12px; background:var(--color-background-primary); color:var(--color-text-primary); resize:vertical; outline:none; min-height:160px; }
+textarea:focus { border-color:#7F77DD; box-shadow:0 0 0 2px rgba(127,119,221,0.12); }
+button { font-size:12px; padding:6px 14px; border-radius:var(--border-radius-md); border:0.5px solid var(--color-border-secondary); background:transparent; color:var(--color-text-primary); cursor:pointer; }
+button:hover { background:var(--color-background-secondary); }
+button.primary { background:#7F77DD; color:#fff; border-color:#7F77DD; }
+button.primary:hover { background:#534AB7; }
+button.fire { background:#FAECE7; color:#993C1D; border-color:#F0997B; }
+.panel { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:1rem 1.25rem; margin-top:10px; }
+.panel-title { font-size:11px; font-weight:500; color:var(--color-text-tertiary); letter-spacing:.05em; margin:0 0 8px; }
+.state-badge { display:inline-block; font-size:11px; padding:3px 10px; border-radius:99px; font-weight:500; }
+.resolved { background:#E1F5EE; color:#0F6E56; }
+.frontier { background:#FAEEDA; color:#854F0B; }
+.echo { background:#FCEBEB; color:#A32D2D; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; }
+.metric { background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:8px 10px; }
+.metric-label { font-size:11px; color:var(--color-text-tertiary); margin:0 0 2px; }
+.metric-val { font-size:18px; font-weight:500; color:var(--color-text-primary); }
+.entity-card { background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:8px 10px; margin-bottom:6px; }
+.entity-title { font-size:12px; font-weight:500; color:var(--color-text-primary); margin:0 0 4px; font-family:var(--font-mono); }
+.tongue-row { display:flex; gap:4px; flex-wrap:wrap; margin:4px 0; }
+.tp { font-size:10px; padding:2px 6px; border-radius:99px; }
+.cannabis-chip { font-size:11px; padding:2px 8px; border-radius:99px; background:#FAEEDA; color:#854F0B; border:0.5px solid #EF9F27; margin:2px; display:inline-block; cursor:pointer; }
+.cannabis-chip.witnessed { background:#E1F5EE; color:#0F6E56; border-color:#5DCAA5; }
+.cannabis-chip.partial { background:#E6F1FB; color:#185FA5; border-color:#85B7EB; }
+.cannabis-chip.soa { background:#F1EFE8; color:#5F5E5A; border-color:#B4B2A9; }
+.freq-bar-wrap { margin:4px 0; }
+.freq-label { font-size:10px; color:var(--color-text-tertiary); margin-bottom:2px; }
+.freq-bars { display:flex; gap:2px; align-items:flex-end; height:32px; }
+.freq-bar { width:14px; border-radius:2px 2px 0 0; transition:height .3s; min-height:2px; }
+.soa-chip { font-size:11px; padding:3px 8px; border-radius:99px; background:#F1EFE8; color:#5F5E5A; border:0.5px solid var(--color-border-tertiary); margin:2px; display:inline-block; }
+.clock { font-size:22px; font-weight:500; font-family:var(--font-mono); color:var(--color-text-primary); }
+.clock-label { font-size:11px; color:var(--color-text-tertiary); }
+.topo-chip { font-size:10px; padding:2px 6px; border-radius:99px; background:#EEEDFE; color:#534AB7; border:0.5px solid #AFA9EC; margin:2px; display:inline-block; }
+.example-btn { font-size:11px; font-family:var(--font-mono); padding:3px 8px; border-radius:6px; border:0.5px solid var(--color-border-tertiary); background:transparent; color:var(--color-text-secondary); cursor:pointer; margin:2px; }
+.example-btn:hover { background:var(--color-background-secondary); }
+.cut-bar { height:4px; border-radius:2px; margin:6px 0; transition:background .5s; }
+</style>
+
+<div class="env">
+<h2 class="sr-only">SamosMyr authoring environment — parse, analyse and witness Kobra scene expressions</h2>
+
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+  <button class="example-btn" onclick="loadExample(0)">LoShun basic</button>
+  <button class="example-btn" onclick="loadExample(1)">with Cannabis</button>
+  <button class="example-btn" onclick="loadExample(2)">chromatic scene</button>
+  <button class="example-btn" onclick="loadExample(3)">frame pair</button>
+</div>
+
+<textarea id="src" spellcheck="false" placeholder="LoShun: Shakshi(TaLaShaN) {
+  [entity spec]
+  [TaShyMa(AonkielYeShu)]
+}"></textarea>
+
+<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+  <button class="primary" onclick="parseSamosMyr()">Parse SamosMyr</button>
+  <button onclick="clearAll()">Clear</button>
+  <button onclick="sendPrompt('In the SamosMyr authoring environment I wrote: ' + document.getElementById('src').value.substring(0,200) + ' — can you check it and suggest corrections or improvements?')">Ask for feedback ↗</button>
+</div>
+
+<div id="output"></div>
+</div>
+
+<script>
+const ROSE_DIGIT = {"Gaoh":0,"Ao":1,"Ye":2,"Ui":3,"Shu":4,"Kiel":5,"Yeshu":6,"Lao":7,"Shushy":8,"Uinshu":9,"Kokiel":10,"Aonkiel":11};
+const ROSE_NUMS = new Set(Object.keys(ROSE_DIGIT));
+const ROSE_VECS = new Set(["Ru","Ot","El","Ki","Fu","Ka","AE","Ha","Ga"]);
+const ELEMENTALS = {"Shak":"light","Puf":"sound","Mel":"telepathy","Zot":"haptics"};
+const CANNABIS_SYMS = new Set(["At","Ar","Av","Azr","Af","An","Od","Ox","Om","Soa_c","It","Ir","Iv","Izr","If","In","Ed","Ex","Em","Sei","Yt","Yr","Yv","Yzr","Yf","Yn","Ud","Ux","Um","Suy"]);
+const TOPO_SYMS = new Set(["Josve","Josvi","Josva","Josvo","Vexe","Vexi","Vexa","Vexo","Blisve","Blisvi","Blisva","Blisvo","Torev","Glaen","Fulnaz","Zhifan","Shavka","Shavki","Zotvex","Zotvei","Blispa","Blispi","Pufzota","Pufzoti","Dreve","Drevi","Skathe","Skathi","Phelve","Phelvi","Zolne","Zolni","Drevske","Drevski","Vreske","Vreski","Tholve","Tholvi","Frenze","Frenzi","Glathne","Glathni"]);
+
+const BYTE_TABLE = {"Ty":{"tongue":"Lotus","meaning":"Earth Initiator"},"Zu":{"tongue":"Lotus","meaning":"Earth Terminator"},"Ly":{"tongue":"Lotus","meaning":"Water Initiator / feeling toward"},"Mu":{"tongue":"Lotus","meaning":"Water Terminator / memory from"},"Fy":{"tongue":"Lotus","meaning":"Air Initiator / thought toward"},"Pu":{"tongue":"Lotus","meaning":"Air Terminator / stasis"},"Shy":{"tongue":"Lotus","meaning":"Fire Initiator / pattern toward"},"Ku":{"tongue":"Lotus","meaning":"Fire Terminator / death / end"},"Ti":{"tongue":"Lotus","meaning":"Here / near presence"},"Ta":{"tongue":"Lotus","meaning":"Active being / presence"},"Li":{"tongue":"Lotus","meaning":"New / odd"},"La":{"tongue":"Lotus","meaning":"Tense / excited"},"Fi":{"tongue":"Lotus","meaning":"Known / context-sensitive"},"Fa":{"tongue":"Lotus","meaning":"Complex / old"},"Shi":{"tongue":"Lotus","meaning":"Related / clear — coherence"},"Sha":{"tongue":"Lotus","meaning":"Intellect of spirit"},"Zo":{"tongue":"Lotus","meaning":"Absence / passive non-being"},"Mo":{"tongue":"Lotus","meaning":"Relaxed / silent"},"Po":{"tongue":"Lotus","meaning":"Simple / new"},"Ko":{"tongue":"Lotus","meaning":"Experience / intuition"},"Ze":{"tongue":"Lotus","meaning":"There / far"},"Me":{"tongue":"Lotus","meaning":"Familiar / home"},"Pe":{"tongue":"Lotus","meaning":"Unknown / insensitive"},"Ke":{"tongue":"Lotus","meaning":"Incoherent / ill"},"Ru":{"tongue":"Rose","meaning":"Vector Red"},"Ot":{"tongue":"Rose","meaning":"Vector Orange"},"El":{"tongue":"Rose","meaning":"Vector Yellow"},"Ki":{"tongue":"Rose","meaning":"Vector Green"},"Fu":{"tongue":"Rose","meaning":"Vector Blue"},"Ka":{"tongue":"Rose","meaning":"Vector Indigo"},"AE":{"tongue":"Rose","meaning":"Vector Violet"},"Ha":{"tongue":"Rose","meaning":"Absolute Positive"},"Ga":{"tongue":"Rose","meaning":"Absolute Negative"},"Wu":{"tongue":"Rose","meaning":"Process / Way"},"Na":{"tongue":"Rose","meaning":"Neutral / Integration"},"Ung":{"tongue":"Rose","meaning":"Piece / Point"},"Gaoh":{"tongue":"Rose","meaning":"Number 0"},"Ao":{"tongue":"Rose","meaning":"Number 1"},"Ye":{"tongue":"Rose","meaning":"Number 2"},"Ui":{"tongue":"Rose","meaning":"Number 3"},"Shu":{"tongue":"Rose","meaning":"Number 4 / cartesian space"},"Kiel":{"tongue":"Rose","meaning":"Number 5"},"Yeshu":{"tongue":"Rose","meaning":"Number 6"},"Lao":{"tongue":"Rose","meaning":"Number 7"},"Shushy":{"tongue":"Rose","meaning":"Number 8"},"Uinshu":{"tongue":"Rose","meaning":"Number 9"},"Kokiel":{"tongue":"Rose","meaning":"Number 10"},"Aonkiel":{"tongue":"Rose","meaning":"Number 11"},"Jy":{"tongue":"Sakura","meaning":"Top / ceiling"},"Ji":{"tongue":"Sakura","meaning":"Starboard / side"},"Ja":{"tongue":"Sakura","meaning":"Front"},"Jo":{"tongue":"Sakura","meaning":"Back"},"Je":{"tongue":"Sakura","meaning":"Port"},"Ju":{"tongue":"Sakura","meaning":"Bottom / base"},"Va":{"tongue":"Sakura","meaning":"Order / Structure / Life"},"Vo":{"tongue":"Sakura","meaning":"Chaos / Mutation"},"Lo":{"tongue":"Daisy","meaning":"Segments / Identity"},"To":{"tongue":"Daisy","meaning":"Scaffold / Framework"},"Ne":{"tongue":"Daisy","meaning":"Network / System"},"Gl":{"tongue":"Daisy","meaning":"Membrane / Muscle"},"St":{"tongue":"Daisy","meaning":"Surface"},"Ma":{"tongue":"Daisy","meaning":"Web / Interchange"},"Kael":{"tongue":"Daisy","meaning":"Cluster / Fruit / Flower — generative excess"},"Shak":{"tongue":"AppleBlossom","meaning":"Fire"},"Puf":{"tongue":"AppleBlossom","meaning":"Air"},"Mel":{"tongue":"AppleBlossom","meaning":"Water"},"Zot":{"tongue":"AppleBlossom","meaning":"Earth"},"At":{"tongue":"Cannabis","meaning":"Grounded awareness"},"Ar":{"tongue":"Cannabis","meaning":"Chromatic perception"},"Av":{"tongue":"Cannabis","meaning":"Relational consciousness"},"Azr":{"tongue":"Cannabis","meaning":"Structural intuition"},"Af":{"tongue":"Cannabis","meaning":"Transformative awareness"},"An":{"tongue":"Cannabis","meaning":"Chiral discernment"}};
+
+const ALL_SYMS = Object.keys(BYTE_TABLE).sort((a,b)=>b.length-a.length);
+
+const TONGUE_COLORS = {"Lotus":"#E1F5EE","Lotus_t":"#0F6E56","Rose":"#FAECE7","Rose_t":"#993C1D","Sakura":"#E6F1FB","Sakura_t":"#185FA5","Daisy":"#EEEDFE","Daisy_t":"#534AB7","AppleBlossom":"#FBEAF0","AppleBlossom_t":"#993556","Cannabis":"#FAEEDA","Cannabis_t":"#854F0B"};
+const VEC_COLORS = {"Ru":"#E24B4A","Ot":"#EF9F27","El":"#BA7517","Ki":"#639922","Fu":"#378ADD","Ka":"#534AB7","AE":"#D4537E","Ha":"#fff","Ga":"#444441"};
+
+const EXAMPLES = [
+`LoShun: Shakshi(TaLaShaN) {
+  [Ao Ye JuTaLoShi]
+  [Ui Kiel TaShakWu]
+  [TaShyMa(AonkielYeShu)]
+}`,
+`LoShun: Shakshi(TaLaShaN) {
+  [Ao Ye JuTaLoShi AtNe]
+  [Ui Kiel RuTaShakWu Av]
+  [Ye Ui FuTaMelLy An]
+  [TaShyMa(KielYeshu)]
+}`,
+`YeShu: Shakshi(TaKoShaN) {
+  [KielRu AoEl AonkielKi TaShakWu]
+  [YeshuFu KielKa TaMelLy]
+  [Ao Ye KielRu AoOt TaZotNa]
+  [TaShyMa(YeshuKiel)]
+}`,
+`Ao: Shakshi(TyShaN) {
+  [TyShak]
+  [TaStShiKo]
+  [TaShyMa(Yeshu)]
+}`
+];
+
+function segmentRaw(raw) {
+  const syms = [];
+  let pos = 0;
+  while (pos < raw.length) {
+    let matched = false;
+    for (const sym of ALL_SYMS) {
+      if (raw.startsWith(sym, pos)) {
+        syms.push(sym);
+        pos += sym.length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) pos++;
+  }
+  return syms;
+}
+
+function evalBase12(symbols) {
+  return symbols.reduce((acc, s) => acc * 12 + (ROSE_DIGIT[s] || 0), 0);
+}
+
+function secondsToClock(s) {
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+
+function evalTemporalAddress(raw) {
+  const syms = segmentRaw(raw);
+  const nums = syms.filter(s => ROSE_NUMS.has(s));
+  return evalBase12(nums);
+}
+
+function extractCannabis(syms) {
+  return syms.filter(s => CANNABIS_SYMS.has(s));
+}
+
+function extractTopo(syms) {
+  return syms.filter(s => TOPO_SYMS.has(s));
+}
+
+function extractTongues(syms) {
+  const seen = new Set();
+  const order = [];
+  for (const s of syms) {
+    const entry = BYTE_TABLE[s];
+    if (entry && !seen.has(entry.tongue)) {
+      seen.add(entry.tongue);
+      order.push(entry.tongue);
+    }
+  }
+  return order;
+}
+
+function extractChromatic(syms) {
+  const vectors = [];
+  let primary = null;
+  let kael = false;
+  let i = 0;
+  while (i < syms.length) {
+    const s = syms[i];
+    if (s === "Kael") { kael = true; i++; continue; }
+    if (s in ELEMENTALS) { primary = ELEMENTALS[s]; i++; continue; }
+    if (ROSE_NUMS.has(s) && i+1 < syms.length && ROSE_VECS.has(syms[i+1])) {
+      vectors.push({ vec: syms[i+1], amp: ROSE_DIGIT[s] });
+      i += 2; continue;
+    }
+    if (ROSE_VECS.has(s)) {
+      const amp = s === "Ha" ? 12 : s === "Ga" ? -1 : 6;
+      vectors.push({ vec: s, amp });
+      i++; continue;
+    }
+    i++;
+  }
+  return { vectors, primary, kael };
+}
+
+const witnessStates = {};
+
+function parseSamosMyr() {
+  const src = document.getElementById("src").value.trim();
+  if (!src) return;
+
+  const delims = new Set("[]{}();:");
+  const tokens = [];
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i];
+    if (" \t\r\n".includes(ch)) { i++; continue; }
+    if (delims.has(ch)) { tokens.push({k:ch,v:ch}); i++; continue; }
+    let j = i;
+    while (j < src.length && !" \t\r\n".includes(src[j]) && !delims.has(src[j])) j++;
+    tokens.push({k:"W",v:src.slice(i,j)});
+    i = j;
+  }
+
+  let pos = 0;
+  const peek = () => tokens[pos] || {k:"EOF",v:""};
+  const consume = () => tokens[pos++] || {k:"EOF",v:""};
+  const expect = k => { const t = consume(); return t; };
+
+  try {
+    const identRaw = peek().k === "W" ? consume().v : "";
+    const identSyms = segmentRaw(identRaw);
+    const identNums = identSyms.filter(s => ROSE_NUMS.has(s));
+    const identIndex = evalBase12(identNums);
+
+    expect(":");
+
+    const coherenceRaw = peek().k === "W" ? consume().v : "";
+    let interiorWords = [];
+    if (peek().k === "(") {
+      consume();
+      while (peek().k !== ")" && peek().k !== "EOF") {
+        if (peek().k === "W") interiorWords.push(consume().v);
+        else consume();
+      }
+      consume();
+    }
+
+    const entitySpecs = [];
+    let temporalClosure = null;
+
+    if (peek().k === "{") {
+      consume();
+      while (peek().k !== "}" && peek().k !== "EOF") {
+        if (peek().k === "[") {
+          consume();
+          const words = [];
+          let hasParen = false;
+          let parenWord = "";
+          while (peek().k !== "]" && peek().k !== "EOF") {
+            const t = consume();
+            if (t.k === "W") {
+              if (peek().k === "(") {
+                hasParen = true;
+                parenWord = t.v;
+                consume();
+                const addrTok = peek().k === "W" ? consume().v : "";
+                while (peek().k !== ")" && peek().k !== "EOF") consume();
+                consume();
+                const secs = evalTemporalAddress(addrTok);
+                temporalClosure = {
+                  operatorRaw: parenWord,
+                  addressRaw: addrTok,
+                  seconds: secs,
+                  clock: secondsToClock(secs),
+                };
+              } else {
+                words.push(t.v);
+              }
+            }
+          }
+          consume();
+          if (!hasParen && words.length) {
+            const allSyms = words.flatMap(w => segmentRaw(w));
+            const cannabis = extractCannabis(allSyms);
+            const topo = extractTopo(allSyms);
+            const tongues = extractTongues(allSyms);
+            const chrom = extractChromatic(allSyms);
+            entitySpecs.push({ words, allSyms, cannabis, topo, tongues, chrom, index: entitySpecs.length });
+          }
+        } else {
+          consume();
+        }
+      }
+      if (peek().k === "}") consume();
+    }
+
+    const allCannabis = [...new Set(entitySpecs.flatMap(e => e.cannabis))];
+    const allTopo = [...new Set(entitySpecs.flatMap(e => e.topo))];
+    const deliberate = allCannabis.length > 0;
+    const parseState = deliberate ? "FrontierOpen" : "Resolved";
+
+    for (const sym of allCannabis) {
+      if (!witnessStates[sym]) witnessStates[sym] = "unwitnessed";
+    }
+
+    renderOutput({
+      identRaw, identIndex, coherenceRaw, interiorWords,
+      entitySpecs, temporalClosure, allCannabis, allTopo,
+      deliberate, parseState, src,
+    });
+
+  } catch(e) {
+    document.getElementById("output").innerHTML = `<div class="panel"><span class="state-badge echo">Echo — ${e.message}</span></div>`;
+  }
+}
+
+function witnessEntry(sym) {
+  witnessStates[sym] = witnessStates[sym] === "unwitnessed" ? "witnessed"
+    : witnessStates[sym] === "witnessed" ? "partial"
+    : "unwitnessed";
+  parseSamosMyr();
+}
+
+function fireTaShyMa(allCannabis, seconds) {
+  for (const sym of allCannabis) {
+    if (witnessStates[sym] !== "witnessed") {
+      witnessStates[sym] = "soa";
+    }
+  }
+  parseSamosMyr();
+}
+
+function chipClass(sym) {
+  const s = witnessStates[sym] || "unwitnessed";
+  return `cannabis-chip ${s}`;
+}
+
+function chipLabel(sym) {
+  const s = witnessStates[sym] || "unwitnessed";
+  const labels = { unwitnessed:"○", witnessed:"✓", partial:"◑", soa:"→" };
+  return `${labels[s]||""} ${sym}`;
+}
+
+function tongueStyle(t) {
+  const bg = TONGUE_COLORS[t] || "#F1EFE8";
+  const fg = TONGUE_COLORS[t+"_t"] || "#444441";
+  return `background:${bg};color:${fg}`;
+}
+
+function renderFreqBars(chrom) {
+  if (!chrom.vectors.length && !chrom.kael) return "";
+  const vecs = ["Ru","Ot","El","Ki","Fu","Ka","AE"];
+  const ampMap = {};
+  if (chrom.kael) vecs.forEach(v => ampMap[v] = 11);
+  else chrom.vectors.forEach(({vec,amp}) => { if(amp>=0) ampMap[vec]=amp; });
+
+  const bars = vecs.map(v => {
+    const amp = ampMap[v] || 0;
+    const h = Math.max(2, Math.round((amp/11)*28));
+    const col = VEC_COLORS[v] || "#888";
+    return `<div class="freq-bar" style="height:${h}px;background:${col};" title="${v} amp=${amp}"></div>`;
+  }).join("");
+
+  const regLabel = chrom.primary ? `→ ${chrom.primary}` : "";
+  return `<div class="freq-bar-wrap">
+    <div class="freq-label">chromatic ${regLabel}${chrom.kael?' [Kael]':''}</div>
+    <div class="freq-bars">${bars}</div>
+  </div>`;
+}
+
+function coherenceColor(grade) {
+  if (grade >= 0.8) return "#1D9E75";
+  if (grade >= 0.4) return "#BA7517";
+  return "#E24B4A";
+}
+
+function renderOutput(data) {
+  const { identRaw, identIndex, coherenceRaw, interiorWords,
+          entitySpecs, temporalClosure, allCannabis, allTopo,
+          deliberate, parseState, src } = data;
+
+  const witnessed = allCannabis.filter(s => witnessStates[s] === "witnessed").length;
+  const partial   = allCannabis.filter(s => witnessStates[s] === "partial").length;
+  const soa       = allCannabis.filter(s => witnessStates[s] === "soa").length;
+  const total     = allCannabis.length;
+  const grade     = total > 0 ? witnessed / total : 1.0;
+  const cutChar   = grade >= 0.8 ? "resolved" : grade >= 0.4 ? "transitional" : "frontier";
+  const cutColor  = coherenceColor(grade);
+
+  let html = `<div class="panel">
+    <div class="panel-title">Parse result</div>
+    <span class="state-badge ${parseState === 'Resolved' ? 'resolved' : parseState === 'FrontierOpen' ? 'frontier' : 'echo'}">${parseState}</span>
+    <div class="cut-bar" style="background:${cutColor};"></div>
+    <div style="font-size:11px;color:var(--color-text-tertiary);margin-bottom:10px;">cut character: ${cutChar}</div>
+
+    <div class="grid3">
+      <div class="metric"><div class="metric-label">identity</div><div class="metric-val" style="font-size:13px;font-family:var(--font-mono)">${identRaw} [${identIndex}]</div></div>
+      <div class="metric"><div class="metric-label">coherence header</div><div class="metric-val" style="font-size:13px;font-family:var(--font-mono)">${coherenceRaw}</div></div>
+      <div class="metric"><div class="metric-label">interior condition</div><div class="metric-val" style="font-size:13px;font-family:var(--font-mono)">${interiorWords.join(' ') || '—'}</div></div>
+    </div>`;
+
+  if (temporalClosure) {
+    html += `<div style="margin-top:10px;display:flex;align-items:baseline;gap:12px;">
+      <div><div class="clock-label">TaShyMa at</div><div class="clock">${temporalClosure.clock}</div></div>
+      <div style="font-size:12px;color:var(--color-text-secondary);">${temporalClosure.seconds} seconds · ${temporalClosure.operatorRaw}(${temporalClosure.addressRaw})</div>
+      ${allCannabis.length ? `<button class="fire" onclick="fireTaShyMa(${JSON.stringify(allCannabis)}, ${temporalClosure.seconds})">Fire TaShyMa</button>` : ''}
+    </div>`;
+  }
+
+  if (allCannabis.length) {
+    html += `<div style="margin-top:12px;">
+      <div class="panel-title">Cannabis entries — click to cycle witness state</div>
+      <div style="margin-bottom:6px;">${allCannabis.map(s =>
+        `<span class="${chipClass(s)}" onclick="witnessEntry('${s}')">${chipLabel(s)}</span>`
+      ).join('')}</div>
+      <div class="grid3" style="margin-top:6px;">
+        <div class="metric"><div class="metric-label">witnessed</div><div class="metric-val">${witnessed}/${total}</div></div>
+        <div class="metric"><div class="metric-label">coherence</div><div class="metric-val" style="color:${cutColor}">${Math.round(grade*100)}%</div></div>
+        <div class="metric"><div class="metric-label">Soa carried</div><div class="metric-val">${soa}</div></div>
+      </div>
+    </div>`;
+  }
+
+  if (allTopo.length) {
+    html += `<div style="margin-top:10px;">
+      <div class="panel-title">Topological relevance declarations</div>
+      ${allTopo.map(s => `<span class="topo-chip">${s}</span>`).join('')}
+    </div>`;
+  }
+
+  html += `<div style="margin-top:12px;"><div class="panel-title">Entity specs (${entitySpecs.length})</div>`;
+
+  entitySpecs.forEach((spec, i) => {
+    const hasCannabis = spec.cannabis.length > 0;
+    const accentColor = hasCannabis ? "#BA7517" : "var(--color-border-tertiary)";
+    html += `<div class="entity-card" style="border-left:2px solid ${accentColor};padding-left:8px;">
+      <div class="entity-title">spec ${i+1}: ${spec.words.join(' ')}</div>
+      <div class="tongue-row">${spec.tongues.map(t =>
+        `<span class="tp" style="${tongueStyle(t)}">${t}</span>`
+      ).join('')}</div>
+      ${spec.cannabis.length ? `<div>${spec.cannabis.map(s =>
+        `<span class="${chipClass(s)}" onclick="witnessEntry('${s}')">${chipLabel(s)}</span>`
+      ).join('')}</div>` : ''}
+      ${renderFreqBars(spec.chrom)}
+      ${spec.topo.length ? `<div>${spec.topo.map(s => `<span class="topo-chip">${s}</span>`).join('')}</div>` : ''}
+    </div>`;
+  });
+
+  html += `</div>`;
+
+  if (soa > 0) {
+    const soaEntries = allCannabis.filter(s => witnessStates[s] === "soa");
+    html += `<div style="margin-top:10px;">
+      <div class="panel-title">Soa ledger — carried forward</div>
+      ${soaEntries.map(s => `<span class="soa-chip">${s} → Soa</span>`).join('')}
+    </div>`;
+  }
+
+  html += `<div style="margin-top:10px;text-align:right;">
+    <button onclick="sendPrompt('Explain the coherence state of this SamosMyr: parse state ${parseState}, ${witnessed}/${total} Cannabis entries witnessed, cut character ${cutChar}. What should I do next as the author?')">Explain this state ↗</button>
+  </div>`;
+
+  html += `</div>`;
+  document.getElementById("output").innerHTML = html;
+}
+
+function loadExample(i) {
+  document.getElementById("src").value = EXAMPLES[i];
+  Object.keys(witnessStates).forEach(k => delete witnessStates[k]);
+  parseSamosMyr();
+}
+
+function clearAll() {
+  document.getElementById("src").value = "";
+  document.getElementById("output").innerHTML = "";
+  Object.keys(witnessStates).forEach(k => delete witnessStates[k]);
+}
+</script>
