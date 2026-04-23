@@ -26,6 +26,7 @@ import structlog
 from .core.config import Settings, get_settings
 from .routers import game, render_lab, export as export_router
 from .routers.cosmology import router as cosmology_router
+from .routers.kobra import router as kobra_router
 from .shygazun_router import router as shygazun_router
 from .shygazun_reasoning import router as shygazun_reasoning_router
 
@@ -1145,6 +1146,7 @@ register_guild_routes(app)
 app.include_router(render_lab.router)
 app.include_router(export_router.router)
 app.include_router(cosmology_router)
+app.include_router(kobra_router)
 app.include_router(shygazun_router, prefix="/shygazun", tags=["shygazun"])
 app.include_router(shygazun_reasoning_router, prefix="/v1/shygazun", tags=["shygazun-reasoning"])
 

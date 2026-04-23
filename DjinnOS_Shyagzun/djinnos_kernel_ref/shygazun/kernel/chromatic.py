@@ -51,7 +51,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from .sublayer import segment as sublayer_segment
+try:
+    from .sublayer import segment as sublayer_segment           # type: ignore
+except ImportError:
+    # Loaded outside the djinnos_kernel_ref package tree (e.g. via importlib
+    # with __package__ = "shygazun.kernel" pointing at DjinnOS_Shyagzun).
+    from shygazun.kernel.kobra.sublayer import segment as sublayer_segment  # type: ignore
 
 # ---------------------------------------------------------------------------
 # Rose vector frequency definitions

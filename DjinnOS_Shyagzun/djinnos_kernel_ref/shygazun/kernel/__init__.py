@@ -1,5 +1,7 @@
 # kernel/__init__.py
-from .kernel import Kernel
-from .registers import RoseRegister, SakuraRegister
-
-__all__ = ["Kernel", "RoseRegister", "SakuraRegister"]
+try:
+    from .kernel import Kernel
+    from .registers import RoseRegister, SakuraRegister
+    __all__ = ["Kernel", "RoseRegister", "SakuraRegister"]
+except ImportError:
+    __all__ = []
