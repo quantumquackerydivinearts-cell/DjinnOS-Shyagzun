@@ -305,7 +305,7 @@ DECOMPOSITION: Final[Tuple[Example, ...]] = (
         reasoning=(
             "Mel- : Water elemental band marker (Moon Tongue). Not merely 'aquatic' but "
             "the relational/affective/flowing register of existence. "
-            "Ko- : correct traversal. From Excavata: Yefko — moving along the single "
+            "Ko- : Experience/Intuition. From Excavata: Yefko — moving along the single "
             "surface without falling into orientation error. The organism that traverses "
             "its medium correctly, experiencing the continuation of its own being. "
             "Wuvu : living being, organism suffix. "
