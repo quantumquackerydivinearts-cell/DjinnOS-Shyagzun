@@ -18,8 +18,8 @@ Normative anchors:
                               |
                               v
 +--------------------------------------------------------------+
-| Cobra Runtime Shim                                           |
-| - shygazun/ide/cobra_runtime.py                             |
+| Kobra Runtime Shim                                           |
+| - shygazun/ide/kobra_runtime.py                             |
 | (tooling bridge only; no semantics/attest/commit authority) |
 +-----------------------------+--------------------------------+
                               |
@@ -59,7 +59,7 @@ Normative anchors:
 
 ## 2) Dataflow Map
 ### Place Flow
-`CobraRuntime.place_line/place_packet`  
+`KobraRuntime.place_line/place_packet`  
 -> `AtelierPort.place_line`  
 -> `Kernel.place`  
 -> `CEG.add_event` (placement)  
@@ -118,7 +118,7 @@ Runner step executor
 | Conformance pack JSON | `shygazun/conformance/v0.1.1/*.json` | tooling | locked |
 | Conformance runner | `shygazun/conformance/runners/python/*` | tooling | additive |
 | IDE landing port | `shygazun/ide/atelier_port.py` | IDE | additive |
-| Cobra runtime shim | `shygazun/ide/cobra_runtime.py` | IDE | additive |
+| Kobra runtime shim | `shygazun/ide/kobra_runtime.py` | IDE | additive |
 | CLI surfaces | `shygazun/ide/*cli.py` | IDE | additive |
 | Sanctum charters (Shygazun-side mirror) | `shygazun/sanctum/charters/*` | tooling | additive |
 | Sanctum charters (DjinnOS root mapping) | `djinn_os/sanctum/charters/*` | tooling | additive |

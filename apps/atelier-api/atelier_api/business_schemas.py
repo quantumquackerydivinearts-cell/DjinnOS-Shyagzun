@@ -1966,7 +1966,7 @@ class ContentValidateInput(BaseModel):
     workspace_id: str
     realm_id: str
     scene_id: str
-    source: Literal["kobra", "cobra", "json"] = "kobra"
+    source: Literal["kobra", "json"] = "kobra"
     payload: str
     strict_bilingual: bool = False
 

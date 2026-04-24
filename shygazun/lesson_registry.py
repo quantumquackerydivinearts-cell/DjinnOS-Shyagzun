@@ -161,7 +161,7 @@ class LessonRegistry:
                 examples.setdefault(source_text.lower(), authoritative_projection)
         return examples
 
-    def cobra_surface(self, source_text: str) -> dict[str, Any]:
+    def kobra_surface(self, source_text: str) -> dict[str, Any]:
         projection = self.project_text(source_text)
         return {
             "source_text": projection["source_text"],

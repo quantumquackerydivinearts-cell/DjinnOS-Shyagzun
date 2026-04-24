@@ -99,7 +99,7 @@ _LAYER_TABLE_RAW: Final[tuple[tuple, ...]] = (
        "at the scale of the whole scene. Fold time is the appropriate time-type: "
        "scene differentials compress temporal distance into structural correspondence."),
 
-    ( 12,   "Wu-Yl",      "Rose",     "Aster",    "Function",      "The operative layer — Cobra executes here",
+    ( 12,   "Wu-Yl",      "Rose",     "Aster",    "Function",      "The operative layer — Kobra executes here",
        "Wu (Process/Way, decimal 45) meeting Yl (Run-space, decimal 154). "
        "The layer that can reach down and touch any layer below it while being constituted by all of them. "
        "One full coil rotation above Gaoh (Layer 1). Wu-Yl and Gaoh share the same Möbius surface. "

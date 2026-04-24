@@ -480,7 +480,7 @@ believing they are downloading indie games.
 
 **Shygazun-to-binary compiler** — the byte table is the canonical spec.
 
-**Cobra runtime** — Python/Shygazun hybrid.
+**Kobra runtime** — Python/Shygazun hybrid.
 Runs at `C:\DjinnOS\apps\atelier-api\` with a venv. Use `python` directly.
 
 **Djinnflow Kernel** — the semantic processing kernel.
@@ -537,7 +537,7 @@ It is a structural assertion verified at system initialization by
 | 9 | Dyf-Vr | Pattern Flows | Grapevine + Daisy | Emergent correspondence across layers |
 | 10 | Ne-Soa | Names/Metadata | Daisy + Grapevine | The Field acquires language |
 | 11 | Sy-Mek | Scene Diffs | Aster + Grapevine | Delta between Field states across fold time |
-| 12 | Wu-Yl | Function | Rose + Aster | Cobra executes here — same surface as Layer 1 |
+| 12 | Wu-Yl | Function | Rose + Aster | Kobra executes here — same surface as Layer 1 |
 
 ### 5.3 Key Layer Notes
 
@@ -935,7 +935,7 @@ running on the Djinnflow Kernel.
 
 **Features:**
 - 3D voxel renderer with style presets (Pokémon G4/G5, Classic Fallout)
-- Live Cobra coding environment
+- Live Kobra coding environment
 - Deterministic English↔Shygazun translation engine
 - Federation registry
 

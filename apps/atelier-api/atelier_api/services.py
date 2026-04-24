@@ -12958,7 +12958,7 @@ class AtelierService:
         stats: dict[str, object] = {}
         if not realm_validation.ok:
             errors.append(f"unknown_realm:{payload.realm_id}")
-        if payload.source in ("cobra", "kobra"):
+        if payload.source == "kobra":
             result = validate_kobra_content(payload.payload, realm_id=payload.realm_id, scene_id=payload.scene_id)
         else:
             result = validate_json_content(payload.payload, realm_id=payload.realm_id, scene_id=payload.scene_id)

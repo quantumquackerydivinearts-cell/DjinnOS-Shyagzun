@@ -1572,10 +1572,10 @@ def v1_shygazun_project(req: BilingualProjectRequest) -> Response:
     return _json_response(payload)
 
 
-@app.post("/v0.1/shygazun/cobra_surface")
-def v1_shygazun_cobra_surface(req: BilingualProjectRequest) -> Response:
+@app.post("/v0.1/shygazun/kobra_surface")
+def v1_shygazun_kobra_surface(req: BilingualProjectRequest) -> Response:
     try:
-        payload = _lesson_registry.cobra_surface(req.source_text)
+        payload = _lesson_registry.kobra_surface(req.source_text)
     except LessonValidationError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except ValueError as exc:

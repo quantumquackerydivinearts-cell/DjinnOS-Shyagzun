@@ -45,7 +45,7 @@ export function architectureNodeColor(kind) {
 // ---------------------------------------------------------------------------
 
 /**
- * Normalise a raw arch diagram spec (from JSON, Cobra, English, or Shygazun parse)
+ * Normalise a raw arch diagram spec (from JSON, Kobra, English, or Shygazun parse)
  * into a canonical { lanes, nodes, flows } model used by draw functions.
  */
 export function normalizeArchitectureSpec(rawSpec) {
@@ -134,7 +134,7 @@ export function deriveBusinessArchitectureSpec(rendererTables, rendererPipeline,
       description: tableKeys.join(", ") },
   ];
   const tools = [
-    { id: "cobra",     name: "Cobra Compiler",  lane: "Systems", kind: "tool" },
+    { id: "kobra",     name: "Kobra Compiler",  lane: "Systems", kind: "tool" },
     { id: "studio_fs", name: `Studio Files (${Array.isArray(studioFiles) ? studioFiles.length : 0})`,
       lane: "Data", kind: "tool" },
     { id: "pipeline",  name: "Renderer Pipeline", lane: "Systems", kind: "tool",
@@ -143,9 +143,9 @@ export function deriveBusinessArchitectureSpec(rendererTables, rendererPipeline,
   const flows = [
     { from: "atelier_api",  to: "table_store", label: "business writes",  style: "solid" },
     { from: "kernel",       to: "table_store", label: "runtime writes",   style: "solid" },
-    { from: "cobra",        to: "kernel",      label: "script compile",   style: "dashed" },
+    { from: "kobra",        to: "kernel",      label: "script compile",   style: "dashed" },
     { from: "table_store",  to: "renderer",    label: "render state",     style: "solid" },
-    { from: "studio_fs",    to: "cobra",       label: "script source",    style: "dotted" },
+    { from: "studio_fs",    to: "kobra",       label: "script source",    style: "dotted" },
     { from: "pipeline",     to: "renderer",    label: "material pass",    style: "dashed" },
   ];
   return { domains, systems, tools, flows };
@@ -163,7 +163,7 @@ export function parseArchitectureInput(mode, text) {
   const normalized = String(mode || "json").toLowerCase();
   if (normalized === "json")      return _parseJson(text);
   if (normalized === "english")   return _parseEnglish(text);
-  if (normalized === "cobra")     return _parseCobra(text);
+  if (normalized === "kobra")     return _parseKobra(text);
   if (normalized === "shygazun")  return _parseShygazun(text);
   return _parseJson(text);
 }
@@ -208,8 +208,8 @@ function _parseEnglish(text) {
   return { domains, systems, tools, flows };
 }
 
-function _parseCobra(text) {
-  // Minimal Cobra architecture parser: entity declarations become nodes,
+function _parseKobra(text) {
+  // Minimal Kobra architecture parser: entity declarations become nodes,
   // edge declarations become flows.
   // entity <id> <x> <y> <kind>  →  system node in lane derived from kind
   // edge <from> <to> <label?>   →  flow

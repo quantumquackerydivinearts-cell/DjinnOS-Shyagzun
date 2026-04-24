@@ -78,7 +78,7 @@ class SyncTablesResponse(BaseModel):
 
 # ── Kobra compile ─────────────────────────────────────────────────────────────
 
-class CompileCobraRequest(BaseModel):
+class CompileKobraRequest(BaseModel):
     workspace_id: str
     realm_id: str = ""
     scene_id: str = ""
@@ -94,7 +94,7 @@ class CompileCobraRequest(BaseModel):
         return v
 
 
-class CompileCobraResponse(BaseModel):
+class CompileKobraResponse(BaseModel):
     ok: bool
     scene_id: str
     renderer_json: dict[str, Any]
@@ -111,7 +111,7 @@ class ValidateContentRequest(BaseModel):
     workspace_id: str
     realm_id: str = ""
     scene_id: str = ""
-    source_type: Literal["cobra", "json", "python", "js"] = "cobra"
+    source_type: Literal["kobra", "json", "python", "js"] = "kobra"
     payload: str
     strict_bilingual: bool = False
 
@@ -192,7 +192,7 @@ class EmitPlacementsRequest(BaseModel):
     realm_id: str = ""
     scene_id: str = ""
     placements: list[dict[str, Any]]
-    source: Literal["json", "cobra", "tile"] = "json"
+    source: Literal["json", "kobra", "tile"] = "json"
 
 
 class EmitPlacementsResponse(BaseModel):

@@ -222,7 +222,7 @@ def validate_kobra_content(
 
 
 # Backward-compatible alias
-validate_cobra_content = validate_kobra_content
+validate_kobra_content = validate_kobra_content
 
 
 def validate_json_content(
@@ -285,4 +285,4 @@ def build_scene_graph_content_from_kobra(
 
 
 # Backward-compatible alias
-build_scene_graph_content_from_cobra = build_scene_graph_content_from_kobra
+build_scene_graph_content_from_kobra = build_scene_graph_content_from_kobra

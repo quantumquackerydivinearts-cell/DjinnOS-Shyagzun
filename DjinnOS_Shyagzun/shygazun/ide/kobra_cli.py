@@ -4,7 +4,7 @@ import json
 import shlex
 from typing import Any, Dict, Optional, Tuple
 
-from shygazun.ide.cobra_runtime import CobraRuntime
+from shygazun.ide.kobra_runtime import KobraRuntime
 
 
 def _to_json(value: Any) -> str:
@@ -19,14 +19,14 @@ def _parse_placeas(parts: list[str]) -> Tuple[str, str]:
     return speaker_id, raw
 
 
-def repl(runtime: CobraRuntime) -> None:
+def repl(runtime: KobraRuntime) -> None:
     current_scene: Optional[str] = None
     current_quest: Optional[str] = None
     current_tags: Dict[str, str] = {}
 
     while True:
         try:
-            line = input("cobra> ").strip()
+            line = input("kobra> ").strip()
         except EOFError:
             break
 

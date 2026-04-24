@@ -10,7 +10,7 @@ from shygazun.kernel.types.events import KernelEventObj
 
 
 @dataclass(frozen=True)
-class CobraLine:
+class KobraLine:
     raw: str
     speaker_id: str
     scene_id: Optional[str]
@@ -20,12 +20,12 @@ class CobraLine:
 
 
 @dataclass(frozen=True)
-class CobraPacket:
-    lines: List[CobraLine]
+class KobraPacket:
+    lines: List[KobraLine]
     context: Dict[str, Any]
 
 
-class CobraRuntime:
+class KobraRuntime:
     def __init__(self, port: AtelierPort, *, default_speaker_id: str = "player") -> None:
         self._port = port
         self._default_speaker_id = default_speaker_id
@@ -56,7 +56,7 @@ class CobraRuntime:
         self._last_refusals = [dict(refusal) for refusal in result.observe.refusals]
         return result
 
-    def place_packet(self, packet: CobraPacket) -> List[PlaceResult]:
+    def place_packet(self, packet: KobraPacket) -> List[PlaceResult]:
         results: List[PlaceResult] = []
         for line in packet.lines:
             merged_metadata: Dict[str, Any] = dict(packet.context)
@@ -89,9 +89,9 @@ class CobraRuntime:
 
 
 __all__ = [
-    "CobraLine",
-    "CobraPacket",
-    "CobraRuntime",
+    "KobraLine",
+    "KobraPacket",
+    "KobraRuntime",
     "Clock",
     "Edge",
 ]

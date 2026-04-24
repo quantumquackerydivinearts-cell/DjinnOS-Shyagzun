@@ -97,7 +97,7 @@ function registerIpcHandlers() {
   ipcMain.handle("studio:choose-directory", async () => {
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory", "createDirectory"],
-      title: "Select Cobra Script Folder"
+      title: "Select Kobra Script Folder"
     });
     if (result.canceled || result.filePaths.length === 0) {
       return { ok: false };
@@ -105,14 +105,14 @@ function registerIpcHandlers() {
     return { ok: true, directory: result.filePaths[0] };
   });
 
-  ipcMain.handle("studio:list-cobra-scripts", async (_event, rootDir) => {
+  ipcMain.handle("studio:list-kobra-scripts", async (_event, rootDir) => {
     if (typeof rootDir !== "string" || rootDir.trim() === "") {
       throw new Error("studio_fs_root_required");
     }
     const normalizedRoot = path.resolve(rootDir);
     const entries = await fs.readdir(normalizedRoot, { withFileTypes: true });
     const files = entries
-      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".cobra"))
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".kobra"))
       .map((entry) => entry.name)
       .sort((a, b) => a.localeCompare(b));
     return { ok: true, files };
@@ -173,7 +173,7 @@ function registerIpcHandlers() {
     return { ok: true, files: out };
   });
 
-  ipcMain.handle("studio:read-cobra-script", async (_event, rootDir, filename) => {
+  ipcMain.handle("studio:read-kobra-script", async (_event, rootDir, filename) => {
     if (typeof rootDir !== "string" || rootDir.trim() === "") {
       throw new Error("studio_fs_root_required");
     }
@@ -193,7 +193,7 @@ function registerIpcHandlers() {
     return { ok: true, filename: path.basename(absolutePath), content };
   });
 
-  ipcMain.handle("studio:write-cobra-script", async (_event, rootDir, filename, content) => {
+  ipcMain.handle("studio:write-kobra-script", async (_event, rootDir, filename, content) => {
     if (typeof rootDir !== "string" || rootDir.trim() === "") {
       throw new Error("studio_fs_root_required");
     }

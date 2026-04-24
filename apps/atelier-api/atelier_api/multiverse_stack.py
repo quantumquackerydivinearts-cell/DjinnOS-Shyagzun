@@ -14,7 +14,7 @@ The 12-layer lineage DB is the Orrery's memory:
   L3  pre_tick        — world state snapshot before consequence
   L4  tick_applied    — diff produced by the consequence
   L5  post_tick       — world state after consequence
-  L6  compiled        — scene/cobra output reflecting new state
+  L6  compiled        — scene/kobra output reflecting new state
   L7  asset_resolved  — assets and sprites hydrated
   L8  signed          — kernel attestation (Shygazun)
   L9  broadcast       — Sulphera evaluates nonlocal affect, writes back

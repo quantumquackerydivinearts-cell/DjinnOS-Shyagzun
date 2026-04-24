@@ -1,4 +1,4 @@
-function parseCobraShygazunScriptWorker(sourceText) {
+function parseKobraShygazunScriptWorker(sourceText) {
   const lines = String(sourceText || "").split(/\r?\n/);
   const entities = [];
   const words = [];
@@ -195,8 +195,8 @@ self.onmessage = (event) => {
       const mode = typeof payload.mode === "string" ? payload.mode : "json";
       const sourceText = typeof payload.sourceText === "string" ? payload.sourceText : "";
       let result = {};
-      if (mode === "cobra") {
-        result = parseCobraShygazunScriptWorker(sourceText);
+      if (mode === "kobra") {
+        result = parseKobraShygazunScriptWorker(sourceText);
       } else if (mode === "json") {
         const parsed = JSON.parse(sourceText || "{}");
         result = parsed && typeof parsed === "object" ? parsed : {};

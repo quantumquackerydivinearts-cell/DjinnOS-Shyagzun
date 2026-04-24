@@ -65,7 +65,7 @@ export function defaultRendererPipeline() {
   return {
     mode:              "json",
     pythonFileId:      null,
-    cobraFileId:       null,
+    kobraFileId:       null,
     jsFileId:          null,
     jsonFileId:        null,
     engineFileId:      null,

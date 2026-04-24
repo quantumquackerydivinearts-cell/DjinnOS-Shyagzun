@@ -24,7 +24,7 @@ LAYER_NAMES = [
     "pre_tick",        # 3  — engine state before tick
     "tick_applied",    # 4  — diff produced by tick
     "post_tick",       # 5  — engine state after tick
-    "compiled",        # 6  — compiled scene/cobra output
+    "compiled",        # 6  — compiled scene/kobra output
     "asset_resolved",  # 7  — assets hydrated
     "signed",          # 8  — attestation signatures applied
     "broadcast",       # 9  — dispatched to downstream

@@ -1,11 +1,11 @@
-# Cobra Execution Model: Operative Ambiguity
+# Kobra Execution Model: Operative Ambiguity
 ## First Principle Enshrinement Document — v0.1.0
 
 ---
 
 ## The Principle
 
-> *An unresolved frontier in Cobra is not an error state awaiting correction.
+> *An unresolved frontier in Kobra is not an error state awaiting correction.
 > It is a valid operative condition in which coexisting candidate meanings
 > execute in parallel until an external attestation collapses the frontier.
 > The runtime does not choose. The witness chooses.*
@@ -14,7 +14,7 @@
 
 ## 1. Execution States
 
-Cobra recognizes three fundamental execution states for any expression,
+Kobra recognizes three fundamental execution states for any expression,
 statement, or block:
 
 ```
@@ -34,7 +34,7 @@ according to its own protocol.
 When the parser encounters an unresolvable ambiguity, it returns a typed
 result rather than a failure flag:
 
-```cobra
+```kobra
 FrontierOpen(
     candidate_a: Expression,
     candidate_b: Expression,
@@ -54,7 +54,7 @@ are executing in parallel branches until the witness slot is filled.
 
 ## 3. Parallel Branch Execution
 
-When a `FrontierOpen` is encountered at runtime, Cobra forks execution:
+When a `FrontierOpen` is encountered at runtime, Kobra forks execution:
 
 ```
 Expression E → FrontierOpen(A, B, ctx, None)
@@ -77,7 +77,7 @@ main Field that stores the outputs of both branches without committing either.
 
 Collapse occurs when a witness fills the `WitnessSlot`:
 
-```cobra
+```kobra
 attest(frontier: FrontierOpen, choice: candidate_a | candidate_b, witness: Wand)
 ```
 
@@ -98,7 +98,7 @@ registry before collapse is permitted.
 
 In certain contexts, a `FrontierOpen` is not incidental — it is
 **deliberately constructed** as an operative instruction. This is the
-Cannabis Tongue's primary operative mode in Cobra.
+Cannabis Tongue's primary operative mode in Kobra.
 
 A Cannabis Tongue compound appearing in executable position signals to
 the runtime: *hold both, proceed with both, await witness*.
@@ -148,7 +148,7 @@ designed.
 
 Hard parse failures return the input unchanged:
 
-```cobra
+```kobra
 parse("unrecognized_token") → Echo("unrecognized_token", context, failure_type)
 ```
 
@@ -165,9 +165,9 @@ records*. An Echo is a recorded placement of unknown meaning, not a deletion.
 
 ## 8. Relationship to DjinnOS Kernel
 
-Cobra's operative ambiguity model is a direct extension of DjinnOS core:
+Kobra's operative ambiguity model is a direct extension of DjinnOS core:
 
-| DjinnOS Concept       | Cobra Expression         |
+| DjinnOS Concept       | Kobra Expression         |
 |-----------------------|--------------------------|
 | Candidate             | FrontierOpen branch      |
 | Frontier              | FrontierOpen state       |
@@ -176,7 +176,7 @@ Cobra's operative ambiguity model is a direct extension of DjinnOS core:
 | Immutable history     | Collapsed attestation log|
 | Kernel honesty        | No silent collapse       |
 
-The Cobra runtime **never collapses a frontier without a witness**.
+The Kobra runtime **never collapses a frontier without a witness**.
 Not for convenience. Not for performance. Not under any runtime condition.
 This is the kernel's honesty guarantee expressed in executable form.
 
@@ -184,7 +184,7 @@ This is the kernel's honesty guarantee expressed in executable form.
 
 ## 9. Summary of New Types
 
-```cobra
+```kobra
 type ExecutionState =
     | Resolved(value: Any, attestation: AttestationRecord)
     | Echo(input: Any, context: ExecutionContext, failure: FailureType)
@@ -222,5 +222,5 @@ The build order from here:
 
 ---
 
-*Cobra Execution Model v0.1.0 — Operative Ambiguity First Principle*
+*Kobra Execution Model v0.1.0 — Operative Ambiguity First Principle*
 *DjinnOS-Shygazun / quantumquackerydivinearts-cell*

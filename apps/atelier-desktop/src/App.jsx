@@ -514,14 +514,14 @@ const BUSINESS_ARCHITECTURE_TEMPLATE = JSON.stringify(
       { id: "db12", name: "12-Layer Store", lane: "Data", kind: "data" }
     ],
     tools: [
-      { id: "cobra", name: "Cobra Compiler", lane: "Systems", kind: "tool" },
+      { id: "kobra", name: "Kobra Compiler", lane: "Systems", kind: "tool" },
       { id: "studio", name: "Studio Hub FS", lane: "Data", kind: "tool" }
     ],
     flows: [
       { from: "contacts", to: "db12", label: "persist" },
       { from: "quests", to: "db12", label: "state writes" },
       { from: "market", to: "db12", label: "table updates" },
-      { from: "cobra", to: "quests", label: "scripts" },
+      { from: "kobra", to: "quests", label: "scripts" },
       { from: "db12", to: "renderer", label: "render state" }
     ]
   },
@@ -1018,16 +1018,16 @@ function deriveBusinessArchitectureSpec(rendererTables, rendererPipeline, studio
     { id: "table_store", name: "State Tables", lane: "Data", kind: "data", description: tableKeys.join(", ") }
   ];
   const tools = [
-    { id: "cobra", name: "Cobra Compiler", lane: "Systems", kind: "tool" },
+    { id: "kobra", name: "Kobra Compiler", lane: "Systems", kind: "tool" },
     { id: "studio_fs", name: `Studio Files (${Array.isArray(studioFiles) ? studioFiles.length : 0})`, lane: "Data", kind: "tool" },
     { id: "pipeline", name: "Renderer Pipeline", lane: "Systems", kind: "tool", description: rendererPipeline && rendererPipeline.mode ? String(rendererPipeline.mode) : "" }
   ];
   const flows = [
     { from: "atelier_api", to: "table_store", label: "business writes" },
     { from: "kernel", to: "table_store", label: "runtime writes" },
-    { from: "cobra", to: "kernel", label: "script compile" },
+    { from: "kobra", to: "kernel", label: "script compile" },
     { from: "table_store", to: "renderer", label: "render state" },
-    { from: "studio_fs", to: "cobra", label: "script source" },
+    { from: "studio_fs", to: "kobra", label: "script source" },
     { from: "pipeline", to: "renderer", label: "material pass" }
   ];
   return { domains, systems, tools, flows };
@@ -1234,7 +1234,7 @@ function parseArchitectureEnglish(text) {
   return { domains, systems, tools, flows };
 }
 
-function parseArchitectureCobra(text) {
+function parseArchitectureKobra(text) {
   const domains = [];
   const systems = [];
   const tools = [];
@@ -1345,8 +1345,8 @@ function parseArchitectureInput(mode, text) {
   if (normalized === "english") {
     return parseArchitectureEnglish(text);
   }
-  if (normalized === "cobra") {
-    return parseArchitectureCobra(text);
+  if (normalized === "kobra") {
+    return parseArchitectureKobra(text);
   }
   if (normalized === "shygazun") {
     return parseArchitectureShygazun(text);
@@ -1390,7 +1390,7 @@ function mergeRendererTables(localTables, apiTables, precedence) {
   return merged;
 }
 
-function compileCobraFromEntities(entities) {
+function compileKobraFromEntities(entities) {
   if (!Array.isArray(entities)) {
     return "";
   }
@@ -1414,7 +1414,7 @@ function compileCobraFromEntities(entities) {
     .join("\n");
 }
 
-function parseCobraShygazunScript(sourceText) {
+function parseKobraShygazunScript(sourceText) {
   const lines = String(sourceText || "").split(/\r?\n/);
   const entities = [];
   const words = [];
@@ -1481,7 +1481,7 @@ function parseCobraShygazunScript(sourceText) {
   return { entities, words };
 }
 
-function analyzeCobraShygazunScript(sourceText) {
+function analyzeKobraShygazunScript(sourceText) {
   const lines = String(sourceText || "").split(/\r?\n/);
   const warnings = [];
   let hasEntity = false;
@@ -3242,7 +3242,7 @@ function buildRendererFrameHtml(kind, source, engineState) {
         if (!parts || parts.length === 0) return [raw];
         return parts;
       }
-      function parseCobraShygazun(sourceText) {
+      function parseKobraShygazun(sourceText) {
         const normalized = String(sourceText || "").split("\\r").join("");
         const lines = normalized.split("\\n");
         const entities = [];
@@ -3309,9 +3309,9 @@ function buildRendererFrameHtml(kind, source, engineState) {
           line("json parsed ok", "ok");
           renderEntities(Array.isArray(parsed.entities) ? parsed.entities : []);
           line(JSON.stringify(parsed, null, 2));
-        } else if ("${kind}" === "cobra") {
-          const parsed = parseCobraShygazun(source);
-          line("cobra entities=" + parsed.entities.length, "ok");
+        } else if ("${kind}" === "kobra") {
+          const parsed = parseKobraShygazun(source);
+          line("kobra entities=" + parsed.entities.length, "ok");
           line("shygazun words=" + parsed.words.length, "ok");
           parsed.words.forEach((entry, idx) => {
             line("akinenwun[" + String(idx + 1) + "] " + entry.word + " => " + entry.symbols.join("|"), "ok");
@@ -5657,7 +5657,7 @@ function readRendererLocalState() {
     return {
       source: "json",
       json: "{}",
-      cobra: "",
+      kobra: "",
       kobra: "",
       javascript: "",
       python: "",
@@ -5695,7 +5695,7 @@ function readRendererLocalState() {
   }
   const source = localStorage.getItem("atelier.renderer.source") || "json";
   const json = localStorage.getItem("atelier.renderer.json") || "{}";
-  const cobra = localStorage.getItem("atelier.renderer.cobra") || "";
+  const cobra = localStorage.getItem("atelier.renderer.kobra") || "";
   const kobra = localStorage.getItem("atelier.renderer.kobra") || "";
   const javascript = localStorage.getItem("atelier.renderer.js") || "";
   const python = localStorage.getItem("atelier.renderer.python") || "";
@@ -5824,7 +5824,7 @@ function readRendererLocalState() {
   return {
     source,
     json,
-    cobra,
+    kobra,
     kobra,
     javascript,
     python,
@@ -5957,7 +5957,7 @@ export function App() {
     () => localStorage.getItem("atelier.business_logic_renderer.use_derived") !== "0"
   );
   const [businessLogicRendererStatus, setBusinessLogicRendererStatus] = useState("ready");
-  const [contentValidateSource, setContentValidateSource] = useState("cobra");
+  const [contentValidateSource, setContentValidateSource] = useState("kobra");
   const [contentValidateSceneId, setContentValidateSceneId] = useState("lapidus/renderer-lab");
   const [contentValidatePayload, setContentValidatePayload] = useState("");
   const [contentValidateOutput, setContentValidateOutput] = useState(null);
@@ -6157,7 +6157,7 @@ export function App() {
       } catch {
         return {
           pythonFileId: "",
-          cobraFileId: "",
+          kobraFileId: "",
           jsFileId: "",
           jsonFileId: "",
           engineFileId: "",
@@ -6167,7 +6167,7 @@ export function App() {
     }
     return {
       pythonFileId: "",
-      cobraFileId: "",
+      kobraFileId: "",
       jsFileId: "",
       jsonFileId: "",
       engineFileId: "",
@@ -6310,7 +6310,7 @@ export function App() {
   const [inventoryFilter, setInventoryFilter] = useState("");
 
   const [rendererPython, setRendererPython] = useState("#draw title=Workshop Renderer");
-  const [rendererCobra, setRendererCobra] = useState("entity cube 12 8 amber");
+  const [rendererKobra, setRendererKobra] = useState("entity cube 12 8 amber");
   const [rendererKobra, setRendererKobra] = useState("[Ao Shushy El Lo]");
   const [rendererKobraResult, setRendererKobraResult] = useState(null);
   const [kobraCoherenceGrade, setKobraCoherenceGrade] = useState("");
@@ -6366,6 +6366,7 @@ export function App() {
   );
   const [rendererAnimationClock, setRendererAnimationClock] = useState(() => Date.now());
   const [rendererLastMoveAt, setRendererLastMoveAt] = useState(0);
+  const voxelHeldKeysRef = useRef(new Set());
   const [rendererFollowPlayer, setRendererFollowPlayer] = useState(
     () => localStorage.getItem("atelier.renderer.follow_player") === "1"
   );
@@ -7973,15 +7974,15 @@ export function App() {
     );
   }
 
-  async function emitCobraPlacements() {
-    await runAction("cobra_emit_placements", async () => {
+  async function emitKobraPlacements() {
+    await runAction("kobra_emit_placements", async () => {
       if (validateBeforeEmit) {
         const validation = await apiCall("/v1/content/validate", "POST", {
           workspace_id: workspaceId,
           realm_id: rendererRealmId,
           scene_id: `${rendererRealmId}/renderer-lab`,
-          source: "cobra",
-          payload: rendererCobra,
+          source: "kobra",
+          payload: rendererKobra,
         });
         setContentValidateOutput(validation);
         setValidationSummary({
@@ -7990,12 +7991,12 @@ export function App() {
           warnings: Array.isArray(validation && validation.warnings) ? validation.warnings.length : 0,
         });
         if (!validation.ok) {
-          throw new Error("cobra_emit: validation failed");
+          throw new Error("kobra_emit: validation failed");
         }
       }
-      const parsed = parseCobraShygazunScript(rendererCobra);
+      const parsed = parseKobraShygazunScript(rendererKobra);
       if (!parsed.entities.length) {
-        throw new Error("cobra_emit: no entities found");
+        throw new Error("kobra_emit: no entities found");
       }
       for (const entity of parsed.entities) {
         const entityRaw = `entity ${entity.id} ${Number(entity.x || 0)} ${Number(entity.y || 0)} ${String(entity.tag || "none")}`;
@@ -8005,7 +8006,7 @@ export function App() {
           context: {
             workspace_id: workspaceId,
             realm_id: rendererRealmId,
-            cobra_entity: entity,
+            kobra_entity: entity,
             akinenwun: typeof entity.akinenwun === "string" ? entity.akinenwun : null
           }
         });
@@ -8092,15 +8093,15 @@ export function App() {
     });
   }
 
-  async function compileSceneFromCobra() {
-    await runAction("scene_compile_from_cobra", async () => {
+  async function compileSceneFromKobra() {
+    await runAction("scene_compile_from_kobra", async () => {
       const payload = {
         workspace_id: workspaceId,
         realm_id: rendererRealmId,
         scene_id: sceneCompileSceneId,
         name: sceneCompileName || "Scene",
         description: sceneCompileDescription || "",
-        cobra_source: rendererCobra,
+        kobra_source: rendererKobra,
       };
       const data = await apiCall("/v1/game/scenes/compile", "POST", payload);
       const content = data && typeof data.content === "object" ? data.content : {};
@@ -8188,8 +8189,8 @@ export function App() {
       };
       const data = await apiCall("/v1/content/validate", "POST", payload);
       setContentValidateOutput(data);
-      const surfaceText = contentValidateSource === "cobra"
-        ? extractFirstShygazunSurfaceFromCobra(contentValidatePayload)
+      const surfaceText = contentValidateSource === "kobra"
+        ? extractFirstShygazunSurfaceFromKobra(contentValidatePayload)
         : "";
       await inspectRendererBilingualSurface(surfaceText);
       setValidationSummary({
@@ -8547,8 +8548,8 @@ export function App() {
     if (pack.source && typeof pack.source === "string") {
       setRendererVisualSource(pack.source);
     }
-    if (typeof pack.cobra === "string") {
-      setRendererCobra(pack.cobra);
+    if (typeof pack.kobra === "string") {
+      setRendererKobra(pack.kobra);
     }
     if (typeof pack.js === "string") {
       setRendererJs(pack.js);
@@ -8571,8 +8572,8 @@ export function App() {
     const sceneId = contentValidateSceneId && contentValidateSceneId.includes("/")
       ? contentValidateSceneId
       : `${rendererRealmId}/renderer-lab`;
-    let source = "cobra";
-    let payload = rendererCobra;
+    let source = "kobra";
+    let payload = rendererKobra;
     if (rendererVisualSource === "json") {
       source = "json";
       payload = rendererJson;
@@ -8594,7 +8595,7 @@ export function App() {
       strict_bilingual: strictBilingualValidation,
     });
     setContentValidateOutput(validation);
-    const surfaceText = source === "cobra" ? extractFirstShygazunSurfaceFromCobra(payload) : "";
+    const surfaceText = source === "kobra" ? extractFirstShygazunSurfaceFromKobra(payload) : "";
     await inspectRendererBilingualSurface(surfaceText);
     setValidationSummary({
       ok: Boolean(validation && validation.ok),
@@ -9133,8 +9134,8 @@ export function App() {
   }
 
 function parseRendererPayloadSync(mode, sourceText, engineState = {}) {
-  if (mode === "cobra") {
-    return parseCobraShygazunScript(sourceText);
+  if (mode === "kobra") {
+    return parseKobraShygazunScript(sourceText);
   }
   if (mode === "json") {
     try {
@@ -9551,7 +9552,7 @@ function extractPythonSavedPath(outputText) {
     });
   }
 
-  function extractFirstShygazunSurfaceFromCobra(source) {
+  function extractFirstShygazunSurfaceFromKobra(source) {
     const lines = String(source || "").split(/\r?\n/);
     for (const rawLine of lines) {
       const line = rawLine.trim();
@@ -9593,7 +9594,7 @@ function extractPythonSavedPath(outputText) {
       setRendererBilingualOutput(null);
       return null;
     }
-    const data = await kernelCall("/v0.1/shygazun/cobra_surface", "POST", { source_text: sourceText });
+    const data = await kernelCall("/v0.1/shygazun/kobra_surface", "POST", { source_text: sourceText });
     setRendererBilingualOutput(data);
     return data;
   }
@@ -9912,7 +9913,7 @@ function extractPythonSavedPath(outputText) {
       }
       const nextRoot = result.directory;
       setStudioFsRoot(nextRoot);
-      const scripts = await window.atelierDesktop.fs.listCobraScripts(nextRoot);
+      const scripts = await window.atelierDesktop.fs.listKobraScripts(nextRoot);
       if (scripts && scripts.ok && Array.isArray(scripts.files)) {
         setStudioFsScripts(scripts.files);
         setStudioFsSelectedScript(scripts.files.length > 0 ? String(scripts.files[0]) : "");
@@ -9952,7 +9953,7 @@ function extractPythonSavedPath(outputText) {
       if (!studioFsRoot) {
         throw new Error("studio_fs root not set");
       }
-      const result = await window.atelierDesktop.fs.listCobraScripts(studioFsRoot);
+      const result = await window.atelierDesktop.fs.listKobraScripts(studioFsRoot);
       if (!result || !result.ok || !Array.isArray(result.files)) {
         throw new Error("studio_fs_list failed");
       }
@@ -9973,7 +9974,7 @@ function extractPythonSavedPath(outputText) {
         setStudioFsRuntimePlanPath(String(runtimePlans[0]));
       }
       return {
-        cobra: result,
+        kobra: result,
         python_files: pythonFiles && pythonFiles.ok && Array.isArray(pythonFiles.files) ? pythonFiles.files.length : 0,
         runtime_plan_files: runtimePlans.length,
       };
@@ -10781,9 +10782,9 @@ function extractPythonSavedPath(outputText) {
       if (!studioSelectedFile) {
         throw new Error("studio_fs no selected file");
       }
-      const sourceName = String(studioSelectedFile.name || "untitled.cobra");
-      const filename = sourceName.toLowerCase().endsWith(".cobra") ? sourceName : `${sourceName}.cobra`;
-      const result = await window.atelierDesktop.fs.writeCobraScript(studioFsRoot, filename, String(studioSelectedFile.content || ""));
+      const sourceName = String(studioSelectedFile.name || "untitled.kobra");
+      const filename = sourceName.toLowerCase().endsWith(".kobra") ? sourceName : `${sourceName}.kobra`;
+      const result = await window.atelierDesktop.fs.writeKobraScript(studioFsRoot, filename, String(studioSelectedFile.content || ""));
       await refreshStudioFsScripts();
       return result;
     });
@@ -10800,7 +10801,7 @@ function extractPythonSavedPath(outputText) {
       if (!studioFsSelectedScript) {
         throw new Error("studio_fs no script selected");
       }
-      const result = await window.atelierDesktop.fs.readCobraScript(studioFsRoot, studioFsSelectedScript);
+      const result = await window.atelierDesktop.fs.readKobraScript(studioFsRoot, studioFsSelectedScript);
       if (!result || !result.ok || typeof result.content !== "string") {
         throw new Error("studio_fs_read failed");
       }
@@ -10812,7 +10813,7 @@ function extractPythonSavedPath(outputText) {
       };
       setStudioFiles((prev) => [...prev, nextFile]);
       setStudioSelectedFileId(nextFile.id);
-      setRendererCobra(result.content);
+      setRendererKobra(result.content);
       return result;
     });
   }
@@ -10864,23 +10865,23 @@ function extractPythonSavedPath(outputText) {
     });
   }
 
-  async function exportAllCobraScriptsToFs() {
-    await runAction("studio_fs_export_all_cobra", async () => {
+  async function exportAllKobraScriptsToFs() {
+    await runAction("studio_fs_export_all_kobra", async () => {
       if (!hasDesktopFs()) {
         throw new Error("studio_fs unavailable outside desktop shell");
       }
       if (!studioFsRoot) {
         throw new Error("studio_fs root not set");
       }
-      const cobraFiles = studioFiles.filter((file) => String(file.name || "").toLowerCase().endsWith(".cobra"));
-      if (cobraFiles.length === 0) {
-        throw new Error("studio_fs no .cobra files in studio");
+      const kobraFiles = studioFiles.filter((file) => String(file.name || "").toLowerCase().endsWith(".kobra"));
+      if (kobraFiles.length === 0) {
+        throw new Error("studio_fs no .kobra files in studio");
       }
-      for (const file of cobraFiles) {
-        await window.atelierDesktop.fs.writeCobraScript(studioFsRoot, file.name, String(file.content || ""));
+      for (const file of kobraFiles) {
+        await window.atelierDesktop.fs.writeKobraScript(studioFsRoot, file.name, String(file.content || ""));
       }
       await refreshStudioFsScripts();
-      return { exported: cobraFiles.length };
+      return { exported: kobraFiles.length };
     });
   }
 
@@ -11022,11 +11023,11 @@ function extractPythonSavedPath(outputText) {
     () => buildRendererFrameHtml("python", rendererPython, rendererEffectiveEngineState),
     [rendererPython, rendererEffectiveEngineState]
   );
-  const cobraFrameDoc = useMemo(
-    () => buildRendererFrameHtml("cobra", rendererCobra, rendererEffectiveEngineState),
-    [rendererCobra, rendererEffectiveEngineState]
+  const kobraFrameDoc = useMemo(
+    () => buildRendererFrameHtml("kobra", rendererKobra, rendererEffectiveEngineState),
+    [rendererKobra, rendererEffectiveEngineState]
   );
-  const cobraLintWarnings = useMemo(() => analyzeCobraShygazunScript(rendererCobra), [rendererCobra]);
+  const kobraLintWarnings = useMemo(() => analyzeKobraShygazunScript(rendererKobra), [rendererKobra]);
   const jsFrameDoc = useMemo(
     () => buildRendererFrameHtml("javascript", rendererJs, rendererEffectiveEngineState),
     [rendererJs, rendererEffectiveEngineState]
@@ -11048,19 +11049,19 @@ function extractPythonSavedPath(outputText) {
       return undefined;
     }
     const mode =
-      rendererVisualSource === "cobra" || rendererVisualSource === "json" || rendererVisualSource === "javascript" || rendererVisualSource === "python"
+      rendererVisualSource === "kobra" || rendererVisualSource === "json" || rendererVisualSource === "javascript" || rendererVisualSource === "python"
         ? rendererVisualSource
         : "json";
     const sourceText =
-      mode === "cobra"
-        ? rendererCobra
+      mode === "kobra"
+        ? rendererKobra
         : mode === "javascript"
           ? rendererJs
           : mode === "python"
             ? rendererPython
             : rendererJson;
     const parseKey = `${mode}:${sourceText.length}:${localStringHash(sourceText)}`;
-    const useWorker = (mode === "cobra" || mode === "json") && sourceText.length >= 4000;
+    const useWorker = (mode === "kobra" || mode === "json") && sourceText.length >= 4000;
     let cancelled = false;
 
     if (!useWorker) {
@@ -11091,7 +11092,7 @@ function extractPythonSavedPath(outputText) {
     return () => {
       cancelled = true;
     };
-  }, [rendererVisualSource, rendererCobra, rendererJson, rendererJs, rendererPython, rendererEffectiveEngineState]);
+  }, [rendererVisualSource, rendererKobra, rendererJson, rendererJs, rendererPython, rendererEffectiveEngineState]);
   const unifiedRendererPayload = useMemo(() => {
     if (rendererVisualSource === "engine") {
       return rendererEffectiveEngineState;
@@ -11209,8 +11210,8 @@ function extractPythonSavedPath(outputText) {
     []
   );
   const fullscreenPayload = useMemo(() => {
-    if (fullscreenState.source === "cobra") {
-      return parseCobraShygazunScript(fullscreenState.cobra);
+    if (fullscreenState.source === "kobra") {
+      return parseKobraShygazunScript(fullscreenState.kobra);
     }
     if (fullscreenState.source === "javascript") {
       return parseRendererPayloadSync("javascript", fullscreenState.javascript, fullscreenState.engine);
@@ -11852,12 +11853,12 @@ function extractPythonSavedPath(outputText) {
     if (contentValidatePayload && contentValidatePayload.trim()) {
       return;
     }
-    if (contentValidateSource === "cobra") {
-      setContentValidatePayload(rendererCobra);
+    if (contentValidateSource === "kobra") {
+      setContentValidatePayload(rendererKobra);
     } else {
       setContentValidatePayload(rendererJson);
     }
-  }, [contentValidatePayload, contentValidateSource, rendererCobra, rendererJson]);
+  }, [contentValidatePayload, contentValidateSource, rendererKobra, rendererJson]);
 
   useEffect(() => {
     if (!contentValidateSceneId || !contentValidateSceneId.trim()) {
@@ -11879,41 +11880,18 @@ function extractPythonSavedPath(outputText) {
     if (!rendererKeyboardMotion) {
       return undefined;
     }
-    const handleKeyDown = (event) => {
-      const active = document.activeElement;
-      const tag = active && active.tagName ? String(active.tagName).toLowerCase() : "";
-      const isEditing =
-        Boolean(active && active.isContentEditable) ||
-        tag === "input" ||
-        tag === "textarea" ||
-        tag === "select";
-      if (isEditing) {
-        return;
-      }
+    const _moveKeys = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", " "]);
+    const applyKey = (key) => {
       const step = Math.max(0.1, Number(rendererPlayerStep || 1));
-      let dx = 0;
-      let dy = 0;
-      let dz = 0;
-      if (event.key === "ArrowUp") {
-        dy = -step;
-      } else if (event.key === "ArrowDown") {
-        dy = step;
-      } else if (event.key === "ArrowLeft") {
-        dx = -step;
-      } else if (event.key === "ArrowRight") {
-        dx = step;
-      } else if (event.key === "PageUp") {
-        dz = step;
-      } else if (event.key === "PageDown") {
-        dz = -step;
-      } else if (event.key === " " || event.code === "Space") {
-        dz = 1;
-      } else {
-        return;
-      }
-      if (event.cancelable) {
-        event.preventDefault();
-      }
+      let dx = 0, dy = 0, dz = 0;
+      if (key === "ArrowUp")    { dy = -step; }
+      else if (key === "ArrowDown")  { dy =  step; }
+      else if (key === "ArrowLeft")  { dx = -step; }
+      else if (key === "ArrowRight") { dx =  step; }
+      else if (key === "PageUp")     { dz =  step; }
+      else if (key === "PageDown")   { dz = -step; }
+      else if (key === " ")          { dz = 1; }
+      else { return; }
       if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
         applyActivePlayerFacing(facingFromDelta(dx, dy, isFullscreenRenderer ? fullscreenState.playerFacing : rendererPlayerFacing));
         setRendererLastMoveAt(Date.now());
@@ -11925,9 +11903,62 @@ function extractPythonSavedPath(outputText) {
       }));
       setRendererGameStatus(`player_offset:${dx},${dy},${dz}`);
     };
+    const handleKeyDown = (event) => {
+      if (event.repeat) return;
+      const active = document.activeElement;
+      const tag = active && active.tagName ? String(active.tagName).toLowerCase() : "";
+      const isEditing =
+        Boolean(active && active.isContentEditable) ||
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select";
+      if (isEditing) return;
+      if (!_moveKeys.has(event.key)) return;
+      if (event.cancelable) event.preventDefault();
+      voxelHeldKeysRef.current.add(event.key);
+      applyKey(event.key);
+    };
+    const handleKeyUp = (event) => {
+      voxelHeldKeysRef.current.delete(event.key);
+    };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      voxelHeldKeysRef.current.clear();
+    };
   }, [rendererKeyboardMotion, rendererPlayerStep, isFullscreenRenderer, rendererPlayerFacing, fullscreenState.playerFacing]);
+
+  useEffect(() => {
+    if (!rendererKeyboardMotion) return undefined;
+    const intervalMs = Math.max(16, Number(rendererPathStepMs || 80));
+    const timer = window.setInterval(() => {
+      const step = Math.max(0.1, Number(rendererPlayerStep || 1));
+      voxelHeldKeysRef.current.forEach((key) => {
+        let dx = 0, dy = 0, dz = 0;
+        if (key === "ArrowUp")    { dy = -step; }
+        else if (key === "ArrowDown")  { dy =  step; }
+        else if (key === "ArrowLeft")  { dx = -step; }
+        else if (key === "ArrowRight") { dx =  step; }
+        else if (key === "PageUp")     { dz =  step; }
+        else if (key === "PageDown")   { dz = -step; }
+        else if (key === " ")          { dz = 1; }
+        else { return; }
+        if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
+          applyActivePlayerFacing(facingFromDelta(dx, dy, isFullscreenRenderer ? fullscreenState.playerFacing : rendererPlayerFacing));
+          setRendererLastMoveAt(Date.now());
+        }
+        applyActivePlayerOffset((prev) => ({
+          x: Number(prev.x || 0) + dx,
+          y: Number(prev.y || 0) + dy,
+          z: Number(prev.z || 0) + dz,
+        }));
+        setRendererGameStatus(`player_offset:${dx},${dy},${dz}`);
+      });
+    }, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [rendererKeyboardMotion, rendererPlayerStep, rendererPathStepMs, isFullscreenRenderer, rendererPlayerFacing, fullscreenState.playerFacing]);
 
   useEffect(() => {
     if (!Array.isArray(rendererMoveQueue) || rendererMoveQueue.length === 0) {
@@ -11981,7 +12012,7 @@ function extractPythonSavedPath(outputText) {
     }
     localStorage.setItem("atelier.renderer.source", rendererVisualSource);
     localStorage.setItem("atelier.renderer.json", rendererJson);
-    localStorage.setItem("atelier.renderer.cobra", rendererCobra);
+    localStorage.setItem("atelier.renderer.kobra", rendererKobra);
     localStorage.setItem("atelier.renderer.kobra", rendererKobra);
     localStorage.setItem("atelier.renderer.js", rendererJs);
     localStorage.setItem("atelier.renderer.python", rendererPython);
@@ -12028,7 +12059,7 @@ function extractPythonSavedPath(outputText) {
   }, [
     rendererVisualSource,
     rendererJson,
-    rendererCobra,
+    rendererKobra,
     rendererKobra,
     rendererEngineState,
     rendererJs,
@@ -12337,7 +12368,7 @@ function extractPythonSavedPath(outputText) {
 
   async function consumeRendererInput(mode) {
     const normalized = String(mode || "").toLowerCase();
-    if (normalized === "python" || normalized === "javascript" || normalized === "cobra" || normalized === "json") {
+    if (normalized === "python" || normalized === "javascript" || normalized === "kobra" || normalized === "json") {
       setRendererVisualSource(normalized);
       setRendererGameStatus(`renderer_source:${normalized}`);
       setNotice(`renderer_source:${normalized}`);
@@ -12429,20 +12460,20 @@ function extractPythonSavedPath(outputText) {
     setBusinessLogicRendererStatus("ready");
   }
 
-  function applyBusinessLogicCobraToUnifiedRenderer() {
+  function applyBusinessLogicKobraToUnifiedRenderer() {
     const mode = String(businessLogicRendererInputMode || "").toLowerCase();
-    if (mode !== "cobra") {
-      setBusinessLogicRendererStatus("error: switch input mode to Cobra first");
+    if (mode !== "kobra") {
+      setBusinessLogicRendererStatus("error: switch input mode to Kobra first");
       return;
     }
-    const cobraSource = businessLogicRendererInputText || "";
-    const parsedCobra = parseCobraShygazunScript(cobraSource);
-    if (Array.isArray(parsedCobra.entities) && parsedCobra.entities.length > 0) {
-      setRendererCobra(cobraSource);
-      setRendererVisualSource("cobra");
+    const kobraSource = businessLogicRendererInputText || "";
+    const parsedKobra = parseKobraShygazunScript(kobraSource);
+    if (Array.isArray(parsedKobra.entities) && parsedKobra.entities.length > 0) {
+      setRendererKobra(kobraSource);
+      setRendererVisualSource("kobra");
       setBusinessLogicRendererStatus("ready");
     } else {
-      const architectureSpec = parseArchitectureInput("cobra", cobraSource);
+      const architectureSpec = parseArchitectureInput("kobra", kobraSource);
       const architectureModel = normalizeArchitectureSpec(architectureSpec);
       const voxels = architectureModelToVoxels(architectureModel);
       setRendererJson(JSON.stringify({ voxels }, null, 2));
@@ -12516,7 +12547,7 @@ function extractPythonSavedPath(outputText) {
       entities: mergedEntities.length
     };
     setRendererPython(compilePythonDrawFromEntities(String(scene.name || "prototype"), mergedEntities));
-    setRendererCobra(compileCobraFromEntities(mergedEntities));
+    setRendererKobra(compileKobraFromEntities(mergedEntities));
     setRendererKobra(compileKobraFromEntities(mergedEntities));
     setRendererJson(JSON.stringify({ ...passthrough, scene, systems: systemsNext, entities: mergedEntities }, null, 2));
     setRendererEngineStateText(JSON.stringify(nextEngine, null, 2));
@@ -14642,10 +14673,10 @@ function extractPythonSavedPath(outputText) {
         setRendererPython(file.content || "");
       }
     }
-    if (rendererPipeline.cobraFileId) {
-      const file = getStudioFileById(rendererPipeline.cobraFileId);
+    if (rendererPipeline.kobraFileId) {
+      const file = getStudioFileById(rendererPipeline.kobraFileId);
       if (file) {
-        setRendererCobra(file.content || "");
+        setRendererKobra(file.content || "");
       }
     }
     if (rendererPipeline.jsFileId) {
@@ -14749,7 +14780,7 @@ function extractPythonSavedPath(outputText) {
       setRendererPipeline((prev) => ({
         ...prev,
         pythonFileId: parsed.pythonFileId || "",
-        cobraFileId: parsed.cobraFileId || "",
+        kobraFileId: parsed.kobraFileId || "",
         jsFileId: parsed.jsFileId || "",
         jsonFileId: parsed.jsonFileId || "",
         engineFileId: parsed.engineFileId || "",
@@ -15771,12 +15802,12 @@ function extractPythonSavedPath(outputText) {
               <select value={businessLogicRendererInputMode} onChange={(e) => setBusinessLogicRendererInputMode(e.target.value)}>
                 <option value="json">Input: JSON</option>
                 <option value="english">Input: English</option>
-                <option value="cobra">Input: Cobra</option>
+                <option value="kobra">Input: Kobra</option>
                 <option value="shygazun">Input: Shygazun</option>
               </select>
               <button className="action" onClick={loadBusinessLogicArchitectureTemplate}>Load Template</button>
               <button className="action" onClick={snapshotDerivedArchitectureToBusinessLogicInput}>Snapshot Derived</button>
-              <button className="action" onClick={applyBusinessLogicCobraToUnifiedRenderer}>Apply Cobra {"->"} Unified Renderer</button>
+              <button className="action" onClick={applyBusinessLogicKobraToUnifiedRenderer}>Apply Kobra {"->"} Unified Renderer</button>
               <span className={`badge ${businessLogicRendererSpecResult.error ? "err" : "ok"}`}>{`Status: ${businessLogicRendererStatus}`}</span>
               <span className="badge">{`Nodes: ${businessLogicArchitectureModel.nodes.length}`}</span>
               <span className="badge">{`Flows: ${businessLogicArchitectureModel.flows.length}`}</span>
@@ -15796,7 +15827,7 @@ function extractPythonSavedPath(outputText) {
                   ? "JSON architecture spec"
                   : businessLogicRendererInputMode === "english"
                     ? "domain crm: CRM\nsystem contacts in crm: Contacts Service\nflow contacts -> db12: persist"
-                    : businessLogicRendererInputMode === "cobra"
+                    : businessLogicRendererInputMode === "kobra"
                       ? "domain crm CRM\nsystem contacts Contacts Service\nflow contacts db12 persist"
                       : "Ty crm CRM\nWu contacts Contacts Service\nRu contacts db12 persist"
               }
@@ -15804,7 +15835,7 @@ function extractPythonSavedPath(outputText) {
           </section>
           <section className="panel">
             <h2>Game System Creator</h2>
-            <p>Author and move game content between Cobra, scene library, renderer state, and save export.</p>
+            <p>Author and move game content between Kobra, scene library, renderer state, and save export.</p>
             <div className="row">
               <select value={actionPostTarget} onChange={(e) => setActionPostTarget(e.target.value)}>
                 <option value="api">POST Target: API (:9000)</option>
@@ -15830,7 +15861,7 @@ function extractPythonSavedPath(outputText) {
             </div>
             <div className="row">
               <button className="action" onClick={compileKobraScene}>Compile Kobra {"->"} Renderer Triple (API)</button>
-              <button className="action" onClick={compileSceneFromCobra}>Compile Cobra {"->"} Scene + Renderer State (API)</button>
+              <button className="action" onClick={compileSceneFromKobra}>Compile Kobra {"->"} Scene + Renderer State (API)</button>
               <button className="action" onClick={loadSceneFromLibraryToRenderer}>Load Library Scene {"->"} Renderer State (API)</button>
               <button className="action" onClick={emitSceneGraph}>POST Scene Graph Payload</button>
               <button className="action" onClick={emitHeadlessQuest}>POST Headless Quest Payload</button>
@@ -16017,10 +16048,10 @@ function extractPythonSavedPath(outputText) {
           </section>
           <section className="panel">
             <h2>Multi-Frame Renderer</h2>
-            <p>Programmable structural renderer with independent Python, Cobra, JavaScript, and JSON frames.</p>
+            <p>Programmable structural renderer with independent Python, Kobra, JavaScript, and JSON frames.</p>
             <div className="row">
               <button className="action" onClick={stepRendererEngine}>Step Engine Tick</button>
-              <button className="action" onClick={emitCobraPlacements}>Emit Cobra Placements</button>
+              <button className="action" onClick={emitKobraPlacements}>Emit Kobra Placements</button>
               <button className="action" onClick={compileSceneGraphPreview}>Compile Scene Graph</button>
               <button className="action" onClick={() => setRendererEngineStateText(JSON.stringify({ tick: 0, camera: { x: 0, y: 0 } }, null, 2))}>Reset Engine</button>
             </div>
@@ -16039,7 +16070,7 @@ function extractPythonSavedPath(outputText) {
                 <select value={businessRendererInputMode} onChange={(e) => setBusinessRendererInputMode(e.target.value)}>
                   <option value="json">Input: JSON</option>
                   <option value="english">Input: English</option>
-                  <option value="cobra">Input: Cobra</option>
+                  <option value="kobra">Input: Kobra</option>
                   <option value="shygazun">Input: Shygazun</option>
                 </select>
                 <button className="action" onClick={loadBusinessArchitectureTemplate}>Load Template</button>
@@ -16063,7 +16094,7 @@ function extractPythonSavedPath(outputText) {
                     ? "JSON architecture spec"
                     : businessRendererInputMode === "english"
                       ? "domain crm: CRM\nsystem contacts in crm: Contacts Service\nflow contacts -> db12: persist"
-                      : businessRendererInputMode === "cobra"
+                      : businessRendererInputMode === "kobra"
                         ? "domain crm CRM\nsystem contacts Contacts Service\nflow contacts db12 persist"
                         : "Ty crm CRM\nWu contacts Service\nRu contacts db12 persist"
                 }
@@ -16071,11 +16102,11 @@ function extractPythonSavedPath(outputText) {
             </section>
             <section className="panel unified-renderer">
               <h3>Unified Visual Renderer</h3>
-              <p>Single visual surface fed by JSON, Cobra entities, or Engine state.</p>
+              <p>Single visual surface fed by JSON, Kobra entities, or Engine state.</p>
               <div className="row">
                 <select value={rendererVisualSource} onChange={(e) => setRendererVisualSource(e.target.value)}>
                   <option value="json">JSON Scene Layer</option>
-                  <option value="cobra">Cobra Layer</option>
+                  <option value="kobra">Kobra Layer</option>
                   <option value="javascript">JavaScript Layer</option>
                   <option value="python">Python Layer</option>
                   <option value="engine">Engine State</option>
@@ -16855,10 +16886,10 @@ function extractPythonSavedPath(outputText) {
             </section>
             <section className="panel">
               <h3>Content Validation</h3>
-              <p>Realm-aware validation for Cobra or JSON payloads. Unresolved Shygazun symbols are warnings only.</p>
+              <p>Realm-aware validation for Kobra or JSON payloads. Unresolved Shygazun symbols are warnings only.</p>
               <div className="row">
                 <select value={contentValidateSource} onChange={(e) => setContentValidateSource(e.target.value)}>
-                  <option value="cobra">Cobra</option>
+                  <option value="kobra">Kobra</option>
                   <option value="json">JSON</option>
                 </select>
                 <input
@@ -16886,7 +16917,7 @@ function extractPythonSavedPath(outputText) {
                 <button className="action" onClick={validateContent}>Validate</button>
               </div>
               <div className="row">
-                <button className="action" onClick={() => setContentValidatePayload(rendererCobra)}>Use Cobra</button>
+                <button className="action" onClick={() => setContentValidatePayload(rendererKobra)}>Use Kobra</button>
                 <button className="action" onClick={() => setContentValidatePayload(rendererJson)}>Use JSON</button>
                 <button className="action" onClick={() => setContentValidatePayload("")}>Clear</button>
               </div>
@@ -16894,7 +16925,7 @@ function extractPythonSavedPath(outputText) {
                 className="editor editor-mono renderer-editor"
                 value={contentValidatePayload}
                 onChange={(e) => setContentValidatePayload(e.target.value)}
-                placeholder="cobra or json payload"
+                placeholder="kobra or json payload"
               />
               <div className="row">
                 <span className="badge">{`Validation OK: ${validationSummary.ok ? "yes" : "no"}`}</span>
@@ -16915,7 +16946,7 @@ function extractPythonSavedPath(outputText) {
                   <option value="english_to_shygazun">english {"->"} shygazun</option>
                   <option value="shygazun_to_english">shygazun {"->"} english</option>
                 </select>
-                <button className="action" onClick={() => setShygazunTranslateSourceText(rendererCobra)}>Use Cobra Source</button>
+                <button className="action" onClick={() => setShygazunTranslateSourceText(rendererKobra)}>Use Kobra Source</button>
                 <button className="action" onClick={() => setShygazunTranslateSourceText(contentValidatePayload)}>Use Validate Payload</button>
                 <button className="action" onClick={runShygazunProject}>Kernel Project</button>
                 <button className="action" onClick={runShygazunInterpret}>Interpret</button>
@@ -17066,10 +17097,10 @@ function extractPythonSavedPath(outputText) {
                     <option key={`pipeline-py-${file.id}`} value={file.id}>{`${file.folder}/${file.name}`}</option>
                   ))}
                 </select>
-                <select value={rendererPipeline.cobraFileId} onChange={(e) => setRendererPipeline((prev) => ({ ...prev, cobraFileId: e.target.value }))}>
-                  <option value="">cobra file</option>
+                <select value={rendererPipeline.kobraFileId} onChange={(e) => setRendererPipeline((prev) => ({ ...prev, kobraFileId: e.target.value }))}>
+                  <option value="">kobra file</option>
                   {studioFiles.map((file) => (
-                    <option key={`pipeline-cobra-${file.id}`} value={file.id}>{`${file.folder}/${file.name}`}</option>
+                    <option key={`pipeline-kobra-${file.id}`} value={file.id}>{`${file.folder}/${file.name}`}</option>
                   ))}
                 </select>
                 <select value={rendererPipeline.jsFileId} onChange={(e) => setRendererPipeline((prev) => ({ ...prev, jsFileId: e.target.value }))}>
@@ -17190,16 +17221,16 @@ function extractPythonSavedPath(outputText) {
                 <iframe className="renderer-frame" sandbox="allow-scripts" srcDoc={pythonFrameDoc} title="python-renderer" />
               </div>
               <div className="renderer-cell">
-                <h3>Cobra Layer</h3>
-                <textarea className="editor editor-mono renderer-editor" value={rendererCobra} onChange={(e) => setRendererCobra(e.target.value)} />
+                <h3>Kobra Layer</h3>
+                <textarea className="editor editor-mono renderer-editor" value={rendererKobra} onChange={(e) => setRendererKobra(e.target.value)} />
                 <div className="row">
-                  <span className="badge">{`Lint: ${cobraLintWarnings.length === 0 ? "clean" : `${cobraLintWarnings.length} warning(s)`}`}</span>
-                  <button className="action" onClick={() => consumeRendererInput("cobra")}>Consume Cobra</button>
+                  <span className="badge">{`Lint: ${kobraLintWarnings.length === 0 ? "clean" : `${kobraLintWarnings.length} warning(s)`}`}</span>
+                  <button className="action" onClick={() => consumeRendererInput("kobra")}>Consume Kobra</button>
                 </div>
-                {cobraLintWarnings.length > 0 ? (
-                  <pre>{JSON.stringify(cobraLintWarnings, null, 2)}</pre>
+                {kobraLintWarnings.length > 0 ? (
+                  <pre>{JSON.stringify(kobraLintWarnings, null, 2)}</pre>
                 ) : null}
-                <iframe className="renderer-frame" sandbox="allow-scripts" srcDoc={cobraFrameDoc} title="cobra-renderer" />
+                <iframe className="renderer-frame" sandbox="allow-scripts" srcDoc={kobraFrameDoc} title="cobra-renderer" />
               </div>
               <div className="renderer-cell">
                 <h3>Kobra Layer (Shygazun)</h3>
@@ -17382,7 +17413,7 @@ function extractPythonSavedPath(outputText) {
           </section>
           <section className="panel">
             <h2>Game System Creator</h2>
-            <p>Author and move game content between Cobra, scene library, renderer state, and save export.</p>
+            <p>Author and move game content between Kobra, scene library, renderer state, and save export.</p>
             <div className="row">
               <select value={actionPostTarget} onChange={(e) => setActionPostTarget(e.target.value)}>
                 <option value="api">POST Target: API (:9000)</option>
@@ -17408,7 +17439,7 @@ function extractPythonSavedPath(outputText) {
             </div>
             <div className="row">
                 <button className="action" onClick={compileKobraScene}>Compile Kobra {"->"} Renderer Triple (API)</button>
-                <button className="action" onClick={compileSceneFromCobra}>Compile Cobra {"->"} Scene + Renderer State (API)</button>
+                <button className="action" onClick={compileSceneFromKobra}>Compile Kobra {"->"} Scene + Renderer State (API)</button>
                 <button className="action" onClick={loadSceneFromLibraryToRenderer}>Load Library Scene {"->"} Renderer State (API)</button>
               <button className="action" onClick={emitSceneGraph}>POST Scene Graph Payload</button>
               <button className="action" onClick={emitHeadlessQuest}>POST Headless Quest Payload</button>
@@ -18482,17 +18513,17 @@ function extractPythonSavedPath(outputText) {
           <section className="panel">
             <h2>Studio Workspace</h2>
             <div className="row">
-              <input value={studioFsRoot} onChange={(e) => setStudioFsRoot(e.target.value)} placeholder="cobra scripts folder path" />
+              <input value={studioFsRoot} onChange={(e) => setStudioFsRoot(e.target.value)} placeholder="kobra scripts folder path" />
               <button className="action" onClick={chooseStudioFsFolder}>Choose Folder</button>
-              <button className="action" onClick={refreshStudioFsScripts}>List .cobra</button>
+              <button className="action" onClick={refreshStudioFsScripts}>List .kobra</button>
               <button className="action" onClick={refreshStudioFsAssets}>List scene/sprite/python/audio</button>
               <button className="action" onClick={importSelectedFsScriptToStudio}>Import Selected</button>
               <button className="action" onClick={saveSelectedStudioFileToFs}>Save Selected</button>
-              <button className="action" onClick={exportAllCobraScriptsToFs}>Export All .cobra</button>
+              <button className="action" onClick={exportAllKobraScriptsToFs}>Export All .kobra</button>
             </div>
             <div className="row">
               <select value={studioFsSelectedScript} onChange={(e) => setStudioFsSelectedScript(e.target.value)}>
-                <option value="">select .cobra from folder</option>
+                <option value="">select .kobra from folder</option>
                 {studioFsScripts.map((scriptName) => (
                   <option key={`studio-fs-${scriptName}`} value={scriptName}>{scriptName}</option>
                 ))}
@@ -18518,7 +18549,7 @@ function extractPythonSavedPath(outputText) {
                 placeholder="watch ms"
               />
               <span className="badge">{`Desktop FS: ${hasDesktopFs() ? "available" : "web-only"}`}</span>
-              <span className="badge">{`.cobra files: ${studioFsScripts.length}`}</span>
+              <span className="badge">{`.kobra files: ${studioFsScripts.length}`}</span>
               <span className="badge">{`.py files: ${studioFsPythonFiles.length}`}</span>
               <span className="badge">{`scene files: ${studioFsSceneFiles.length}`}</span>
               <span className="badge">{`sprite files: ${studioFsSpriteFiles.length}`}</span>

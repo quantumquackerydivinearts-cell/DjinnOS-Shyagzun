@@ -18,8 +18,8 @@ from ..core.lineage import get_lineage_store
 from ..site_models.schemas import (
     ApplySpriteAnimatorRequest,
     ApplySpriteAnimatorResponse,
-    CompileCobraRequest,
-    CompileCobraResponse,
+    CompileKobraRequest,
+    CompileKobraResponse,
     CreateAtlasFromPngResponse,
     DaisyBodyplanRequest,
     DaisyBodyplanResponse,
@@ -111,10 +111,10 @@ async def sync_renderer_tables(req: SyncTablesRequest) -> SyncTablesResponse:
 
 @router.post(
     "/scene/compile_kobra",
-    response_model=CompileCobraResponse,
+    response_model=CompileKobraResponse,
     summary="Compile a Kobra source document into a renderer-ready scene",
 )
-async def compile_kobra(req: CompileCobraRequest) -> CompileCobraResponse:
+async def compile_kobra(req: CompileKobraRequest) -> CompileKobraResponse:
     if len(req.kobra_source.encode()) > 256_000:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -163,7 +163,7 @@ async def compile_kobra(req: CompileCobraRequest) -> CompileCobraResponse:
     record.set_layer(6, renderer_json)
     store.append(record)
 
-    return CompileCobraResponse(
+    return CompileKobraResponse(
         ok=not scene.errors,
         scene_id=scene_id,
         renderer_json=renderer_json,
@@ -180,14 +180,14 @@ async def compile_kobra(req: CompileCobraRequest) -> CompileCobraResponse:
 @router.post(
     "/renderer/validate_content",
     response_model=ValidateContentResponse,
-    summary="Validate Cobra/JSON/JS/Python content and return bilingual trust surface",
+    summary="Validate Kobra/JSON/JS/Python content and return bilingual trust surface",
 )
 async def validate_content(req: ValidateContentRequest) -> ValidateContentResponse:
     errors: list[str] = []
     warnings: list[str] = []
     bilingual_trust_dict: dict[str, Any] = {}
 
-    if req.source_type in ("kobra", "cobra"):
+    if req.source_type in ("kobra"):
         scene = compile_kobra_scene(req.payload)
         errors.extend(scene.errors)
         warnings.extend(scene.warnings)
@@ -322,7 +322,7 @@ async def emit_meditation(req: EmitMeditationRequest) -> EmitMeditationResponse:
 @router.post(
     "/renderer/placements",
     response_model=EmitPlacementsResponse,
-    summary="Emit a batch of scene placements (from JSON, Cobra, or tile paint)",
+    summary="Emit a batch of scene placements (from JSON, Kobra, or tile paint)",
 )
 async def emit_placements(req: EmitPlacementsRequest) -> EmitPlacementsResponse:
     if not req.placements:

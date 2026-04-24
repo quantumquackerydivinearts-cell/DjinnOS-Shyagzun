@@ -425,7 +425,7 @@ class Kernel:
                 )
                 self.ceg.add_edge(e)
 
-    # ---------------- Cobra ----------------
+    # ---------------- Kobra ----------------
 
     def parse_kobra(self, source: str) -> KobraParseResult:
         """

@@ -22,7 +22,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 
 class ArchDiagramParseRequest(BaseModel):
-    mode: str = Field(default="json", pattern="^(json|cobra|english|shygazun)$")
+    mode: str = Field(default="json", pattern="^(json|kobra|english|shygazun)$")
     source: str = Field(default="")
 
 
@@ -33,7 +33,7 @@ class ArchDiagramExportRequest(BaseModel):
 
 class ArchDiagramScriptSaveRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
-    mode: str = Field(default="cobra", pattern="^(json|cobra|english|shygazun)$")
+    mode: str = Field(default="kobra", pattern="^(json|kobra|english|shygazun)$")
     source: str = Field(default="")
     spec: dict[str, Any] | None = None   # pre-parsed override; if None, auto-parse from source
 
@@ -59,7 +59,7 @@ _DEFAULTS: dict[str, dict[str, Any]] = {
             {"id": "ambroflow", "name": "Ambroflow Engine",     "lane": "Surface",  "kind": "service"},
         ],
         "tools": [
-            {"id": "cobra",     "name": "Cobra Compiler",       "lane": "Business", "kind": "tool"},
+            {"id": "kobra",     "name": "Kobra Compiler",       "lane": "Business", "kind": "tool"},
             {"id": "pipeline",  "name": "Renderer Pipeline",    "lane": "Business", "kind": "tool"},
             {"id": "reasoning", "name": "Shygazun Reasoning",   "lane": "Business", "kind": "tool"},
         ],
@@ -71,7 +71,7 @@ _DEFAULTS: dict[str, dict[str, Any]] = {
             {"from": "kernel",   "to": "breathofko","label": "save state"},
             {"from": "atelier",  "to": "sqlite",    "label": "persist"},
             {"from": "atelier",  "to": "orrery",    "label": "record"},
-            {"from": "cobra",    "to": "kernel",    "label": "script compile", "style": "dashed"},
+            {"from": "kobra",    "to": "kernel",    "label": "script compile", "style": "dashed"},
             {"from": "reasoning","to": "kernel",    "label": "tongue query",   "style": "dashed"},
             {"from": "desktop",  "to": "ambroflow", "label": "game runtime"},
         ],
@@ -210,10 +210,10 @@ async def parse_arch_diagram(
         except json.JSONDecodeError as exc:
             errors.append(f"json_parse_error:{exc}")
 
-    elif req.mode == "cobra":
-        spec, cobra_errors, cobra_warnings = _parse_cobra_to_spec(req.source)
-        errors.extend(cobra_errors)
-        warnings.extend(cobra_warnings)
+    elif req.mode == "kobra":
+        spec, kobra_errors, kobra_warnings = _parse_kobra_to_spec(req.source)
+        errors.extend(kobra_errors)
+        warnings.extend(kobra_warnings)
 
     else:
         spec = {"_raw_mode": req.mode, "_raw_source": req.source[:4096]}
@@ -302,8 +302,8 @@ async def save_arch_diagram_script(
             spec = {}
             errors = [f"json_parse_error:{exc}"]
             warnings = []
-    elif req.mode == "cobra":
-        spec, errors, warnings = _parse_cobra_to_spec(req.source)
+    elif req.mode == "kobra":
+        spec, errors, warnings = _parse_kobra_to_spec(req.source)
     else:
         spec = {"_raw_mode": req.mode, "_raw_source": req.source[:4096]}
         errors, warnings = [], [f"server_side_{req.mode}_parse_not_yet_implemented"]
@@ -383,16 +383,16 @@ async def delete_arch_diagram_script(
 
 
 # ---------------------------------------------------------------------------
-# Cobra parser → arch diagram spec
+# Kobra parser → arch diagram spec
 # ---------------------------------------------------------------------------
 
-def _parse_cobra_to_spec(
+def _parse_kobra_to_spec(
     source: str,
 ) -> tuple[dict[str, Any], list[str], list[str]]:
     """
-    Parse a cobra script into an arch_diagram spec.
+    Parse a kobra script into an arch_diagram spec.
 
-    Cobra grammar (subset recognized server-side):
+    Kobra grammar (subset recognized server-side):
         entity <id> <x> <y> <tag> [<z>]
           name: <display name>
           lane: <lane name>

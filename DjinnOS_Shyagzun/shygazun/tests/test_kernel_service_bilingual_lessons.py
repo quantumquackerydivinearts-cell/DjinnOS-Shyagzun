@@ -256,9 +256,9 @@ def test_bilingual_project_emits_byte_table_trace_and_semantic_trace() -> None:
     assert any(item["tongue"] == "Daisy" and item["symbol"] == "Ne" for item in whale["semantic_trace"])
 
 
-def test_bilingual_cobra_surface_emits_machine_ready_payload() -> None:
+def test_bilingual_kobra_surface_emits_machine_ready_payload() -> None:
     client = TestClient(app)
-    response = client.post("/v0.1/shygazun/cobra_surface", json={"source_text": "Aely Melkowuvune Owu"})
+    response = client.post("/v0.1/shygazun/kobra_surface", json={"source_text": "Aely Melkowuvune Owu"})
     assert response.status_code == 200
     payload = response.json()
     assert payload["authoritative_projection"]["english"] == "We love whales"

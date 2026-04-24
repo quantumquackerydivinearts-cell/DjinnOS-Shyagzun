@@ -44,7 +44,7 @@ const PIPELINE_STAGES = [
 const PARSE_MODES = [
   { value: "json",      label: "JSON" },
   { value: "english",   label: "English" },
-  { value: "cobra",     label: "Cobra" },
+  { value: "kobra",     label: "Kobra" },
   { value: "shygazun",  label: "Shygazun" },
 ];
 
