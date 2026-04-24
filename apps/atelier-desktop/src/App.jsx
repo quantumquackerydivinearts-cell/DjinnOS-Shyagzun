@@ -1523,6 +1523,44 @@ function compilePythonDrawFromEntities(sceneName, entities) {
   return [`#draw title=${title}`, `#draw entities=${count}`].join("\n");
 }
 
+const _KOBRA_ROSE_DIGITS = ["Gaoh","Ao","Ye","Ui","Shu","Kiel","Yeshu","Lao","Shushy","Uinshu","Kokiel","Aonkiel"];
+const _KOBRA_KIND_TO_DAISY = { npc: "Lo", prop: "To", connector: "Ne", membrane: "Gl" };
+const _KOBRA_COLOR_TO_ROSE = {
+  rose: "Ru", red: "Ru", orange: "Ot", earth: "El", amber: "El", brown: "El",
+  green: "Ki", grass: "Ki", blue: "Fu", water: "Fu", wall: "Ka", grey: "Ka", gray: "Ka",
+  void: "AE", black: "AE", floor: "Ha", neutral: "Ga", white: "Ga",
+};
+
+function _encodeRoseNumeral(n) {
+  const v = Math.max(0, Math.round(Number(n) || 0));
+  if (v === 0) return "Gaoh";
+  const digits = [];
+  let rem = v;
+  while (rem > 0) {
+    digits.unshift(_KOBRA_ROSE_DIGITS[rem % 12]);
+    rem = Math.floor(rem / 12);
+  }
+  return digits.join(" ");
+}
+
+function compileKobraFromEntities(entities) {
+  if (!Array.isArray(entities)) return "";
+  return entities.map((entity) => {
+    const id = String(entity.id || "anon");
+    const xTok = _encodeRoseNumeral(entity.x || 0);
+    const yTok = _encodeRoseNumeral(entity.y || 0);
+    const tokens = [xTok, yTok];
+    if (entity.z && entity.z !== 0) tokens.push(_encodeRoseNumeral(entity.z));
+    const colorKey = String(entity.color || "").toLowerCase();
+    if (colorKey && _KOBRA_COLOR_TO_ROSE[colorKey]) tokens.push(_KOBRA_COLOR_TO_ROSE[colorKey]);
+    const lex = String(entity.akinenwun || entity.lex || "").trim();
+    if (lex) tokens.push(lex);
+    const daisy = _KOBRA_KIND_TO_DAISY[String(entity.kind || "").toLowerCase()];
+    if (daisy) tokens.push(daisy);
+    return `${id} : [${tokens.join(" ")}]`;
+  }).join("\n");
+}
+
 function tileKey(x, y, layer = "base") {
   return `${layer}|${x},${y}`;
 }
@@ -5620,6 +5658,7 @@ function readRendererLocalState() {
       source: "json",
       json: "{}",
       cobra: "",
+      kobra: "",
       javascript: "",
       python: "",
       engine: {},
@@ -5657,6 +5696,7 @@ function readRendererLocalState() {
   const source = localStorage.getItem("atelier.renderer.source") || "json";
   const json = localStorage.getItem("atelier.renderer.json") || "{}";
   const cobra = localStorage.getItem("atelier.renderer.cobra") || "";
+  const kobra = localStorage.getItem("atelier.renderer.kobra") || "";
   const javascript = localStorage.getItem("atelier.renderer.js") || "";
   const python = localStorage.getItem("atelier.renderer.python") || "";
   let engine = {};
@@ -5785,6 +5825,7 @@ function readRendererLocalState() {
     source,
     json,
     cobra,
+    kobra,
     javascript,
     python,
     engine,
@@ -6270,6 +6311,10 @@ export function App() {
 
   const [rendererPython, setRendererPython] = useState("#draw title=Workshop Renderer");
   const [rendererCobra, setRendererCobra] = useState("entity cube 12 8 amber");
+  const [rendererKobra, setRendererKobra] = useState("[Ao Shushy El Lo]");
+  const [rendererKobraResult, setRendererKobraResult] = useState(null);
+  const [kobraCoherenceGrade, setKobraCoherenceGrade] = useState("");
+  const [kobraCoherenceCut, setKobraCoherenceCut] = useState("");
   const [rendererJs, setRendererJs] = useState("function render(engine, root) { root.append('js tick=' + engine.tick); return { ok: true, tick: engine.tick }; }");
   const [rendererJson, setRendererJson] = useState("{\"voxels\":[{\"x\":0,\"y\":0,\"z\":0,\"type\":\"plinth\"},{\"x\":1,\"y\":0,\"z\":1,\"type\":\"pillar\"},{\"x\":2,\"y\":1,\"z\":0,\"type\":\"bench\"},{\"x\":3,\"y\":2,\"z\":2,\"type\":\"spire\"}]}");
   const [rendererEngineStateText, setRendererEngineStateText] = useState("{\"tick\":0,\"camera\":{\"x\":0,\"y\":0}}");
@@ -8076,6 +8121,28 @@ export function App() {
       setSceneGraphText(JSON.stringify(graph, null, 2));
       setRendererLibrarySceneId(String(data.scene_id || sceneCompileSceneId));
       setRendererGameStatus(`scene_compiled:${String(data.scene_id || sceneCompileSceneId)}`);
+      return data;
+    });
+  }
+
+  async function compileKobraScene() {
+    await runAction("kobra_compile", async () => {
+      const payload = {
+        source: rendererKobra,
+        zone_id: rendererRealmId || "kobra_scene",
+      };
+      if (kobraCoherenceGrade !== "" && kobraCoherenceGrade !== null) {
+        const grade = parseFloat(kobraCoherenceGrade);
+        if (Number.isFinite(grade)) payload.coherence_grade = Math.min(1, Math.max(0, grade));
+      }
+      if (kobraCoherenceCut === "resolved" || kobraCoherenceCut === "frontier") {
+        payload.cut = kobraCoherenceCut;
+      }
+      const data = await apiCall("/v1/kobra/compile", "POST", payload);
+      setRendererKobraResult(data);
+      setRendererGameStatus(
+        `kobra:${data.entity_count ?? 0}_entities:${data.coherence?.cut_character ?? "resolved"}`
+      );
       return data;
     });
   }
@@ -11915,6 +11982,7 @@ function extractPythonSavedPath(outputText) {
     localStorage.setItem("atelier.renderer.source", rendererVisualSource);
     localStorage.setItem("atelier.renderer.json", rendererJson);
     localStorage.setItem("atelier.renderer.cobra", rendererCobra);
+    localStorage.setItem("atelier.renderer.kobra", rendererKobra);
     localStorage.setItem("atelier.renderer.js", rendererJs);
     localStorage.setItem("atelier.renderer.python", rendererPython);
     localStorage.setItem("atelier.renderer.engine", JSON.stringify(rendererEngineState || {}));
@@ -11961,6 +12029,7 @@ function extractPythonSavedPath(outputText) {
     rendererVisualSource,
     rendererJson,
     rendererCobra,
+    rendererKobra,
     rendererEngineState,
     rendererJs,
     rendererPython,
@@ -12448,6 +12517,7 @@ function extractPythonSavedPath(outputText) {
     };
     setRendererPython(compilePythonDrawFromEntities(String(scene.name || "prototype"), mergedEntities));
     setRendererCobra(compileCobraFromEntities(mergedEntities));
+    setRendererKobra(compileKobraFromEntities(mergedEntities));
     setRendererJson(JSON.stringify({ ...passthrough, scene, systems: systemsNext, entities: mergedEntities }, null, 2));
     setRendererEngineStateText(JSON.stringify(nextEngine, null, 2));
     setRendererGameStatus(`compiled:${mergedEntities.length}_entities`);
@@ -15759,6 +15829,7 @@ function extractPythonSavedPath(outputText) {
               <span className="badge">{`Active target: ${actionPostTarget}`}</span>
             </div>
             <div className="row">
+              <button className="action" onClick={compileKobraScene}>Compile Kobra {"->"} Renderer Triple (API)</button>
               <button className="action" onClick={compileSceneFromCobra}>Compile Cobra {"->"} Scene + Renderer State (API)</button>
               <button className="action" onClick={loadSceneFromLibraryToRenderer}>Load Library Scene {"->"} Renderer State (API)</button>
               <button className="action" onClick={emitSceneGraph}>POST Scene Graph Payload</button>
@@ -17131,6 +17202,43 @@ function extractPythonSavedPath(outputText) {
                 <iframe className="renderer-frame" sandbox="allow-scripts" srcDoc={cobraFrameDoc} title="cobra-renderer" />
               </div>
               <div className="renderer-cell">
+                <h3>Kobra Layer (Shygazun)</h3>
+                <textarea className="editor editor-mono renderer-editor" value={rendererKobra} onChange={(e) => setRendererKobra(e.target.value)} />
+                <div className="row">
+                  <input
+                    value={kobraCoherenceGrade}
+                    onChange={(e) => setKobraCoherenceGrade(e.target.value)}
+                    placeholder="coherence 0.0–1.0"
+                    style={{ width: "120px" }}
+                  />
+                  <select value={kobraCoherenceCut} onChange={(e) => setKobraCoherenceCut(e.target.value)}>
+                    <option value="">cut: auto</option>
+                    <option value="resolved">resolved</option>
+                    <option value="frontier">frontier</option>
+                  </select>
+                  <button className="action" onClick={compileKobraScene}>Compile Kobra (API)</button>
+                </div>
+                {rendererKobraResult ? (
+                  <div>
+                    <div className="row">
+                      <span className="badge">{`entities: ${rendererKobraResult.entity_count ?? 0}`}</span>
+                      <span className="badge">{`cut: ${rendererKobraResult.coherence?.cut_character ?? "—"}`}</span>
+                      <span className="badge">{`coherence: ${rendererKobraResult.coherence?.coherence_grade ?? "—"}`}</span>
+                      {rendererKobraResult.cannabis_active ? <span className="badge">cannabis active</span> : null}
+                      {rendererKobraResult.frontier_open?.length > 0 ? (
+                        <span className="badge">{`frontier open: ${rendererKobraResult.frontier_open.length}`}</span>
+                      ) : null}
+                    </div>
+                    {rendererKobraResult.warnings?.length > 0 ? (
+                      <pre>{JSON.stringify(rendererKobraResult.warnings, null, 2)}</pre>
+                    ) : null}
+                    <pre style={{ maxHeight: "200px", overflow: "auto", fontSize: "11px" }}>
+                      {JSON.stringify({ voxels: rendererKobraResult.voxels, chromatic_packet: rendererKobraResult.chromatic_packet }, null, 2)}
+                    </pre>
+                  </div>
+                ) : null}
+              </div>
+              <div className="renderer-cell">
                 <h3>JavaScript Layer</h3>
                 <textarea className="editor editor-mono renderer-editor" value={rendererJs} onChange={(e) => setRendererJs(e.target.value)} />
                 <div className="row">
@@ -17299,6 +17407,7 @@ function extractPythonSavedPath(outputText) {
               <span className="badge">{`Active target: ${actionPostTarget}`}</span>
             </div>
             <div className="row">
+                <button className="action" onClick={compileKobraScene}>Compile Kobra {"->"} Renderer Triple (API)</button>
                 <button className="action" onClick={compileSceneFromCobra}>Compile Cobra {"->"} Scene + Renderer State (API)</button>
                 <button className="action" onClick={loadSceneFromLibraryToRenderer}>Load Library Scene {"->"} Renderer State (API)</button>
               <button className="action" onClick={emitSceneGraph}>POST Scene Graph Payload</button>
