@@ -49,6 +49,14 @@ from .models import (
     GuildArtisanProfile,
     ClientConversation,
     ClientMessageEnvelope,
+    StudioProfile,
+    Project,
+    ProjectLicense,
+    GuildListing,
+    DistributionTarget,
+    SeqArtPage,
+    SeqArtPanel,
+    SeqArtCharacter,
 )
 
 
@@ -949,3 +957,233 @@ class AtelierRepository:
             .limit(max(1, min(int(limit), 250)))
         )
         return self._db.scalars(stmt).all()
+
+    # ── Studio profiles ───────────────────────────────────────────────────────
+
+    def get_studio_profile(self, workspace_id: str) -> StudioProfile | None:
+        return self._db.scalars(
+            select(StudioProfile).where(StudioProfile.workspace_id == workspace_id)
+        ).first()
+
+    def create_studio_profile(self, row: StudioProfile) -> StudioProfile:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def save_studio_profile(self, row: StudioProfile) -> StudioProfile:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def list_public_studio_profiles(self) -> Sequence[StudioProfile]:
+        return self._db.scalars(
+            select(StudioProfile)
+            .where(StudioProfile.is_public == True, StudioProfile.guild_status == "active")  # noqa: E712
+            .order_by(StudioProfile.joined_at)
+        ).all()
+
+    # ── Projects ──────────────────────────────────────────────────────────────
+
+    def create_project(self, row: Project) -> Project:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_project(self, project_id: str) -> Project | None:
+        return self._db.get(Project, project_id)
+
+    def list_projects(self, workspace_id: str) -> Sequence[Project]:
+        return self._db.scalars(
+            select(Project)
+            .where(Project.workspace_id == workspace_id)
+            .order_by(Project.created_at.desc())
+        ).all()
+
+    def save_project(self, row: Project) -> Project:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    # ── Project licenses ──────────────────────────────────────────────────────
+
+    def get_project_license(self, project_id: str) -> ProjectLicense | None:
+        return self._db.scalars(
+            select(ProjectLicense).where(ProjectLicense.project_id == project_id)
+        ).first()
+
+    def save_project_license(self, row: ProjectLicense) -> ProjectLicense:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    # ── Guild listings ────────────────────────────────────────────────────────
+
+    def get_guild_listing(self, listing_id: str) -> GuildListing | None:
+        return self._db.get(GuildListing, listing_id)
+
+    def get_guild_listing_by_project(self, project_id: str) -> GuildListing | None:
+        return self._db.scalars(
+            select(GuildListing).where(GuildListing.project_id == project_id)
+        ).first()
+
+    def list_guild_listings(
+        self,
+        project_type: str | None = None,
+        workspace_id: str | None = None,
+    ) -> Sequence[GuildListing]:
+        stmt = select(GuildListing).order_by(GuildListing.listed_at.desc())
+        if project_type:
+            stmt = stmt.where(GuildListing.project_type == project_type)
+        if workspace_id:
+            stmt = stmt.where(GuildListing.workspace_id == workspace_id)
+        return self._db.scalars(stmt).all()
+
+    def save_guild_listing(self, row: GuildListing) -> GuildListing:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def delete_guild_listing_by_project(self, project_id: str) -> None:
+        row = self.get_guild_listing_by_project(project_id)
+        if row:
+            self._db.delete(row)
+            self._db.commit()
+
+    def count_guild_listings_for_workspace(self, workspace_id: str) -> int:
+        result = self._db.execute(
+            select(func.count()).where(GuildListing.workspace_id == workspace_id)
+        )
+        return result.scalar_one() or 0
+
+    # ── Distribution targets ──────────────────────────────────────────────────
+
+    def create_distribution_target(self, row: "DistributionTarget") -> "DistributionTarget":
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_distribution_target(self, target_id: str) -> "DistributionTarget | None":
+        return self._db.get(DistributionTarget, target_id)
+
+    def list_distribution_targets(
+        self,
+        workspace_id: str,
+        project_id: str | None = None,
+        target_type: str | None = None,
+        status: str | None = None,
+    ) -> "Sequence[DistributionTarget]":
+        stmt = (
+            select(DistributionTarget)
+            .where(DistributionTarget.workspace_id == workspace_id)
+            .order_by(DistributionTarget.created_at.desc())
+        )
+        if project_id is not None:
+            stmt = stmt.where(DistributionTarget.project_id == project_id)
+        if target_type:
+            stmt = stmt.where(DistributionTarget.target_type == target_type)
+        if status:
+            stmt = stmt.where(DistributionTarget.status == status)
+        return self._db.scalars(stmt).all()
+
+    def save_distribution_target(self, row: "DistributionTarget") -> "DistributionTarget":
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    # ── Sequential art — pages ────────────────────────────────────────────────
+
+    def create_seq_art_page(self, row: SeqArtPage) -> SeqArtPage:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_seq_art_page(self, page_id: str) -> SeqArtPage | None:
+        return self._db.get(SeqArtPage, page_id)
+
+    def list_seq_art_pages(self, project_id: str) -> Sequence[SeqArtPage]:
+        return self._db.scalars(
+            select(SeqArtPage)
+            .where(SeqArtPage.project_id == project_id)
+            .order_by(SeqArtPage.page_number)
+        ).all()
+
+    def save_seq_art_page(self, row: SeqArtPage) -> SeqArtPage:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def delete_seq_art_page(self, page_id: str) -> None:
+        row = self.get_seq_art_page(page_id)
+        if row:
+            self._db.delete(row)
+            self._db.commit()
+
+    # ── Sequential art — panels ───────────────────────────────────────────────
+
+    def create_seq_art_panel(self, row: SeqArtPanel) -> SeqArtPanel:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_seq_art_panel(self, panel_id: str) -> SeqArtPanel | None:
+        return self._db.get(SeqArtPanel, panel_id)
+
+    def list_seq_art_panels(self, page_id: str) -> Sequence[SeqArtPanel]:
+        return self._db.scalars(
+            select(SeqArtPanel)
+            .where(SeqArtPanel.page_id == page_id)
+            .order_by(SeqArtPanel.panel_index)
+        ).all()
+
+    def save_seq_art_panel(self, row: SeqArtPanel) -> SeqArtPanel:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def delete_seq_art_panel(self, panel_id: str) -> None:
+        row = self.get_seq_art_panel(panel_id)
+        if row:
+            self._db.delete(row)
+            self._db.commit()
+
+    # ── Sequential art — characters ───────────────────────────────────────────
+
+    def create_seq_art_character(self, row: SeqArtCharacter) -> SeqArtCharacter:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def get_seq_art_character(self, char_id: str) -> SeqArtCharacter | None:
+        return self._db.get(SeqArtCharacter, char_id)
+
+    def list_seq_art_characters(self, project_id: str) -> Sequence[SeqArtCharacter]:
+        return self._db.scalars(
+            select(SeqArtCharacter)
+            .where(SeqArtCharacter.project_id == project_id)
+            .order_by(SeqArtCharacter.name)
+        ).all()
+
+    def save_seq_art_character(self, row: SeqArtCharacter) -> SeqArtCharacter:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def delete_seq_art_character(self, char_id: str) -> None:
+        row = self.get_seq_art_character(char_id)
+        if row:
+            self._db.delete(row)
+            self._db.commit()

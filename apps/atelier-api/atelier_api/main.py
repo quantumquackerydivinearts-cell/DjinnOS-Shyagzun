@@ -27,6 +27,9 @@ from .core.config import Settings, get_settings
 from .routers import game, render_lab, export as export_router
 from .routers.cosmology import router as cosmology_router
 from .routers.kobra import router as kobra_router
+from .routers.studio import router as studio_router
+from .routers.distribution import router as distribution_router
+from .routers.seq_art import router as seq_art_router
 from .shygazun_router import router as shygazun_router
 from .shygazun_reasoning import router as shygazun_reasoning_router
 
@@ -208,9 +211,6 @@ from .business_schemas import (
     BreathKoGenerateInput,
     BreathKoListOut,
     BreathKoOut,
-    PublicShopLeadRequest,
-    PublicShopQuoteRequest,
-    PublicShopCheckoutRequest,
     WorkspaceCreate,
     WorkspaceOut,
     WorkspaceMemberAddInput,
@@ -1147,6 +1147,9 @@ app.include_router(render_lab.router)
 app.include_router(export_router.router)
 app.include_router(cosmology_router)
 app.include_router(kobra_router)
+app.include_router(studio_router)
+app.include_router(distribution_router)
+app.include_router(seq_art_router)
 app.include_router(shygazun_router, prefix="/shygazun", tags=["shygazun"])
 app.include_router(shygazun_reasoning_router, prefix="/v1/shygazun", tags=["shygazun-reasoning"])
 

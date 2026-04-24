@@ -815,3 +815,165 @@ class CosmologySubmission(Base):
     kernel_valid: Mapped[bool]   = mapped_column(Boolean, nullable=False, default=False)
     submitted_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# ── Guild studio + project layer ──────────────────────────────────────────────
+
+class StudioProfile(Base):
+    """Public guild identity for a workspace/studio."""
+    __tablename__ = "studio_profiles"
+
+    id: Mapped[str]                = mapped_column(String(36),  primary_key=True, default=_uuid)
+    workspace_id: Mapped[str]      = mapped_column(String(36),  ForeignKey("workspaces.id"), nullable=False, unique=True)
+    owner_artisan_id: Mapped[str]  = mapped_column(String(100), nullable=False)
+    display_name: Mapped[str]      = mapped_column(String(200), nullable=False)
+    tagline: Mapped[str]           = mapped_column(String(300), nullable=False, default="")
+    bio: Mapped[str]               = mapped_column(Text,        nullable=False, default="")
+    logo_url: Mapped[str | None]   = mapped_column(String(500), nullable=True)
+    # studio_type: indie_game | graphic_art | sequential_art | education | mixed
+    studio_type: Mapped[str]       = mapped_column(String(60),  nullable=False, default="mixed")
+    tags_json: Mapped[str]         = mapped_column(Text,        nullable=False, default="[]")
+    # guild_status: active | pending | suspended
+    guild_status: Mapped[str]      = mapped_column(String(40),  nullable=False, default="active")
+    is_public: Mapped[bool]        = mapped_column(Boolean,     nullable=False, default=True)
+    joined_at: Mapped[datetime]    = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Project(Base):
+    """Creative artifact container — unified project type across all studio disciplines."""
+    __tablename__ = "projects"
+
+    id: Mapped[str]                    = mapped_column(String(36),  primary_key=True, default=_uuid)
+    workspace_id: Mapped[str]          = mapped_column(String(36),  ForeignKey("workspaces.id"), nullable=False)
+    title: Mapped[str]                 = mapped_column(String(300), nullable=False)
+    description: Mapped[str]           = mapped_column(Text,        nullable=False, default="")
+    # project_type: ambroflow_game | sequential_art | graphic_art | asset_pack | lesson | dlc_pack | other
+    project_type: Mapped[str]          = mapped_column(String(60),  nullable=False, default="other")
+    # publication_state: draft | internal | published | distributed
+    publication_state: Mapped[str]     = mapped_column(String(40),  nullable=False, default="draft")
+    cover_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    tags_json: Mapped[str]             = mapped_column(Text,        nullable=False, default="[]")
+    created_at: Mapped[datetime]       = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ProjectLicense(Base):
+    """License record attached to a project at the moment of publication."""
+    __tablename__ = "project_licenses"
+
+    id: Mapped[str]                  = mapped_column(String(36),  primary_key=True, default=_uuid)
+    # one license per project; updated in-place on re-publish
+    project_id: Mapped[str]          = mapped_column(String(36),  ForeignKey("projects.id"), nullable=False, unique=True)
+    # license_type: cc_by | cc_by_sa | cc_by_nc | cc_by_nc_sa | cc_by_nd | cc_by_nc_nd
+    #               | commercial | all_rights_reserved
+    license_type: Mapped[str]        = mapped_column(String(60),  nullable=False, default="cc_by")
+    license_version: Mapped[str]     = mapped_column(String(20),  nullable=False, default="4.0")
+    custom_terms: Mapped[str | None] = mapped_column(Text,        nullable=True)
+    effective_at: Mapped[datetime]   = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class GuildListing(Base):
+    """Cross-studio visible record — only populated when a project is published.
+    This is the only thing other guild studios ever see of a project before release.
+    """
+    __tablename__ = "guild_listings"
+
+    id: Mapped[str]                    = mapped_column(String(36),  primary_key=True, default=_uuid)
+    project_id: Mapped[str]            = mapped_column(String(36),  ForeignKey("projects.id"), nullable=False, unique=True)
+    workspace_id: Mapped[str]          = mapped_column(String(36),  ForeignKey("workspaces.id"), nullable=False)
+    title: Mapped[str]                 = mapped_column(String(300), nullable=False)
+    description: Mapped[str]           = mapped_column(Text,        nullable=False, default="")
+    project_type: Mapped[str]          = mapped_column(String(60),  nullable=False)
+    cover_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # license_type mirrors ProjectLicense at listing time
+    license_type: Mapped[str]          = mapped_column(String(60),  nullable=False, default="cc_by")
+    tags_json: Mapped[str]             = mapped_column(Text,        nullable=False, default="[]")
+    listed_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_featured: Mapped[bool]          = mapped_column(Boolean,     nullable=False, default=False)
+    view_count: Mapped[int]            = mapped_column(Integer,     nullable=False, default=0)
+
+
+class DistributionTarget(Base):
+    """A channel through which a project (or studio service) is distributed.
+
+    target_type:
+      steam            — project listed on Steam
+      own_store        — project on the Atelier's own storefront
+      commission_intake — workspace-level service intake (project_id = null)
+
+    config_json examples
+      steam:            {"app_id": "...", "store_url": "...", "price_usd": 9.99}
+      own_store:        {"price_usd": 4.99, "download_url": "...", "preview_url": "..."}
+      commission_intake:{"disciplines": ["graphic_art","storyboard"], "rate_card": {...},
+                         "turnaround_days": 14, "intake_url": "..."}
+    """
+    __tablename__ = "distribution_targets"
+
+    id: Mapped[str]                       = mapped_column(String(36),  primary_key=True, default=_uuid)
+    workspace_id: Mapped[str]             = mapped_column(String(36),  ForeignKey("workspaces.id"), nullable=False)
+    # null for workspace-level targets (commission_intake)
+    project_id: Mapped[str | None]        = mapped_column(String(36),  ForeignKey("projects.id"), nullable=True)
+    # steam | own_store | commission_intake
+    target_type: Mapped[str]              = mapped_column(String(40),  nullable=False)
+    # draft | active | paused | retired
+    status: Mapped[str]                   = mapped_column(String(20),  nullable=False, default="draft")
+    config_json: Mapped[str]              = mapped_column(Text,        nullable=False, default="{}")
+    created_at: Mapped[datetime]          = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None]   = mapped_column(DateTime(timezone=True), nullable=True)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SeqArtPage(Base):
+    """An ordered page within a sequential_art project."""
+    __tablename__ = "seq_art_pages"
+
+    id: Mapped[str]                     = mapped_column(String(36),  primary_key=True, default=_uuid)
+    project_id: Mapped[str]             = mapped_column(String(36),  ForeignKey("projects.id"), nullable=False)
+    page_number: Mapped[int]            = mapped_column(Integer,     nullable=False)
+    title: Mapped[str]                  = mapped_column(String(200), nullable=False, default="")
+    notes: Mapped[str]                  = mapped_column(Text,        nullable=False, default="")
+    # draft | final
+    status: Mapped[str]                 = mapped_column(String(20),  nullable=False, default="draft")
+    created_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SeqArtPanel(Base):
+    """A panel on a sequential art page."""
+    __tablename__ = "seq_art_panels"
+
+    id: Mapped[str]                     = mapped_column(String(36),  primary_key=True, default=_uuid)
+    page_id: Mapped[str]                = mapped_column(String(36),  ForeignKey("seq_art_pages.id"), nullable=False)
+    panel_index: Mapped[int]            = mapped_column(Integer,     nullable=False)
+    # standard | splash | bleed | inset
+    panel_type: Mapped[str]             = mapped_column(String(30),  nullable=False, default="standard")
+    # [{speaker, text, bubble_type}]
+    dialogue_json: Mapped[str]          = mapped_column(Text,        nullable=False, default="[]")
+    # [{position, text}]
+    caption_json: Mapped[str]           = mapped_column(Text,        nullable=False, default="[]")
+    # [{text, style}]
+    sfx_json: Mapped[str]               = mapped_column(Text,        nullable=False, default="[]")
+    asset_url: Mapped[str | None]       = mapped_column(String(500), nullable=True)
+    thumbnail_url: Mapped[str | None]   = mapped_column(String(500), nullable=True)
+    notes: Mapped[str]                  = mapped_column(Text,        nullable=False, default="")
+    # sketch | inks | color | final
+    status: Mapped[str]                 = mapped_column(String(20),  nullable=False, default="sketch")
+    created_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SeqArtCharacter(Base):
+    """Character entry in a project's roster — design reference and notes."""
+    __tablename__ = "seq_art_characters"
+
+    id: Mapped[str]                     = mapped_column(String(36),  primary_key=True, default=_uuid)
+    project_id: Mapped[str]             = mapped_column(String(36),  ForeignKey("projects.id"), nullable=False)
+    name: Mapped[str]                   = mapped_column(String(200), nullable=False)
+    description: Mapped[str]            = mapped_column(Text,        nullable=False, default="")
+    reference_url: Mapped[str | None]   = mapped_column(String(500), nullable=True)
+    notes: Mapped[str]                  = mapped_column(Text,        nullable=False, default="")
+    created_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -222,6 +222,31 @@ from .business_schemas import (
     DjinnOrreryMark,
     SupplierCreate,
     SupplierOut,
+    StudioProfileCreate,
+    StudioProfileUpdate,
+    StudioProfileOut,
+    GuildStudioOut,
+    ProjectCreate,
+    ProjectUpdate,
+    ProjectOut,
+    ProjectLicenseOut,
+    ProjectPublishInput,
+    GuildListingOut,
+    DistributionTargetCreate,
+    DistributionTargetUpdate,
+    DistributionTargetOut,
+    SeqArtPageCreate,
+    SeqArtPageUpdate,
+    SeqArtPageOut,
+    SeqArtPanelCreate,
+    SeqArtPanelUpdate,
+    SeqArtPanelOut,
+    SeqArtCharacterCreate,
+    SeqArtCharacterUpdate,
+    SeqArtCharacterOut,
+    DialogueLine,
+    CaptionBlock,
+    SfxEntry,
 )
 from .rendering_schemas import (
     RendererTablesInput,
@@ -279,6 +304,15 @@ from .models import (
     GuildRegistryRecord,
     Workspace,
     WorkspaceMembership,
+    StudioProfile,
+    Project,
+    ProjectLicense,
+    GuildListing,
+    DistributionTarget,
+    SeqArtPage,
+    SeqArtPanel,
+    SeqArtCharacter,
+    _uuid,
 )
 from .repositories import AtelierRepository
 from .validators import build_scene_graph_content_from_kobra, validate_kobra_content, validate_json_content, validate_scene_realm
@@ -14167,7 +14201,773 @@ class AtelierService:
         repo.create_workspace_membership(membership)
 
 
-# --- PYTHON PATH FIX ---
+
+    # ── Guild / Studio / Project layer ───────────────────────────────────────
+
+    def _studio_profile_out(self, row: StudioProfile) -> StudioProfileOut:
+        return StudioProfileOut(
+            id=row.id,
+            workspace_id=row.workspace_id,
+            owner_artisan_id=row.owner_artisan_id,
+            display_name=row.display_name,
+            tagline=row.tagline,
+            bio=row.bio,
+            logo_url=row.logo_url,
+            studio_type=row.studio_type,
+            tags=json.loads(row.tags_json or "[]"),
+            guild_status=row.guild_status,
+            is_public=row.is_public,
+            joined_at=row.joined_at,
+            updated_at=row.updated_at,
+        )
+
+    def _license_out(self, row: ProjectLicense) -> ProjectLicenseOut:
+        return ProjectLicenseOut(
+            id=row.id,
+            project_id=row.project_id,
+            license_type=row.license_type,
+            license_version=row.license_version,
+            custom_terms=row.custom_terms,
+            effective_at=row.effective_at,
+        )
+
+    def _project_out(self, row: Project, repo: AtelierRepository) -> ProjectOut:
+        lic_row = repo.get_project_license(row.id)
+        return ProjectOut(
+            id=row.id,
+            workspace_id=row.workspace_id,
+            title=row.title,
+            description=row.description,
+            project_type=row.project_type,
+            publication_state=row.publication_state,
+            cover_image_url=row.cover_image_url,
+            tags=json.loads(row.tags_json or "[]"),
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            published_at=row.published_at,
+            license=self._license_out(lic_row) if lic_row else None,
+        )
+
+    def _listing_out(self, row: GuildListing, studio_name: str = "") -> GuildListingOut:
+        return GuildListingOut(
+            id=row.id,
+            project_id=row.project_id,
+            workspace_id=row.workspace_id,
+            studio_name=studio_name,
+            title=row.title,
+            description=row.description,
+            project_type=row.project_type,
+            cover_image_url=row.cover_image_url,
+            license_type=row.license_type,
+            tags=json.loads(row.tags_json or "[]"),
+            listed_at=row.listed_at,
+            updated_at=row.updated_at,
+            is_featured=row.is_featured,
+            view_count=row.view_count,
+        )
+
+    def upsert_studio_profile(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        role: str,
+        data: StudioProfileCreate,
+    ) -> StudioProfileOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        existing = repo.get_studio_profile(workspace_id)
+        now = datetime.now(timezone.utc)
+        if existing:
+            existing.display_name = data.display_name
+            existing.tagline = data.tagline
+            existing.bio = data.bio
+            if data.logo_url is not None:
+                existing.logo_url = data.logo_url
+            existing.studio_type = data.studio_type
+            existing.tags_json = json.dumps(data.tags)
+            existing.is_public = data.is_public
+            existing.updated_at = now
+            row = repo.save_studio_profile(existing)
+        else:
+            row = repo.create_studio_profile(StudioProfile(
+                id=_uuid(),
+                workspace_id=workspace_id,
+                owner_artisan_id=artisan_id,
+                display_name=data.display_name,
+                tagline=data.tagline,
+                bio=data.bio,
+                logo_url=data.logo_url,
+                studio_type=data.studio_type,
+                tags_json=json.dumps(data.tags),
+                guild_status="active",
+                is_public=data.is_public,
+                joined_at=now,
+                updated_at=None,
+            ))
+        return self._studio_profile_out(row)
+
+    def patch_studio_profile(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        role: str,
+        data: StudioProfileUpdate,
+    ) -> StudioProfileOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        row = repo.get_studio_profile(workspace_id)
+        if not row:
+            raise ValueError("Studio profile not found for workspace")
+        now = datetime.now(timezone.utc)
+        if data.display_name is not None:
+            row.display_name = data.display_name
+        if data.tagline is not None:
+            row.tagline = data.tagline
+        if data.bio is not None:
+            row.bio = data.bio
+        if data.logo_url is not None:
+            row.logo_url = data.logo_url
+        if data.studio_type is not None:
+            row.studio_type = data.studio_type
+        if data.tags is not None:
+            row.tags_json = json.dumps(data.tags)
+        if data.is_public is not None:
+            row.is_public = data.is_public
+        row.updated_at = now
+        return self._studio_profile_out(repo.save_studio_profile(row))
+
+    def get_studio_profile_out(self, workspace_id: str) -> Optional[StudioProfileOut]:
+        repo = self._require_repo()
+        row = repo.get_studio_profile(workspace_id)
+        return self._studio_profile_out(row) if row else None
+
+    def list_guild_studios(self) -> list[GuildStudioOut]:
+        repo = self._require_repo()
+        rows = repo.list_public_studio_profiles()
+        out = []
+        for row in rows:
+            count = repo.count_guild_listings_for_workspace(row.workspace_id)
+            out.append(GuildStudioOut(
+                id=row.id,
+                workspace_id=row.workspace_id,
+                display_name=row.display_name,
+                tagline=row.tagline,
+                bio=row.bio,
+                logo_url=row.logo_url,
+                studio_type=row.studio_type,
+                tags=json.loads(row.tags_json or "[]"),
+                guild_status=row.guild_status,
+                joined_at=row.joined_at,
+                listing_count=count,
+            ))
+        return out
+
+    def create_project(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        role: str,
+        data: ProjectCreate,
+    ) -> ProjectOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        now = datetime.now(timezone.utc)
+        row = repo.create_project(Project(
+            id=_uuid(),
+            workspace_id=workspace_id,
+            title=data.title,
+            description=data.description,
+            project_type=data.project_type,
+            publication_state="draft",
+            cover_image_url=data.cover_image_url,
+            tags_json=json.dumps(data.tags),
+            created_at=now,
+            updated_at=None,
+            published_at=None,
+        ))
+        return self._project_out(row, repo)
+
+    def update_project(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        project_id: str,
+        role: str,
+        data: ProjectUpdate,
+    ) -> ProjectOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        row = repo.get_project(project_id)
+        if not row or row.workspace_id != workspace_id:
+            raise ValueError("Project not found")
+        now = datetime.now(timezone.utc)
+        if data.title is not None:
+            row.title = data.title
+        if data.description is not None:
+            row.description = data.description
+        if data.project_type is not None:
+            row.project_type = data.project_type
+        if data.cover_image_url is not None:
+            row.cover_image_url = data.cover_image_url
+        if data.tags is not None:
+            row.tags_json = json.dumps(data.tags)
+        row.updated_at = now
+        return self._project_out(repo.save_project(row), repo)
+
+    def get_project_out(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        project_id: str,
+        role: str,
+    ) -> ProjectOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        row = repo.get_project(project_id)
+        if not row or row.workspace_id != workspace_id:
+            raise ValueError("Project not found")
+        return self._project_out(row, repo)
+
+    def list_projects_out(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        role: str,
+    ) -> list[ProjectOut]:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        rows = repo.list_projects(workspace_id)
+        return [self._project_out(r, repo) for r in rows]
+
+    def publish_project(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        project_id: str,
+        role: str,
+        license_data: ProjectPublishInput,
+    ) -> ProjectOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        row = repo.get_project(project_id)
+        if not row or row.workspace_id != workspace_id:
+            raise ValueError("Project not found")
+        now = datetime.now(timezone.utc)
+
+        # Upsert license
+        lic = repo.get_project_license(project_id)
+        if lic:
+            lic.license_type = license_data.license_type
+            lic.license_version = license_data.license_version
+            lic.custom_terms = license_data.custom_terms
+            lic.effective_at = now
+            repo.save_project_license(lic)
+        else:
+            lic = repo.save_project_license(ProjectLicense(
+                id=_uuid(),
+                project_id=project_id,
+                license_type=license_data.license_type,
+                license_version=license_data.license_version,
+                custom_terms=license_data.custom_terms,
+                effective_at=now,
+            ))
+
+        # Update project state
+        row.publication_state = "published"
+        row.published_at = row.published_at or now
+        row.updated_at = now
+        repo.save_project(row)
+
+        # Upsert guild listing
+        studio = repo.get_studio_profile(workspace_id)
+        listing = repo.get_guild_listing_by_project(project_id)
+        if listing:
+            listing.title = row.title
+            listing.description = row.description
+            listing.project_type = row.project_type
+            listing.cover_image_url = row.cover_image_url
+            listing.license_type = lic.license_type
+            listing.tags_json = row.tags_json
+            listing.updated_at = now
+            repo.save_guild_listing(listing)
+        else:
+            repo.save_guild_listing(GuildListing(
+                id=_uuid(),
+                project_id=project_id,
+                workspace_id=workspace_id,
+                title=row.title,
+                description=row.description,
+                project_type=row.project_type,
+                cover_image_url=row.cover_image_url,
+                license_type=lic.license_type,
+                tags_json=row.tags_json,
+                listed_at=now,
+                updated_at=None,
+                is_featured=False,
+                view_count=0,
+            ))
+
+        return self._project_out(row, repo)
+
+    def unpublish_project(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        project_id: str,
+        role: str,
+    ) -> ProjectOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        row = repo.get_project(project_id)
+        if not row or row.workspace_id != workspace_id:
+            raise ValueError("Project not found")
+        now = datetime.now(timezone.utc)
+        row.publication_state = "draft"
+        row.updated_at = now
+        repo.save_project(row)
+        repo.delete_guild_listing_by_project(project_id)
+        return self._project_out(row, repo)
+
+    def list_guild_listings_out(
+        self,
+        project_type: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+    ) -> list[GuildListingOut]:
+        repo = self._require_repo()
+        rows = repo.list_guild_listings(project_type=project_type, workspace_id=workspace_id)
+        out = []
+        for row in rows:
+            studio = repo.get_studio_profile(row.workspace_id)
+            studio_name = studio.display_name if studio else ""
+            out.append(self._listing_out(row, studio_name))
+        return out
+
+    def get_guild_listing_out(self, listing_id: str) -> Optional[GuildListingOut]:
+        repo = self._require_repo()
+        row = repo.get_guild_listing(listing_id)
+        if not row:
+            return None
+        studio = repo.get_studio_profile(row.workspace_id)
+        studio_name = studio.display_name if studio else ""
+        # Increment view count
+        row.view_count = (row.view_count or 0) + 1
+        repo.save_guild_listing(row)
+        return self._listing_out(row, studio_name)
+
+    # ── Distribution targets ──────────────────────────────────────────────────
+
+    def _dist_target_out(self, row: DistributionTarget) -> DistributionTargetOut:
+        return DistributionTargetOut(
+            id=row.id,
+            workspace_id=row.workspace_id,
+            project_id=row.project_id,
+            target_type=row.target_type,
+            status=row.status,
+            config=json.loads(row.config_json or "{}"),
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            activated_at=row.activated_at,
+        )
+
+    def create_distribution_target(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        role: str,
+        data: DistributionTargetCreate,
+    ) -> DistributionTargetOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        if data.project_id:
+            proj = repo.get_project(data.project_id)
+            if not proj or proj.workspace_id != workspace_id:
+                raise ValueError("Project not found in workspace")
+        now = datetime.now(timezone.utc)
+        row = repo.create_distribution_target(DistributionTarget(
+            id=_uuid(),
+            workspace_id=workspace_id,
+            project_id=data.project_id,
+            target_type=data.target_type,
+            status="draft",
+            config_json=json.dumps(data.config),
+            created_at=now,
+            updated_at=None,
+            activated_at=None,
+        ))
+        return self._dist_target_out(row)
+
+    def update_distribution_target(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        target_id: str,
+        role: str,
+        data: DistributionTargetUpdate,
+    ) -> DistributionTargetOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        row = repo.get_distribution_target(target_id)
+        if not row or row.workspace_id != workspace_id:
+            raise ValueError("Distribution target not found")
+        now = datetime.now(timezone.utc)
+        if data.status is not None:
+            prev_status = row.status
+            row.status = data.status
+            if data.status == "active" and prev_status != "active":
+                row.activated_at = row.activated_at or now
+        if data.config is not None:
+            existing = json.loads(row.config_json or "{}")
+            existing.update(data.config)
+            row.config_json = json.dumps(existing)
+        row.updated_at = now
+        return self._dist_target_out(repo.save_distribution_target(row))
+
+    def get_distribution_target_out(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        target_id: str,
+        role: str,
+    ) -> DistributionTargetOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        row = repo.get_distribution_target(target_id)
+        if not row or row.workspace_id != workspace_id:
+            raise ValueError("Distribution target not found")
+        return self._dist_target_out(row)
+
+    def list_distribution_targets_out(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        role: str,
+        project_id: Optional[str] = None,
+        target_type: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> list[DistributionTargetOut]:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        rows = repo.list_distribution_targets(
+            workspace_id=workspace_id,
+            project_id=project_id,
+            target_type=target_type,
+            status=status,
+        )
+        return [self._dist_target_out(r) for r in rows]
+
+    def retire_distribution_target(
+        self,
+        artisan_id: str,
+        workspace_id: str,
+        target_id: str,
+        role: str,
+    ) -> DistributionTargetOut:
+        repo = self._require_repo()
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        row = repo.get_distribution_target(target_id)
+        if not row or row.workspace_id != workspace_id:
+            raise ValueError("Distribution target not found")
+        row.status = "retired"
+        row.updated_at = datetime.now(timezone.utc)
+        return self._dist_target_out(repo.save_distribution_target(row))
+
+    # ── Sequential art ────────────────────────────────────────────────────────
+
+    def _assert_seq_art_project(
+        self, artisan_id: str, workspace_id: str, project_id: str, role: str, repo: AtelierRepository
+    ) -> None:
+        self.assert_workspace_access(artisan_id, workspace_id, role)
+        proj = repo.get_project(project_id)
+        if not proj or proj.workspace_id != workspace_id:
+            raise ValueError("Project not found")
+
+    def _page_out(self, row: SeqArtPage) -> SeqArtPageOut:
+        return SeqArtPageOut(
+            id=row.id,
+            project_id=row.project_id,
+            page_number=row.page_number,
+            title=row.title,
+            notes=row.notes,
+            status=row.status,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+    def _panel_out(self, row: SeqArtPanel) -> SeqArtPanelOut:
+        return SeqArtPanelOut(
+            id=row.id,
+            page_id=row.page_id,
+            panel_index=row.panel_index,
+            panel_type=row.panel_type,
+            dialogue=[DialogueLine(**d) for d in json.loads(row.dialogue_json or "[]")],
+            captions=[CaptionBlock(**c) for c in json.loads(row.caption_json or "[]")],
+            sfx=[SfxEntry(**s) for s in json.loads(row.sfx_json or "[]")],
+            asset_url=row.asset_url,
+            thumbnail_url=row.thumbnail_url,
+            notes=row.notes,
+            status=row.status,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+    def _char_out(self, row: SeqArtCharacter) -> SeqArtCharacterOut:
+        return SeqArtCharacterOut(
+            id=row.id,
+            project_id=row.project_id,
+            name=row.name,
+            description=row.description,
+            reference_url=row.reference_url,
+            notes=row.notes,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+    # pages
+
+    def create_seq_art_page(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, role: str,
+        data: SeqArtPageCreate,
+    ) -> SeqArtPageOut:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        now = datetime.now(timezone.utc)
+        row = repo.create_seq_art_page(SeqArtPage(
+            id=_uuid(),
+            project_id=project_id,
+            page_number=data.page_number,
+            title=data.title,
+            notes=data.notes,
+            status="draft",
+            created_at=now,
+            updated_at=None,
+        ))
+        return self._page_out(row)
+
+    def update_seq_art_page(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, page_id: str, role: str,
+        data: SeqArtPageUpdate,
+    ) -> SeqArtPageOut:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        row = repo.get_seq_art_page(page_id)
+        if not row or row.project_id != project_id:
+            raise ValueError("Page not found")
+        if data.page_number is not None:
+            row.page_number = data.page_number
+        if data.title is not None:
+            row.title = data.title
+        if data.notes is not None:
+            row.notes = data.notes
+        if data.status is not None:
+            row.status = data.status
+        row.updated_at = datetime.now(timezone.utc)
+        return self._page_out(repo.save_seq_art_page(row))
+
+    def get_seq_art_page_out(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, page_id: str, role: str,
+    ) -> SeqArtPageOut:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        row = repo.get_seq_art_page(page_id)
+        if not row or row.project_id != project_id:
+            raise ValueError("Page not found")
+        return self._page_out(row)
+
+    def list_seq_art_pages_out(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, role: str,
+    ) -> list[SeqArtPageOut]:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        return [self._page_out(r) for r in repo.list_seq_art_pages(project_id)]
+
+    def delete_seq_art_page(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, page_id: str, role: str,
+    ) -> None:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        row = repo.get_seq_art_page(page_id)
+        if not row or row.project_id != project_id:
+            raise ValueError("Page not found")
+        repo.delete_seq_art_page(page_id)
+
+    # panels
+
+    def _assert_page_in_project(
+        self, project_id: str, page_id: str, repo: AtelierRepository
+    ) -> SeqArtPage:
+        page = repo.get_seq_art_page(page_id)
+        if not page or page.project_id != project_id:
+            raise ValueError("Page not found")
+        return page
+
+    def create_seq_art_panel(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, page_id: str, role: str,
+        data: SeqArtPanelCreate,
+    ) -> SeqArtPanelOut:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        self._assert_page_in_project(project_id, page_id, repo)
+        now = datetime.now(timezone.utc)
+        row = repo.create_seq_art_panel(SeqArtPanel(
+            id=_uuid(),
+            page_id=page_id,
+            panel_index=data.panel_index,
+            panel_type=data.panel_type,
+            dialogue_json=json.dumps([d.model_dump() for d in data.dialogue]),
+            caption_json=json.dumps([c.model_dump() for c in data.captions]),
+            sfx_json=json.dumps([s.model_dump() for s in data.sfx]),
+            asset_url=data.asset_url,
+            thumbnail_url=data.thumbnail_url,
+            notes=data.notes,
+            status="sketch",
+            created_at=now,
+            updated_at=None,
+        ))
+        return self._panel_out(row)
+
+    def update_seq_art_panel(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, page_id: str, panel_id: str, role: str,
+        data: SeqArtPanelUpdate,
+    ) -> SeqArtPanelOut:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        self._assert_page_in_project(project_id, page_id, repo)
+        row = repo.get_seq_art_panel(panel_id)
+        if not row or row.page_id != page_id:
+            raise ValueError("Panel not found")
+        if data.panel_index is not None:
+            row.panel_index = data.panel_index
+        if data.panel_type is not None:
+            row.panel_type = data.panel_type
+        if data.dialogue is not None:
+            row.dialogue_json = json.dumps([d.model_dump() for d in data.dialogue])
+        if data.captions is not None:
+            row.caption_json = json.dumps([c.model_dump() for c in data.captions])
+        if data.sfx is not None:
+            row.sfx_json = json.dumps([s.model_dump() for s in data.sfx])
+        if data.asset_url is not None:
+            row.asset_url = data.asset_url
+        if data.thumbnail_url is not None:
+            row.thumbnail_url = data.thumbnail_url
+        if data.notes is not None:
+            row.notes = data.notes
+        if data.status is not None:
+            row.status = data.status
+        row.updated_at = datetime.now(timezone.utc)
+        return self._panel_out(repo.save_seq_art_panel(row))
+
+    def get_seq_art_panel_out(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, page_id: str, panel_id: str, role: str,
+    ) -> SeqArtPanelOut:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        self._assert_page_in_project(project_id, page_id, repo)
+        row = repo.get_seq_art_panel(panel_id)
+        if not row or row.page_id != page_id:
+            raise ValueError("Panel not found")
+        return self._panel_out(row)
+
+    def list_seq_art_panels_out(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, page_id: str, role: str,
+    ) -> list[SeqArtPanelOut]:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        self._assert_page_in_project(project_id, page_id, repo)
+        return [self._panel_out(r) for r in repo.list_seq_art_panels(page_id)]
+
+    def delete_seq_art_panel(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, page_id: str, panel_id: str, role: str,
+    ) -> None:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        self._assert_page_in_project(project_id, page_id, repo)
+        row = repo.get_seq_art_panel(panel_id)
+        if not row or row.page_id != page_id:
+            raise ValueError("Panel not found")
+        repo.delete_seq_art_panel(panel_id)
+
+    # characters
+
+    def create_seq_art_character(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, role: str,
+        data: SeqArtCharacterCreate,
+    ) -> SeqArtCharacterOut:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        now = datetime.now(timezone.utc)
+        row = repo.create_seq_art_character(SeqArtCharacter(
+            id=_uuid(),
+            project_id=project_id,
+            name=data.name,
+            description=data.description,
+            reference_url=data.reference_url,
+            notes=data.notes,
+            created_at=now,
+            updated_at=None,
+        ))
+        return self._char_out(row)
+
+    def update_seq_art_character(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, char_id: str, role: str,
+        data: SeqArtCharacterUpdate,
+    ) -> SeqArtCharacterOut:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        row = repo.get_seq_art_character(char_id)
+        if not row or row.project_id != project_id:
+            raise ValueError("Character not found")
+        if data.name is not None:
+            row.name = data.name
+        if data.description is not None:
+            row.description = data.description
+        if data.reference_url is not None:
+            row.reference_url = data.reference_url
+        if data.notes is not None:
+            row.notes = data.notes
+        row.updated_at = datetime.now(timezone.utc)
+        return self._char_out(repo.save_seq_art_character(row))
+
+    def get_seq_art_character_out(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, char_id: str, role: str,
+    ) -> SeqArtCharacterOut:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        row = repo.get_seq_art_character(char_id)
+        if not row or row.project_id != project_id:
+            raise ValueError("Character not found")
+        return self._char_out(row)
+
+    def list_seq_art_characters_out(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, role: str,
+    ) -> list[SeqArtCharacterOut]:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        return [self._char_out(r) for r in repo.list_seq_art_characters(project_id)]
+
+    def delete_seq_art_character(
+        self,
+        artisan_id: str, workspace_id: str, project_id: str, char_id: str, role: str,
+    ) -> None:
+        repo = self._require_repo()
+        self._assert_seq_art_project(artisan_id, workspace_id, project_id, role, repo)
+        row = repo.get_seq_art_character(char_id)
+        if not row or row.project_id != project_id:
+            raise ValueError("Character not found")
+        repo.delete_seq_art_character(char_id)# --- PYTHON PATH FIX ---
 # Get the Python running this API server
 PYTHON_EXE = sys.executable
 

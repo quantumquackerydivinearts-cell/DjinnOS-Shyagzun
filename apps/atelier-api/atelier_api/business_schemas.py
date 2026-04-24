@@ -2195,3 +2195,250 @@ class Q3MotionOut(BaseModel):
     closes_at: Optional[datetime]
     vote_count: int
     created_at: datetime
+
+
+# ── Guild studio + project layer ──────────────────────────────────────────────
+
+class StudioProfileCreate(BaseModel):
+    display_name: str
+    tagline: str = ""
+    bio: str = ""
+    logo_url: Optional[str] = None
+    studio_type: str = "mixed"  # indie_game | graphic_art | sequential_art | education | mixed
+    tags: List[str] = []
+    is_public: bool = True
+
+
+class StudioProfileUpdate(BaseModel):
+    display_name: Optional[str] = None
+    tagline: Optional[str] = None
+    bio: Optional[str] = None
+    logo_url: Optional[str] = None
+    studio_type: Optional[str] = None
+    tags: Optional[List[str]] = None
+    is_public: Optional[bool] = None
+
+
+class StudioProfileOut(BaseModel):
+    id: str
+    workspace_id: str
+    owner_artisan_id: str
+    display_name: str
+    tagline: str
+    bio: str
+    logo_url: Optional[str]
+    studio_type: str
+    tags: List[str]
+    guild_status: str
+    is_public: bool
+    joined_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class GuildStudioOut(BaseModel):
+    """Public studio view visible to other guild members."""
+    id: str
+    workspace_id: str
+    display_name: str
+    tagline: str
+    bio: str
+    logo_url: Optional[str]
+    studio_type: str
+    tags: List[str]
+    guild_status: str
+    joined_at: datetime
+    listing_count: int = 0
+
+
+class ProjectCreate(BaseModel):
+    title: str
+    description: str = ""
+    project_type: str = "other"  # ambroflow_game | sequential_art | graphic_art | asset_pack | lesson | dlc_pack | other
+    cover_image_url: Optional[str] = None
+    tags: List[str] = []
+
+
+class ProjectUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    project_type: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+
+class ProjectLicenseOut(BaseModel):
+    id: str
+    project_id: str
+    license_type: str
+    license_version: str
+    custom_terms: Optional[str]
+    effective_at: datetime
+
+
+class ProjectOut(BaseModel):
+    id: str
+    workspace_id: str
+    title: str
+    description: str
+    project_type: str
+    publication_state: str
+    cover_image_url: Optional[str]
+    tags: List[str]
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    published_at: Optional[datetime] = None
+    license: Optional[ProjectLicenseOut] = None
+
+
+class ProjectPublishInput(BaseModel):
+    license_type: str = "cc_by"
+    license_version: str = "4.0"
+    custom_terms: Optional[str] = None
+
+
+class GuildListingOut(BaseModel):
+    id: str
+    project_id: str
+    workspace_id: str
+    studio_name: str = ""
+    title: str
+    description: str
+    project_type: str
+    cover_image_url: Optional[str]
+    license_type: str
+    tags: List[str]
+    listed_at: datetime
+    updated_at: Optional[datetime] = None
+    is_featured: bool
+    view_count: int
+
+
+# ── Distribution targets ───────────────────────────────────────────────────────
+
+class DistributionTargetCreate(BaseModel):
+    target_type: str                    # steam | own_store | commission_intake
+    project_id: Optional[str] = None   # null for commission_intake
+    config: dict = {}
+
+
+class DistributionTargetUpdate(BaseModel):
+    status: Optional[str] = None       # draft | active | paused | retired
+    config: Optional[dict] = None
+
+
+class DistributionTargetOut(BaseModel):
+    id: str
+    workspace_id: str
+    project_id: Optional[str]
+    target_type: str
+    status: str
+    config: dict
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    activated_at: Optional[datetime] = None
+
+
+# ── Sequential art tooling ─────────────────────────────────────────────────────
+
+class SeqArtPageCreate(BaseModel):
+    page_number: int
+    title: str = ""
+    notes: str = ""
+
+
+class SeqArtPageUpdate(BaseModel):
+    page_number: Optional[int] = None
+    title: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None  # draft | final
+
+
+class SeqArtPageOut(BaseModel):
+    id: str
+    project_id: str
+    page_number: int
+    title: str
+    notes: str
+    status: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class DialogueLine(BaseModel):
+    speaker: str = ""
+    text: str
+    bubble_type: str = "speech"  # speech | thought | whisper | shout | caption
+
+
+class CaptionBlock(BaseModel):
+    position: str = "top"  # top | bottom | overlay
+    text: str
+
+
+class SfxEntry(BaseModel):
+    text: str
+    style: str = "bold"
+
+
+class SeqArtPanelCreate(BaseModel):
+    panel_index: int
+    panel_type: str = "standard"  # standard | splash | bleed | inset
+    dialogue: List[DialogueLine] = []
+    captions: List[CaptionBlock] = []
+    sfx: List[SfxEntry] = []
+    asset_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    notes: str = ""
+
+
+class SeqArtPanelUpdate(BaseModel):
+    panel_index: Optional[int] = None
+    panel_type: Optional[str] = None
+    dialogue: Optional[List[DialogueLine]] = None
+    captions: Optional[List[CaptionBlock]] = None
+    sfx: Optional[List[SfxEntry]] = None
+    asset_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None  # sketch | inks | color | final
+
+
+class SeqArtPanelOut(BaseModel):
+    id: str
+    page_id: str
+    panel_index: int
+    panel_type: str
+    dialogue: List[DialogueLine]
+    captions: List[CaptionBlock]
+    sfx: List[SfxEntry]
+    asset_url: Optional[str]
+    thumbnail_url: Optional[str]
+    notes: str
+    status: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class SeqArtCharacterCreate(BaseModel):
+    name: str
+    description: str = ""
+    reference_url: Optional[str] = None
+    notes: str = ""
+
+
+class SeqArtCharacterUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    reference_url: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class SeqArtCharacterOut(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    description: str
+    reference_url: Optional[str]
+    notes: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None

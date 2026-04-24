@@ -1390,30 +1390,6 @@ function mergeRendererTables(localTables, apiTables, precedence) {
   return merged;
 }
 
-function compileKobraFromEntities(entities) {
-  if (!Array.isArray(entities)) {
-    return "";
-  }
-  return entities
-    .map((entity) => {
-      const id = String(entity.id || "anon");
-      const x = Number(entity.x || 0);
-      const y = Number(entity.y || 0);
-      const kind = String(entity.kind || "token");
-      const lex =
-        typeof entity.akinenwun === "string" && entity.akinenwun.trim()
-          ? entity.akinenwun.trim()
-          : typeof entity.lex === "string" && entity.lex.trim()
-            ? entity.lex.trim()
-            : "";
-      if (!lex) {
-        return `entity ${id} ${x} ${y} ${kind}`;
-      }
-      return [`entity ${id} ${x} ${y} ${kind}`, `  lex ${lex}`].join("\n");
-    })
-    .join("\n");
-}
-
 function parseKobraShygazunScript(sourceText) {
   const lines = String(sourceText || "").split(/\r?\n/);
   const entities = [];
@@ -5185,6 +5161,8 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
       : labelModeRaw;
   const labelColor = typeof settings.labelColor === "string" ? settings.labelColor : "#d9e6ff";
   const projection = String(settings.projection || "isometric").toLowerCase();
+  const activeLayer = settings.activeLayer != null && Number.isFinite(Number(settings.activeLayer))
+    ? Number(settings.activeLayer) : null;
   const camera2d = normalizeCamera2d(settings.camera2d);
   const zoom2d = Number(camera2d.zoom || 1);
   const tile = tileBase * zoom2d;
@@ -5289,6 +5267,11 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
   const offsetX = (width - contentWidth) * 0.5 - minX + cameraPanX;
   const offsetY = (height - contentHeight) * 0.5 - minY + pad + cameraPanY;
   sorted.forEach((item) => {
+    // FireAlpaca-style layer surfacing: ghost layers below active, hide layers above
+    if (activeLayer !== null) {
+      if (item.z > activeLayer) return;
+      ctx.globalAlpha = item.z < activeLayer ? 0.18 : 1.0;
+    }
     const edgeGlowLocal = resolveVoxelEdgeGlowConfig(item, {
       enabled: edgeGlow,
       color: edgeGlowColor,
@@ -5565,6 +5548,7 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
         ctx.fillText(labelText, isoX - tile, isoY - 4);
       }
     }
+    if (activeLayer !== null) ctx.globalAlpha = 1.0;
   });
 }
 
@@ -5657,7 +5641,6 @@ function readRendererLocalState() {
     return {
       source: "json",
       json: "{}",
-      kobra: "",
       kobra: "",
       javascript: "",
       python: "",
@@ -5824,7 +5807,6 @@ function readRendererLocalState() {
   return {
     source,
     json,
-    kobra,
     kobra,
     javascript,
     python,
@@ -6311,7 +6293,6 @@ export function App() {
 
   const [rendererPython, setRendererPython] = useState("#draw title=Workshop Renderer");
   const [rendererKobra, setRendererKobra] = useState("entity cube 12 8 amber");
-  const [rendererKobra, setRendererKobra] = useState("[Ao Shushy El Lo]");
   const [rendererKobraResult, setRendererKobraResult] = useState(null);
   const [kobraCoherenceGrade, setKobraCoherenceGrade] = useState("");
   const [kobraCoherenceCut, setKobraCoherenceCut] = useState("");
@@ -6507,6 +6488,9 @@ export function App() {
   const [rendererNewEntityKind, setRendererNewEntityKind] = useState("enemy");
   const [rendererNewEntityX, setRendererNewEntityX] = useState("3");
   const [rendererNewEntityY, setRendererNewEntityY] = useState("1");
+  const [rendererActiveLayer, setRendererActiveLayer] = useState(null);
+  const [tilePainterFullscreen, setTilePainterFullscreen] = useState(false);
+  const [tileSidebarOpen, setTileSidebarOpen] = useState(true);
   const [tileCols, setTileCols] = useState("48");
   const [tileRows, setTileRows] = useState("27");
   const [tileCellPx, setTileCellPx] = useState("24");
@@ -11309,6 +11293,7 @@ function extractPythonSavedPath(outputText) {
       playerMoving: rendererPlayerMoving,
       animationClock: rendererAnimationClock,
       spriteAnimMs: 120,
+      activeLayer: rendererActiveLayer,
     };
     const base = labGovernor.downgrade ? { ...baseRaw, ...labGovernor.mainPatch } : baseRaw;
     if (!rendererFollowPlayer) {
@@ -11345,7 +11330,14 @@ function extractPythonSavedPath(outputText) {
         panY: Number(baseCamera2d.panY || 0) + Number(pan2d.panY || 0),
       }),
     };
-  }, [voxelSettings, rendererRoseVector, rendererFollowPlayer, rendererMotionVoxels, rendererPlayerId, rendererSemanticLexicon, rendererPlayerFacing, rendererPlayerMoving, rendererAnimationClock, labGovernor]);
+  }, [voxelSettings, rendererRoseVector, rendererFollowPlayer, rendererMotionVoxels, rendererPlayerId, rendererSemanticLexicon, rendererPlayerFacing, rendererPlayerMoving, rendererAnimationClock, labGovernor, rendererActiveLayer]);
+  const rendererZLevels = useMemo(() => {
+    const zSet = new Set();
+    (rendererMotionVoxels || []).forEach((v) => {
+      if (Number.isFinite(Number(v.z))) zSet.add(Number(v.z));
+    });
+    return Array.from(zSet).sort((a, b) => a - b);
+  }, [rendererMotionVoxels]);
   const fullscreenSemanticLexicon = useMemo(
     () => buildRendererSemanticLexicon(fullscreenPayload, fullscreenState.engine),
     [fullscreenPayload, fullscreenState.engine]
@@ -12240,7 +12232,7 @@ function extractPythonSavedPath(outputText) {
     }
     return out;
   }, [tileCols, tileRows, tilePlacements]);
-  const tilePreviewCellPx = useMemo(() => clampInt(tileCellPx, 10, 40, 24), [tileCellPx]);
+  const tilePreviewCellPx = useMemo(() => clampInt(tileCellPx, 10, 64, 24), [tileCellPx]);
   const tileLayerList = useMemo(() => {
     const defaults = ["ground", "base", "detail", "fx", "ui"];
     const found = Object.values(tilePlacements)
@@ -15787,8 +15779,8 @@ function extractPythonSavedPath(outputText) {
     if (section === "Business Logic") {
       return (
         <>
-          <section className="panel unified-renderer">
-            <h2>Business Architecture Renderer</h2>
+          <details className="panel unified-renderer panel-collapsible">
+            <summary><h2 style={{ display: "inline" }}>Business Architecture Renderer</h2> <span className="badge">click to expand</span></summary>
             <p>Isolated architecture workspace for business model organization and tool/systems design.</p>
             <div className="row">
               <label className="inline-toggle">
@@ -15832,7 +15824,7 @@ function extractPythonSavedPath(outputText) {
                       : "Ty crm CRM\nWu contacts Contacts Service\nRu contacts db12 persist"
               }
             />
-          </section>
+          </details>
           <section className="panel">
             <h2>Game System Creator</h2>
             <p>Author and move game content between Kobra, scene library, renderer state, and save export.</p>
@@ -16278,6 +16270,25 @@ function extractPythonSavedPath(outputText) {
                   }
                 }}
               />
+              <div className="layer-strip">
+                <span className="layer-strip-label">Layer:</span>
+                <button
+                  className={`layer-btn ${rendererActiveLayer === null ? "layer-btn-active" : ""}`}
+                  onClick={() => setRendererActiveLayer(null)}
+                  title="Show all Z-layers"
+                >All</button>
+                {rendererZLevels.map((z) => (
+                  <button
+                    key={`layer-z-${z}`}
+                    className={`layer-btn ${rendererActiveLayer === z ? "layer-btn-active" : ""}`}
+                    onClick={() => setRendererActiveLayer(z === rendererActiveLayer ? null : z)}
+                    title={`Isolate Z=${z} — layers below ghost, layers above hidden`}
+                  >{`Z${z}`}</button>
+                ))}
+                {rendererActiveLayer !== null && (
+                  <span className="badge layer-active-badge">{`Editing Z=${rendererActiveLayer} — below ghosted`}</span>
+                )}
+              </div>
               <div className="row">
                 <select
                   value={voxelSettings.renderMode || "2.5d"}
@@ -17605,196 +17616,278 @@ function extractPythonSavedPath(outputText) {
             />
             <pre>{JSON.stringify(rendererTickOutput || {}, null, 2)}</pre>
           </section>
-          <section className="panel panel-wide tile-workbench">
-            <h2>Tile Placement Network</h2>
-            <p>
-              Tile semantics: <code>Ta</code> present, <code>Zo</code> absent, color vectors <code>Ru..AE</code>, tone
-              tokens <code>Ha/Ga/Na/Ung/Wu</code>, connection relation by distance with <code>Ti</code> (near) and
-              <code>Ze</code> (far).
-            </p>
-            <div className="tile-workbench-layout">
-              <div className="tile-controls">
-                <div className="row">
-                  <input value={tileCols} onChange={(e) => setTileCols(e.target.value)} placeholder="cols" />
-                  <input value={tileRows} onChange={(e) => setTileRows(e.target.value)} placeholder="rows" />
-                  <input value={tileCellPx} onChange={(e) => setTileCellPx(e.target.value)} placeholder="cell px" />
-                  <input value={tileSvgExportScale} onChange={(e) => setTileSvgExportScale(e.target.value)} placeholder="export scale" />
-                </div>
-                <div className="row">
-                  <button className="action" onClick={() => applyResolutionPreset("SD")}>Preset SD</button>
-                  <button className="action" onClick={() => applyResolutionPreset("HD")}>Preset HD</button>
-                  <button className="action" onClick={() => applyResolutionPreset("2K")}>Preset 2K</button>
-                  <button className="action" onClick={() => applyResolutionPreset("4K")}>Preset 4K</button>
-                  <button className="action" onClick={applyAssetGenProfileV1}>Load asset-gen-v1</button>
-                </div>
-                <div className="row">
-                  <select value={tileActiveLayer} onChange={(e) => setTileActiveLayer(e.target.value)}>
-                    {tileLayerList.map((layer) => (
-                      <option key={layer} value={layer}>{layer}</option>
-                    ))}
-                  </select>
-                  <select value={tilePresenceToken} onChange={(e) => setTilePresenceToken(e.target.value)}>
-                    <option value="Ta">Ta present</option>
-                    <option value="Zo">Zo absent</option>
-                  </select>
-                  <select value={tileColorToken} onChange={(e) => setTileColorToken(e.target.value)}>
-                    <optgroup label="Rose vectors">
-                      {ROSE_COLOR_TOKENS.map((tok) => (
-                        <option key={`tile-rose-${tok}`} value={tok}>{tok}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Aster right-chiral">
-                      {ASTER_RIGHT_TOKENS.map((tok) => (
-                        <option key={`tile-aster-right-${tok}`} value={tok}>{tok}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Aster left-chiral">
-                      {ASTER_LEFT_TOKENS.map((tok) => (
-                        <option key={`tile-aster-left-${tok}`} value={tok}>{tok}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                  <input
-                    value={tileColorToken}
-                    onChange={(e) => setTileColorToken(e.target.value)}
-                    placeholder="Rose/Aster formula (e.g. RuOtKi or Ry)"
-                    title="Enter a fused Rose vector mix or canonical Aster chiral token"
-                  />
-                  <select value="" onChange={(e) => e.target.value && setTileColorToken(e.target.value)}>
-                    <option value="">Compound color preset</option>
-                    {ROSE_COLOR_COMBINATION_PRESETS.map((preset) => (
-                      <option key={preset.value} value={preset.value}>{preset.label}</option>
-                    ))}
-                  </select>
-                  <input
-                    value={tokenColor(tileColorToken)}
-                    onChange={(e) => setTileColorToken(nearestTokenForColor(e.target.value))}
-                    placeholder="tile color hex (#rrggbb)"
-                  />
-                  <input
-                    type="color"
-                    value={tokenColor(tileColorToken)}
-                    onChange={(e) => setTileColorToken(nearestTokenForColor(e.target.value))}
-                    title="renderer lab tile placement color picker"
-                  />
-                  <select value={tileOpacityToken} onChange={(e) => setTileOpacityToken(e.target.value)}>
-                    {["Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
-                      <option key={tok} value={tok}>{tok}</option>
-                    ))}
-                  </select>
-                  <input value={tileNearThreshold} onChange={(e) => setTileNearThreshold(e.target.value)} placeholder="near threshold" />
-                </div>
-                <div className="row">
-                  <select value={tileEditLodLevel} onChange={(e) => setTileEditLodLevel(e.target.value)}>
-                    <option value="0">LOD 0 (coarsest)</option>
-                    <option value="1">LOD 1</option>
-                    <option value="2">LOD 2</option>
-                    <option value="3">LOD 3 (finest)</option>
-                  </select>
-                  <input value={tileBrushRadius} onChange={(e) => setTileBrushRadius(e.target.value)} placeholder="brush radius" />
-                  <select value={tileBrushShape} onChange={(e) => setTileBrushShape(e.target.value)}>
-                    <option value="square">Brush: Square</option>
-                    <option value="circle">Brush: Circle</option>
-                  </select>
-                  <select value={tileTraversalClass} onChange={(e) => setTileTraversalClass(e.target.value)}>
-                    <option value="walkable_surface">Traversal: Walkable Surface</option>
-                    <option value="visual_unwalkable">Traversal: Visual Unwalkable</option>
-                    <option value="non_traversal">Traversal: Not Applicable</option>
-                  </select>
-                  <label className="inline-toggle">
-                    <input type="checkbox" checked={tileEditLodSnap} onChange={(e) => setTileEditLodSnap(e.target.checked)} />
-                    LOD Snap/Block Fill
-                  </label>
-                  <button className="action" onClick={() => retagAllTilesLod(tileEditLodLevel)}>Retag All to LOD</button>
-                </div>
-                <div className="row">
-                  <button className="action" onClick={() => {
-                    setTileRectSelectMode((prev) => !prev);
-                    setTileRectStart(null);
-                    setTileRectEnd(null);
-                  }}>
-                    {tileRectSelectMode ? "Rect Paint Mode" : "Rect Select Mode"}
-                  </button>
-                  <select value={tileRectLodLevel} onChange={(e) => setTileRectLodLevel(e.target.value)}>
-                    <option value="0">Rect LOD 0</option>
-                    <option value="1">Rect LOD 1</option>
-                    <option value="2">Rect LOD 2</option>
-                    <option value="3">Rect LOD 3</option>
-                  </select>
-                  <label className="inline-toggle">
-                    <input
-                      type="checkbox"
-                      checked={tileRectFeatherScaleAware}
-                      onChange={(e) => setTileRectFeatherScaleAware(e.target.checked)}
-                    />
-                    Scale-Aware Feather
-                  </label>
-                  <button className="action" onClick={() => applyRectLod(tileRectLodLevel, { feather: tileRectFeatherScaleAware })}>Apply Rect LOD</button>
-                  <button className="action" onClick={() => applyRectLod("3", { feather: tileRectFeatherScaleAware })}>Refine Rect to Finest</button>
-                  <button className="action" onClick={() => { setTileRectStart(null); setTileRectEnd(null); }}>Clear Rect</button>
-                </div>
-                <div className="row">
-                  <button className="action" onClick={() => setTileConnectMode((prev) => !prev)}>
-                    {tileConnectMode ? "Paint Mode" : "Connect Mode"}
-                  </button>
-                  <label><input type="checkbox" checked={tileSvgShowGrid} onChange={(e) => setTileSvgShowGrid(e.target.checked)} /> SVG grid</label>
-                  <label><input type="checkbox" checked={tileSvgShowLinks} onChange={(e) => setTileSvgShowLinks(e.target.checked)} /> SVG links</label>
-                  <button className="action" onClick={downloadTileSvg}>Export SVG</button>
-                  <button className="action" onClick={() => void downloadTilePng()}>Export PNG</button>
-                  <button className="action" onClick={() => void consumeTilePngAsAtlas()}>Use PNG as Atlas</button>
-                  <button className="action" onClick={exportAssetManifest}>Export Manifest</button>
-                  <button className="action" onClick={() => setTileConnections([])}>Clear Links</button>
-                  <button className="action" onClick={() => setTilePlacements({})}>Clear Tiles</button>
-                </div>
-                <div className="row">
-                  <span className="badge">{`Tiles: ${Object.keys(tilePlacements).length}`}</span>
-                  <span className="badge">{`Links: ${tileConnections.length}`}</span>
-                  <span className="badge">{`Mode: ${tileConnectMode ? "connect" : "paint"}`}</span>
-                  <span className="badge">{`Layer: ${tileActiveLayer}`}</span>
-                  <span className="badge">{`Resolution: ${tileSvgModel.width}x${tileSvgModel.height}`}</span>
-                  <span className="badge">{`Connect from: ${tileConnectFrom || "none"}`}</span>
-                  <span className="badge">{`Procedural: ${tileProcStatus}`}</span>
-                  <span className="badge">{`PNG: ${tilePngStatus}`}</span>
-                  <span className="badge">{`LOD0:${tileLodCounts["0"]} LOD1:${tileLodCounts["1"]} LOD2:${tileLodCounts["2"]} LOD3:${tileLodCounts["3"]}`}</span>
-                  <span className="badge">{`Brush r=${tileBrushRadius} ${tileBrushShape}`}</span>
-                  <span className="badge">{`Traversal: ${tileTraversalLabel(tileTraversalClass)}`}</span>
-                  <span className="badge">{`Rect: ${tileRectStart ? `${tileRectStart.x},${tileRectStart.y}` : "-"} -> ${tileRectEnd ? `${tileRectEnd.x},${tileRectEnd.y}` : "-"}`}</span>
-                  <span className="badge">{`Feather Scale: ${tileRectFeatherScaleAware ? `on (x${clampInt(tileSvgExportScale, 1, 8, 2)})` : "off"}`}</span>
-                </div>
-                <div className="row">
-                  <input value={tileProcSeed} onChange={(e) => setTileProcSeed(e.target.value)} placeholder="proc seed" />
-                  <select value={tileProcTemplate} onChange={(e) => loadProceduralTemplate(e.target.value)}>
-                    <option value="ring_bloom">Ring Bloom</option>
-                    <option value="maze_carve">Maze Carve</option>
-                    <option value="island_chain">Island Chain</option>
-                    <option value="corridor_grid">Corridor Grid</option>
-                    <option value="noise_caves">Noise Caves</option>
-                    <option value="humanoid_curve">Humanoid Curve (LOD Demo)</option>
-                    <option value="grilled_cheese">Grilled Cheese (Pixel Test)</option>
-                    <option value="navigable_town">Navigable Town</option>
-                    <option value="navigable_wilds">Navigable Wilds</option>
-                  </select>
-                  <button className="action" onClick={() => loadProceduralTemplate(tileProcTemplate)}>Load Template</button>
-                  <button className="action" onClick={() => setTileProcCode(TILE_PROC_FORM_LIBRARY.ring_bloom)}>Reset Code</button>
-                  <button className="action" onClick={applyProceduralTiles}>Generate Procedural Form</button>
-                </div>
-                <div className="row">
-                  <input value={tilePresetName} onChange={(e) => setTilePresetName(e.target.value)} placeholder="preset name" />
-                  <button className="action" onClick={saveGenerationPreset}>Save Preset</button>
-                  <select onChange={(e) => loadGenerationPreset(e.target.value)} defaultValue="">
-                    <option value="" disabled>load saved preset</option>
-                    {tileSavedPresets.map((preset) => (
-                      <option key={preset.name} value={preset.name}>{preset.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <textarea
-                  className="editor editor-mono tile-proc-editor"
-                  value={tileProcCode}
-                  onChange={(e) => setTileProcCode(e.target.value)}
-                  placeholder="// return { tiles, links, entities? }"
-                />
+          <section className={`panel panel-wide tile-workbench${tilePainterFullscreen ? " tile-workbench--fullscreen" : ""}`}>
+            <div className="tile-workbench-header">
+              <h2>Tile Placement Network</h2>
+              <div className="row">
+                <button
+                  className={`action ${tileSidebarOpen ? "action-active" : ""}`}
+                  onClick={() => setTileSidebarOpen((o) => !o)}
+                  title="Toggle tooling sidebar"
+                >{tileSidebarOpen ? "Hide Sidebar" : "Show Sidebar"}</button>
+                <button
+                  className="action"
+                  onClick={() => setTilePainterFullscreen((o) => !o)}
+                  title="Toggle fullscreen tile painter"
+                >{tilePainterFullscreen ? "Exit Fullscreen" : "Fullscreen"}</button>
+                <span className="badge">{`${tileCols}×${tileRows} · ${tilePreviewCellPx}px · Layer: ${tileActiveLayer}`}</span>
+                <span className="badge">{`Tiles: ${Object.keys(tilePlacements).length}`}</span>
+                <span className="badge">{`Mode: ${tileConnectMode ? "connect" : "paint"}`}</span>
               </div>
+            </div>
+            {!tilePainterFullscreen && (
+              <p className="tile-workbench-hint">
+                Tile semantics: <code>Ta</code> present, <code>Zo</code> absent, color vectors <code>Ru..AE</code>, tone
+                tokens <code>Ha/Ga/Na/Ung/Wu</code>. Active layer is fully opaque; other layers ghost to 22%.
+              </p>
+            )}
+            <div className="tile-workbench-layout">
+              {tileSidebarOpen && (
+              <div className="tile-controls tile-controls--sidebar">
+                {/* ── Layer strip ─────────────────────────────────── */}
+                <div className="layer-strip layer-strip--tile">
+                  <span className="layer-strip-label">Layer:</span>
+                  {tileLayerList.map((layer) => (
+                    <button
+                      key={`tls-${layer}`}
+                      className={`layer-btn ${layer === tileActiveLayer ? "layer-btn-active" : ""}`}
+                      onClick={() => setTileActiveLayer(layer)}
+                    >{layer}</button>
+                  ))}
+                </div>
+                {/* ── Grid dimensions ─────────────────────────────── */}
+                <details className="sidebar-group" open>
+                  <summary>Grid &amp; Display</summary>
+                  <div className="row">
+                    <input value={tileCols} onChange={(e) => setTileCols(e.target.value)} placeholder="cols" />
+                    <input value={tileRows} onChange={(e) => setTileRows(e.target.value)} placeholder="rows" />
+                    <input value={tileCellPx} onChange={(e) => setTileCellPx(e.target.value)} placeholder="cell px" />
+                    <input value={tileSvgExportScale} onChange={(e) => setTileSvgExportScale(e.target.value)} placeholder="export scale" />
+                  </div>
+                  <div className="row">
+                    <button className="action" onClick={() => applyResolutionPreset("SD")}>SD</button>
+                    <button className="action" onClick={() => applyResolutionPreset("HD")}>HD</button>
+                    <button className="action" onClick={() => applyResolutionPreset("2K")}>2K</button>
+                    <button className="action" onClick={() => applyResolutionPreset("4K")}>4K</button>
+                    <button className="action" onClick={applyAssetGenProfileV1}>asset-gen-v1</button>
+                  </div>
+                </details>
+                {/* ── Paint tokens ────────────────────────────────── */}
+                <details className="sidebar-group" open>
+                  <summary>Paint Tokens</summary>
+                  <div className="row">
+                    <select value={tilePresenceToken} onChange={(e) => setTilePresenceToken(e.target.value)}>
+                      <option value="Ta">Ta present</option>
+                      <option value="Zo">Zo absent</option>
+                    </select>
+                    <select value={tileColorToken} onChange={(e) => setTileColorToken(e.target.value)}>
+                      <optgroup label="Rose vectors">
+                        {ROSE_COLOR_TOKENS.map((tok) => (
+                          <option key={`tile-rose-${tok}`} value={tok}>{tok}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Aster right-chiral">
+                        {ASTER_RIGHT_TOKENS.map((tok) => (
+                          <option key={`tile-aster-right-${tok}`} value={tok}>{tok}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Aster left-chiral">
+                        {ASTER_LEFT_TOKENS.map((tok) => (
+                          <option key={`tile-aster-left-${tok}`} value={tok}>{tok}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                    <input
+                      value={tileColorToken}
+                      onChange={(e) => setTileColorToken(e.target.value)}
+                      placeholder="Rose/Aster token"
+                      title="Enter a fused Rose vector mix or canonical Aster chiral token"
+                    />
+                    <select value="" onChange={(e) => e.target.value && setTileColorToken(e.target.value)}>
+                      <option value="">Compound preset</option>
+                      {ROSE_COLOR_COMBINATION_PRESETS.map((preset) => (
+                        <option key={preset.value} value={preset.value}>{preset.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="row">
+                    <input
+                      value={tokenColor(tileColorToken)}
+                      onChange={(e) => setTileColorToken(nearestTokenForColor(e.target.value))}
+                      placeholder="hex color"
+                    />
+                    <input
+                      type="color"
+                      value={tokenColor(tileColorToken)}
+                      onChange={(e) => setTileColorToken(nearestTokenForColor(e.target.value))}
+                      title="color picker"
+                    />
+                    <select value={tileOpacityToken} onChange={(e) => setTileOpacityToken(e.target.value)}>
+                      {["Ha", "Ga", "Na", "Ung", "Wu"].map((tok) => (
+                        <option key={tok} value={tok}>{tok}</option>
+                      ))}
+                    </select>
+                    <input value={tileNearThreshold} onChange={(e) => setTileNearThreshold(e.target.value)} placeholder="near threshold" />
+                  </div>
+                </details>
+                {/* ── Brush & LOD ─────────────────────────────────── */}
+                <details className="sidebar-group">
+                  <summary>Brush &amp; LOD</summary>
+                  <div className="row">
+                    <select value={tileEditLodLevel} onChange={(e) => setTileEditLodLevel(e.target.value)}>
+                      <option value="0">LOD 0 (coarsest)</option>
+                      <option value="1">LOD 1</option>
+                      <option value="2">LOD 2</option>
+                      <option value="3">LOD 3 (finest)</option>
+                    </select>
+                    <input value={tileBrushRadius} onChange={(e) => setTileBrushRadius(e.target.value)} placeholder="brush radius" />
+                    <select value={tileBrushShape} onChange={(e) => setTileBrushShape(e.target.value)}>
+                      <option value="square">Square</option>
+                      <option value="circle">Circle</option>
+                    </select>
+                    <select value={tileTraversalClass} onChange={(e) => setTileTraversalClass(e.target.value)}>
+                      <option value="walkable_surface">Walkable</option>
+                      <option value="visual_unwalkable">Visual Only</option>
+                      <option value="non_traversal">Non-Traversal</option>
+                    </select>
+                    <label className="inline-toggle">
+                      <input type="checkbox" checked={tileEditLodSnap} onChange={(e) => setTileEditLodSnap(e.target.checked)} />
+                      LOD Snap
+                    </label>
+                    <button className="action" onClick={() => retagAllTilesLod(tileEditLodLevel)}>Retag All</button>
+                  </div>
+                  <div className="row">
+                    <span className="badge">{`LOD0:${tileLodCounts["0"]} LOD1:${tileLodCounts["1"]} LOD2:${tileLodCounts["2"]} LOD3:${tileLodCounts["3"]}`}</span>
+                    <span className="badge">{`r=${tileBrushRadius} ${tileBrushShape}`}</span>
+                  </div>
+                </details>
+                {/* ── Rect select ─────────────────────────────────── */}
+                <details className="sidebar-group">
+                  <summary>Rect Select</summary>
+                  <div className="row">
+                    <button className="action" onClick={() => {
+                      setTileRectSelectMode((prev) => !prev);
+                      setTileRectStart(null);
+                      setTileRectEnd(null);
+                    }}>
+                      {tileRectSelectMode ? "Rect Paint Mode" : "Rect Select Mode"}
+                    </button>
+                    <select value={tileRectLodLevel} onChange={(e) => setTileRectLodLevel(e.target.value)}>
+                      <option value="0">Rect LOD 0</option>
+                      <option value="1">Rect LOD 1</option>
+                      <option value="2">Rect LOD 2</option>
+                      <option value="3">Rect LOD 3</option>
+                    </select>
+                    <label className="inline-toggle">
+                      <input
+                        type="checkbox"
+                        checked={tileRectFeatherScaleAware}
+                        onChange={(e) => setTileRectFeatherScaleAware(e.target.checked)}
+                      />
+                      Scale Feather
+                    </label>
+                    <button className="action" onClick={() => applyRectLod(tileRectLodLevel, { feather: tileRectFeatherScaleAware })}>Apply LOD</button>
+                    <button className="action" onClick={() => applyRectLod("3", { feather: tileRectFeatherScaleAware })}>Finest</button>
+                    <button className="action" onClick={() => { setTileRectStart(null); setTileRectEnd(null); }}>Clear</button>
+                  </div>
+                  <div className="row">
+                    <span className="badge">{`Rect: ${tileRectStart ? `${tileRectStart.x},${tileRectStart.y}` : "-"} → ${tileRectEnd ? `${tileRectEnd.x},${tileRectEnd.y}` : "-"}`}</span>
+                    <span className="badge">{`Feather: ${tileRectFeatherScaleAware ? `on ×${clampInt(tileSvgExportScale, 1, 8, 2)}` : "off"}`}</span>
+                  </div>
+                </details>
+                {/* ── Export & connections ─────────────────────────── */}
+                <details className="sidebar-group">
+                  <summary>Export &amp; Connections</summary>
+                  <div className="row">
+                    <button className="action" onClick={() => setTileConnectMode((prev) => !prev)}>
+                      {tileConnectMode ? "Paint Mode" : "Connect Mode"}
+                    </button>
+                    <label><input type="checkbox" checked={tileSvgShowGrid} onChange={(e) => setTileSvgShowGrid(e.target.checked)} /> Grid</label>
+                    <label><input type="checkbox" checked={tileSvgShowLinks} onChange={(e) => setTileSvgShowLinks(e.target.checked)} /> Links</label>
+                    <button className="action" onClick={downloadTileSvg}>SVG</button>
+                    <button className="action" onClick={() => void downloadTilePng()}>PNG</button>
+                    <button className="action" onClick={() => void consumeTilePngAsAtlas()}>→ Atlas</button>
+                    <button className="action" onClick={exportAssetManifest}>Manifest</button>
+                  </div>
+                  <div className="row">
+                    <button className="action" onClick={() => setTileConnections([])}>Clear Links</button>
+                    <button className="action" onClick={() => setTilePlacements({})}>Clear Tiles</button>
+                    <span className="badge">{`Links: ${tileConnections.length}`}</span>
+                    <span className="badge">{`Connect from: ${tileConnectFrom || "none"}`}</span>
+                    <span className="badge">{`Resolution: ${tileSvgModel.width}×${tileSvgModel.height}`}</span>
+                  </div>
+                </details>
+                {/* ── Procedural generation ───────────────────────── */}
+                <details className="sidebar-group" open>
+                  <summary>Procedural Generation</summary>
+                  <div className="row">
+                    <input value={tileProcSeed} onChange={(e) => setTileProcSeed(e.target.value)} placeholder="seed" style={{ width: "80px" }} />
+                    <select value={tileProcTemplate} onChange={(e) => loadProceduralTemplate(e.target.value)}>
+                      <option value="ring_bloom">Ring Bloom</option>
+                      <option value="maze_carve">Maze Carve</option>
+                      <option value="island_chain">Island Chain</option>
+                      <option value="corridor_grid">Corridor Grid</option>
+                      <option value="noise_caves">Noise Caves</option>
+                      <option value="humanoid_curve">Humanoid Curve</option>
+                      <option value="grilled_cheese">Grilled Cheese</option>
+                      <option value="navigable_town">Navigable Town</option>
+                      <option value="navigable_wilds">Navigable Wilds</option>
+                    </select>
+                    <button className="action" onClick={() => loadProceduralTemplate(tileProcTemplate)}>Load</button>
+                    <button className="action" onClick={() => setTileProcCode(TILE_PROC_FORM_LIBRARY.ring_bloom)}>Reset</button>
+                  </div>
+                  <textarea
+                    className="editor editor-mono tile-proc-editor"
+                    value={tileProcCode}
+                    onChange={(e) => setTileProcCode(e.target.value)}
+                    placeholder="// return { tiles, links, entities? }"
+                  />
+                  <div className="row">
+                    <button className="action action-primary" onClick={applyProceduralTiles}>Generate</button>
+                    <span className={`badge ${tileProcStatus.startsWith("error") ? "err" : tileProcStatus.startsWith("generated") ? "ok" : ""}`}>{tileProcStatus || "ready"}</span>
+                  </div>
+                  {/* Preset programs */}
+                  <div className="row">
+                    <input value={tilePresetName} onChange={(e) => setTilePresetName(e.target.value)} placeholder="preset name" />
+                    <button className="action" onClick={saveGenerationPreset}>Save Preset</button>
+                    <select onChange={(e) => { if (e.target.value) loadGenerationPreset(e.target.value); }} defaultValue="">
+                      <option value="" disabled>load preset…</option>
+                      {tileSavedPresets.map((preset) => (
+                        <option key={preset.name} value={preset.name}>{preset.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {tileSavedPresets.length > 0 && (
+                    <div className="tile-preset-list">
+                      {tileSavedPresets.map((preset) => (
+                        <div key={preset.name} className="tile-preset-row">
+                          <span className="tile-preset-name">{preset.name}</span>
+                          <span className="badge">{preset.params?.template || "custom"}</span>
+                          <span className="badge">{`${preset.params?.cols || "?"}×${preset.params?.rows || "?"}`}</span>
+                          <button
+                            className="action action-xs"
+                            onClick={() => { loadGenerationPreset(preset.name); applyProceduralTiles(); }}
+                            title="Load this preset and generate immediately"
+                          >Run</button>
+                          <button
+                            className="action action-xs"
+                            onClick={() => loadGenerationPreset(preset.name)}
+                            title="Load preset into editor without generating"
+                          >Edit</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {tileSavedPresets.length === 0 && (
+                    <p className="tile-preset-empty">No saved presets yet. Author a proc program and save it.</p>
+                  )}
+                </details>
+                <div className="row tile-status-bar">
+                  <span className="badge">{`PNG: ${tilePngStatus}`}</span>
+                  <span className="badge">{`Traversal: ${tileTraversalLabel(tileTraversalClass)}`}</span>
+                </div>
+              </div>
+              )}
               <div className="tile-workbench-canvas">
                 <div
                   className="tile-grid"
@@ -17809,19 +17902,23 @@ function extractPythonSavedPath(outputText) {
                     );
                     const rect = normalizeTileRect(tileRectStart, tileRectEnd);
                     const inRect = tilePointInRect(cell.x, cell.y, rect);
+                    const cellLayer = cell.placement ? String(cell.placement.layer || "base") : null;
+                    const isOnActiveLayer = cellLayer === tileActiveLayer;
+                    const tileOpacity = cell.placement && !isOnActiveLayer ? 0.22 : 1;
                     return (
                       <button
                         key={cell.key}
-                        className={`tile-cell ${tileConnectFrom === cell.key ? "tile-cell-connect-from" : ""}`}
+                        className={`tile-cell ${tileConnectFrom === cell.key ? "tile-cell-connect-from" : ""} ${cell.placement && isOnActiveLayer ? "tile-cell-active-layer" : ""}`}
                         style={{
                           background: cell.placement ? tokenColor(token) : "#faf5eb",
                           color: token === "Ha" || token === "El" || token === "Wu" ? "#111" : "#fff",
                           outline: inRect ? "2px solid #3a84ff" : "1px solid rgba(0,0,0,0.08)",
                           width: `${tilePreviewCellPx}px`,
                           minHeight: `${tilePreviewCellPx}px`,
+                          opacity: tileOpacity,
                         }}
                         onClick={() => handleTileClick(cell.x, cell.y)}
-                        title={`${cell.key}${cell.placement ? ` ${cell.placement.presence_token}/${cell.placement.color_token}/${cell.placement.opacity_token} traversal=${tileTraversalLabel(traversalClass)}` : ""}`}
+                        title={`${cell.key}${cell.placement ? ` ${cell.placement.presence_token}/${cell.placement.color_token}/${cell.placement.opacity_token} layer=${cellLayer} traversal=${tileTraversalLabel(traversalClass)}` : ""}`}
                       >
                         {cell.placement ? cell.placement.color_token : "·"}
                       </button>

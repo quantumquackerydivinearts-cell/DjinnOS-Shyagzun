@@ -556,9 +556,11 @@ button.action {
 }
 .tile-workbench-layout {
   margin-top: 10px;
-  display: grid;
-  grid-template-columns: minmax(300px, 0.95fr) minmax(560px, 1.4fr);
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
   gap: 12px;
+  min-height: 600px;
 }
 .tile-controls {
   min-width: 0;
@@ -599,7 +601,9 @@ button.action {
   background: #dfd2bf;
 }
 .tile-workbench-canvas {
+  flex: 1;
   min-width: 0;
+  overflow: auto;
 }
 .tile-cell {
   border: 1px solid var(--line);
@@ -745,7 +749,7 @@ pre {
     grid-template-columns: 1fr;
   }
   .tile-workbench-layout {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 }
 @media (max-width: 900px) {
@@ -840,4 +844,227 @@ pre {
   .guild-hall-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── FireAlpaca-style layer strip (renderer viewport) ── */
+.layer-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0 2px;
+}
+.layer-strip-label {
+  font-size: 12px;
+  color: var(--muted, #8a9bb8);
+  margin-right: 2px;
+}
+.layer-btn {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border: 1px solid #2a4060;
+  border-radius: 4px;
+  background: #0f1e35;
+  color: #8fd3ff;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.layer-btn:hover {
+  background: #1a3055;
+  color: #fff;
+}
+.layer-btn-active {
+  background: #1a5ca8;
+  color: #fff;
+  border-color: #3a84ff;
+}
+.layer-active-badge {
+  font-size: 11px;
+  background: #1a3055;
+  color: #8fd3ff;
+  border: 1px solid #2a4060;
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+/* ── Tile workbench: active-layer highlight ── */
+.tile-cell-active-layer {
+  box-shadow: 0 0 0 2px #3a84ff inset;
+}
+.tile-workbench-canvas {
+  overflow: auto;
+  min-height: 400px;
+}
+
+/* ── Collapsible arch diagram panel ── */
+.panel-collapsible > summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+  list-style: none;
+}
+.panel-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+.panel-collapsible > summary::before {
+  content: "▶ ";
+  font-size: 11px;
+  color: var(--muted, #8a9bb8);
+}
+.panel-collapsible[open] > summary::before {
+  content: "▼ ";
+}
+
+/* ── Tile Placement Network: fullscreen + sidebar ── */
+.tile-workbench--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  margin: 0;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg, #0d1a2e);
+}
+.tile-workbench--fullscreen .tile-workbench-layout {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  min-height: unset;
+}
+.tile-workbench--fullscreen .tile-workbench-canvas {
+  overflow: auto;
+}
+.tile-workbench--fullscreen .tile-controls--sidebar {
+  overflow-y: auto;
+}
+.tile-workbench-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line, #1e2f44);
+}
+.tile-workbench-header h2 {
+  margin: 0;
+  flex-shrink: 0;
+}
+.tile-workbench-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted, #8a9bb8);
+  line-height: 1.5;
+}
+.tile-controls--sidebar {
+  flex-shrink: 0;
+  width: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── Sidebar collapsible groups ── */
+.sidebar-group {
+  border: 1px solid var(--line, #1e2f44);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.sidebar-group > summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  list-style: none;
+  background: rgba(255,255,255,0.04);
+}
+.sidebar-group > summary::-webkit-details-marker { display: none; }
+.sidebar-group > summary::before {
+  content: "▶ ";
+  font-size: 10px;
+  color: var(--muted, #8a9bb8);
+}
+.sidebar-group[open] > summary::before { content: "▼ "; }
+.sidebar-group > *:not(summary) {
+  padding: 6px 8px;
+}
+.sidebar-group .row {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.sidebar-group input,
+.sidebar-group select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ── Preset program list ── */
+.tile-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+}
+.tile-preset-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--line, #1e2f44);
+  border-radius: 3px;
+  flex-wrap: wrap;
+}
+.tile-preset-name {
+  flex: 1;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  min-width: 60px;
+}
+.tile-preset-empty {
+  font-size: 12px;
+  color: var(--muted, #8a9bb8);
+  font-style: italic;
+  margin-top: 6px;
+  padding: 0 2px;
+}
+
+/* ── Tile action button variants ── */
+.action-primary {
+  background: #2f6d62 !important;
+  color: #e6f9f6 !important;
+  border-color: #3d9182 !important;
+  font-weight: 700;
+}
+.action-primary:hover {
+  background: #3a8276 !important;
+}
+.action-xs {
+  padding: 1px 8px !important;
+  min-height: 26px !important;
+  font-size: 11px !important;
+}
+
+/* ── Tile layer strip (tile variant) ── */
+.layer-strip--tile {
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line, #1e2f44);
+}
+
+/* ── Tile status bar ── */
+.tile-status-bar {
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--line, #1e2f44);
+  flex-wrap: wrap;
 }
