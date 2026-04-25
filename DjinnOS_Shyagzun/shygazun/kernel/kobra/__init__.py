@@ -29,6 +29,31 @@ Types re-exported for consumers
 """
 from .parser import parse
 from .sublayer import segment
+from .topology import (
+    TopologyKind,
+    EdgeKind,
+    ExecutionNode,
+    ExecutionEdge,
+    ExecutionTopology,
+    build_sequential_topology,
+    build_frontier_topology,
+)
+from .samosmyr import (
+    SamosMyrBoundary,
+    SoaArtifact,
+    UnresolvedEntry,
+    SamosMyrFrame,
+    open_frame,
+    artifact_for_entry,
+)
+from .chromatic import (
+    ChromaticBand,
+    ChromaticSignature,
+    ChromaticProfile,
+    classify_band,
+    signature_from_tokens,
+    profile_from_signatures,
+)
 from .types import (
     AkinenDescriptor,
     AkinenNode,
@@ -50,6 +75,28 @@ __all__ = [
     # entry points
     "parse",
     "segment",
+    # topology
+    "TopologyKind",
+    "EdgeKind",
+    "ExecutionNode",
+    "ExecutionEdge",
+    "ExecutionTopology",
+    "build_sequential_topology",
+    "build_frontier_topology",
+    # samosmyr
+    "SamosMyrBoundary",
+    "SoaArtifact",
+    "UnresolvedEntry",
+    "SamosMyrFrame",
+    "open_frame",
+    "artifact_for_entry",
+    # chromatic
+    "ChromaticBand",
+    "ChromaticSignature",
+    "ChromaticProfile",
+    "classify_band",
+    "signature_from_tokens",
+    "profile_from_signatures",
     # types
     "AkinenDescriptor",
     "AkinenNode",

@@ -15,6 +15,7 @@ import { LotusPanel } from "./panels/LotusPanel";
 import { AlchemySubjectPanel } from "./panels/AlchemySubjectPanel";
 import { ShopManagerPanel } from "./panels/ShopManagerPanel";
 import { Q3Panel } from "./panels/Q3Panel";
+import { GameEditorsPanel } from "./panels/GameEditorsPanel";
 
 function resolveRuntimeApiBase() {
   try {
@@ -17570,6 +17571,11 @@ function extractPythonSavedPath(outputText) {
               )}
             </div>
             <pre>{JSON.stringify(dialogueEmitResult || {}, null, 2)}</pre>
+          </section>
+          <section className="panel">
+            <h2>Game Editors</h2>
+            <p>Structured authoring tools for 7_KLGS: dialogue trees, quests, encounters, and audio tracks.</p>
+            <GameEditorsPanel />
           </section>
           <section className="panel">
             <h2>RPG Rule Engine</h2>
