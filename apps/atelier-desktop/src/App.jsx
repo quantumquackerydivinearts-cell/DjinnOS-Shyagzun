@@ -12540,10 +12540,58 @@ function extractPythonSavedPath(outputText) {
     };
     setRendererPython(compilePythonDrawFromEntities(String(scene.name || "prototype"), mergedEntities));
     setRendererKobra(compileKobraFromEntities(mergedEntities));
-    setRendererKobra(compileKobraFromEntities(mergedEntities));
     setRendererJson(JSON.stringify({ ...passthrough, scene, systems: systemsNext, entities: mergedEntities }, null, 2));
     setRendererEngineStateText(JSON.stringify(nextEngine, null, 2));
     setRendererGameStatus(`compiled:${mergedEntities.length}_entities`);
+  }
+
+  function exportTilesForAmbroflow() {
+    const placements = Object.values(tilePlacements);
+    if (placements.length === 0) {
+      setRendererGameStatus("ambroflow_export:empty");
+      return;
+    }
+    const voxels = {};
+    for (const p of placements) {
+      if (p.presence_token === "Zo") continue;
+      const tc = p.meta?.traversal_class || "walkable_surface";
+      const layer = p.layer || "base";
+      let kind;
+      if (tc === "non_traversal") continue;
+      else if (tc === "visual_unwalkable") kind = "wall";
+      else {
+        // walkable — layer drives material type
+        if (layer === "ground") kind = "grass";
+        else if (layer === "detail") kind = "stone";
+        else if (layer === "fx") kind = "portal";
+        else kind = "floor";
+      }
+      voxels[`${p.x},${p.y}`] = kind;
+    }
+    const xs = Object.keys(voxels).map((k) => Number(k.split(",")[0]));
+    const ys = Object.keys(voxels).map((k) => Number(k.split(",")[1]));
+    const width  = xs.length ? Math.max(...xs) + 1 : Number(tileCols) || 48;
+    const height = ys.length ? Math.max(...ys) + 1 : Number(tileRows) || 32;
+    const links = tileConnections.map((link) => {
+      const a = parseTileKey(link.from);
+      const b = parseTileKey(link.to);
+      return { from: [a.x, a.y], to: [b.x, b.y], relation_token: link.relation_token, distance: link.distance };
+    });
+    const zone = {
+      zone_id: "zone_export",
+      realm: "lapidus",
+      name: "Exported Zone",
+      width,
+      height,
+      voxels,
+      player_spawn: [1, 1],
+      exits: [],
+      npc_spawns: [],
+      portals: [],
+      _meta: { tile_count: placements.length, link_count: links.length, links, exported_at: new Date().toISOString() },
+    };
+    downloadJson("ambroflow_zone_export.json", zone);
+    setRendererGameStatus(`ambroflow_export:${Object.keys(voxels).length}_tiles`);
   }
 
   function addEntityToGameSpec() {
@@ -17883,6 +17931,8 @@ function extractPythonSavedPath(outputText) {
                   )}
                 </details>
                 <div className="row tile-status-bar">
+                  <button className="action action-primary" onClick={compileGameSpecToRenderer} title="Push tile placements into the voxel viewport">Sync → Viewport</button>
+                  <button className="action" onClick={exportTilesForAmbroflow} title="Export zone JSON for Ambroflow engine">Export → Ambroflow</button>
                   <span className="badge">{`PNG: ${tilePngStatus}`}</span>
                   <span className="badge">{`Traversal: ${tileTraversalLabel(tileTraversalClass)}`}</span>
                 </div>
