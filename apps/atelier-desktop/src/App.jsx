@@ -15,6 +15,7 @@ import { LotusPanel } from "./panels/LotusPanel";
 import { AlchemySubjectPanel } from "./panels/AlchemySubjectPanel";
 import { ShopManagerPanel } from "./panels/ShopManagerPanel";
 import { Q3Panel } from "./panels/Q3Panel";
+import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
 import { GameEditorsPanel } from "./panels/GameEditorsPanel";
 
 function resolveRuntimeApiBase() {
@@ -127,7 +128,8 @@ const NAV_ITEMS = [
   "Lotus",
   "Alchemy Lab",
   "Shop Manager",
-  "Q3"
+  "Q3",
+  "Supra Librix"
 ];
 
 function capabilitiesForRole(role) {
@@ -19198,6 +19200,9 @@ function extractPythonSavedPath(outputText) {
     }
     if (section === "Q3") {
       return <Q3Panel apiBase={API_BASE} authToken={authToken} />;
+    }
+    if (section === "Supra Librix") {
+      return <SupraLibrixPanel apiBase={API_BASE} authToken={authToken} />;
     }
     return <section className="panel"><h2>Tooling</h2><p>Select a section.</p></section>;
   }

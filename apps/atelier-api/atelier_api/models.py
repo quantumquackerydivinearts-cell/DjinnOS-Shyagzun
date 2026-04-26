@@ -769,6 +769,19 @@ class Q3Vote(Base):
     cast_at: Mapped[datetime] = mapped_column(DateTime(), nullable=False, default=datetime.utcnow)
 
 
+# ── Supra Librix ───────────────────────────────────────────────────────────────
+
+class SupraLibrixVote(Base):
+    __tablename__ = "supra_librix_votes"
+
+    id:              Mapped[str]      = mapped_column(String(36),  primary_key=True, default=_uuid)
+    field_valence:   Mapped[float]    = mapped_column(nullable=False)
+    placements_json: Mapped[str]      = mapped_column(Text,        nullable=False, default="[]")
+    utterance:       Mapped[str]      = mapped_column(Text,        nullable=False, default="")
+    voter_id:        Mapped[str]      = mapped_column(String(100), nullable=False)
+    cast_at:         Mapped[datetime] = mapped_column(DateTime(),  nullable=False, default=datetime.utcnow)
+
+
 # ── Cosmology governance ───────────────────────────────────────────────────────
 
 class Cosmology(Base):

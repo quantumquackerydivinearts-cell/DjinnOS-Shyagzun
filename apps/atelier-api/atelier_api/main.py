@@ -8,7 +8,7 @@ from typing import Any, Dict, Mapping, Optional, Sequence
 
 import stripe
 from uuid import uuid4
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response, ORJSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -244,7 +244,7 @@ from .privacy_manifest import build_privacy_manifest
 from .repositories import AtelierRepository
 from .roles import ROLE_STEWARD, RoleContext, role_allows
 from .services import AtelierService
-from .models import Q3Motion, Q3Vote
+from .models import Q3Motion, Q3Vote, SupraLibrixVote
 from . import shygazun_physix
 from .multiverse_stack import (
     MultiverseStackService, GAME_REGISTRY, PROPAGATION_RULES,
@@ -2121,6 +2121,164 @@ def q3_motion_audit(
         ),
         "votes": audit_records,
     }
+
+
+
+
+# =============================================================================
+# Supra Librix — geo-tagged Physix live canvas
+# =============================================================================
+
+import asyncio as _asyncio
+from pathlib import Path as _Path
+
+_TILES_PATH = _Path(__file__).parent.parent / "static" / "supra_librix_tiles.json"
+
+_FALLBACK_TILES: dict = {
+    "resolution": 1, "width": 360, "height": 180,
+    "tiles": [0.0] * (360 * 180),
+}
+
+
+class _SupraLibrixLiveManager:
+    def __init__(self) -> None:
+        self._connections: list[WebSocket] = []
+
+    async def connect(self, ws: WebSocket) -> None:
+        await ws.accept()
+        self._connections.append(ws)
+
+    def disconnect(self, ws: WebSocket) -> None:
+        try:
+            self._connections.remove(ws)
+        except ValueError:
+            pass
+
+    async def broadcast(self, data: dict) -> None:
+        dead = []
+        for ws in list(self._connections):
+            try:
+                await ws.send_json(data)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(ws)
+
+
+_sl_manager = _SupraLibrixLiveManager()
+
+
+class _SLPlaceInput(BaseModel):
+    field_valence: float
+    placements: list[dict]  # [{lat, lon, shape, scale, init_degree}]
+
+
+@app.get("/v1/supra_librix/tiles")
+def supra_librix_tiles() -> dict:
+    """Serve the pre-computed distance-from-shore tile grid."""
+    if _TILES_PATH.exists():
+        import json as _j
+        return ORJSONResponse(_j.loads(_TILES_PATH.read_text(encoding="utf-8")))
+    return ORJSONResponse(_FALLBACK_TILES)
+
+
+@app.get("/v1/supra_librix/placements")
+def supra_librix_placements(
+    limit: int = 500,
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    """Return the most recent placements for canvas catchup on connect."""
+    import json as _j
+    rows = (
+        db.query(SupraLibrixVote)
+        .order_by(SupraLibrixVote.cast_at.desc())
+        .limit(limit)
+        .all()
+    )
+    out = []
+    for row in reversed(rows):
+        for p in _j.loads(row.placements_json):
+            out.append({**p, "field_valence": row.field_valence, "cast_at": row.cast_at.isoformat()})
+    return JSONResponse(out)
+
+
+@app.post("/v1/supra_librix/place")
+async def supra_librix_place(
+    payload: _SLPlaceInput,
+    workshop: WorkshopContext = Depends(_workshop_context),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Cast a geo-tagged Physix vote and broadcast to live feed."""
+    from datetime import datetime as _dt
+    import json as _j
+    from .shygazun_physix import derive, compose_utterance
+
+    tagged_placements = []
+    for i, p in enumerate(payload.placements):
+        try:
+            tagged = derive({
+                "field_valence": payload.field_valence,
+                "placements": [p],
+            })
+            tagged_placements.append({
+                "lat":           p.get("lat"),
+                "lon":           p.get("lon"),
+                "shape":         p.get("shape"),
+                "scale":         p.get("scale"),
+                "init_degree":   p.get("init_degree"),
+                "shygazun_tags": tagged["placements"][0]["shygazun_tags"],
+            })
+        except (ValueError, KeyError):
+            tagged_placements.append({
+                "lat":  p.get("lat"),
+                "lon":  p.get("lon"),
+                "shape": p.get("shape"),
+                "scale": p.get("scale"),
+                "init_degree": p.get("init_degree"),
+                "shygazun_tags": None,
+            })
+
+    utterance = compose_utterance({
+        "field_valence": {"symbol": "Na"},
+        "placements":    [
+            {"shygazun_tags": tp["shygazun_tags"]}
+            for tp in tagged_placements if tp["shygazun_tags"]
+        ],
+    })
+
+    now = _dt.utcnow()
+    vote = SupraLibrixVote(
+        field_valence=payload.field_valence,
+        placements_json=_j.dumps(tagged_placements),
+        utterance=utterance,
+        voter_id=workshop.identity.artisan_id,
+        cast_at=now,
+    )
+    db.add(vote)
+    db.commit()
+
+    broadcast_payload = {
+        "field_valence": payload.field_valence,
+        "placements":    tagged_placements,
+        "utterance":     utterance,
+        "cast_at":       now.isoformat(),
+    }
+    _asyncio.ensure_future(_sl_manager.broadcast(broadcast_payload))
+
+    return {"ok": True, "utterance": utterance, "placements": tagged_placements}
+
+
+@app.websocket("/v1/supra_librix/live")
+async def supra_librix_live(ws: WebSocket) -> None:
+    """Live feed WebSocket — no auth required (read-only public performance channel)."""
+    await _sl_manager.connect(ws)
+    try:
+        while True:
+            await ws.receive_text()   # keep alive; client pings are ignored
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _sl_manager.disconnect(ws)
 
 
 @app.get("/v1/atelier/admin/gate/status")
