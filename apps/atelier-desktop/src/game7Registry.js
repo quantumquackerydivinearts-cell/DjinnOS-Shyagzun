@@ -356,6 +356,12 @@ export const ITEMS = [
   { id: null,        name: "Angelic Spear",  stackable: false },
   { id: null,        name: "Angelic Gun",    stackable: false },
   { id: null,        name: "Demonic Irons",  stackable: false },
+  { id: "0036_KLIT", name: "Map of Mercurie", stackable: false,
+    note: "Quest reward for 0004_KLST (The Golden Path). A hand-drawn graphite map of the Realm of " +
+          "Mercurie (the Faewilds), given by Forest (0007_WTCH) — folded inside his journal. Marked " +
+          "with the names of Sophia, Chazak, and the Nymphs (beings, not locations), alongside " +
+          "Mt. Hieronymus and the Church of Gnome Rizz (locations). " +
+          "Texture assets: mercurie_map_full.png, mercurie_map_folded.png, mercurie_map_thumb.png." },
 ];
 
 // ── Quests (KLST) ─────────────────────────────────────────────────────────────
