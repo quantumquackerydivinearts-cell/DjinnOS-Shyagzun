@@ -579,7 +579,7 @@ class SkillTrainInput(BaseModel):
     skill_id: str
     current_rank: int
     points_available: int
-    max_rank: int = 5
+    max_rank: int = 50
 
 
 class SkillTrainOut(BaseModel):
