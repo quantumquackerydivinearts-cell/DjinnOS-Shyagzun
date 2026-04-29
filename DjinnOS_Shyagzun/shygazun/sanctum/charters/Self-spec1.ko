@@ -1,0 +1,40 @@
+LoAo: ShakshiNa(TyHaGaWuUngNaKiKael) {
+
+  [MavoKael Kael]
+
+  [MavoHa Ha]
+  [MavoGa Ga]
+  [MavoWu Wu]
+  [MavoUng Ung]
+  [MavoNa Na]
+  [MavoKi Ki]
+  [MavoWuUng WuUng]
+
+  [MavoGaoh Gaoh]
+  [MavoAo Ao]
+  [MavoYe Ye]
+  [MavoUi Ui]
+  [MavoShu Shu]
+  [MavoKiel Kiel]
+  [MavoYeshu Yeshu]
+  [MavoLao Lao]
+  [MavoShushy Shushy]
+  [MavoUinshu Uinshu]
+  [MavoKokiel Kokiel]
+  [MavoAonkiel Aonkiel]
+
+  [MavoRu  AoWuUng GaLaoShushy Ha YeshuYeUi]
+  [MavoOt  AoWuUng GaUinshuLao Ga YeUiShushy]
+  [MavoEl  AoWuUng GaShuUi     Ga UinshuAo]
+  [MavoKi  AoWuUng HaShuUi     Ga UinshuAo]
+  [MavoFu  AoWuUng HaUinshuLao Ga YeUiShushy]
+  [MavoKa  AoWuUng HaLaoShushy Ha YeshuYeUi]
+  [MavoAE  AoWuUng Na          Ha Ao]
+
+  [MavoGaohConstant
+    GaAonkielYe Ung KielYeshuShu
+    Na
+    AonkielYe Ung KielAonkiel Wu NaApproxPi]
+
+  [TaShyMa(Ao)]
+}
