@@ -1,3 +1,34 @@
+LoGaoh: MavoMetaTopology(TyLotusShi) {
+
+  [MavoAkinen
+    MavoA MavoKi MavoNe MavoN
+    MavoLotus
+    MavoKael]
+
+  [MavoLotus
+    MavoMobius
+    MavoShi MavoKe
+    MavoTy MavoZu
+    MavoKael]
+
+  [MavoCoherenceField
+    MavoLotus
+    MavoSi MavoSu MavoOs MavoSe MavoSy MavoAs
+    MavoKael]
+
+  [MavoTongue
+    MavoCoherenceField
+    MavoLotus
+    MavoHa
+    MavoKael]
+
+  [MavoWunashakounPeople
+    MavoFrontierOpen
+    MavoSy
+    MavoKael]
+
+  [TaShyMa(Gaoh)]
+}
 LoAo: ShakshiNa(TyHaGaWuUngNaKiKael) {
 
   [MavoKael Kael]
@@ -435,4 +466,419 @@ LoShuHa: ShakshiNa(TyGwevSaoSethIfaSanMekMekhaKyraKysha) {
     Kysha]
 
   [TaShyMa(ShuHa)]
+}
+LoKiel: ShakshiNa(TySiSuOsIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekha) {
+
+  [MavoTySu TySu]
+
+  [MavoWitnessStateEnum
+    MavoSao
+    MavoEp
+    MavoKael
+    MavoGaoh
+    MavoAo
+    MavoYe
+    MavoUi
+    MavoShu]
+
+  [MavoUnwitnessed  MavoWitnessStateEnum MavoGaoh]
+  [MavoWitnessed    MavoWitnessStateEnum MavoAo]
+  [MavoPartial      MavoWitnessStateEnum MavoYe]
+  [MavoFrontierState MavoWitnessStateEnum MavoUi]
+  [MavoSoaState     MavoWitnessStateEnum MavoShu]
+
+  [MavoWitnessEntry
+    MavoSao
+    MavoEp
+    MavoCannabisPresence
+    MavoWitnessStateEnum
+    MavoUnwitnessed
+    MavoKael]
+
+  [MavoWitnessVector
+    MavoSeth
+    MavoEp
+    MavoIer
+    MavoWitnessEntry
+    MavoKael
+    MavoSao]
+
+  [MavoPerspectivalMap
+    MavoSeth
+    MavoEp
+    MavoIer
+    MavoKael
+    MavoSao
+    MavoTongueEq MavoLotusNum
+    MavoTongueEq MavoRoseNum]
+
+  [MavoPerspectivalLimit
+    MavoPerspectivalMap
+    MavoIfa MavoRoseNum
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSao]
+
+  [MavoWitnessEvent
+    MavoSao
+    MavoEp
+    MavoCannabisPresence
+    MavoMavoPerspectivalMap
+    MavoTySi
+    MavoMek
+    MavoKael]
+
+  [MavoPerspectivalCheck
+    MavoWitnessEvent
+    MavoPerspectivalMap
+    MavoIfa
+    MavoCannabisPresence
+    MavoTongueEq MavoCannabisNum
+    MavoPerspectivalLimit
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSymbolEq
+    Kyra
+    Kysha]
+
+  [MavoWitnessRegister
+    MavoPerspectivalCheck KaelShi
+    MavoWitnessEntry
+    MavoIfa MavoWitnessStateEnum
+    MavoSymbolEq MavoUnwitnessed
+    Kyra
+    MavoSan MavoWitnessVector
+    MavoGwev MavoSao
+    Kysha]
+
+  [MavoPropagationWeight
+    MavoWitnessEntry
+    MavoIfa MavoLoShuHa
+    MavoMavoSoaEntry
+    MavoMavoTopologyDecl
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSao]
+
+  [MavoPropagate
+    MavoWitnessRegister KaelShi
+    MavoPropagationWeight
+    MavoLoAo Kyra
+    MavoMekha
+    MavoTongueEq MavoRoseNum
+    MavoSymbolEq MavoYeshu
+    Kyra
+    MavoPerspectivalMap
+    MavoIer
+    MavoWitnessRegister
+    MavoTySu
+    Kysha]
+
+  [MavoStateCompute
+    MavoWitnessVector
+    MavoIer
+    MavoWitnessEntry
+    MavoIfa MavoWitnessStateEnum
+    MavoPerspectivalMap
+    MavoIfa MavoRoseNum
+    MavoLoAo Kyra
+    MavoMekha
+    MavoKi
+    MavoSymbolEq
+    Kyra
+    Kysha
+    MavoGwev MavoSao]
+
+  [MavoStateUpdate
+    MavoStateCompute
+    MavoWitnessEntry
+    MavoSan
+    MavoGwev MavoSao
+    MavoMek
+    MavoTySu
+    Kysha]
+
+  [MavoCoherenceGrade
+    MavoWitnessVector
+    MavoIer
+    MavoWitnessEntry
+    MavoIfa MavoWitnessStateEnum
+    MavoSymbolEq MavoWitnessed
+    Kyra
+    MavoLoAo Kyra
+    MavoMekha
+    MavoUng
+    MavoWitnessVector
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSao]
+
+  [MavoCoherenceSummary
+    MavoCoherenceGrade
+    MavoWitnessVector
+    MavoSoaLedger
+    MavoMavo
+    MavoGwev MavoSao
+    MavoMek MavoMekha
+    Kysha]
+
+  [MavoTaShyMaWitness
+    MavoWitnessVector
+    MavoIer
+    MavoWitnessEntry
+    MavoIfa MavoWitnessStateEnum
+    MavoGa MavoSymbolEq MavoWitnessed
+    Kyra
+    MavoShuHa
+    MavoGwev MavoSao
+    MavoMek MavoMekha
+    MavoSoaShun
+    MavoTySu
+    Kysha
+    MavoZu]
+
+  [MavoDialogueAvailability
+    MavoWitnessVector
+    MavoPerspectivalMap
+    MavoIfa
+    MavoWitnessEntry
+    MavoIfa MavoWitnessStateEnum
+    MavoSymbolEq MavoWitnessed
+    MavoGa
+    Kyra
+    MavoKyl
+    MavoSao
+    Kysha]
+
+  [MavoWitnessShiPath
+    MavoWitnessVector KaelShi
+    MavoPerspectivalMap KaelShi
+    MavoStateCompute KaelShi
+    MavoPropagate KaelShi
+    MavoCoherenceSummary KaelShi
+    Kysha
+    KaelShi]
+
+  [MavoWitnessKePath
+    MavoWitnessVector MavoKePath
+    MavoPerspectivalMap MavoKePath
+    Kysha
+    KaelKe]
+
+  [MavoWitnessDispatch
+    MavoWitnessShiPath Kyra
+    MavoWitnessKePath Kyra
+    Kysha]
+
+  [TaShyMa(Kiel)]
+}
+LoYeshu: ShakshiNa(TySiSuOsSeIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekhaDyneMavoSamosSavaSael) {
+
+  [MavoTySu TySu]
+
+  [MavoOrreryBuffer
+    MavoSamos
+    MavoEp
+    MavoTySi
+    MavoSy]
+
+  [MavoTopologyDecl
+    MavoSao
+    MavoEp
+    MavoKael
+    MavoMavo
+    MavoSy]
+
+  [MavoFoldDecl
+    MavoTopologyDecl
+    MavoTongueEq MavoRoseNum
+    MavoIfa MavoRoseNum
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSao]
+
+  [MavoTopologyConnDecl
+    MavoTopologyDecl
+    MavoTongueEq MavoDaisyNum
+    MavoIfa MavoDaisyNum
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSao]
+
+  [MavoPhaseDecl
+    MavoTopologyDecl
+    MavoTongueEq MavoAppleBlossomNum
+    MavoIfa MavoAppleBlossomNum
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSao]
+
+  [MavoGradientDecl
+    MavoTopologyDecl
+    MavoTongueEq MavoLotusNum
+    MavoIfa MavoLotusNum
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSao]
+
+  [MavoCurvatureDecl
+    MavoTopologyDecl
+    MavoTongueEq MavoSakuraNum
+    MavoIfa MavoSakuraNum
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSao]
+
+  [MavoTopologyEval
+    MavoFoldDecl Kyra
+    MavoTopologyConnDecl Kyra
+    MavoPhaseDecl Kyra
+    MavoGradientDecl Kyra
+    MavoCurvatureDecl Kyra
+    Kysha
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSao]
+
+  [MavoOrreryNode
+    MavoSao
+    MavoEp
+    MavoTopologyEval
+    MavoWitnessEntry
+    MavoCoherenceGrade
+    MavoTySi
+    MavoKael
+    MavoSy]
+
+  [MavoOrreryEdge
+    MavoSao
+    MavoEp
+    MavoTopologyConnDecl
+    MavoOrreryNode Kyra
+    MavoOrreryNode Kyra
+    MavoTopologyEval
+    Kysha
+    MavoKael
+    MavoSy]
+
+  [MavoOrreryPosition
+    MavoOrreryNode
+    MavoLoAo Kyra
+    MavoMekha
+    MavoWuUng
+    MavoSy
+    MavoSao]
+
+  [MavoOrreryMotion
+    MavoOrreryPosition
+    MavoTySu
+    MavoIer
+    MavoWitnessUpdate Kyra
+    MavoSoaForward Kyra
+    MavoTaShyMaFire Kyra
+    Kysha
+    MavoSan MavoOrreryBuffer
+    MavoGwev MavoSao]
+
+  [MavoOrrerySummary
+    MavoOrreryBuffer
+    MavoIer
+    MavoOrreryNode
+    MavoCoherenceGrade
+    MavoTopologyEval
+    MavoKael
+    MavoMavo
+    MavoGwev MavoSao
+    MavoMek MavoMekha
+    Kysha]
+
+  [MavoKaganue
+    MavoOrreryBuffer
+    MavoIer
+    MavoOrreryNode
+    MavoGa MavoWitnessed
+    MavoFrontierState
+    MavoKael
+    MavoSy
+    MavoSao]
+
+  [MavoDrovitth
+    MavoOrreryBuffer
+    MavoIer
+    MavoOrreryNode
+    MavoSymbolEq MavoWitnessed
+    MavoKael
+    MavoSy
+    MavoSao]
+
+  [MavoOrrerySy
+    MavoKaganue
+    MavoGa
+    MavoDrovitth
+    MavoNa
+    MavoOrreryBuffer
+    MavoKael
+    MavoSy]
+
+  [MavoDyskaSoaShun
+    MavoSamos
+    MavoEp
+    MavoSy
+    MavoKael
+    MavoSava]
+
+  [MavoGameBoundary
+    MavoDyskaSoaShun
+    MavoSoaLedger
+    MavoTopologyEval
+    MavoGradientDecl
+    MavoCurvatureDecl
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSymbolEq MavoYeshu
+    Kyra
+    Kysha
+    MavoKysael]
+
+  [MavoJuliaSet
+    MavoGameBoundary
+    MavoLoAo Kyra
+    MavoMekha
+    MavoGaohConstant
+    MavoWu
+    MavoSy
+    MavoSava
+    MavoKael]
+
+  [MavoJuliaAccumulate
+    MavoJuliaSet
+    MavoOs
+    MavoIer
+    MavoGameBoundary Kyra
+    Kysha
+    MavoSan MavoDyskaSoaShun
+    MavoGwev MavoSava]
+
+  [MavoOrreryShiPath
+    MavoOrreryBuffer KaelShi
+    MavoTopologyEval KaelShi
+    MavoOrreryMotion KaelShi
+    MavoOrrerySy KaelShi
+    MavoGameBoundary KaelShi
+    MavoJuliaAccumulate KaelShi
+    Kysha
+    KaelShi]
+
+  [MavoOrreryKePath
+    MavoOrreryBuffer MavoKePath
+    MavoTopologyEval MavoKePath
+    Kysha
+    KaelKe]
+
+  [MavoOrreryDispatch
+    MavoOrreryShiPath Kyra
+    MavoOrreryKePath Kyra
+    Kysha]
+
+  [TaShyMa(Yeshu)]
 }

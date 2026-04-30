@@ -248,7 +248,7 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 230,11100110,MetaTopology,An Akinenwun is a nonwhitespaced concatenation of Akinen with a structural grammar which simultaneously concatenates its Akinen and reveals a deeper structural meaning in the recombination. 
 231,11100111,MetaTopology,A Wunashako is simultaneously a way of being and a Shygazun utterance which binds chords of Akienwun into interpretable segments of meaningful text. Similar to paragraphs. The literal meaning of Wunashako is Way Through Intellect and Experience. 
 232,11101000,MetaTopology,Personal Pronouns are based on the process akinen and the ontic vowels as a personed and gendered system as follows with the Neuter and 3rd person pronouns pulling double duty without modulation by a Gendered Pronoun- Awu- First Person Singular, Owu- First Person Plural, Ywu- Second Person Singular, Uwu- Second Person Plural, Iwu- Third Person Neuter Singular, Ewu- Third Person Neuter Plural, Haaowu- Masculine Singular, Hauiwu- Masculine Plural, Gaaowu- Feminine Singular, Gauiwu- Feminine Plural.
-233,11101001,MetaTopology,Words for 
+233,11101001,MetaTopology,
 234,11101010,MetaTopology, 
 235,11101011,MetaTopology,
 236,11101100,MetaTopology,
