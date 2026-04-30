@@ -32,6 +32,7 @@ LoGaoh: MavoMetaTopology(TyLotusShi) {
 LoAo: ShakshiNa(TyHaGaWuUngNaKiKael) {
 
   [MavoKael Kael]
+  [MavoKyra Kyra]
 
   [MavoHa Ha]
   [MavoGa Ga]
@@ -72,50 +73,50 @@ LoAo: ShakshiNa(TyHaGaWuUngNaKiKael) {
 }
 LoAoHa: ShakshiNa(TyMavoFiKeShi) {
 
-  [MavoSymbolId MavoEp MavoSao]
+  [MavoPufFaZaotNeLo MavoEp MavoSao]
 
   [MavoSymbolEq
-    MavoSymbolId Kyra
-    MavoSymbolId Kyra
+    MavoPufFaZaotNeLo Kyra
+    MavoPufFaZaotNeLo Kyra
     MavoKi
     Kysha]
 
   [MavoSymbolNeq
-    MavoSymbolId Kyra
-    MavoSymbolId Kyra
+    MavoPufFaZaotNeLo Kyra
+    MavoPufFaZaotNeLo Kyra
     MavoGa MavoKi
     Kysha]
 
-  [MavoTongueNum
-    MavoSymbolId
+  [MavoTongueUngKael
+    MavoPufFaZaotNeLo
     MavoEp MavoSao
     MavoRoseTag]
 
   [MavoTongueEq
-    MavoTongueNum Kyra
-    MavoTongueNum Kyra
+    MavoTongueUngKael Kyra
+    MavoTongueUngKael Kyra
     MavoKi
     Kysha]
 
-  [MavoCannabisNum Shushy]
+  [MavoLotusUngKael Ao]
 
-  [MavoLotusNum Ao]
+  [MavoRoseUngKael Ye]
 
-  [MavoRoseNum Ye]
+  [MavoSakuraUngKael Ui]
 
-  [MavoSakuraNum Ui]
+  [MavoDaisyUngKael Shu]
 
-  [MavoDaisyNum Shu]
+  [MavoAppleBlossomUngKael Kiel]
 
-  [MavoAppleBlossomNum Kiel]
+  [MavoAsterUngKael Yeshu]
 
-  [MavoAsterNum Yeshu]
+  [MavoGrapevineUngKael Lao]
 
-  [MavoGrapevineNum Lao]
+  [MavoCannabisUngKael Shushy]
 
-  [MavoCannabisPresence
-    MavoTongueNum
-    MavoTongueEq MavoCannabisNum
+  [MavoCannabisTa
+    MavoTongueUngKael
+    MavoTongueEq MavoCannabisUngKael
     Kyra
     Kysha]
 
@@ -127,65 +128,65 @@ LoYe: ShakshiNa(TySiIfaSanEnnoZu) {
 
   [MavoRawToken MavoSyr TySi]
 
-  [MavoSegment
+  [MavoLo
     MavoIfa
     MavoRawToken
     MavoSyr
     MavoTySi]
 
-  [MavoDescriptor
-    MavoSegment
+  [MavoLoFaShiBaBu
+    MavoLo
     MavoEp MavoSao
-    MavoTongueNum
-    MavoSymbolId
+    MavoTongueUngKael
+    MavoPufFaZaotNeLo
     MavoKael]
 
-  [MavoTongueNum
-    MavoDescriptor
-    MavoIfa MavoRoseNum
+  [MavoTongueUngKael
+    MavoLoFaShiBaBu
+    MavoIfa MavoRoseUngKael
     MavoSymbolEq
     Kyra
     Kysha]
 
-  [MavoCannabisPresence
-    MavoDescriptor
-    MavoTongueEq MavoCannabisNum
+  [MavoCannabisTa
+    MavoLoFaShiBaBu
+    MavoTongueEq MavoCannabisUngKael
     Kyra
-    MavoShiPath MavoKePath
+    MavoShiWuUng MavoKeWuUng
     Kysha]
 
   [MavoAkinenNode
     MavoRawToken
-    MavoSegment
+    MavoLo
     MavoAo Kael
-    MavoCannabisPresence
+    MavoCannabisTa
     MavoSi TaShyMa]
 
   [MavoAkinenwunNode
     MavoRawToken
-    MavoSegment
+    MavoLo
     MavoYeHa Kael
-    MavoCannabisPresence
+    MavoCannabisTa
     MavoSi TaShyMa]
 
   [MavoRemainder
-    MavoGa MavoSegment
+    MavoGa MavoLo
     MavoSyr TySi]
 
-  [MavoShiPath
+  [MavoShiWuUng
     MavoRemainder Na
     MavoAkinenNode MavoAkinenwunNode
     KaelShi]
 
-  [MavoKePath
+  [MavoKeWuUng
     MavoRemainder HaGa
     MavoEcho
     KaelKe]
 
-  [MavoDispatch
+  [MavoKyshaKyl
     MavoAkinenNode Kyra
     MavoAkinenwunNode Kyra
-    MavoKePath Kyra
+    MavoKeWuUng Kyra
     Kysha]
 
   [TaShyMa(Ye)]
@@ -194,15 +195,15 @@ LoUi: ShakshiNa(TySiSuIfaIerKaelShiKe) {
 
   [MavoTySu TySu]
 
-  [MavoWunashakoBuffer
+  [MavoWunashakoPuTo
     MavoSyr TySi]
 
-  [MavoTokenStream
+  [MavoKyraMyrun
     MavoSyr
     MavoTySi
     MavoIer]
 
-  [MavoTongueOrder
+  [MavoTongueVaShy
     MavoSeth
     MavoEp
     MavoIer
@@ -216,9 +217,9 @@ LoUi: ShakshiNa(TySiSuIfaIerKaelShiKe) {
 
   [MavoTongueAccumulate
     MavoTokenEval
-    MavoDescriptor
-    MavoTongueNum
-    MavoTongueOrder
+    MavoLoFaShiBaBu
+    MavoTongueUngKael
+    MavoTongueVaShy
     MavoSymbolNeq
     MavoEp
     MavoIer
@@ -234,24 +235,24 @@ LoUi: ShakshiNa(TySiSuIfaIerKaelShiKe) {
   [MavoNotDeliberate
     MavoTongueAccumulate
     MavoGa MavoCannabisPresence
-    MavoShiPath Kyra
+    MavoShiWuUng Kyra
     MavoResolved]
 
-  [MavoWunashakoShiPath
+  [MavoWunashakoShiWuUng
     MavoTokenStream Na
     MavoTongueOrder KaelShi
     MavoDeliberate MavoNotDeliberate
     Kysha
     KaelShi]
 
-  [MavoWunashakoKePath
+  [MavoWunashakoKeWuUng
     MavoTokenStream HaGa
-    MavoKePath
+    MavoKeWuUng
     KaelKe]
 
-  [MavoWunashakoDispatch
-    MavoWunashakoShiPath Kyra
-    MavoWunashakoKePath Kyra
+  [MavoWunashakoKyshaKyl
+    MavoWunashakoShiWuUng Kyra
+    MavoWunashakoKeWuUng Kyra
     Kysha]
 
   [TaShyMa(Ui)]
@@ -265,17 +266,17 @@ LoShu: ShakshiNa(TySiSuOsIfaIerSanGwevEnnoKaelShiKeKyraKysha) {
     MavoEp
     MavoTySi]
 
-  [MavoIdentityHeader
+  [MavoLoHeader
     MavoLoYe Kyra
     MavoMekha
-    MavoTongueEq MavoRoseNum
-    MavoTongueEq MavoDaisyNum
+    MavoTongueEq MavoRoseWuKael
+    MavoTongueEq MavoDaisyWuKael
     Kysha
     MavoEp MavoSao]
 
-  [MavoIdentityIndex
+  [MavoLoToYei
     MavoIdentityHeader
-    MavoIfa MavoRoseNum
+    MavoIfa MavoRoseWuKael
     MavoLoAo Kyra
     MavoMekha
     MavoSao]
@@ -289,61 +290,61 @@ LoShu: ShakshiNa(TySiSuOsIfaIerSanGwevEnnoKaelShiKeKyraKysha) {
     MavoEp MavoSao]
 
   [MavoInteriorCondition
-    MavoTokenStream
+    MavoKyraKysha
     MavoIer
     MavoLoYe Kyra
     MavoMekha
     MavoSeth
     MavoKael]
 
-  [MavoEntitySpec
+  [MavoLoAzr
     MavoLoUi Kyra
     MavoMekha
     MavoSan MavoSamosMyrBuffer
     MavoTySu
-    MavoCannabisPresence
+    MavoCannabisTa
     MavoGwev MavoSao]
 
-  [MavoEntitySpecLoop
+  [MavoLoAzrFoa
     MavoTySu
     MavoIer
-    MavoEntitySpec Kyra
-    MavoTemporalClosure Kyra
+    MavoLoAzr Kyra
+    MavoZu Kyra
     Kysha]
 
-  [MavoTemporalClosure
+  [MavoZu
     MavoLoYe Kyra
     MavoMekha
-    MavoTongueEq MavoLotusNum
-    MavoTongueEq MavoRoseNum
-    MavoIfa MavoRoseNum
+    MavoTongueEq MavoLotusUngKael
+    MavoTongueEq MavoRoseUngKael
+    MavoIfa MavoRoseUngKael
     MavoLoAo Kyra
     MavoMekha
     MavoGwev MavoSao]
 
-  [MavoTemporalAddress
-    MavoTemporalClosure
-    MavoIfa MavoRoseNum
+  [MavoZeZu
+    MavoZu
+    MavoIfa MavoRoseUngKael
     MavoLoAo Kyra
     MavoMekha
     MavoSao]
 
-  [MavoBehaviorLoop
+  [MavoShakFoa
     MavoTySu
-    MavoEntitySpecLoop Kyra
-    MavoTemporalAddress Kyra
+    MavoEntitySpecFoa Kyra
+    MavoZeZu Kyra
     MavoSi
     Kysha]
 
-  [MavoWitnessVector
+  [MavoWunashakoWuKael
     MavoSeth
     MavoEp
-    MavoCannabisPresence
+    MavoCannabisTa
     MavoIer
     MavoKael
     MavoSao]
 
-  [MavoWitnessUpdate
+  [MavoWunashakoSha
     MavoWitnessVector
     MavoMek
     MavoSan
@@ -351,10 +352,10 @@ LoShu: ShakshiNa(TySiSuOsIfaIerSanGwevEnnoKaelShiKeKyraKysha) {
     Kyra
     Kysha]
 
-  [MavoTaShyMaFire
+  [MavoTaShyMaShak
     MavoTemporalAddress
     MavoSi
-    MavoTongueEq MavoRoseNum
+    MavoTongueEq MavoRoseUngKael
     MavoLoAo Kyra
     MavoMekha
     MavoSymbolEq
@@ -386,7 +387,7 @@ LoShu: ShakshiNa(TySiSuOsIfaIerSanGwevEnnoKaelShiKeKyraKysha) {
     Kysha
     KaelKe]
 
-  [MavoSamosMyrDispatch
+  [MavoSamosMyrEpEm
     MavoSamosMyrShiPath Kyra
     MavoSamosMyrKePath Kyra
     Kysha]
@@ -400,21 +401,21 @@ LoShuHa: ShakshiNa(TyGwevSaoSethIfaSanMekMekhaKyraKysha) {
     MavoEp
     MavoTySi]
 
-  [MavoSoaEntry
+  [MavoMavoSoaSuy
     MavoSao
     MavoEp
     MavoGwev
     MavoKael
     MavoMavo]
 
-  [MavoSoaReceive
+  [MavoSoaEmEp
     MavoMekha
     MavoSoaEntry Kyra
     MavoSan MavoSoaShunBuffer
     MavoGwev MavoSao
     Kysha]
 
-  [MavoSoaLedger
+  [MavoSoaSael
     MavoSamos
     MavoIer
     MavoSoaEntry
@@ -437,32 +438,32 @@ LoShuHa: ShakshiNa(TyGwevSaoSethIfaSanMekMekhaKyraKysha) {
     Kysha]
 
   [MavoRouteEval
-    MavoSoaLedger
+    MavoSoaSael
     MavoPathRecord
     MavoWatermark
     MavoIfa
-    MavoTongueEq MavoGrapevineNum
+    MavoTongueEq MavoGrapevineUngKael
     MavoSymbolEq
     Kyra
     Kysha]
 
-  [MavoSoaShunShiPath
-    MavoSoaReceive KaelShi
-    MavoSoaLedger KaelShi
+  [MavoSoaShunShiWuUng
+    MavoSoaEmEp KaelShi
+    MavoSoaSael KaelShi
     MavoWatermark KaelShi
     MavoRouteEval KaelShi
     Kysha
     KaelShi]
 
-  [MavoSoaShunKePath
-    MavoSoaReceive MavoKePath
-    MavoSoaLedger MavoKePath
+  [MavoSoaShunKeWuUng
+    MavoSoaEmEp MavoKeWuUng
+    MavoSoaLedger MavoKeWuUng
     Kysha
     KaelKe]
 
-  [MavoSoaShunDispatch
-    MavoSoaShunShiPath Kyra
-    MavoSoaShunKePath Kyra
+  [MavoSoaShunEpEm
+    MavoSoaShunShiWuUng Kyra
+    MavoSoaShunKeWuUng Kyra
     Kysha]
 
   [TaShyMa(ShuHa)]
@@ -487,19 +488,19 @@ LoKiel: ShakshiNa(TySiSuOsIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekha) {
   [MavoFrontierState MavoWitnessStateEnum MavoUi]
   [MavoSoaState     MavoWitnessStateEnum MavoShu]
 
-  [MavoWitnessEntry
+  [MavoWunashakoSuy
     MavoSao
     MavoEp
-    MavoCannabisPresence
+    MavoCannabisTa
     MavoWitnessStateEnum
     MavoUnwitnessed
     MavoKael]
 
-  [MavoWitnessVector
+  [MavoWunashakoWuKael
     MavoSeth
     MavoEp
     MavoIer
-    MavoWitnessEntry
+    MavoWunashakoSuy
     MavoKael
     MavoSao]
 
@@ -509,31 +510,31 @@ LoKiel: ShakshiNa(TySiSuOsIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekha) {
     MavoIer
     MavoKael
     MavoSao
-    MavoTongueEq MavoLotusNum
-    MavoTongueEq MavoRoseNum]
+    MavoTongueEq MavoLotusWuKael
+    MavoTongueEq MavoRoseWuKael]
 
   [MavoPerspectivalLimit
     MavoPerspectivalMap
-    MavoIfa MavoRoseNum
+    MavoIfa MavoRoseWuKael
     MavoLoAo Kyra
     MavoMekha
     MavoSao]
 
-  [MavoWitnessEvent
+  [MavoWunashakoSoa
     MavoSao
     MavoEp
-    MavoCannabisPresence
+    MavoCannabisTa
     MavoMavoPerspectivalMap
     MavoTySi
     MavoMek
     MavoKael]
 
   [MavoPerspectivalCheck
-    MavoWitnessEvent
+    MavoWunashakoSoa
     MavoPerspectivalMap
     MavoIfa
-    MavoCannabisPresence
-    MavoTongueEq MavoCannabisNum
+    MavoCannabisTa
+    MavoTongueEq MavoCannabisWuKael
     MavoPerspectivalLimit
     MavoLoAo Kyra
     MavoMekha
@@ -541,9 +542,9 @@ LoKiel: ShakshiNa(TySiSuOsIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekha) {
     Kyra
     Kysha]
 
-  [MavoWitnessRegister
+  [MavoWunashakoUdOdEd
     MavoPerspectivalCheck KaelShi
-    MavoWitnessEntry
+    MavoWunashakoSuy
     MavoIfa MavoWitnessStateEnum
     MavoSymbolEq MavoUnwitnessed
     Kyra
@@ -552,9 +553,9 @@ LoKiel: ShakshiNa(TySiSuOsIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekha) {
     Kysha]
 
   [MavoPropagationWeight
-    MavoWitnessEntry
+    MavoWunashakoSuy
     MavoIfa MavoLoShuHa
-    MavoMavoSoaEntry
+    MavoMavoSoaSuy
     MavoMavoTopologyDecl
     MavoLoAo Kyra
     MavoMekha
@@ -881,4 +882,293 @@ LoYeshu: ShakshiNa(TySiSuOsSeIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekhaDy
     Kysha]
 
   [TaShyMa(Yeshu)]
+}
+LoLao: ShakshiNa(TySiSuOsSeIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekhaDyneSavaSamosSaelSy) {
+
+  [MavoTySu TySu]
+
+  [MavoAzothLo
+    MavoSamos
+    MavoEp
+    MavoSy
+    MavoKael
+    MavoGaohConstant
+    MavoWuUng]
+
+  [MavoYeGaohLo
+    MavoAzothLo
+    MavoIer
+    MavoAo MavoYe MavoUi
+    MavoMavoRoseWuKael
+    MavoLoAo Kyra
+    MavoMekha
+    MavoKael
+    MavoSy
+    MavoSao]
+
+  [MavoYeGaohLoSu
+    MavoYeGaohLo
+    MavoAo MavoYe MavoUi MavoShu
+    MavoMavoRoseWuKael
+    MavoLoAo Kyra
+    MavoMekha
+    MavoKael
+    MavoSy
+    MavoSao]
+
+  [MavoMobiusCoil
+    MavoAzothLo
+    MavoYeshu MavoKokiel
+    MavoWuUng
+    MavoSy
+    MavoKael
+    MavoSao]
+
+  [MavoCoilEp
+    MavoMobiusCoil
+    MavoGaoh
+    MavoYeshu MavoKokiel
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSao]
+
+  [MavoSuDreamLo
+    MavoSao
+    MavoEp
+    MavoMavoRoseWuKael
+    MavoMavoSakuraWuKael
+    MavoMavoLotusWuKael
+    MavoLoAo Kyra
+    MavoMekha
+    MavoKael
+    MavoTySi]
+
+  [MavoSuDreamLoShak
+    MavoSuDreamLo
+    MavoMavoSakuraWuKael
+    MavoIfa MavoRoseWuKael
+    MavoLoAo Kyra
+    MavoMekha
+    MavoYeGaohLoSu
+    MavoIer
+    MavoSan
+    MavoGwev MavoSao
+    MavoTySu]
+
+  [MavoSuDreamLoMel
+    MavoSuDreamLo
+    MavoMavoRoseWuKael
+    MavoIfa MavoRoseWuKael
+    MavoLoAo Kyra
+    MavoMekha
+    MavoYeGaohLo
+    MavoUi MavoShu
+    MavoIer
+    MavoSan
+    MavoGwev MavoSao
+    MavoTySu]
+
+  [MavoSuDreamLoZot
+    MavoSuDreamLo
+    MavoMavoLotusWuKael
+    MavoIfa MavoRoseWuKael
+    MavoLoAo Kyra
+    MavoMekha
+    MavoYeGaohLo
+    MavoAo MavoShushy
+    MavoIer
+    MavoSan
+    MavoGwev MavoSao
+    MavoTySu]
+
+  [MavoSuDreamLoVaShy
+    MavoSuDreamLoShak
+    MavoSuDreamLoMel
+    MavoSuDreamLoZot
+    MavoSy
+    MavoMobiusCoil
+    MavoKael
+    MavoSao]
+
+  [MavoAzothShak
+    MavoAzothLo
+    MavoYeGaohLo
+    MavoAo MavoYe MavoUi
+    MavoMavoRoseWuKael
+    MavoWu MavoNa
+    MavoLoAo Kyra
+    MavoMekha
+    MavoYeGaohLoSu
+    MavoUi MavoShu
+    MavoMavoRoseWuKael
+    MavoWu MavoNa
+    MavoLoAo Kyra
+    MavoMekha
+    MavoYeshu MavoKiel
+    MavoUng
+    MavoYeshu MavoKokiel
+    MavoUng
+    MavoSy
+    MavoKael
+    MavoSao]
+
+  [MavoAzothMobiusFoa
+    MavoAzothShak
+    MavoGaohConstant
+    MavoHa
+    MavoSy
+    MavoLoAo Kyra
+    MavoMekha
+    MavoKael
+    MavoSao]
+
+  [MavoAzothSuFoa
+    MavoAzothMobiusFoa
+    MavoYeshu MavoYeshu
+    MavoUi
+    MavoOs
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSy
+    MavoKael
+    MavoSao]
+
+  [MavoKoFoaShiKeWuUng
+    MavoAzothSuFoa
+    MavoYe
+    MavoSymbolEq
+    Kyra
+    MavoOrreryNode
+    MavoKaganue
+    MavoDrovitth
+    Kysha
+    MavoSao]
+
+  [MavoBreathLoVaShy
+    MavoAzothLo
+    MavoMobiusCoil
+    MavoCoilEp
+    MavoSuDreamLoVaShy
+    MavoAzothShak
+    MavoAzothMobiusFoa
+    MavoAzothSuFoa
+    MavoKoFoaShiKeWuUng
+    MavoKael
+    MavoSy
+    MavoSava
+    MavoMavo]
+
+  [MavoBreathLoShak
+    MavoBreathLoVaShy
+    MavoMavoGaohConstant
+    MavoWu
+    MavoGaohConstant
+    MavoHa
+    MavoSy
+    MavoYeshu MavoKokiel
+    MavoUi
+    MavoOs
+    MavoLoAo Kyra
+    MavoMekha
+    MavoSava
+    MavoKael]
+
+  [MavoBreathLoShiKeWuUng
+    MavoBreathLoShak
+    MavoYeshu MavoKokiel
+    MavoMavoSymbolEq
+    Kyra
+    MavoShiBi
+    MavoKeShiBi
+    MavoShiKeBi
+    Kysha
+    MavoSao]
+
+  [MavoShiBi
+    MavoBreathLoShiKeWuUng
+    MavoSymbolEq MavoYeshu MavoKokiel
+    MavoShi
+    MavoKael
+    MavoSao]
+
+  [MavoKeShiBi
+    MavoBreathLoShiKeWuUng
+    MavoSymbolEq MavoShushy MavoKokiel
+    MavoHa
+    MavoFrontierState
+    MavoKael
+    MavoSao]
+
+  [MavoShiKeBi
+    MavoBreathLoShiKeWuUng
+    MavoGa MavoSymbolEq MavoShushy MavoKokiel
+    MavoKe
+    MavoKael
+    MavoSao]
+
+  [MavoKoFlagVaShy
+    MavoSao
+    MavoEp
+    MavoMavoRoseWuKael
+    MavoLoAo Kyra
+    MavoMekha
+    MavoGaoh
+    MavoAo
+    MavoMobiusCoil
+    MavoKael
+    MavoSy]
+
+  [MavoKoFlagShak
+    MavoKoFlagVaShy
+    MavoMobiusCoil
+    MavoKoFlagVaShy
+    MavoIfa MavoRoseWuKael
+    MavoLoAo Kyra
+    MavoMekha
+    MavoYeshu MavoKokiel
+    MavoUng
+    MavoHa
+    MavoSy
+    MavoGwev MavoSao]
+
+  [MavoBreathLoGameBi
+    MavoDyskaSoaShun
+    MavoBreathLoVaShy
+    MavoJuliaAccumulate
+    MavoKysael
+    MavoSy
+    MavoKael
+    MavoSava]
+
+  [MavoBreathLoGameBiShak
+    MavoBreathLoGameBi
+    MavoBreathLoShak
+    MavoOs
+    MavoIer
+    MavoBreathLoGameBi Kyra
+    Kysha
+    MavoSan MavoDyskaSoaShun
+    MavoGwev MavoSava]
+
+  [MavoBreathLoShiPath
+    MavoBreathLoVaShy KaelShi
+    MavoBreathLoShak KaelShi
+    MavoBreathLoShiKeWuUng KaelShi
+    MavoBreathLoGameBi KaelShi
+    MavoBreathLoGameBiShak KaelShi
+    Kysha
+    KaelShi]
+
+  [MavoBreathLoKePath
+    MavoBreathLoVaShy MavoKeWuUng
+    MavoBreathLoShak MavoKeWuUng
+    Kysha
+    KaelKe]
+
+  [MavoBreathLoEpEm
+    MavoBreathLoShiPath Kyra
+    MavoBreathLoKePath Kyra
+    Kysha]
+
+  [TaShyMa(Lao)]
 }

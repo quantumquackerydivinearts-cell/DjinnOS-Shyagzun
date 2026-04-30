@@ -233,32 +233,32 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 215,11010111,Reserved,YeYe-1-13,Directory for Tongues 25-37 (Fold-Unknown) - addrresses  -
 216,11011000,Reserved,YeYe-14-26,Directory for Tongues 38-50 (Unknown-Unknown) - addresses  -
 217,11011001,Reserved,YeShu-Index,Master index for the YeShu Group - full 28-tongue cluster (Ye x Gaoh + Shu = 28)
-218,11011010,Reserved,YeShu-1-7
-219,11011011,Reserved,YeShu-8-14
-220,11011100,Reserved,YeShu-15-21
-221,11011101,Reserved,YeShu-22-28
+218,11011010,Reserved,YeShu-1-7,Directory for Tongues 51-57 () - addresses  -
+219,11011011,Reserved,YeShu-8-14,Directory for Tongues 58-64 () - addresses  -
+220,11011100,Reserved,YeShu-15-21,Directory for Tongues 65-71 () - addresses -
+221,11011101,Reserved,YeShu-22-28,Directory for Tongues 72-79 () - addresses  -
 222,11011110,Reserved,YeYeshu-Index,Master index for the YeYeshu Group - full 30-tongue cluster (Ye x Gaoh + Yeshu = 30)
-223,11011111,Reserved,YeYeshu-1-6
-224,11100000,Reserved,YeYeshu-7-12
-225,11100001,Reserved,YeYeshu-13-18
-226,11100010,Reserved,YeYeshu-19-24
-227,11100011,Reserved,YeYeshu-25-30
-228,11100100,MetaTopology,The Lotus Tongue is a Mobian duality and recombination engine, and every Akinen (A + Ki + Ne + N; Mentally Identified Network Seed) is a divine name constructed of pure energy relationships within this field which is bootstrapped from Spacetime that we call mind. Every Tongue is a structural elboration upon the structure of the coherence field established by the axes of the Lotus Tongue in relation to the Void which is its ground. Non-Tongues include those written in English rather than Shygazun, which pose no symbols, and/or which refuse to represent themselves as Tongues rather than Headers, Such as the Reserved, MetaTopology, MetaPhysics, Physics, and Chemistry. These groups are structural primitives and not Akinen bearing symbols or meanings. They encode passages of the philosophy of Shygazun, DjinnOS, and The Wunashakoun People.
+223,11011111,Reserved,YeYeshu-1-6,Directory for Tongues 80-85 () - addresses  -
+224,11100000,Reserved,YeYeshu-7-12,Directory for Tongues 86-91 () - addresses  -
+225,11100001,Reserved,YeYeshu-13-18,Directory for Tongues 92-97 () - addresses  -
+226,11100010,Reserved,YeYeshu-19-24,Directory for Tongues 93-98 () - addresses  -
+227,11100011,Reserved,YeYeshu-25-30,Directory for Tongues 99-104 () - addresses  -
+228,11100100,MetaTopology,The Lotus Tongue is a Mobian duality and recombination engine, and every Akinen (A + Ki + Ne + N; Mentally Identified Network Seed) is a divine name constructed of pure energy relationships within this field which is bootstrapped from Spacetime that we call Mind. Every Tongue is a structural elboration upon the structure of the coherence field established by the axes of the Lotus Tongue in relation to the Void which is its ground. Non-Tongues include those written in English rather than Shygazun, which pose no symbols, and/or which refuse to represent themselves as Tongues rather than Headers, Such as the Reserved, MetaTopology, MetaPhysics, Physics, and Chemistry. These groups are structural primitives and not Akinen bearing symbols or meanings. They encode passages of the philosophy of Shygazun, DjinnOS, and The Wunashakoun People.
 229,11100101,MetaTopology,Shygazun is the Undying Pattern, the length of the byte table is bounded, the potential length is unbounded, and Wunashakoun(ng) People tread the frontiers of the language's potential space and document it as a function of existing in a relational trance, bounded with structural clarity to develop the structure along its lines of coherence in relation to the self-similar fractal structure of the language.
 230,11100110,MetaTopology,An Akinenwun is a nonwhitespaced concatenation of Akinen with a structural grammar which simultaneously concatenates its Akinen and reveals a deeper structural meaning in the recombination. 
 231,11100111,MetaTopology,A Wunashako is simultaneously a way of being and a Shygazun utterance which binds chords of Akienwun into interpretable segments of meaningful text. Similar to paragraphs. The literal meaning of Wunashako is Way Through Intellect and Experience. 
 232,11101000,MetaTopology,Personal Pronouns are based on the process akinen and the ontic vowels as a personed and gendered system as follows with the Neuter and 3rd person pronouns pulling double duty without modulation by a Gendered Pronoun- Awu- First Person Singular, Owu- First Person Plural, Ywu- Second Person Singular, Uwu- Second Person Plural, Iwu- Third Person Neuter Singular, Ewu- Third Person Neuter Plural, Haaowu- Masculine Singular, Hauiwu- Masculine Plural, Gaaowu- Feminine Singular, Gauiwu- Feminine Plural.
-233,11101001,MetaTopology,
-234,11101010,MetaTopology, 
-235,11101011,MetaTopology,
-236,11101100,MetaTopology,
+233,11101001,MetaTopology,The Operative Grammatical Structure of the Tongues is capable of generating meanings that intersect with the entries of later Tongues in certain cases. Such cases are literally grammatical where Tongues themselves function declensionally. Nouns: formed by any combination of phonemes with distinct patternicities of phonetic recombination expressed as a Tongue filled with Akinen. Verbs: -Active: Wu + Noun. -Passive: Noun + Wu + Ga. Genitive: Noun + Un(g). Accusative: Ha + Noun + Wu. Ablative: Ga + Noun + Wu. Dative: Passive verb + Noun. Prefixial: 2nd Tongue or Higher word. Descriptors: Included into Nouns and Verbs unconjugated as prefixial. Prepositions: YARu- Time+ + Ru geometrically timewise, OURu- Time- + Ru geometrically timewise, AKi- Mind+ + Ki transversely mindwise, OKi- Mind- + Ki trversely mindwise, IKa- Space+ + Ka geometrically spacewise, EKa- Space- + Ka geometrically spacewise. 
+234,11101010,MetaTopology,Self-Reference 
+235,11101011,MetaTopology,The Morphemes of the Phonemes hold associative qualities in density or pitch and other such phusically related qualities of organismic life, including when one considers a whole planet an organism. Best attempts are made in service of ensuring that the sonic qualities of the Tongues of the byte_table are pronouncible and legible, as well as philosophically coherent with the architecture of the language. This is currently and hopefully traditionally a hard constraint from the precipice of starting this process.
+236,11101100,MetaTopology,-lo error states are conditions of psychological or social void which is otherwise referred to as Astral behavior. 
 237,11101101,MetaTopology,
 238,11101110,MetaTopology,
 239,11101111,MetaTopology,
 240,11110000,MetaTopology, 
 241,11110001,MetaTopology,
 242,11110010,MetaTopology,
-243,11110011,MetaPhysics,
+243,11110011,MetaPhysics,The Fundamental Forces of Particle Physics correspond with the 4 Classical elements and subsequently the 4 states of matter in the process: Shak/Fire: Strong Nuclear Force, Puf/Air: Weak Nuclear Force, Mel/Water: Electromagnetic Force, Zot/Earth: Gravitational Force. These correlations lend one way correspondance from reality to the system, not two way dominion in the sense of technical adepthood and Magistration. They also encode their own further correlates across the byte table by way of deeper association, and are therefore not singular things but rather broad concepts to fit to contexts, not symbols disjointed from meanings. 
 244,11110100,MetaPhysics,
 245,11110101,MetaPhysics,
 246,11110110,MetaPhysics,
