@@ -848,7 +848,7 @@ LoYeshu: ShakshiNa(TySiSuOsSeIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekhaDy
     Kysha
     MavoKysael]
 
-  [MavoJuliaSet
+  [MavoJuliaFaUng
     MavoShiKaKoKiEl
     MavoLoAo Kyra
     MavoMekha
@@ -858,8 +858,8 @@ LoYeshu: ShakshiNa(TySiSuOsSeIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekhaDy
     MavoSava
     MavoKael]
 
-  [MavoJuliaAccumulate
-    MavoJuliaSet
+  [MavoJuliaFaFy
+    MavoJuliaFaUng
     MavoOs
     MavoIer
     MavoShiKaKoKiEl Kyra
@@ -1139,7 +1139,7 @@ LoLao: ShakshiNa(TySiSuOsSeIfaIerSanGwevEnnoHozKaelShiKeKyraKyshaKylMekMekhaDyne
   [MavoPufFyLoShiKaKoBi
     MavoDyskaSoaShun
     MavoPufFyLoVaShy
-    MavoJuliaAccumulate
+    MavoJuliaFaFy
     MavoKysael
     MavoSy
     MavoKael
