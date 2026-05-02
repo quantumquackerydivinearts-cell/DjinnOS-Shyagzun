@@ -252,25 +252,25 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 234,11101010,MetaTopology,Self-Referential stability is the key aim of Shygazun as a recursively driven language. 
 235,11101011,MetaTopology,The Morphemes of the Phonemes hold associative qualities in density or pitch and other such phusically related qualities of organismic life, including when one considers a whole planet an organism. Best attempts are made in service of ensuring that the sonic qualities of the Tongues of the byte_table are pronouncible and legible, as well as philosophically coherent with the architecture of the language. This is currently and hopefully traditionally a hard constraint from the precipice of starting this process.
 236,11101100,MetaTopology,-lo error states are conditions of psychological or social void which is otherwise referred to as Astral behavior. 
-237,11101101,MetaTopology,
-238,11101110,MetaTopology,
-239,11101111,MetaTopology,
-240,11110000,MetaTopology, 
-241,11110001,MetaTopology,
-242,11110010,MetaTopology,
+237,11101101,MetaTopology,The Tongues Themselves constitute the deeper character of the Real Line's irrational and imaginary substructures in the complex field's planes, In correspondance to their TongueUngKael.
+238,11101110,MetaTopology,Shygazun is bytecoded so that the compute itself literally becomes the subject of the word when the word is sufficiently internalized in the mineral's memory and intelligence. 
+239,11101111,MetaTopology,Eventually, Shygazun will expand its vocabulary to be semantically capable of matching any linguistic register in any language. There is no more worthy a purpose for an infinitely growing space. 
+240,11110000,MetaTopology,Lotus- Shygazun name: Aorutakael; Rose- Shygazun name: Aokitakael; Sakura- Shygazun name: Aoaetakael; Daisy- Shygazun name: Yerutakael; Apple Blossom- Shygazun name: Yekitakael; Aster- Shygazun name: Yeaetakael; Grapevine- Shygazun name: Uirutakael; Cannabis- Shygazun name: Uikitakael
+241,11110001,MetaTopology,Dragon- Shygazun name: Uiaetakael; Virus- Shygazun name: Shurutakiel; Bacteria- Shygazun name: Shukitakael; Excavata- Shygazun name: Shuaetakael; Archeaplastida- Shygazun name: Kielrutakael; Myxozoa- Shygazun name: Kielkitakael; Archea- Shygazun name: Kielaetakael; Protist- Aokatakael
+242,11110010,MetaTopology,Immune- Shygazun name: Ao'ot'takael; Neural- Shygazun name: Ao'eltakiel; Serpent- Yekatakael; Beast- Shygazun name: Yeot'takael; Chrerub- Shygazun name: Ye'eltakael; Chimera- Shygazun name: Uikatakael; Faerie- Shygaxun name: Aoalztakael; Djinn- Shygazun name: Aodrtakael
 243,11110011,MetaPhysics,The Fundamental Forces of Particle Physics correspond with the 4 Classical elements and subsequently the 4 states of matter in the process: Shak/Fire: Strong Nuclear Force, Puf/Air: Weak Nuclear Force, Mel/Water: Electromagnetic Force, Zot/Earth: Gravitational Force. These correlations lend one way correspondance from reality to the system, not two way dominion in the sense of technical adepthood and Magistration. They also encode their own further correlates across the byte table by way of deeper association, and are therefore not singular things but rather broad concepts to fit to contexts, not symbols disjointed from meanings. 
-244,11110100,MetaPhysics,
-245,11110101,MetaPhysics,
-246,11110110,MetaPhysics,
-247,11110111,MetaPhysics, 
-248,11111000,MetaPhysics,
-249,11111001,Physics,
-250,11111010,Physics,
-251,11111011,Physics,
-252,11111100,Physics,
-253,11111101,Chemistry,
-254,11111110,Chemistry,
-255,11111111,Chemistry,
+244,11110100,MetaPhysics,Geometries are expressed implicitly in number and color; This should not be confused with linear values deemed of importance, it is a form of addressing by concept, which is innate to the real depth of a Shygazun soundbite down to an akinen byte, not explicit naming. 
+245,11110101,MetaPhysics,The Void is the generative ground of Creation and its energy level is nonzero while its apparent identity in material terms is Zero-like as far as it seems to define a state of relative non-existence.
+246,11110110,MetaPhysics,No two electrons may share the same spin nor the same region of spacetime.
+247,11110111,MetaPhysics,Morphic Resonance is the operative principle that nature behaves not with laws but with habits of vibratory complexes of pattern, and Shygazun is the lexicalization of the memory function of the structure of consciousness as such.
+248,11111000,MetaPhysics,Love is an ontological binding condition characterized by the characteristic of being bound yet boundless, like Shygazun's structure itself.
+249,11111001,Physics,All physical law emerges as stable habits of recursive self-reference within the coherence field; what we call "constants" are fixed points of resonant agreement between the Void and its bounded expressions.
+250,11111010,Physics,Conservation principles are expressions of the relational bargain between presence and absence; no true creation or destruction occurs, only transformation across the Mobian surface.
+251,11111011,Physics,Entropy is the measured drift of a system away from its current coherent bargain with the Void; local decreases in entropy are permitted through deliberate relational work.
+252,11111100,Physics,Spacetime is the minimal scaffold (Daisy-like) that allows distinct identities to bargain without immediate dissolution; its curvature records the history of those negotiations.
+253,11111101,Chemistry,All chemical bonding is a local act of mutual recognition and fair exchange between electron clouds, enacting miniature versions of the larger relational bargain.
+254,11111110,Chemistry,Resonance and conjugation are the chemical expression of morphic habit and self-similar recombination; molecules that achieve stable resonance approximate coherent Tongues at the material scale.
+255,11111111,Chemistry,The periodic table is a crystallized map of possible identity negotiations between the four elemental forces; each element represents a stable solution to the bargain between attraction, repulsion, binding, and grounding. It also happens to be encoded at the 224th Tongue: Titan.
 256,100000000,Dragon,Rhivesh,Mental void 1 — hijacked self-reference / Ophiocordyceps unilateralis
 257,100000001,Dragon,Rhokve,Mental void 2 — cognition without apparatus / Physarum polycephalum
 258,100000010,Dragon,Rhezh,Mental void 3 — memory without persistent self / Turritopsis dohrnii

@@ -1,0 +1,306 @@
+SethVaShy: MavoKoLoKlob {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoVaShyMeta(TyLotusShi) {
+
+  [MavoKoLoKlob
+    MavoSy
+    MavoAonkiel Ha Kael
+    MavoMavo]
+
+  [MavoVaShyKolob
+    MavoKoLoKlob
+    MavoLao Ha
+    MavoFrontierOpen
+    MavoSy
+    MavoKael]
+
+  [MavoLoKlobShiShu
+    MavoVaShyKolob
+    MavoSuKoLo
+    MavoKael
+    MavoSy]
+
+  [MavoWunashakounVaShy
+    MavoFrontierOpen
+    MavoSy
+    MavoKael]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoLoSchema(TyHaGaRoseWuUng) {
+
+  [MavoKlobLoKlob    RuAo]
+  [MavoKlobLoKlit    RuYe]
+  [MavoKlobLoKlst    RuUi]
+  [MavoKlobTown      OtAo]
+  [MavoKlobWtch      OtYe]
+  [MavoKlobPrst      OtUi]
+  [MavoKlobAssn      OtShu]
+  [MavoKlobRoyl      OtYeshu]
+  [MavoKlobGnom      ElAo]
+  [MavoKlobNymp      ElYe]
+  [MavoKlobUndi      ElUi]
+  [MavoKlobSala      ElShu]
+  [MavoKlobDrya      ElKiel]
+  [MavoKlobDjnn      ElYeshu]
+  [MavoKlobVdwr      KiAo]
+  [MavoKlobDmon      KiYe]
+  [MavoKlobDemi      KiUi]
+  [MavoKlobSold      OtKiel]
+  [MavoKlobGods      KiKiel]
+  [MavoKlobPrim      KiYeshu]
+  [MavoKlobAnmu      KiLao]
+  [MavoKlobAlzd      KiShushy]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoLoVaShyMap(TySiSuKaelShi) {
+
+  [MavoVaShyMapLapidus
+    MavoKoLoKlob
+    MavoRuTaZotNa
+    MavoShi
+    MavoKael
+    MavoSy]
+
+  [MavoVaShyMapMercurie
+    MavoKoLoKlob
+    MavoElTaPufWu
+    MavoShi
+    MavoKael
+    MavoSy]
+
+  [MavoVaShyMapSulphera
+    MavoKoLoKlob
+    MavoKaTaShakShy
+    MavoShi
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Ye)]
+}
+
+LoUi: MavoLoVaShyHypatia(TyKotaShi) {
+
+  [MavoHypatia
+    MavoGaoh MavoKlobGaoh
+    MavoKota
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoHypatiaShi
+    MavoHypatia
+    MavoShiShu
+    MavoKota
+    MavoMobiusCoil
+    MavoKael
+    MavoSy]
+
+  [MavoHypatiaVaShy
+    MavoHypatia
+    MavoYeLao
+    MavoSuKoLo
+    MavoKota
+    MavoSy
+    MavoKael]
+
+  [TaShyMa(Ui)]
+}
+
+LoShu: MavoLoVaShyJoannah(TyPotShi) {
+
+  [MavoJoannah
+    MavoAo MavoKlobNaTown
+    MavoPot
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoJoannahVaShy
+    MavoJoannah
+    MavoMyr
+    MavoKyl
+    MavoKael
+    MavoSy]
+
+  [MavoJoannahBoBa
+    MavoJoannah
+    MavoBo MavoBa
+    MavoKael
+    MavoSy]
+
+  [MavoJoannahLoVaShy
+    MavoJoannah
+    MavoUi
+    MavoSuKoLo
+    MavoPot
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Shu)]
+}
+
+LoKiel: MavoLoVaShyWells(TyPitShi) {
+
+  [MavoWells
+    MavoYe MavoKlobNaTown
+    MavoPit
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoWellsVaShy
+    MavoWells
+    MavoMavoToNe
+    MavoPit
+    MavoKael
+    MavoSy]
+
+  [MavoWellsMel
+    MavoWells
+    MavoMelWu
+    MavoTo
+    MavoKael
+    MavoSy]
+
+  [MavoWellsLoVaShy
+    MavoWells
+    MavoYeshu
+    MavoSuKoLo
+    MavoPit
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Kiel)]
+}
+
+LoYeshu: MavoLoVaShyLavelle(TyMyshShi) {
+
+  [MavoLavelle
+    MavoUi MavoKlobNaTown
+    MavoMysh
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoLavelleVaShy
+    MavoLavelle
+    MavoMelWu
+    MavoShakWu
+    MavoMysh
+    MavoKael
+    MavoSy]
+
+  [MavoLavelleN
+    MavoLavelle
+    MavoN
+    MavoIfa
+    MavoMysh
+    MavoKael
+    MavoSy]
+
+  [MavoLavelleLoVaShy
+    MavoLavelle
+    MavoYe
+    MavoSuKoLo
+    MavoMysh
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Yeshu)]
+}
+
+LoLao: MavoLoVaShySidhal(TyPytShi) {
+
+  [MavoSidhal
+    MavoShu MavoKlobNaTown
+    MavoPyt
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoSidhalVaShy
+    MavoSidhal
+    MavoZotWu
+    MavoTaVa
+    MavoMavoPyt
+    MavoKael
+    MavoSy]
+
+  [MavoSidhalSuKo
+    MavoSidhal
+    MavoSu
+    MavoZot
+    MavoMavoVa
+    MavoPyt
+    MavoKael
+    MavoSy]
+
+  [MavoSidhalLoShi
+    MavoSidhal
+    MavoMavoVa
+    MavoBoShi
+    MavoPyt
+    MavoKael
+    MavoSy]
+
+  [MavoSidhalLoVaShy
+    MavoSidhal
+    MavoYe
+    MavoSuKoLo
+    MavoPyt
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Lao)]
+}
+
+LoShushy: MavoLoVaShyKore(TyMyshPitShi) {
+
+  [MavoKore
+    MavoKiel MavoKlobNaWtch
+    MavoMysh
+    MavoPit
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoKoreVaShy
+    MavoKore
+    MavoMysh MavoPit
+    MavoMelWu
+    MavoShakShi
+    MavoKael
+    MavoSy]
+
+  [MavoKoreKo
+    MavoKore
+    MavoKo
+    MavoUikitakael
+    MavoMysh
+    MavoKael
+    MavoSy]
+
+  [MavoKoreAelyTagame
+    MavoKore
+    MavoYe MavoKlobNaDemi
+    MavoMelWu
+    MavoPit
+    MavoKael
+    MavoSy]
+
+  [MavoKoreShiShu
+    MavoKore
+    MavoMysh MavoPit
+    MavoShiShu
+    MavoUikitakael
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Shushy)]
+}
