@@ -1,0 +1,199 @@
+SethVaShy: MavoKoLoDungeon {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoDungeonMeta(TyKaTaShakShy) {
+
+  [MavoSulphera        KaTaShakShy]
+  [MavoMercurie        ElTaPufWu]
+  [MavoLapidus         RuTaZotNa]
+
+  [MavoSulpheraAccess  MavoInfernalMeditation]
+
+  [MavoTokenChain
+    Ar Azr Av At Yzr Af Yf]
+
+  [MavoMona
+    MavoPlay
+    MavoTorment
+    Na]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoVisitorRing(TyKaTaShakShyMavoSulpheraAccess) {
+
+  [MavoVisitorRing
+    Shushy
+    MavoSulpheraAccess
+    MavoKael
+    MavoSy]
+
+  [MavoVisitorBehavior
+    Ze Ta
+    MavoSulphera
+    Zo Ku
+    Mo]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoSinnersRings(TyTokenChainArAzrAvAtYzrAfYf) {
+
+  [MavoRingPride
+    Ao
+    MavoLevity
+    MavoOstentation
+    MavoLucifer
+    KaGa El
+    Ar
+    MavoKael
+    MavoSy]
+
+  [MavoRingGreed
+    Ye
+    MavoOstentation
+    MavoTactility
+    MavoMammon
+    Ot El
+    Ar Azr
+    MavoKael
+    MavoSy]
+
+  [MavoRingEnvy
+    Ui
+    MavoIngenuity
+    MavoReflectivity
+    MavoLeviathan
+    FuMel Na
+    Azr Av
+    MavoKael
+    MavoSy]
+
+  [MavoRingGluttony
+    Shu
+    MavoTactility
+    MavoVitality
+    MavoBeelzebub
+    Ot Ki Ru
+    Av At
+    MavoKael
+    MavoSy]
+
+  [MavoRingSloth
+    Kiel
+    MavoReflectivity
+    MavoIntrospection
+    MavoBelphegor
+    Ki Na Fozt
+    At Yzr
+    MavoVios
+    MavoKael
+    MavoSy]
+
+  [MavoRingWrath
+    Yeshu
+    MavoIntrospection
+    MavoLevity
+    MavoSatan
+    Ru Shak
+    Yzr Af
+    MavoNegaya
+    MavoKael
+    MavoSy]
+
+  [MavoRingLust
+    Lao
+    MavoVitality
+    MavoIngenuity
+    MavoAsmodeus
+    Ry Ka Alky
+    Af Yf
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Ye)]
+}
+
+LoUi: MavoRoyalRing(TyArAzrAvAtYzrAfYfSoa) {
+
+  [MavoRoyalRing
+    Uinshu
+    Ar Azr Av At Yzr Af Yf
+    Soa
+    MavoKael
+    MavoSy]
+
+  [MavoRoyalBehavior
+    MavoVoidWraiths
+    MavoOrrery
+    Ko
+    Soa]
+
+  [TaShyMa(Ui)]
+}
+
+LoShu: MavoFaeDungeons(TyMonaPlayTorment) {
+
+  [MavoDryadDungeon
+    MavoReflectivity
+    MavoMona
+    MavoHaldoro
+    Ki Zot
+    MavoKael
+    MavoSy]
+
+  [MavoUndineDungeon
+    MavoIntrospection
+    MavoMona
+    MavoHaldoro
+    Fu Mel
+    MavoKael
+    MavoSy]
+
+  [MavoSalamanderDungeon
+    MavoVitality
+    MavoMona
+    MavoLakota
+    Shak Zot
+    MavoKael
+    MavoSy]
+
+  [MavoGnomeDungeon
+    MavoTactility
+    MavoMona
+    MavoVios
+    Zot Ne
+    MavoKael
+    MavoSy]
+
+  [MavoFaerieDungeon
+    MavoLevity
+    MavoMona
+    MavoHaldoro MavoVios MavoNegaya
+    Puf Ki
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Shu)]
+}
+
+LoKiel: MavoMinesHieronymus(TyOstentationRuTaZotNa) {
+
+  [MavoMinesHieronymus
+    MavoOstentation
+    MavoLapidus
+    RuKaZot
+    MavoKael
+    MavoSy]
+
+  [MavoMinesBehavior
+    Ty Ta
+    Zot
+    MavoHypatia
+    Ko]
+
+  [TaShyMa(Kiel)]
+}
+
+} }

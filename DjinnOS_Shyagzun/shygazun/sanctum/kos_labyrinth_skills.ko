@@ -1,0 +1,229 @@
+SethVaShy: MavoKoLoSkills {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoSkillMeta(TyVITRIOLShi) {
+
+  [MavoVitality      TaShak]
+  [MavoIntrospection MuSha]
+  [MavoReflectivity  LyShi]
+  [MavoTactility     TyZot]
+  [MavoIngenuity     FyKo]
+  [MavoOstentation   ShyZe]
+  [MavoLevity        MoPuf]
+
+  [MavoTerrestrial   Ty]
+  [MavoAlchemical    Shy]
+  [MavoNarrative     Fy]
+  [MavoCosmic        Ze]
+
+  [MavoMaxRank       Shu Ye]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoSkillSchema(TyLoToShi) {
+
+  [MavoBarter
+    MavoOstentation
+    MavoNarrative
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoEnergyWeapons
+    MavoIngenuity
+    MavoCosmic
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoExplosives
+    MavoTactility
+    MavoTerrestrial
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoGuns
+    MavoTactility
+    MavoTerrestrial
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoLockpick
+    MavoIngenuity
+    MavoNarrative
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoMedicine
+    MavoReflectivity
+    MavoTerrestrial
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoMeleeWeapons
+    MavoVitality
+    MavoTerrestrial
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoRepair
+    MavoTactility
+    MavoAlchemical
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoAlchemy
+    MavoReflectivity
+    MavoAlchemical
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoSneak
+    MavoLevity
+    MavoNarrative
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoHack
+    MavoIngenuity
+    MavoAlchemical
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoSpeech
+    MavoLevity
+    MavoNarrative
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoSurvival
+    MavoVitality
+    MavoTerrestrial
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoUnarmed
+    MavoVitality
+    MavoTerrestrial
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoMeditation
+    MavoIntrospection
+    MavoCosmic
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoMagic
+    MavoLevity
+    MavoCosmic
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoBlacksmithing
+    MavoTactility
+    MavoAlchemical
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoSilversmithing
+    MavoOstentation
+    MavoAlchemical
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [MavoGoldsmithing
+    MavoOstentation
+    MavoAlchemical
+    MavoMaxRank
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoMeditationPerks(TyCannabisQuestGated) {
+
+  [MavoBreathwork
+    MavoMeditation
+    At
+    MavoTerrestrial Ung
+    MavoAlchemical  Ung
+    MavoKael
+    MavoSy]
+
+  [MavoAlchemicalMeditation
+    MavoMeditation
+    Shushy RuUi
+    Af
+    MavoAlchemical Wu
+    MavoKael
+    MavoSy]
+
+  [MavoHypnoticMeditation
+    MavoMeditation
+    Lao RuUi
+    Ar
+    MavoNarrative Na
+    MavoCosmic    Ung
+    MavoKael
+    MavoSy]
+
+  [MavoInfernalMeditation
+    MavoMeditation
+    Uinshu RuUi
+    An
+    MavoCosmic Wu
+    KaTaShakShy
+    MavoKael
+    MavoSy]
+
+  [MavoDepthMeditation
+    MavoMeditation
+    Aonkiel RuUi
+    Azr
+    MavoAlchemical Ung
+    MavoNarrative  Ung
+    MavoTerrestrial Ung
+    MavoCosmic     Ung
+    MavoKael
+    MavoSy]
+
+  [MavoTranscendentalMeditation
+    MavoMeditation
+    Ao Shu RuUi
+    Av
+    MavoCosmic Na
+    MavoKael
+    MavoSy]
+
+  [MavoZenMeditation
+    MavoMeditation
+    Ye Ye RuUi
+    Yv
+    MavoNarrative Na
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Ye)]
+}
+
+} }

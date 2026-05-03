@@ -1,0 +1,489 @@
+SethVaShy: MavoKoLoKlobSchema {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoObjectTraitMeta(TyVaKuDiDeKypaShakAsZhukSoaNeForztKazho) {
+
+  [MavoTraitUsable       Va]
+  [MavoTraitUnusable     Ke]
+  [MavoTraitFull         Ha]
+  [MavoTraitEmpty        Ga]
+  [MavoTraitAlive        TaVa]
+  [MavoTraitDead         Ku]
+  [MavoTraitMovable      Di]
+  [MavoTraitImmobile     De]
+  [MavoTraitPoisonous    Kypa]
+  [MavoTraitFlammable    Shak]
+  [MavoTraitInert        As]
+  [MavoTraitExplosive    Zhuk]
+  [MavoTraitToken        Soa]
+  [MavoTraitCollector    Ne]
+  [MavoTraitPowdered     Fozt]
+  [MavoTraitMolten       Kazho]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoApparatus(TyToGlStZotMel) {
+
+  [MavoMortar
+    Ao RuAo
+    MavoTraitUsable
+    Zot
+    MavoKael MavoSy]
+
+  [MavoPestle
+    Ye RuAo
+    MavoTraitUnusable
+    Zot
+    MavoKael MavoSy]
+
+  [MavoRag
+    Ui RuAo
+    MavoTraitUsable
+    MavoGl
+    MavoKael MavoSy]
+
+  [MavoStand
+    Shu RuAo
+    MavoTraitImmobile
+    Zot
+    MavoKael MavoSy]
+
+  [MavoRetort
+    Kiel RuAo
+    MavoTraitUsable
+    ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoVolumeFlask
+    Yeshu RuAo
+    MavoTraitUsable
+    Mipa
+    MavoKael MavoSy]
+
+  [MavoReagentBottle
+    Lao RuAo
+    MavoTraitUsable
+    Mipa
+    MavoKael MavoSy]
+
+  [MavoSand
+    Shushy RuAo
+    MavoTraitInert
+    Fozt
+    MavoKael MavoSy]
+
+  [MavoRefinedSand
+    Uinshu RuAo
+    MavoTraitInert
+    Fozt Va
+    MavoKael MavoSy]
+
+  [MavoFurnace
+    Kokiel RuAo
+    MavoTraitImmobile
+    ShakZot
+    MavoKael MavoSy]
+
+  [MavoCrucible
+    Aonkiel Kiel RuAo
+    MavoTraitUsable
+    ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoJar
+    Aonkiel Lao RuAo
+    MavoTraitUsable
+    Mipa
+    MavoKael MavoSy]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoUtensils(TyToGlStShak) {
+
+  [MavoWoodenSpoon
+    Ao Yo RuAo
+    MavoTraitUsable
+    ZotVa
+    MavoKael MavoSy]
+
+  [MavoCopperSpoon
+    Ao Ao RuAo
+    MavoTraitUsable
+    Ru Zot
+    MavoKael MavoSy]
+
+  [MavoIronSpoon
+    Ao Ye RuAo
+    MavoTraitUsable
+    Ka Zot
+    MavoKael MavoSy]
+
+  [MavoSteelSpoon
+    Ao Ui RuAo
+    MavoTraitUsable
+    Ka Zot Va
+    MavoKael MavoSy]
+
+  [MavoGraniteSpoon
+    Ao Shu RuAo
+    MavoTraitUsable
+    ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoBellows
+    Ao Kiel RuAo
+    MavoTraitUsable
+    Puf
+    MavoKael MavoSy]
+
+  [MavoCrucibleTongs
+    Ao Yeshu RuAo
+    MavoTraitUsable
+    Ka Zot
+    MavoKael MavoSy]
+
+  [TaShyMa(Ye)]
+}
+
+LoUi: MavoMetals(TyElRuKaOtNaShakZot) {
+
+  [MavoTin
+    Ye Gaoh RuAo
+    MavoTraitInert
+    Na Zot
+    MavoKael MavoSy]
+
+  [MavoIron
+    Ye Ao RuAo
+    MavoTraitInert
+    Ka Zot
+    MavoKael MavoSy]
+
+  [MavoGold
+    Ye Ye RuAo
+    MavoTraitInert
+    El Ha Zot
+    MavoKael MavoSy]
+
+  [MavoCopper
+    Ye Ui RuAo
+    MavoTraitInert
+    Ru Ot Zot
+    MavoKael MavoSy]
+
+  [MavoSilver
+    Ye Shu RuAo
+    MavoTraitInert
+    Na Ha Zot
+    MavoKael MavoSy]
+
+  [MavoLead
+    Ye Kiel RuAo
+    MavoTraitInert
+    Ka Ga Zot
+    MavoKael MavoSy]
+
+  [MavoNickel
+    Ye Yeshu RuAo
+    MavoTraitInert
+    Na Ki Zot
+    MavoKael MavoSy]
+
+  [MavoAnvil
+    Ye Lao RuAo
+    MavoTraitImmobile
+    Ka Zot Va
+    MavoKael MavoSy]
+
+  [MavoHammer
+    Ye Shushy RuAo
+    MavoTraitUsable
+    Ka Zot Di
+    MavoKael MavoSy]
+
+  [MavoRingMold
+    Ye Uinshu RuAo
+    MavoTraitUsable
+    Ka Zot Ne
+    MavoKael MavoSy]
+
+  [MavoIngotMold
+    Ye Kokiel RuAo
+    MavoTraitUsable
+    Ka Zot To
+    MavoKael MavoSy]
+
+  [TaShyMa(Ui)]
+}
+
+LoShu: MavoSubstances(TyKypaZitefZaotShakMelPuf) {
+
+  [MavoSulphurSubst
+    Ui Gaoh RuAo
+    MavoTraitFlammable
+    Kypa
+    MavoKael MavoSy]
+
+  [MavoMercurySubst
+    Ui Ao RuAo
+    MavoTraitPoisonous
+    Zitef
+    MavoKael MavoSy]
+
+  [MavoCharcoal
+    Ui Ye RuAo
+    MavoTraitFlammable
+    ZotKu
+    MavoKael MavoSy]
+
+  [MavoSaltpeter
+    Ui Ui RuAo
+    MavoTraitExplosive
+    ZaotKypa
+    MavoKael MavoSy]
+
+  [MavoPhosphorus
+    Ui Shu RuAo
+    MavoTraitFlammable
+    Shak Puf Zot
+    MavoKael MavoSy]
+
+  [MavoArsenic
+    Ui Kiel RuAo
+    MavoTraitPoisonous
+    ZitefKu
+    MavoKael MavoSy]
+
+  [MavoCyanide
+    Ui Yeshu RuAo
+    MavoTraitPoisonous
+    KuPuf
+    MavoKael MavoSy]
+
+  [MavoCausticLye
+    Ui Lao RuAo
+    MavoTraitPoisonous
+    Myza
+    MavoKael MavoSy]
+
+  [MavoPotassium
+    Ui Shushy RuAo
+    MavoTraitFlammable
+    Shak Zot Ha
+    MavoKael MavoSy]
+
+  [MavoDiatomEarth
+    Ui Uinshu RuAo
+    MavoTraitInert
+    Fozt Va
+    MavoKael MavoSy]
+
+  [MavoGlycerine
+    Ui Kokiel RuAo
+    MavoTraitUsable
+    MelZot
+    MavoKael MavoSy]
+
+  [MavoPetroleumJelly
+    Ui Aonkiel RuAo
+    MavoTraitUsable
+    MelZot As
+    MavoKael MavoSy]
+
+  [MavoAshes
+    Shu Gaoh RuAo
+    MavoTraitInert
+    ZotKu Fozt
+    MavoKael MavoSy]
+
+  [MavoWater
+    Shu Ao RuAo
+    MavoTraitUsable
+    Mel
+    MavoKael MavoSy]
+
+  [TaShyMa(Shu)]
+}
+
+LoKiel: MavoMinerals(TyZaotZotMaziFoztMipa) {
+
+  [MavoFlint
+    Shu Ye RuAo
+    MavoTraitFlammable
+    ZaotNaZotVa Shak
+    MavoKael MavoSy]
+
+  [MavoGranite
+    Shu Ui RuAo
+    MavoTraitInert
+    ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoObsidian
+    Shu Shu RuAo
+    MavoTraitInert
+    KazhoKu
+    MavoKael MavoSy]
+
+  [MavoChalk
+    Shu Kiel RuAo
+    MavoTraitPowdered
+    Fozt Na
+    MavoKael MavoSy]
+
+  [MavoGypsum
+    Shu Yeshu RuAo
+    MavoTraitInert
+    Fozt MelZot
+    MavoKael MavoSy]
+
+  [MavoQuartz
+    Shu Lao RuAo
+    MavoTraitInert
+    ZaotNaZotVa Ha
+    MavoKael MavoSy]
+
+  [MavoPumice
+    Shu Shushy RuAo
+    MavoTraitInert
+    Kazho Fozt
+    MavoKael MavoSy]
+
+  [MavoMoldavite
+    Shu Uinshu RuAo
+    MavoTraitInert
+    Ki Shak ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoDesertGlass
+    Shu Kokiel RuAo
+    MavoTraitInert
+    Zhuk Zot
+    MavoKael MavoSy]
+
+  [MavoSharkTooth
+    Shu Aonkiel RuAo
+    MavoTraitInert
+    ZaotNaZotVa Ku
+    MavoKael MavoSy]
+
+  [TaShyMa(Kiel)]
+}
+
+LoYeshu: MavoGems(TyElKiFuKaAERuNaZaotNaZotVa) {
+
+  [MavoAmethyst
+    Kiel Gaoh RuAo
+    MavoTraitInert
+    AE ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoRuby
+    Kiel Ao RuAo
+    MavoTraitInert
+    Ru ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoSapphire
+    Kiel Ye RuAo
+    MavoTraitInert
+    Fu ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoEmerald
+    Kiel Ui RuAo
+    MavoTraitInert
+    Ki ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoDiamond
+    Kiel Shu RuAo
+    MavoTraitInert
+    Ha ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoJade
+    Kiel Kiel RuAo
+    MavoTraitInert
+    Ki Mel ZaotNaZotVa
+    MavoKael MavoSy]
+
+  [MavoPearl
+    Kiel Yeshu RuAo
+    MavoTraitInert
+    Na Ha Mel
+    MavoKael MavoSy]
+
+  [MavoBlackPearl
+    Kiel Lao RuAo
+    MavoTraitInert
+    Ga Mel
+    MavoKael MavoSy]
+
+  [TaShyMa(Yeshu)]
+}
+
+LoLao: MavoCraftTools(TyToGlStZotVa) {
+
+  [MavoLatheChuck
+    Lao Gaoh RuAo
+    MavoTraitUsable
+    Ka Zot Vr
+    MavoKael MavoSy]
+
+  [MavoLathe
+    Lao Ao RuAo
+    MavoTraitImmobile
+    Ka Zot Vr Va
+    MavoKael MavoSy]
+
+  [MavoChisel
+    Lao Ye RuAo
+    MavoTraitUsable
+    Ka Zot Shy
+    MavoKael MavoSy]
+
+  [MavoRingBlank
+    Lao Ui RuAo
+    MavoTraitMovable
+    Na Zot Zo
+    At
+    MavoKael MavoSy]
+
+  [MavoPulp
+    Lao Shu RuAo
+    MavoTraitInert
+    ZotVa Mel
+    MavoKael MavoSy]
+
+  [MavoPaper
+    Lao Kiel RuAo
+    MavoTraitUsable
+    N Va
+    MavoKael MavoSy]
+
+  [MavoInk
+    Lao Yeshu RuAo
+    MavoTraitUsable
+    Mel Ga
+    MavoKael MavoSy]
+
+  [MavoPen
+    Lao Lao RuAo
+    MavoTraitUsable
+    N Fy
+    MavoKael MavoSy]
+
+  [MavoWood
+    Lao Shushy RuAo
+    MavoTraitFlammable
+    ZotVa TaVa
+    MavoKael MavoSy]
+
+  [TaShyMa(Lao)]
+}
+
+} }

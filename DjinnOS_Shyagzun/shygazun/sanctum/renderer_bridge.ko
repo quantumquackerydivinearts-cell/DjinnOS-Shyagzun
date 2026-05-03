@@ -1,0 +1,183 @@
+SethVaShy: MavoRendererBridge {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoRendererMeta(TyShiSao) {
+
+  [MavoChiralityFeature
+    Ra Tho Lu Ge Fo Kw Dr
+    Ry Oth Le Gi Fe Ky Alz]
+
+  [MavoTimeTopoFeature
+    Si Su Os Se Sy As]
+
+  [MavoSpaceOpFeature
+    Ep Gwev Ifa Ier San Enno Yl Hoz]
+
+  [MavoAxisFeature
+    Ji Jy Ju Ja Je]
+
+  [MavoTongueFeature
+    MavoAorutakael
+    MavoAokitakael
+    MavoAoaetakael
+    MavoYerutakael
+    MavoYekitakael
+    MavoYeaetakael
+    MavoUirutakael
+    MavoUikitakael]
+
+  [MavoCannabisFeature A I Y]
+
+  [MavoClusterFeature  Kyf Mio Kyom Kyl]
+
+  [MavoTrustFeature    Ha Na Ga Zo]
+
+  [MavoAuthorityFeature Ko Va]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoChiralMap(TyRaRyRuKaKielYeUi) {
+
+  [MavoLeftChiral
+    Ra Tho Lu Ge Fo Kw Dr]
+
+  [MavoRightChiral
+    Ry Oth Le Gi Fe Ky Alz]
+
+  [MavoLeftChiral
+    Ka
+    MavoRoseKiel]
+
+  [MavoRightChiral
+    KaGa
+    MavoRoseYe]
+
+  [Na
+    Ka
+    MavoRoseUi]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoTimeTopoMap(TySiSuOsSeySyAsVaVo) {
+
+  [Si  Va Wu           Zo]
+  [Su  Su Va Wu        Zo]
+  [Os  Vo Va           Zo]
+  [Se  Se Va Wu        Zo]
+  [Sy  Vo Va           Ha]
+  [As  As Va           Zo]
+
+  [TaShyMa(Ye)]
+}
+
+LoUi: MavoSpaceOpMap(TyEpGwevIfaIerSanEnnoYlHoz) {
+
+  [Ep   Ji Jy Ju   Na]
+  [Gwev Ji Ju      Na]
+  [Ifa  Ji         Ja]
+  [Ier  Ji Ju      Na]
+  [San  Ji Jy Ju   Ja]
+  [Enno Ji         Ja]
+  [Yl   Ji Jy Ju   Na]
+  [Hoz  Ji Ju      Ja]
+
+  [TaShyMa(Ui)]
+}
+
+LoShu: MavoAxisMap(TySakuraCam) {
+
+  [Ji   MavoAxisX]
+  [Jy   MavoAxisY]
+  [Ju   MavoAxisZ]
+  [Ja   MavoAxisLong]
+  [Je   MavoAxisTrans]
+  [JyJu MavoAxisVert]
+
+  [TaShyMa(Shu)]
+}
+
+LoKiel: MavoTongueMap(TyTongueKoShiRoseKael) {
+
+  [MavoAorutakael
+    MavoBg ZoFuMel
+    MavoEdge FuMel
+    MavoRose Kiel]
+
+  [MavoAokitakael
+    MavoBg KaAE
+    MavoEdge RyNa
+    MavoRose Yeshu]
+
+  [MavoAoaetakael
+    MavoBg KaMelRu
+    MavoEdge RyNa
+    MavoRose Kiel]
+
+  [MavoYerutakael
+    MavoBg KaMelZot
+    MavoEdge OtEl
+    MavoRose Shu]
+
+  [MavoYekitakael
+    MavoBg KaShakMel
+    MavoEdge OtAlky
+    MavoRose Kiel]
+
+  [MavoYeaetakael
+    MavoBg KaKa
+    MavoEdge AlzNa
+    MavoRose KielAo]
+
+  [MavoUirutakael
+    MavoBg RuKaZot
+    MavoEdge RaMel
+    MavoRose Ui]
+
+  [MavoUikitakael
+    MavoBg KiZotMel
+    MavoEdge GiNa
+    MavoRose Kiel]
+
+  [TaShyMa(Kiel)]
+}
+
+LoYeshu: MavoCannabisModeMap(TyAIYTileZScale) {
+
+  [A
+    MavoTile Ao Shu
+    MavoZScale Ao Gaoh]
+
+  [I
+    MavoTile Ao Shushy
+    MavoZScale Shushy]
+
+  [Y
+    MavoTile Ao Ye
+    MavoZScale Yeshu]
+
+  [TaShyMa(Yeshu)]
+}
+
+LoLao: MavoClusterTrustAuthMap(TyKyfKylHaNaGaKoVa) {
+
+  [Kyf  MavoLod Ao]
+  [Mio  MavoLod Ye]
+  [Kyom MavoLod Ui]
+  [Kyl  MavoLod Ye]
+
+  [Ha   MavoLight Ha  MavoAmbient Kiel  MavoIntensity Uinshu]
+  [Na   MavoLight Ha  MavoAmbient Ui    MavoIntensity Shushy]
+  [Ga   MavoLight Zo  MavoAmbient Ye    MavoIntensity Lao]
+  [Zo   MavoLight Zo  MavoAmbient Ui    MavoIntensity Shushy]
+
+  [Ko   MavoLabel MavoRole]
+  [Va   MavoLabel MavoType]
+  [Zo   MavoLabel Zo]
+
+  [TaShyMa(Lao)]
+}
+
+} }

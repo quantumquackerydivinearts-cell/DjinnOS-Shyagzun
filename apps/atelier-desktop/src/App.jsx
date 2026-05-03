@@ -129,7 +129,8 @@ const NAV_ITEMS = [
   "Alchemy Lab",
   "Shop Manager",
   "Q3",
-  "Supra Librix"
+  "Supra Librix",
+  "Sequential Art"
 ];
 
 function capabilitiesForRole(role) {
@@ -13901,6 +13902,26 @@ function extractPythonSavedPath(outputText) {
   const [gltfImportStatus, setGltfImportStatus] = useState("idle");
   const gltfImportRef = useRef(null);
 
+  // Sequential Art state
+  const [seqProjectId, setSeqProjectId]       = useState("");
+  const [seqPages, setSeqPages]               = useState([]);
+  const [seqPageId, setSeqPageId]             = useState("");
+  const [seqPageNumber, setSeqPageNumber]     = useState("1");
+  const [seqPageTitle, setSeqPageTitle]       = useState("");
+  const [seqPageNotes, setSeqPageNotes]       = useState("");
+  const [seqPanels, setSeqPanels]             = useState([]);
+  const [seqPanelId, setSeqPanelId]           = useState("");
+  const [seqPanelType, setSeqPanelType]       = useState("standard");
+  const [seqPanelNotes, setSeqPanelNotes]     = useState("");
+  const [seqPanelStatus, setSeqPanelStatus]   = useState("sketch");
+  const [seqDialogue, setSeqDialogue]         = useState("");
+  const [seqCaption, setSeqCaption]           = useState("");
+  const [seqSfx, setSeqSfx]                   = useState("");
+  const [seqChars, setSeqChars]               = useState([]);
+  const [seqCharName, setSeqCharName]         = useState("");
+  const [seqCharDesc, setSeqCharDesc]         = useState("");
+  const [seqCharRef, setSeqCharRef]           = useState("");
+
   const handleExportGlb = () => {
     if (rendererMotionVoxels.length === 0) return;
     const glb = voxelsToGlb(rendererMotionVoxels, {
@@ -19223,6 +19244,141 @@ function extractPythonSavedPath(outputText) {
     if (section === "Supra Librix") {
       return <SupraLibrixPanel apiBase={API_BASE} authToken={authToken} />;
     }
+    if (section === "Sequential Art") {
+      const listSeqPages = async () => {
+        if (!seqProjectId) return;
+        const data = await apiCall(`/v1/projects/${seqProjectId}/pages`, "GET");
+        setSeqPages(data || []);
+      };
+      const createSeqPage = async () => {
+        if (!seqProjectId) return;
+        await apiCall(`/v1/projects/${seqProjectId}/pages`, "POST", {
+          page_number: parseInt(seqPageNumber) || 1,
+          title: seqPageTitle,
+          notes: seqPageNotes,
+          status: "draft",
+        });
+        setSeqPageTitle(""); setSeqPageNotes("");
+        await listSeqPages();
+      };
+      const listSeqPanels = async (pid) => {
+        const id = pid || seqPageId;
+        if (!seqProjectId || !id) return;
+        const data = await apiCall(`/v1/projects/${seqProjectId}/pages/${id}/panels`, "GET");
+        setSeqPanels(data || []);
+      };
+      const createSeqPanel = async () => {
+        if (!seqProjectId || !seqPageId) return;
+        const dialogue = seqDialogue ? [{ speaker: "", text: seqDialogue, bubble_type: "speech" }] : [];
+        const caption  = seqCaption  ? [{ position: "top", text: seqCaption }] : [];
+        const sfx      = seqSfx      ? [{ text: seqSfx, style: "" }] : [];
+        await apiCall(`/v1/projects/${seqProjectId}/pages/${seqPageId}/panels`, "POST", {
+          panel_index: seqPanels.length,
+          panel_type: seqPanelType,
+          notes: seqPanelNotes,
+          status: seqPanelStatus,
+          dialogue_json: dialogue,
+          caption_json: caption,
+          sfx_json: sfx,
+        });
+        setSeqPanelNotes(""); setSeqDialogue(""); setSeqCaption(""); setSeqSfx("");
+        await listSeqPanels();
+      };
+      const listSeqChars = async () => {
+        if (!seqProjectId) return;
+        const data = await apiCall(`/v1/projects/${seqProjectId}/characters`, "GET");
+        setSeqChars(data || []);
+      };
+      const createSeqChar = async () => {
+        if (!seqProjectId || !seqCharName) return;
+        await apiCall(`/v1/projects/${seqProjectId}/characters`, "POST", {
+          name: seqCharName, description: seqCharDesc, reference_url: seqCharRef, notes: "",
+        });
+        setSeqCharName(""); setSeqCharDesc(""); setSeqCharRef("");
+        await listSeqChars();
+      };
+      return (
+        <section className="panel">
+          <h2>Sequential Art</h2>
+
+          <div className="row">
+            <input value={seqProjectId} onChange={e => setSeqProjectId(e.target.value)} placeholder="project id" style={{maxWidth:260}} />
+            <button className="action" onClick={() => { listSeqPages(); listSeqChars(); }}>Load Project</button>
+          </div>
+
+          <h3 style={{marginTop:"1rem"}}>Pages</h3>
+          <div className="row">
+            <input value={seqPageNumber} onChange={e => setSeqPageNumber(e.target.value)} placeholder="page #" style={{maxWidth:64}} />
+            <input value={seqPageTitle} onChange={e => setSeqPageTitle(e.target.value)} placeholder="title" />
+            <input value={seqPageNotes} onChange={e => setSeqPageNotes(e.target.value)} placeholder="notes" />
+            <button className="action" onClick={createSeqPage}>Add Page</button>
+            <button className="action" onClick={listSeqPages}>Refresh</button>
+          </div>
+          <div style={{marginTop:"0.5rem"}}>
+            {seqPages.map(p => (
+              <div key={p.id} className="row" style={{alignItems:"center",gap:8}}>
+                <span style={{fontWeight: seqPageId === p.id ? 600 : 400, cursor:"pointer"}}
+                  onClick={() => { setSeqPageId(p.id); listSeqPanels(p.id); }}>
+                  p.{p.page_number} {p.title || ""} <span style={{opacity:0.5,fontSize:"0.8em"}}>[{p.status}]</span>
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {seqPageId && (<>
+            <h3 style={{marginTop:"1rem"}}>Panels — page {seqPages.find(p=>p.id===seqPageId)?.page_number ?? ""}</h3>
+            <div className="row">
+              <select value={seqPanelType} onChange={e => setSeqPanelType(e.target.value)}>
+                {["standard","splash","bleed","inset"].map(t => <option key={t}>{t}</option>)}
+              </select>
+              <select value={seqPanelStatus} onChange={e => setSeqPanelStatus(e.target.value)}>
+                {["sketch","inks","color","final"].map(s => <option key={s}>{s}</option>)}
+              </select>
+              <input value={seqPanelNotes} onChange={e => setSeqPanelNotes(e.target.value)} placeholder="panel notes" />
+            </div>
+            <div className="row">
+              <input value={seqDialogue} onChange={e => setSeqDialogue(e.target.value)} placeholder="dialogue" />
+              <input value={seqCaption}  onChange={e => setSeqCaption(e.target.value)}  placeholder="caption" />
+              <input value={seqSfx}      onChange={e => setSeqSfx(e.target.value)}      placeholder="sfx" />
+              <button className="action" onClick={createSeqPanel}>Add Panel</button>
+              <button className="action" onClick={() => listSeqPanels()}>Refresh</button>
+            </div>
+            <div style={{marginTop:"0.5rem"}}>
+              {seqPanels.map((pan, i) => (
+                <div key={pan.id} className="row" style={{gap:8,fontSize:"0.85em"}}>
+                  <span style={{opacity:0.5}}>#{i+1}</span>
+                  <span>{pan.panel_type}</span>
+                  <span style={{opacity:0.6}}>[{pan.status}]</span>
+                  {(pan.dialogue_json||[]).map((d,j) => <span key={j} style={{fontStyle:"italic"}}>"{d.text}"</span>)}
+                  {(pan.caption_json||[]).map((c,j)  => <span key={j} style={{opacity:0.7}}>{c.text}</span>)}
+                  {(pan.sfx_json||[]).map((s,j)      => <span key={j} style={{fontWeight:600}}>{s.text}</span>)}
+                  {pan.notes && <span style={{opacity:0.5}}>{pan.notes}</span>}
+                </div>
+              ))}
+            </div>
+          </>)}
+
+          <h3 style={{marginTop:"1rem"}}>Characters</h3>
+          <div className="row">
+            <input value={seqCharName} onChange={e => setSeqCharName(e.target.value)} placeholder="name" />
+            <input value={seqCharDesc} onChange={e => setSeqCharDesc(e.target.value)} placeholder="description" />
+            <input value={seqCharRef}  onChange={e => setSeqCharRef(e.target.value)}  placeholder="reference url" />
+            <button className="action" onClick={createSeqChar}>Add Character</button>
+            <button className="action" onClick={listSeqChars}>Refresh</button>
+          </div>
+          <div style={{marginTop:"0.5rem"}}>
+            {seqChars.map(c => (
+              <div key={c.id} className="row" style={{gap:8,fontSize:"0.85em"}}>
+                <strong>{c.name}</strong>
+                {c.description && <span style={{opacity:0.7}}>{c.description}</span>}
+                {c.reference_url && <a href={c.reference_url} target="_blank" rel="noreferrer" style={{opacity:0.5}}>ref</a>}
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
     return <section className="panel"><h2>Tooling</h2><p>Select a section.</p></section>;
   }
 

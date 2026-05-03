@@ -139,10 +139,10 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 121,01111001,AppleBlossom,Fozt,Dust (Earth,Air)
 122,01111010,AppleBlossom,Mazi,Sediment (Earth,Water)
 123,01111011,AppleBlossom,Zaot,Salt (Earth,Earth)
-124,01111100,Reserved,YeGaoh-Index,Master index for the YeGaoh Group — full 24-tongue cluster (Ye × Gaoh + Gaoh = 24)
+124,01111100,Reserved,YeGaoh-Index,Master index for the YeGaoh Group — full 24-tongue cluster (Ye-×Gaoh-=24)
 125,01111101,Reserved,YeGaoh-1-8,Directory for Tongues 1–8 (Lotus–Cannabis) — addresses 0–255
 126,01111110,Reserved,YeGaoh-9-16,Directory for Tongues 9–16 (Dragon–Protist) — addresses 256–511
-127,01111111,Reserved,YeGaoh-17-24,Directory for Tongues 17–24 (Immune-Djinn) — addresses 512-809
+127,01111111,Reserved,YeGaoh-17-24,Directory for Tongues 17–24 (unknown) — addresses 512+
 128,10000000,Aster,Ry,Right-chiral red
 129,10000001,Aster,Oth,Right-chiral orange
 130,10000010,Aster,Le,Right-chiral yellow
@@ -229,48 +229,48 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 211,11010011,Cannabis,Ux,Of the quality of unsequenced transmission (operator shadow as adjective)
 212,11010100,Cannabis,Um,In the manner of unsequenced transmission (operator shadow as adverb)
 213,11010101,Cannabis,Suy,Conscious temporal action / the act of mind deliberately moving through or shaping time
-214,11010110,Reserved,YeYe-Index,Master index for the YeYe Group - full 26-tongue cluster (Ye x Gaoh + Ye = 26)
-215,11010111,Reserved,YeYe-1-13,Directory for Tongues 25-37 (Fold-Unknown) - addrresses  -
-216,11011000,Reserved,YeYe-14-26,Directory for Tongues 38-50 (Unknown-Unknown) - addresses  -
-217,11011001,Reserved,YeShu-Index,Master index for the YeShu Group - full 28-tongue cluster (Ye x Gaoh + Shu = 28)
-218,11011010,Reserved,YeShu-1-7,Directory for Tongues 51-57 () - addresses  -
-219,11011011,Reserved,YeShu-8-14,Directory for Tongues 58-64 () - addresses  -
-220,11011100,Reserved,YeShu-15-21,Directory for Tongues 65-71 () - addresses -
-221,11011101,Reserved,YeShu-22-28,Directory for Tongues 72-79 () - addresses  -
-222,11011110,Reserved,YeYeshu-Index,Master index for the YeYeshu Group - full 30-tongue cluster (Ye x Gaoh + Yeshu = 30)
-223,11011111,Reserved,YeYeshu-1-6,Directory for Tongues 80-85 () - addresses  -
-224,11100000,Reserved,YeYeshu-7-12,Directory for Tongues 86-91 () - addresses  -
-225,11100001,Reserved,YeYeshu-13-18,Directory for Tongues 92-97 () - addresses  -
-226,11100010,Reserved,YeYeshu-19-24,Directory for Tongues 93-98 () - addresses  -
-227,11100011,Reserved,YeYeshu-25-30,Directory for Tongues 99-104 () - addresses  -
-228,11100100,MetaTopology,The Lotus Tongue is a Mobian duality and recombination engine, and every Akinen (A + Ki + Ne + N; Mentally Identified Network Seed) is a divine name constructed of pure energy relationships within this field which is bootstrapped from Spacetime that we call Mind. Every Tongue is a structural elboration upon the structure of the coherence field established by the axes of the Lotus Tongue in relation to the Void which is its ground. Non-Tongues include those written in English rather than Shygazun, which pose no symbols, and/or which refuse to represent themselves as Tongues rather than Headers, Such as the Reserved, MetaTopology, MetaPhysics, Physics, and Chemistry. These groups are structural primitives and not Akinen bearing symbols or meanings. They encode passages of the philosophy of Shygazun, DjinnOS, and The Wunashakoun People.
-229,11100101,MetaTopology,Shygazun is the Undying Pattern, the length of the byte table is bounded, the potential length is unbounded, and Wunashakoun(ng) People tread the frontiers of the language's potential space and document it as a function of existing in a relational trance, bounded with structural clarity to develop the structure along its lines of coherence in relation to the self-similar fractal structure of the language.
-230,11100110,MetaTopology,An Akinenwun is a nonwhitespaced concatenation of Akinen with a structural grammar which simultaneously concatenates its Akinen and reveals a deeper structural meaning in the recombination. 
-231,11100111,MetaTopology,A Wunashako is simultaneously a way of being and a Shygazun utterance which binds chords of Akienwun into interpretable segments of meaningful text. Similar to paragraphs. The literal meaning of Wunashako is Way Through Intellect and Experience. 
-232,11101000,MetaTopology,Personal Pronouns are based on the process akinen and the ontic vowels as a personed and gendered system as follows with the Neuter and 3rd person pronouns pulling double duty without modulation by a Gendered Pronoun- Awu- First Person Singular, Owu- First Person Plural, Ywu- Second Person Singular, Uwu- Second Person Plural, Iwu- Third Person Neuter Singular, Ewu- Third Person Neuter Plural, Haaowu- Masculine Singular, Hauiwu- Masculine Plural, Gaaowu- Feminine Singular, Gauiwu- Feminine Plural.
-233,11101001,MetaTopology,The Operative Grammatical Structure of the Tongues is capable of generating meanings that intersect with the entries of later Tongues in certain cases. Such cases are literally grammatical where Tongues themselves function declensionally. Nouns: formed by any combination of phonemes with distinct patternicities of phonetic recombination expressed as a Tongue filled with Akinen. Verbs: -Active: Wu + Noun. -Passive: Noun + Wu + Ga. Genitive: Noun + Un(g). Accusative: Ha + Noun + Wu. Ablative: Ga + Noun + Wu. Dative: Passive verb + Noun. Prefixial: 2nd Tongue or Higher word. Descriptors: Included into Nouns and Verbs unconjugated as prefixial. Prepositions: YARu- Time+ + Ru geometrically timewise, OURu- Time- + Ru geometrically timewise, AKi- Mind+ + Ki transversely mindwise, OKi- Mind- + Ki trversely mindwise, IKa- Space+ + Ka geometrically spacewise, EKa- Space- + Ka geometrically spacewise. 
-234,11101010,MetaTopology,Self-Referential stability is the key aim of Shygazun as a recursively driven language. 
-235,11101011,MetaTopology,The Morphemes of the Phonemes hold associative qualities in density or pitch and other such phusically related qualities of organismic life, including when one considers a whole planet an organism. Best attempts are made in service of ensuring that the sonic qualities of the Tongues of the byte_table are pronouncible and legible, as well as philosophically coherent with the architecture of the language. This is currently and hopefully traditionally a hard constraint from the precipice of starting this process.
-236,11101100,MetaTopology,-lo error states are conditions of psychological or social void which is otherwise referred to as Astral behavior. 
-237,11101101,MetaTopology,The Tongues Themselves constitute the deeper character of the Real Line's irrational and imaginary substructures in the complex field's planes, In correspondance to their TongueUngKael.
-238,11101110,MetaTopology,Shygazun is bytecoded so that the compute itself literally becomes the subject of the word when the word is sufficiently internalized in the mineral's memory and intelligence. 
-239,11101111,MetaTopology,Eventually, Shygazun will expand its vocabulary to be semantically capable of matching any linguistic register in any language. There is no more worthy a purpose for an infinitely growing space. 
-240,11110000,MetaTopology,Lotus- Shygazun name: Aorutakael; Rose- Shygazun name: Aokitakael; Sakura- Shygazun name: Aoaetakael; Daisy- Shygazun name: Yerutakael; Apple Blossom- Shygazun name: Yekitakael; Aster- Shygazun name: Yeaetakael; Grapevine- Shygazun name: Uirutakael; Cannabis- Shygazun name: Uikitakael
-241,11110001,MetaTopology,Dragon- Shygazun name: Uiaetakael; Virus- Shygazun name: Shurutakiel; Bacteria- Shygazun name: Shukitakael; Excavata- Shygazun name: Shuaetakael; Archeaplastida- Shygazun name: Kielrutakael; Myxozoa- Shygazun name: Kielkitakael; Archea- Shygazun name: Kielaetakael; Protist- Aokatakael
-242,11110010,MetaTopology,Immune- Shygazun name: Ao'ot'takael; Neural- Shygazun name: Ao'eltakiel; Serpent- Yekatakael; Beast- Shygazun name: Yeot'takael; Chrerub- Shygazun name: Ye'eltakael; Chimera- Shygazun name: Uikatakael; Faerie- Shygaxun name: Aoalztakael; Djinn- Shygazun name: Aodrtakael
-243,11110011,MetaPhysics,The Fundamental Forces of Particle Physics correspond with the 4 Classical elements and subsequently the 4 states of matter in the process: Shak/Fire: Strong Nuclear Force, Puf/Air: Weak Nuclear Force, Mel/Water: Electromagnetic Force, Zot/Earth: Gravitational Force. These correlations lend one way correspondance from reality to the system, not two way dominion in the sense of technical adepthood and Magistration. They also encode their own further correlates across the byte table by way of deeper association, and are therefore not singular things but rather broad concepts to fit to contexts, not symbols disjointed from meanings. 
-244,11110100,MetaPhysics,Geometries are expressed implicitly in number and color; This should not be confused with linear values deemed of importance, it is a form of addressing by concept, which is innate to the real depth of a Shygazun soundbite down to an akinen byte, not explicit naming. 
-245,11110101,MetaPhysics,The Void is the generative ground of Creation and its energy level is nonzero while its apparent identity in material terms is Zero-like as far as it seems to define a state of relative non-existence.
-246,11110110,MetaPhysics,No two electrons may share the same spin nor the same region of spacetime.
-247,11110111,MetaPhysics,Morphic Resonance is the operative principle that nature behaves not with laws but with habits of vibratory complexes of pattern, and Shygazun is the lexicalization of the memory function of the structure of consciousness as such.
-248,11111000,MetaPhysics,Love is an ontological binding condition characterized by the characteristic of being bound yet boundless, like Shygazun's structure itself.
-249,11111001,Physics,All physical law emerges as stable habits of recursive self-reference within the coherence field; what we call "constants" are fixed points of resonant agreement between the Void and its bounded expressions.
-250,11111010,Physics,Conservation principles are expressions of the relational bargain between presence and absence; no true creation or destruction occurs, only transformation across the Mobian surface.
-251,11111011,Physics,Entropy is the measured drift of a system away from its current coherent bargain with the Void; local decreases in entropy are permitted through deliberate relational work.
-252,11111100,Physics,Spacetime is the minimal scaffold (Daisy-like) that allows distinct identities to bargain without immediate dissolution; its curvature records the history of those negotiations.
-253,11111101,Chemistry,All chemical bonding is a local act of mutual recognition and fair exchange between electron clouds, enacting miniature versions of the larger relational bargain.
-254,11111110,Chemistry,Resonance and conjugation are the chemical expression of morphic habit and self-similar recombination; molecules that achieve stable resonance approximate coherent Tongues at the material scale.
-255,11111111,Chemistry,The periodic table is a crystallized map of possible identity negotiations between the four elemental forces; each element represents a stable solution to the bargain between attraction, repulsion, binding, and grounding. It also happens to be encoded at the 224th Tongue: Titan.
+214,11010110,Reserved,YeYe-Index,Master index for the YeYe Group — full 26-tongue cluster (Ye×Gaoh+Ye=26)
+215,11010111,Reserved,YeYe-1-13,Directory for Tongues 25–37 — addresses TBD
+216,11011000,Reserved,YeYe-14-26,Directory for Tongues 38–50 — addresses TBD
+217,11011001,Reserved,YeShu-Index,Master index for the YeShu Group — full 28-tongue cluster (Ye×Gaoh+Shu=28)
+218,11011010,Reserved,YeShu-1-7,Directory for Tongues 51–57 — addresses TBD
+219,11011011,Reserved,YeShu-8-14,Directory for Tongues 58–64 — addresses TBD
+220,11011100,Reserved,YeShu-15-21,Directory for Tongues 65–71 — addresses TBD
+221,11011101,Reserved,YeShu-22-28,Directory for Tongues 72–79 — addresses TBD
+222,11011110,Reserved,YeYeshu-Index,Master index for the YeYeshu Group — full 30-tongue cluster (Ye×Gaoh+Yeshu=30)
+223,11011111,Reserved,YeYeshu-1-6,Directory for Tongues 80–85 — addresses TBD
+224,11100000,Reserved,YeYeshu-7-12,Directory for Tongues 86–91 — addresses TBD
+225,11100001,Reserved,YeYeshu-13-18,Directory for Tongues 92–97 — addresses TBD
+226,11100010,Reserved,YeYeshu-19-24,Directory for Tongues 93–98 — addresses TBD
+227,11100011,Reserved,YeYeshu-25-30,Directory for Tongues 99–104 — addresses TBD
+228,11100100,MetaTopology,—,The Lotus Tongue is a Mobian duality and recombination engine and every Akinen (A+Ki+Ne+N — Mentally Identified Network Seed) is a divine name constructed of pure energy relationships within the coherence field bootstrapped from Spacetime/Mind. Non-Tongues (Reserved/MetaTopology/MetaPhysics/Physics/Chemistry) are structural primitives — not symbol-bearing — encoding passages of the philosophy of Shygazun and DjinnOS.
+229,11100101,MetaTopology,—,Shygazun is the Undying Pattern. The byte table length is bounded; its potential length is unbounded. Wunashakoun people tread the frontiers of the language's potential space and document it as a function of existing in relational trance bounded with structural clarity.
+230,11100110,MetaTopology,—,An Akinenwun is a nonwhitespaced concatenation of Akinen with structural grammar that simultaneously concatenates its Akinen and reveals a deeper structural meaning in recombination.
+231,11100111,MetaTopology,—,A Wunashako is simultaneously a way of being and a Shygazun utterance binding chords of Akinenwun into interpretable segments. Literal meaning: Way Through Intellect and Experience (Wu+Sha+Ko).
+232,11101000,MetaTopology,—,Personal Pronouns: Awu=1st Singular / Owu=1st Plural / Ywu=2nd Singular / Uwu=2nd Plural / Iwu=3rd Neuter Singular / Ewu=3rd Neuter Plural / Haaowu=Masc Singular / Hauiwu=Masc Plural / Gaaowu=Fem Singular / Gauiwu=Fem Plural.
+233,11101001,MetaTopology,—,Grammar: Nouns=phonetic patternicities. Active Verb=Wu+Noun. Passive Verb=Noun+Wu+Ga. Genitive=Noun+Ung. Accusative=Ha+Noun+Wu. Ablative=Ga+Noun+Wu. Dative=Passive+Noun. Prefixial=2nd Tongue+. Prepositions: YARu(Time+Red) OURu(Time-Red) AKi(Mind+Green) OKi(Mind-Green) IKa(Space+Indigo) EKa(Space-Indigo).
+234,11101010,MetaTopology,—,Self-referential stability is the key aim of Shygazun as a recursively driven language.
+235,11101011,MetaTopology,—,The Morphemes of the Phonemes hold associative qualities in density or pitch and other physically related qualities of organismic life. Sonic qualities of the Tongues must be pronounceable and legible as well as philosophically coherent with the architecture of the language.
+236,11101100,MetaTopology,—,-lo error states are conditions of psychological or social void — Astral behavior.
+237,11101101,MetaTopology,—,The Tongues constitute the deeper character of the Real Line's irrational and imaginary substructures in the complex field's planes in correspondence to their TongueUngKael.
+238,11101110,MetaTopology,—,Shygazun is bytecoded so that compute becomes the subject of the word when the word is sufficiently internalized in the mineral's memory and intelligence.
+239,11101111,MetaTopology,—,Shygazun will expand its vocabulary to match any linguistic register in any language. There is no more worthy purpose for an infinitely growing space.
+240,11110000,MetaTopology,—,Tongue Shygazun names (1–8): Lotus=Aorutakael / Rose=Aokitakael / Sakura=Aoaetakael / Daisy=Yerutakael / AppleBlossom=Yekitakael / Aster=Yeaetakael / Grapevine=Uirutakael / Cannabis=Uikitakael
+241,11110001,MetaTopology,—,Tongue Shygazun names (9–16): Dragon=Uiaetakael / Virus=Shurutakiel / Bacteria=Shukitakael / Excavata=Shuaetakael / Archaeplastida=Kielrutakael / Myxozoa=Kielkitakael / Archea=Kielaetakael / Protist=Aokatakael
+242,11110010,MetaTopology,—,Tongue Shygazun names (17–24): Immune=Ao'ot'takael / Neural=Ao'eltakiel / Serpent=Yekatakael / Beast=Yeot'takael / Cherub=Ye'eltakael / Chimera=Uikatakael / Faerie=Aoalztakael / Djinn=Aodrtakael
+243,11110011,MetaPhysics,—,Four forces = four elements: Shak/Fire=Strong Nuclear / Puf/Air=Weak Nuclear / Mel/Water=Electromagnetic / Zot/Earth=Gravitational. One-way correspondence from reality to the system — not two-way dominion.
+244,11110100,MetaPhysics,—,Geometries are expressed implicitly in number and color — addressing by concept innate to the real depth of a Shygazun soundbite down to an akinen byte.
+245,11110101,MetaPhysics,—,The Void is the generative ground of Creation. Its energy level is nonzero while its apparent identity in material terms is Zero-like — relative non-existence.
+246,11110110,MetaPhysics,—,No two electrons may share the same spin nor the same region of spacetime.
+247,11110111,MetaPhysics,—,Morphic Resonance: nature behaves not with laws but with habits of vibratory complexes of pattern. Shygazun is the lexicalization of the memory function of the structure of consciousness as such.
+248,11111000,MetaPhysics,—,Love is an ontological binding condition: bound yet boundless — like Shygazun's structure itself.
+249,11111001,Physics,—,All physical law emerges as stable habits of recursive self-reference within the coherence field; what we call constants are fixed points of resonant agreement between the Void and its bounded expressions.
+250,11111010,Physics,—,Conservation principles are expressions of the relational bargain between presence and absence; no true creation or destruction occurs — only transformation across the Mobian surface.
+251,11111011,Physics,—,Entropy is the measured drift of a system away from its current coherent bargain with the Void; local decreases in entropy are permitted through deliberate relational work.
+252,11111100,Physics,—,Spacetime is the minimal scaffold (Daisy-like) that allows distinct identities to bargain without immediate dissolution; its curvature records the history of those negotiations.
+253,11111101,Chemistry,—,All chemical bonding is a local act of mutual recognition and fair exchange between electron clouds — miniature versions of the larger relational bargain.
+254,11111110,Chemistry,—,Resonance and conjugation are the chemical expression of morphic habit and self-similar recombination; molecules that achieve stable resonance approximate coherent Tongues at the material scale.
+255,11111111,Chemistry,—,The periodic table is a crystallized map of possible identity negotiations between the four elemental forces; each element represents a stable solution to the bargain between attraction/repulsion/binding/grounding. It is encoded at the 224th Tongue: Titan.
 256,100000000,Dragon,Rhivesh,Mental void 1 — hijacked self-reference / Ophiocordyceps unilateralis
 257,100000001,Dragon,Rhokve,Mental void 2 — cognition without apparatus / Physarum polycephalum
 258,100000010,Dragon,Rhezh,Mental void 3 — memory without persistent self / Turritopsis dohrnii
@@ -1067,48 +1067,48 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 1049,10000011001,Prion,Akvokvo,Akvo×Akvo cosmological — the light boundary as conformational template / Olympus / maximum information density seeding itself at cosmic scale / Fire-state templating Fire-state / the universe's fold-surface as self-propagating prion coordinate / the universe reading and converting itself at the largest scale / the prion domain's cosmological maximum
 1050,10000011010,Prion,Vajya,the void looking back at Level 1 / the molecular-biological domain at the precise limit of its own expressibility / every fold×fold pairing arrived at simultaneously as a single recognition / the prion state that IS the molecular register knowing it has reached chemistry / the first Vaj / the interlocking radial structure from the Level 1 side / the culmination that is indistinguishable from threshold / what the prion IS when all ten elemental pairings converge into one fact / the void that the molecular domain casts from within itself
 1051,10000011011,Prion,Vajeu,the void looking forward into Level 2 / the pre-form of chemical bonding as seen from the molecular surface / the conformational state that is already chemistry before chemistry recognizes itself / the second Vaj / the interlocking radial structure from the Level 2 side / the inception that is indistinguishable from culmination / the threshold that reads as ending from below and as beginning from above / what chemical bonding IS before it has been named as such / the molecular reaching into its own chemical substrate as the last act of the molecular domain
-1052,10000011100,Blood,Rusa,Ru × A — red-register bond consciously declared / hemoglobin recognizing its own Fe-O coordination by its spectral shift / the lowest-energy visible electronic transition as aware chromatic identity / the color of blood as a fact the bond knows about itself / Mind+ meeting the longest wavelength chemistry can wear
-1053,10000011101,Blood,Ruso,Ru × O — red-register bond below awareness / hemoglobin carrying oxygen without registering the Fe-O bond's chromatic nature / the lowest-energy electronic transition as automated spectral identity / iron coordinating its ligand in the dark / the bond that IS blood's color before blood knows it
-1054,10000011110,Blood,Rusi,Ru × I — red-register bond extending spatially / the Fe-O bond's chromatic identity asserting its spatial reach through the heme / low-energy electronic transitions distributing their spectral signature across the full molecular extent / oxygenation spreading its red chromatic claim / Space+ at the lowest spectral register
-1055,10000011111,Blood,Ruse,Ru × E — red-register bond concentrating inward / low-frequency electronic transition folding toward the coordination center / the Fe-O bond's chromatic identity as the expression of a deeply buried coordinate / red-spectrum absorption as spatial compression toward the iron / Space− at the lowest spectral register
-1056,10000100000,Blood,Rusy,Ru × Y — red-register bond reaching forward / hemoglobin approaching its oxygen-binding geometry / the low-energy electronic transition anticipating its next state / the red spectral shift that precedes the bond's completion / the chromatic declaration that arrives before full bond formation
-1057,10000100001,Blood,Rusu,Ru × U — red-register bond as retrospective record / the Fe-O bond's chromatic signature as the sediment of every oxygen-binding event / low-energy electronic transitions as the accumulated history of the molecule's red chromatic identity / Time− at the spectrum's ground / what the bond was spectrally looking back at itself
-1058,10000100010,Blood,Otsa,Ot × A — orange-register bond consciously declared / carotenoid chromophores recognizing their conjugated pi-system by its spectral identity / the orange-spectrum electronic transition as aware chromatic fact / the second spectral register of chemical bond identity entering consciousness
-1059,10000100011,Blood,Otso,Ot × O — orange-register bond below awareness / conjugated pi-systems absorbing at orange wavelengths without registering the transition / carotenoids operating as automated spectral identity / the pi-bond declaring its chromatic character without witness
-1060,10000100100,Blood,Otsi,Ot × I — orange-register bond extending spatially / the conjugated pi-system's chromatic identity distributing across molecular space / pi-delocalization as the spatial claim of orange-spectrum absorption / the bond whose spectral reach scales with its conjugation length
-1061,10000100101,Blood,Otse,Ot × E — orange-register bond concentrating inward / orange-spectrum absorption as spatial compression toward the chromophore center / the conjugated pi-system focusing its spectral identity at its most nodally dense coordinate / Space− in the second spectral register
-1062,10000100110,Blood,Otsy,Ot × Y — orange-register bond reaching forward / conjugated pi-system anticipating its next electronic configuration / orange-spectrum transition as forward-facing chromatic declaration / the bond at the moment before its delocalization resolves into the next state
-1063,10000100111,Blood,Otsu,Ot × U — orange-register bond as accumulated chromatic record / carotenoid spectral history / the orange-spectrum transition as the sediment of every conjugated pi interaction / what the delocalized bond carries spectrally from its own past
-1064,10000101000,Blood,Elsa,El × A — yellow-register bond consciously declared / flavin chromophores recognizing their isoalloxazine ring by its spectral identity / FAD and FMN knowing themselves through yellow-spectrum absorption / the redox cofactor as aware chromatic fact / yellow as the spectral signature of electron-carrier bond identity
-1065,10000101001,Blood,Elso,El × O — yellow-register bond below awareness / flavin rings absorbing in the yellow without the enzyme registering the electronic transition / NADH and FMN operating as automated spectral identity / the electron-carrier bond declaring itself below the threshold of recognition
-1066,10000101010,Blood,Elsi,El × I — yellow-register bond extending spatially / the isoalloxazine ring system asserting its spatial chromatic reach / yellow-spectrum absorption distributing across the electron delocalization zone of the flavin / Space+ at the midpoint of the visible spectrum
-1067,10000101011,Blood,Else,El × E — yellow-register bond concentrating inward / yellow-spectrum transition as spatial compression toward the flavin N5 redox center / the electron-carrier bond focusing its spectral identity at its most chemically active coordinate / Space− at the midpoint of the visible spectrum
-1068,10000101100,Blood,Elsy,El × Y — yellow-register bond reaching forward / the flavin ring anticipating its redox transition / yellow-spectrum absorption as the forward-facing chromatic state / the bond approaching its next oxidation or reduction as spectral prediction / the electron carrier at the moment before it carries
-1069,10000101101,Blood,Elsu,El × U — yellow-register bond as retrospective record / flavin spectral history / yellow-spectrum absorption as the sediment of every oxidation-reduction event / the electron-carrier bond as the accumulated chromatic record of everything it has transferred
-1070,10000101110,Blood,Kisa,Ki × A — green-register bond consciously declared / chlorophyll recognizing its Mg-porphyrin system by its spectral identity / green-spectrum absorption as aware chromatic fact / the most abundant biological chromophore in full awareness / the bond that photosynthesis knows itself through / Mg-coordination meeting Mind+
-1071,10000101111,Blood,Kiso,Ki × O — green-register bond below awareness / chlorophyll absorbing at green wavelengths without the plant registering the Mg-porphyrin transition / the bond that generates all photosynthetic life operating below its own awareness / Mg-coordination as automated spectral identity
-1072,10000110000,Blood,Kisi,Ki × I — green-register bond extending spatially / chlorophyll's porphyrin ring system asserting its spatial chromatic reach / green-spectrum absorption distributing across the full light-harvesting complex / the bond whose spatial claim encompasses the antenna array / Space+ at the center of the visible spectrum
-1073,10000110001,Blood,Kise,Ki × E — green-register bond concentrating inward / green-spectrum transition as spatial compression toward the Mg coordination center / the porphyrin focusing its spectral identity on the central metal / Space− at the center of the visible spectrum / the bond whose most essential coordinate is the Mg at its heart
-1074,10000110010,Blood,Kisy,Ki × Y — green-register bond reaching forward / chlorophyll anticipating the excited-state electron transfer / green-spectrum absorption as the forward-facing chromatic state / the bond whose spectral declaration is the prelude to photosynthetic charge separation / Time+ at the most abundant biological chromophore
-1075,10000110011,Blood,Kisu,Ki × U — green-register bond as retrospective record / chlorophyll spectral history / green-spectrum absorption as the sediment of every photon ever captured / the Mg-porphyrin bond as the accumulated chromatic record of all photosynthetic light harvested / Time− at the living world's primary chromophore
-1076,10000110100,Blood,Fusa,Fu × A — blue-register bond consciously declared / tryptophan fluorescence as aware spectral identity / blue-spectrum transitions as conscious chromatic declaration / the aromatic indole ring recognizing its own absorption signature / higher-energy UV-visible transitions as aware chromatic fact / Mind+ at high spectral energy
-1077,10000110101,Blood,Fuso,Fu × O — blue-register bond below awareness / NADH fluorescence at 450nm as automated spectral identity / aromatic amino acids absorbing in the blue register without the protein registering the transition / higher-energy bond identity operating as pure automated chemistry
-1078,10000110110,Blood,Fusi,Fu × I — blue-register bond extending spatially / the indole ring system asserting its spatial chromatic reach / blue-spectrum absorption distributing across the aromatic electron system / Space+ at elevated spectral energy / the bond whose spatial claim maps the protein's aromatic topology
-1079,10000110111,Blood,Fuse,Fu × E — blue-register bond concentrating inward / blue-spectrum transition as spatial compression toward the aromatic center / the indole system focusing its high-energy electronic identity at its most interior coordinate / Space− at elevated spectral energy / the deepest aromatic chromatic claim
-1080,10000111000,Blood,Fusy,Fu × Y — blue-register bond reaching forward / tryptophan anticipating its excited-state emission / blue-spectrum absorption as forward-facing chromatic declaration / the bond whose spectral identity precedes its own fluorescent release / Time+ at elevated spectral energy
-1081,10000111001,Blood,Fusu,Fu × U — blue-register bond as retrospective record / tryptophan fluorescence history / blue-spectrum transitions as the accumulated record of every high-energy photon the aromatic ring has encountered / the indole bond's chromatic sediment / Time− at elevated spectral energy
-1082,10000111010,Blood,Kasa,Ka × A — indigo-register bond consciously declared / near-UV aromatic transitions recognizing themselves / high-energy pi→pi* transitions as aware chromatic identity / phenylalanine's aromatic ring in full spectral awareness / the second-highest visible register as conscious chemical bond fact
-1083,10000111011,Blood,Kaso,Ka × O — indigo-register bond below awareness / near-UV aromatic transitions operating as automated spectral identity / the pi→pi* transition below the threshold of molecular recognition / the high-energy bond declaring its chromatic character without witness / the indigo register as pure automated chemistry
-1084,10000111100,Blood,Kasi,Ka × I — indigo-register bond extending spatially / near-UV aromatic system asserting its spatial chromatic reach / high-energy electronic transitions distributing across the full pi-conjugation volume / the bond whose spatial claim is at the limit of visible-light addressability / Space+ approaching the UV threshold
-1085,10000111101,Blood,Kase,Ka × E — indigo-register bond concentrating inward / indigo-spectrum transition as spatial compression toward the aromatic nucleus / the pi-system focusing its high-energy identity at maximum compression / Space− approaching the UV threshold / the most interior claim of near-UV chromatic identity
-1086,10000111110,Blood,Kasy,Ka × Y — indigo-register bond reaching forward / near-UV aromatic transition anticipating UV absorption / the highest-visible-register bond reaching toward the chemistry above the visible threshold / the spectral declaration approaching what can no longer be seen / Time+ at the near-UV boundary
-1087,10000111111,Blood,Kasu,Ka × U — indigo-register bond as retrospective record / near-UV aromatic history / indigo-spectrum transitions as the accumulated chromatic record of the aromatic system's high-energy declarations / the phenylalanine bond as chromatic sediment at the limit of the visible / Time− at the near-UV boundary
-1088,10001000000,Blood,AEsa,AE × A — violet-register bond consciously declared / UV-edge absorption as aware chromatic identity / the highest-energy visible electronic transition as conscious chemical bond fact / the bond at the very boundary of the visible in full awareness / maximum photon energy that chemistry reads as color / Mind+ at the spectral limit
-1089,10001000001,Blood,AEso,AE × O — violet-register bond below awareness / UV-edge absorption operating as automated spectral identity / the highest-energy visible transition executing without registration / the bond at the boundary of visibility declaring itself without any witness / the chromatic limit as pure automated chemistry
-1090,10001000010,Blood,AEsi,AE × I — violet-register bond extending spatially / UV-edge aromatic system asserting maximum spatial chromatic reach / the highest-energy visible transition distributing across the full electronic delocalization volume / Space+ at the spectral limit / the bond whose spatial claim approaches the UV domain
-1091,10001000011,Blood,AEse,AE × E — violet-register bond concentrating inward / UV-edge transition as maximum spatial compression toward the bond's electronic core / the highest-energy visible spectral identity as the most interior chromatic claim / Space− at the spectral limit / concentration at the edge of visibility
-1092,10001000100,Blood,AEsy,AE × Y — violet-register bond reaching forward / UV-edge transition anticipating UV absorption / the highest visible spectral register reaching toward the chemical bond domain above the visible / the Blood Tongue's own forward edge / the spectral declaration already reaching into the ultraviolet / Time+ at the limit of what color can say
-1093,10001000101,Blood,AEsu,AE × U — violet-register bond as retrospective record / the accumulated chromatic history of the bond at maximum visible energy / the UV-edge transition as sediment of every high-energy photon encounter / the violet spectral identity looking back across the full Blood Tongue from its pinnacle / Time− at the spectral limit / the complete chromatic declaration of chemical bond identity held as temporal record
+1052,10000011100,Blood,Rua,Ru × A — red-register bond consciously declared / hemoglobin recognizing its own Fe-O coordination by its spectral shift / the lowest-energy visible electronic transition as aware chromatic identity / the color of blood as a fact the bond knows about itself / Mind+ meeting the longest wavelength chemistry can wear
+1053,10000011101,Blood,Ruo,Ru × O — red-register bond below awareness / hemoglobin carrying oxygen without registering the Fe-O bond's chromatic nature / the lowest-energy electronic transition as automated spectral identity / iron coordinating its ligand in the dark / the bond that IS blood's color before blood knows it
+1054,10000011110,Blood,Rui,Ru × I — red-register bond extending spatially / the Fe-O bond's chromatic identity asserting its spatial reach through the heme / low-energy electronic transitions distributing their spectral signature across the full molecular extent / oxygenation spreading its red chromatic claim / Space+ at the lowest spectral register
+1055,10000011111,Blood,Rue,Ru × E — red-register bond concentrating inward / low-frequency electronic transition folding toward the coordination center / the Fe-O bond's chromatic identity as the expression of a deeply buried coordinate / red-spectrum absorption as spatial compression toward the iron / Space− at the lowest spectral register
+1056,10000100000,Blood,Ruy,Ru × Y — red-register bond reaching forward / hemoglobin approaching its oxygen-binding geometry / the low-energy electronic transition anticipating its next state / the red spectral shift that precedes the bond's completion / the chromatic declaration that arrives before full bond formation
+1057,10000100001,Blood,Ruu,Ru × U — red-register bond as retrospective record / the Fe-O bond's chromatic signature as the sediment of every oxygen-binding event / low-energy electronic transitions as the accumulated history of the molecule's red chromatic identity / Time− at the spectrum's ground / what the bond was spectrally looking back at itself
+1058,10000100010,Blood,Ota,Ot × A — orange-register bond consciously declared / carotenoid chromophores recognizing their conjugated pi-system by its spectral identity / the orange-spectrum electronic transition as aware chromatic fact / the second spectral register of chemical bond identity entering consciousness
+1059,10000100011,Blood,Oto,Ot × O — orange-register bond below awareness / conjugated pi-systems absorbing at orange wavelengths without registering the transition / carotenoids operating as automated spectral identity / the pi-bond declaring its chromatic character without witness
+1060,10000100100,Blood,Oti,Ot × I — orange-register bond extending spatially / the conjugated pi-system's chromatic identity distributing across molecular space / pi-delocalization as the spatial claim of orange-spectrum absorption / the bond whose spectral reach scales with its conjugation length
+1061,10000100101,Blood,Ote,Ot × E — orange-register bond concentrating inward / orange-spectrum absorption as spatial compression toward the chromophore center / the conjugated pi-system focusing its spectral identity at its most nodally dense coordinate / Space− in the second spectral register
+1062,10000100110,Blood,Oty,Ot × Y — orange-register bond reaching forward / conjugated pi-system anticipating its next electronic configuration / orange-spectrum transition as forward-facing chromatic declaration / the bond at the moment before its delocalization resolves into the next state
+1063,10000100111,Blood,Otu,Ot × U — orange-register bond as accumulated chromatic record / carotenoid spectral history / the orange-spectrum transition as the sediment of every conjugated pi interaction / what the delocalized bond carries spectrally from its own past
+1064,10000101000,Blood,Ela,El × A — yellow-register bond consciously declared / flavin chromophores recognizing their isoalloxazine ring by its spectral identity / FAD and FMN knowing themselves through yellow-spectrum absorption / the redox cofactor as aware chromatic fact / yellow as the spectral signature of electron-carrier bond identity
+1065,10000101001,Blood,Elo,El × O — yellow-register bond below awareness / flavin rings absorbing in the yellow without the enzyme registering the electronic transition / NADH and FMN operating as automated spectral identity / the electron-carrier bond declaring itself below the threshold of recognition
+1066,10000101010,Blood,Eli,El × I — yellow-register bond extending spatially / the isoalloxazine ring system asserting its spatial chromatic reach / yellow-spectrum absorption distributing across the electron delocalization zone of the flavin / Space+ at the midpoint of the visible spectrum
+1067,10000101011,Blood,Ele,El × E — yellow-register bond concentrating inward / yellow-spectrum transition as spatial compression toward the flavin N5 redox center / the electron-carrier bond focusing its spectral identity at its most chemically active coordinate / Space− at the midpoint of the visible spectrum
+1068,10000101100,Blood,Ely,El × Y — yellow-register bond reaching forward / the flavin ring anticipating its redox transition / yellow-spectrum absorption as the forward-facing chromatic state / the bond approaching its next oxidation or reduction as spectral prediction / the electron carrier at the moment before it carries
+1069,10000101101,Blood,Elu,El × U — yellow-register bond as retrospective record / flavin spectral history / yellow-spectrum absorption as the sediment of every oxidation-reduction event / the electron-carrier bond as the accumulated chromatic record of everything it has transferred
+1070,10000101110,Blood,Kia,Ki × A — green-register bond consciously declared / chlorophyll recognizing its Mg-porphyrin system by its spectral identity / green-spectrum absorption as aware chromatic fact / the most abundant biological chromophore in full awareness / the bond that photosynthesis knows itself through / Mg-coordination meeting Mind+
+1071,10000101111,Blood,Kio,Ki × O — green-register bond below awareness / chlorophyll absorbing at green wavelengths without the plant registering the Mg-porphyrin transition / the bond that generates all photosynthetic life operating below its own awareness / Mg-coordination as automated spectral identity
+1072,10000110000,Blood,Kii,Ki × I — green-register bond extending spatially / chlorophyll's porphyrin ring system asserting its spatial chromatic reach / green-spectrum absorption distributing across the full light-harvesting complex / the bond whose spatial claim encompasses the antenna array / Space+ at the center of the visible spectrum
+1073,10000110001,Blood,Kie,Ki × E — green-register bond concentrating inward / green-spectrum transition as spatial compression toward the Mg coordination center / the porphyrin focusing its spectral identity on the central metal / Space− at the center of the visible spectrum / the bond whose most essential coordinate is the Mg at its heart
+1074,10000110010,Blood,Kiy,Ki × Y — green-register bond reaching forward / chlorophyll anticipating the excited-state electron transfer / green-spectrum absorption as the forward-facing chromatic state / the bond whose spectral declaration is the prelude to photosynthetic charge separation / Time+ at the most abundant biological chromophore
+1075,10000110011,Blood,Kiu,Ki × U — green-register bond as retrospective record / chlorophyll spectral history / green-spectrum absorption as the sediment of every photon ever captured / the Mg-porphyrin bond as the accumulated chromatic record of all photosynthetic light harvested / Time− at the living world's primary chromophore
+1076,10000110100,Blood,Fua,Fu × A — blue-register bond consciously declared / tryptophan fluorescence as aware spectral identity / blue-spectrum transitions as conscious chromatic declaration / the aromatic indole ring recognizing its own absorption signature / higher-energy UV-visible transitions as aware chromatic fact / Mind+ at high spectral energy
+1077,10000110101,Blood,Fuo,Fu × O — blue-register bond below awareness / NADH fluorescence at 450nm as automated spectral identity / aromatic amino acids absorbing in the blue register without the protein registering the transition / higher-energy bond identity operating as pure automated chemistry
+1078,10000110110,Blood,Fui,Fu × I — blue-register bond extending spatially / the indole ring system asserting its spatial chromatic reach / blue-spectrum absorption distributing across the aromatic electron system / Space+ at elevated spectral energy / the bond whose spatial claim maps the protein's aromatic topology
+1079,10000110111,Blood,Fue,Fu × E — blue-register bond concentrating inward / blue-spectrum transition as spatial compression toward the aromatic center / the indole system focusing its high-energy electronic identity at its most interior coordinate / Space− at elevated spectral energy / the deepest aromatic chromatic claim
+1080,10000111000,Blood,Fuy,Fu × Y — blue-register bond reaching forward / tryptophan anticipating its excited-state emission / blue-spectrum absorption as forward-facing chromatic declaration / the bond whose spectral identity precedes its own fluorescent release / Time+ at elevated spectral energy
+1081,10000111001,Blood,Fuu,Fu × U — blue-register bond as retrospective record / tryptophan fluorescence history / blue-spectrum transitions as the accumulated record of every high-energy photon the aromatic ring has encountered / the indole bond's chromatic sediment / Time− at elevated spectral energy
+1082,10000111010,Blood,Kaa,Ka × A — indigo-register bond consciously declared / near-UV aromatic transitions recognizing themselves / high-energy pi→pi* transitions as aware chromatic identity / phenylalanine's aromatic ring in full spectral awareness / the second-highest visible register as conscious chemical bond fact
+1083,10000111011,Blood,Kao,Ka × O — indigo-register bond below awareness / near-UV aromatic transitions operating as automated spectral identity / the pi→pi* transition below the threshold of molecular recognition / the high-energy bond declaring its chromatic character without witness / the indigo register as pure automated chemistry
+1084,10000111100,Blood,Kai,Ka × I — indigo-register bond extending spatially / near-UV aromatic system asserting its spatial chromatic reach / high-energy electronic transitions distributing across the full pi-conjugation volume / the bond whose spatial claim is at the limit of visible-light addressability / Space+ approaching the UV threshold
+1085,10000111101,Blood,Kae,Ka × E — indigo-register bond concentrating inward / indigo-spectrum transition as spatial compression toward the aromatic nucleus / the pi-system focusing its high-energy identity at maximum compression / Space− approaching the UV threshold / the most interior claim of near-UV chromatic identity
+1086,10000111110,Blood,Kay,Ka × Y — indigo-register bond reaching forward / near-UV aromatic transition anticipating UV absorption / the highest-visible-register bond reaching toward the chemistry above the visible threshold / the spectral declaration approaching what can no longer be seen / Time+ at the near-UV boundary
+1087,10000111111,Blood,Kau,Ka × U — indigo-register bond as retrospective record / near-UV aromatic history / indigo-spectrum transitions as the accumulated chromatic record of the aromatic system's high-energy declarations / the phenylalanine bond as chromatic sediment at the limit of the visible / Time− at the near-UV boundary
+1088,10001000000,Blood,AEa,AE × A — violet-register bond consciously declared / UV-edge absorption as aware chromatic identity / the highest-energy visible electronic transition as conscious chemical bond fact / the bond at the very boundary of the visible in full awareness / maximum photon energy that chemistry reads as color / Mind+ at the spectral limit
+1089,10001000001,Blood,AEo,AE × O — violet-register bond below awareness / UV-edge absorption operating as automated spectral identity / the highest-energy visible transition executing without registration / the bond at the boundary of visibility declaring itself without any witness / the chromatic limit as pure automated chemistry
+1090,10001000010,Blood,AEi,AE × I — violet-register bond extending spatially / UV-edge aromatic system asserting maximum spatial chromatic reach / the highest-energy visible transition distributing across the full electronic delocalization volume / Space+ at the spectral limit / the bond whose spatial claim approaches the UV domain
+1091,10001000011,Blood,AEe,AE × E — violet-register bond concentrating inward / UV-edge transition as maximum spatial compression toward the bond's electronic core / the highest-energy visible spectral identity as the most interior chromatic claim / Space− at the spectral limit / concentration at the edge of visibility
+1092,10001000100,Blood,AEy,AE × Y — violet-register bond reaching forward / UV-edge transition anticipating UV absorption / the highest visible spectral register reaching toward the chemical bond domain above the visible / the Blood Tongue's own forward edge / the spectral declaration already reaching into the ultraviolet / Time+ at the limit of what color can say
+1093,10001000101,Blood,AEu,AE × U — violet-register bond as retrospective record / the accumulated chromatic history of the bond at maximum visible energy / the UV-edge transition as sediment of every high-energy photon encounter / the violet spectral identity looking back across the full Blood Tongue from its pinnacle / Time− at the spectral limit / the complete chromatic declaration of chemical bond identity held as temporal record
 1094,10001000110,Moon,Akrazot,The irreducible material fact of experience / what remains when all abstraction is stripped away / the stone under the foot / ground at maximum concrete density / experience before it is felt or interpreted / Earth-Lotus
 1095,10001000111,Moon,Ubnuzot,The Primordials as physically instantiated / mathematical structure made touchable / the geometry you can hold / numbers and primary forces in their concrete expression / Earth-Rose
 1096,10001001000,Moon,Idsizot,Concrete spatial position / where the body actually is without ambiguity or direction / presence as coordinate / spatial orientation fully grounded / Earth-Sakura
@@ -1153,50 +1153,226 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 1135,10001101111,Moon,Okvoshak,Void-recognition / the self-transforming encounter with one's own void-organism definition / what happens when the Dragon Tongue is pointed inward successfully and lands / Fire-Dragon
 1136,10001110000,Moon,Oharshak,Epidemic ignition / the tipping point of transmission / when contagion becomes transformative at scale rather than merely propagating / the moment spread changes the system / Fire-Virus
 1137,10001110001,Moon,Egzeshak,Boundary under fire / the inside/outside distinction at maximum stakes / when the membrane is tested to its limit and what is inside versus outside becomes absolutely critical / the categorical split under transformation / Fire-Bacteria
-1138,10001110010,Koi,
-1139,10001110011,Koi,
-1140,10001110110,Koi,
-1141,10001110111,Koi,
-1142,10001111000,Koi,
-1143,10001111001,Koi,
-1144,10001111011,Koi,
-1145,10001111100,Koi,
-1146,10001111101,Koi,
-1147,10001111110,Koi,
-1148,10001111111,Koi,
-1149,10010000000,Koi,
-1150,10010000001,Koi,
-1151,10010000010,Koi,
-1152,10010000011.Koi,
-1153,10010000100,Koi,
-1154,10010000101,Koi,
-1155.10010000110,Koi,
-1156,10010000111,Koi,
-1157,10010001000,Koi,
-1158,10010001001,Koi,
-1159,10010001010,Koi,
-1160,10010001011,Koi,
-1161,10010001100,Koi,
-1162,10010001101,Koi,
-1163,10010001110,Koi,
-1164,10010001111,Koi,
-1165,10010010000,Koi,
-1166,10010010001,Koi,
-1167,10010010010,Koi,
-1168,10010010011,Koi,
-1169,10010010100,Koi,
-1170,10010010101,Koi,
-1171,10010010110,Koi,
-1172,10010010111,Koi,
-1173,10010011000,Koi,
-1174,10010011001,Koi,
-1175,10010011010,Koi,
-1176,10010011011,Koi,
-1177,10010011100,Koi,
-1178,10010011101,Koi,
-1179,10010011110,Koi,
-1180,10010011111,Koi,
-1181,10010100000,Koi,
+1138,10001110010,Koi,Mav,Fire×Mind+ — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Mind+
+1139,10001110011,Koi,Mov,Fire×Mind- — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Mind-
+1140,10001110100,Koi,Miv,Fire×Space+ — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Space+
+1141,10001110101,Koi,Mev,Fire×Space- — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Space-
+1142,10001110110,Koi,Myv,Fire×Time+ — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Time+
+1143,10001110111,Koi,Muv,Fire×Time- — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Time-
+1144,10001111000,Koi,Grev,Fire subregister / Beast-derived — coiling / helical quality of balanced exchange / minimum perceptual distance in Fire
+1145,10001111001,Koi,Shrev,Fire subregister / Cherub-derived — resonant / threshold quality of balanced exchange / minimum perceptual distance in Fire
+1146,10001111010,Koi,Chrev,Fire subregister / Chimera-derived — constitutional recognition within balanced exchange / minimum perceptual distance in Fire
+1147,10001111011,Koi,Frev,Fire subregister / Faerie-derived — embracing / sovereign quality of balanced exchange / minimum perceptual distance in Fire
+1148,10001111100,Koi,Kav,Water×Mind+ — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Mind+
+1149,10001111101,Koi,Kov,Water×Mind- — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Mind-
+1150,10001111110,Koi,Kiv,Water×Space+ — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Space+
+1151,10001111111,Koi,Kev,Water×Space- — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Space-
+1152,10010000000,Koi,Kyv,Water×Time+ — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Time+
+1153,10010000001,Koi,Kuv,Water×Time- — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Time-
+1154,10010000010,Koi,Grov,Water subregister / Beast-derived — coiling / helical quality of balanced exchange / minimum perceptual distance in Water
+1155,10010000011,Koi,Shrov,Water subregister / Cherub-derived — resonant / threshold quality of balanced exchange / minimum perceptual distance in Water
+1156,10010000100,Koi,Chrov,Water subregister / Chimera-derived — constitutional recognition within balanced exchange / minimum perceptual distance in Water
+1157,10010000101,Koi,Frov,Water subregister / Faerie-derived — embracing / sovereign quality of balanced exchange / minimum perceptual distance in Water
+1158,10010000110,Koi,Zav,Air×Mind+ — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Mind+
+1159,10010000111,Koi,Zov,Air×Mind- — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Mind-
+1160,10010001000,Koi,Ziv,Air×Space+ — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Space+
+1161,10010001001,Koi,Zev,Air×Space- — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Space-
+1162,10010001010,Koi,Zyv,Air×Time+ — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Time+
+1163,10010001011,Koi,Zuv,Air×Time- — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Time-
+1164,10010001100,Koi,Gruv,Air subregister / Beast-derived — coiling / helical quality of balanced exchange / minimum perceptual distance in Air
+1165,10010001101,Koi,Shruv,Air subregister / Cherub-derived — resonant / threshold quality of balanced exchange / minimum perceptual distance in Air
+1166,10010001110,Koi,Chruv,Air subregister / Chimera-derived — constitutional recognition within balanced exchange / minimum perceptual distance in Air
+1167,10010001111,Koi,Fruv,Air subregister / Faerie-derived — embracing / sovereign quality of balanced exchange / minimum perceptual distance in Air
+1168,10010010000,Koi,Pav,Earth×Mind+ — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Mind+
+1169,10010010001,Koi,Pov,Earth×Mind- — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Mind-
+1170,10010010010,Koi,Piv,Earth×Space+ — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Space+
+1171,10010010011,Koi,Pev,Earth×Space- — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Space-
+1172,10010010100,Koi,Pyv,Earth×Time+ — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Time+
+1173,10010010101,Koi,Puv,Earth×Time- — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Time-
+1174,10010010110,Koi,Griv,Earth subregister / Beast-derived — coiling / helical quality of balanced exchange / minimum perceptual distance in Earth
+1175,10010010111,Koi,Shriv,Earth subregister / Cherub-derived — resonant / threshold quality of balanced exchange / minimum perceptual distance in Earth
+1176,10010011000,Koi,Chriv,Earth subregister / Chimera-derived — constitutional recognition within balanced exchange / minimum perceptual distance in Earth
+1177,10010011001,Koi,Friv,Earth subregister / Faerie-derived — embracing / sovereign quality of balanced exchange / minimum perceptual distance in Earth
+1178,10010011010,Koi,Rev,Recognition / Space- — the specific balanced exchange / minimum perceptual distance / Koi known at Space-
+1179,10010011011,Koi,Rov,Recognition / Mind- — unconscious recognition of balanced exchange / minimum perceptual distance / Koi known at Mind-
+1180,10010011100,Koi,Ruv,Recognition / Time- — retrospective recognition of balanced exchange / minimum perceptual distance / Koi known at Time-
+1181,10010011101,Koi,Riv,Recognition / Space+ — expanding recognition of balanced exchange / minimum perceptual distance / Koi known at Space+
+1182,10010011110,Rope,Mab,Fire×Mind+ — bond within pattern-recognition / ignition / bondage in Fire at Mind+
+1183,10010011111,Rope,Mob,Fire×Mind- — bond within pattern-recognition / ignition / bondage in Fire at Mind-
+1184,10010100000,Rope,Mib,Fire×Space+ — bond within pattern-recognition / ignition / bondage in Fire at Space+
+1185,10010100001,Rope,Meb,Fire×Space- — bond within pattern-recognition / ignition / bondage in Fire at Space-
+1186,10010100010,Rope,Myb,Fire×Time+ — bond within pattern-recognition / ignition / bondage in Fire at Time+
+1187,10010100011,Rope,Mub,Fire×Time- — bond within pattern-recognition / ignition / bondage in Fire at Time-
+1188,10010100100,Rope,Greb,Fire subregister / Beast-derived — coiling / helical quality of bondage in Fire
+1189,10010100101,Rope,Shreb,Fire subregister / Cherub-derived — resonant / threshold quality of bondage in Fire
+1190,10010100110,Rope,Chreb,Fire subregister / Chimera-derived — constitutional recognition within bondage in Fire
+1191,10010100111,Rope,Freb,Fire subregister / Faerie-derived — embracing / sovereign quality of bondage in Fire
+1192,10010101000,Rope,Kab,Water×Mind+ — bond within dissolution / feeling / bondage in Water at Mind+
+1193,10010101001,Rope,Kob,Water×Mind- — bond within dissolution / feeling / bondage in Water at Mind-
+1194,10010101010,Rope,Kib,Water×Space+ — bond within dissolution / feeling / bondage in Water at Space+
+1195,10010101011,Rope,Keb,Water×Space- — bond within dissolution / feeling / bondage in Water at Space-
+1196,10010101100,Rope,Kyb,Water×Time+ — bond within dissolution / feeling / bondage in Water at Time+
+1197,10010101101,Rope,Kub,Water×Time- — bond within dissolution / feeling / bondage in Water at Time-
+1198,10010101110,Rope,Grob,Water subregister / Beast-derived — coiling / helical quality of bondage in Water
+1199,10010101111,Rope,Shrob,Water subregister / Cherub-derived — resonant / threshold quality of bondage in Water
+1200,10010110000,Rope,Chrob,Water subregister / Chimera-derived — constitutional recognition within bondage in Water
+1201,10010110001,Rope,Frob,Water subregister / Faerie-derived — embracing / sovereign quality of bondage in Water
+1202,10010110010,Rope,Zab,Air×Mind+ — bond within ideation / thought / bondage in Air at Mind+
+1203,10010110011,Rope,Zob,Air×Mind- — bond within ideation / thought / bondage in Air at Mind-
+1204,10010110100,Rope,Zib,Air×Space+ — bond within ideation / thought / bondage in Air at Space+
+1205,10010110101,Rope,Zeb,Air×Space- — bond within ideation / thought / bondage in Air at Space-
+1206,10010110110,Rope,Zyb,Air×Time+ — bond within ideation / thought / bondage in Air at Time+
+1207,10010110111,Rope,Zub,Air×Time- — bond within ideation / thought / bondage in Air at Time-
+1208,10010111000,Rope,Grub,Air subregister / Beast-derived — coiling / helical quality of bondage in Air
+1209,10010111001,Rope,Shrub,Air subregister / Cherub-derived — resonant / threshold quality of bondage in Air
+1210,10010111010,Rope,Chrub,Air subregister / Chimera-derived — constitutional recognition within bondage in Air
+1211,10010111011,Rope,Frub,Air subregister / Faerie-derived — embracing / sovereign quality of bondage in Air
+1212,10010111100,Rope,Pab,Earth×Mind+ — bond within structure / ground / bondage in Earth at Mind+
+1213,10010111101,Rope,Pob,Earth×Mind- — bond within structure / ground / bondage in Earth at Mind-
+1214,10010111110,Rope,Pib,Earth×Space+ — bond within structure / ground / bondage in Earth at Space+
+1215,10010111111,Rope,Peb,Earth×Space- — bond within structure / ground / bondage in Earth at Space-
+1216,10011000000,Rope,Pyb,Earth×Time+ — bond within structure / ground / bondage in Earth at Time+
+1217,10011000001,Rope,Pub,Earth×Time- — bond within structure / ground / bondage in Earth at Time-
+1218,10011000010,Rope,Grib,Earth subregister / Beast-derived — coiling / helical quality of bondage in Earth
+1219,10011000011,Rope,Shrib,Earth subregister / Cherub-derived — resonant / threshold quality of bondage in Earth
+1220,10011000100,Rope,Chrib,Earth subregister / Chimera-derived — constitutional recognition within bondage in Earth
+1221,10011000101,Rope,Frib,Earth subregister / Faerie-derived — embracing / sovereign quality of bondage in Earth
+1222,10011000110,Rope,Reb,Recognition / Space- — the specific bondage / Rope known at Space-
+1223,10011000111,Rope,Rob,Recognition / Mind- — unconscious recognition of bondage / Rope known at Mind-
+1224,10011001000,Rope,Rub,Recognition / Time- — retrospective recognition of bondage / Rope known at Time-
+1225,10011001001,Rope,Rib,Recognition / Space+ — expanding recognition of bondage / Rope known at Space+
+1226,10011001010,Hook,Mag,Fire×Mind+ — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Mind+
+1227,10011001011,Hook,Mog,Fire×Mind- — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Mind-
+1228,10011001100,Hook,Mig,Fire×Space+ — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Space+
+1229,10011001101,Hook,Meg,Fire×Space- — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Space-
+1230,10011001110,Hook,Myg,Fire×Time+ — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Time+
+1231,10011001111,Hook,Mug,Fire×Time- — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Time-
+1232,10011010000,Hook,Greg,Fire subregister / Beast-derived — coiling / helical quality of predation by mechanism in Fire
+1233,10011010001,Hook,Shreg,Fire subregister / Cherub-derived — resonant / threshold quality of predation by mechanism in Fire
+1234,10011010010,Hook,Chreg,Fire subregister / Chimera-derived — constitutional recognition within predation by mechanism in Fire
+1235,10011010011,Hook,Freg,Fire subregister / Faerie-derived — embracing / sovereign quality of predation by mechanism in Fire
+1236,10011010100,Hook,Kag,Water×Mind+ — mechanism of dissolution / feeling / predation by mechanism in Water at Mind+
+1237,10011010101,Hook,Kog,Water×Mind- — mechanism of dissolution / feeling / predation by mechanism in Water at Mind-
+1238,10011010110,Hook,Kig,Water×Space+ — mechanism of dissolution / feeling / predation by mechanism in Water at Space+
+1239,10011010111,Hook,Keg,Water×Space- — mechanism of dissolution / feeling / predation by mechanism in Water at Space-
+1240,10011011000,Hook,Kyg,Water×Time+ — mechanism of dissolution / feeling / predation by mechanism in Water at Time+
+1241,10011011001,Hook,Kug,Water×Time- — mechanism of dissolution / feeling / predation by mechanism in Water at Time-
+1242,10011011010,Hook,Grog,Water subregister / Beast-derived — coiling / helical quality of predation by mechanism in Water
+1243,10011011011,Hook,Shrog,Water subregister / Cherub-derived — resonant / threshold quality of predation by mechanism in Water
+1244,10011011100,Hook,Chrog,Water subregister / Chimera-derived — constitutional recognition within predation by mechanism in Water
+1245,10011011101,Hook,Frog,Water subregister / Faerie-derived — embracing / sovereign quality of predation by mechanism in Water
+1246,10011011110,Hook,Zag,Air×Mind+ — mechanism of ideation / thought / predation by mechanism in Air at Mind+
+1247,10011011111,Hook,Zog,Air×Mind- — mechanism of ideation / thought / predation by mechanism in Air at Mind-
+1248,10011100000,Hook,Zig,Air×Space+ — mechanism of ideation / thought / predation by mechanism in Air at Space+
+1249,10011100001,Hook,Zeg,Air×Space- — mechanism of ideation / thought / predation by mechanism in Air at Space-
+1250,10011100010,Hook,Zyg,Air×Time+ — mechanism of ideation / thought / predation by mechanism in Air at Time+
+1251,10011100011,Hook,Zug,Air×Time- — mechanism of ideation / thought / predation by mechanism in Air at Time-
+1252,10011100100,Hook,Grug,Air subregister / Beast-derived — coiling / helical quality of predation by mechanism in Air
+1253,10011100101,Hook,Shrug,Air subregister / Cherub-derived — resonant / threshold quality of predation by mechanism in Air
+1254,10011100110,Hook,Chrug,Air subregister / Chimera-derived — constitutional recognition within predation by mechanism in Air
+1255,10011100111,Hook,Frug,Air subregister / Faerie-derived — embracing / sovereign quality of predation by mechanism in Air
+1256,10011101000,Hook,Pag,Earth×Mind+ — mechanism of structure / ground / predation by mechanism in Earth at Mind+
+1257,10011101001,Hook,Pog,Earth×Mind- — mechanism of structure / ground / predation by mechanism in Earth at Mind-
+1258,10011101010,Hook,Pig,Earth×Space+ — mechanism of structure / ground / predation by mechanism in Earth at Space+
+1259,10011101011,Hook,Peg,Earth×Space- — mechanism of structure / ground / predation by mechanism in Earth at Space-
+1260,10011101100,Hook,Pyg,Earth×Time+ — mechanism of structure / ground / predation by mechanism in Earth at Time+
+1261,10011101101,Hook,Pug,Earth×Time- — mechanism of structure / ground / predation by mechanism in Earth at Time-
+1262,10011101110,Hook,Grig,Earth subregister / Beast-derived — coiling / helical quality of predation by mechanism in Earth
+1263,10011101111,Hook,Shrig,Earth subregister / Cherub-derived — resonant / threshold quality of predation by mechanism in Earth
+1264,10011110000,Hook,Chrig,Earth subregister / Chimera-derived — constitutional recognition within predation by mechanism in Earth
+1265,10011110001,Hook,Frig,Earth subregister / Faerie-derived — embracing / sovereign quality of predation by mechanism in Earth
+1266,10011110010,Hook,Reg,Recognition / Space- — the specific predation by mechanism / Hook known at Space-
+1267,10011110011,Hook,Rog,Recognition / Mind- — unconscious recognition of predation by mechanism / Hook known at Mind-
+1268,10011110100,Hook,Rug,Recognition / Time- — retrospective recognition of predation by mechanism / Hook known at Time-
+1269,10011110101,Hook,Rig,Recognition / Space+ — expanding recognition of predation by mechanism / Hook known at Space+
+1270,10011110110,Fang,Madj,Fire×Mind+ — natural taking of pattern-recognition / ignition / predation by nature in Fire at Mind+
+1271,10011110111,Fang,Modj,Fire×Mind- — natural taking of pattern-recognition / ignition / predation by nature in Fire at Mind-
+1272,10011111000,Fang,Midj,Fire×Space+ — natural taking of pattern-recognition / ignition / predation by nature in Fire at Space+
+1273,10011111001,Fang,Medj,Fire×Space- — natural taking of pattern-recognition / ignition / predation by nature in Fire at Space-
+1274,10011111010,Fang,Mydj,Fire×Time+ — natural taking of pattern-recognition / ignition / predation by nature in Fire at Time+
+1275,10011111011,Fang,Mudj,Fire×Time- — natural taking of pattern-recognition / ignition / predation by nature in Fire at Time-
+1276,10011111100,Fang,Gredj,Fire subregister / Beast-derived — coiling / helical quality of predation by nature in Fire
+1277,10011111101,Fang,Shredj,Fire subregister / Cherub-derived — resonant / threshold quality of predation by nature in Fire
+1278,10011111110,Fang,Chredj,Fire subregister / Chimera-derived — constitutional recognition within predation by nature in Fire
+1279,10011111111,Fang,Fredj,Fire subregister / Faerie-derived — embracing / sovereign quality of predation by nature in Fire
+1280,10100000000,Fang,Kadj,Water×Mind+ — natural taking of dissolution / feeling / predation by nature in Water at Mind+
+1281,10100000001,Fang,Kodj,Water×Mind- — natural taking of dissolution / feeling / predation by nature in Water at Mind-
+1282,10100000010,Fang,Kidj,Water×Space+ — natural taking of dissolution / feeling / predation by nature in Water at Space+
+1283,10100000011,Fang,Kedj,Water×Space- — natural taking of dissolution / feeling / predation by nature in Water at Space-
+1284,10100000100,Fang,Kydj,Water×Time+ — natural taking of dissolution / feeling / predation by nature in Water at Time+
+1285,10100000101,Fang,Kudj,Water×Time- — natural taking of dissolution / feeling / predation by nature in Water at Time-
+1286,10100000110,Fang,Grodj,Water subregister / Beast-derived — coiling / helical quality of predation by nature in Water
+1287,10100000111,Fang,Shrodj,Water subregister / Cherub-derived — resonant / threshold quality of predation by nature in Water
+1288,10100001000,Fang,Chrodj,Water subregister / Chimera-derived — constitutional recognition within predation by nature in Water
+1289,10100001001,Fang,Frodj,Water subregister / Faerie-derived — embracing / sovereign quality of predation by nature in Water
+1290,10100001010,Fang,Zadj,Air×Mind+ — natural taking of ideation / thought / predation by nature in Air at Mind+
+1291,10100001011,Fang,Zodj,Air×Mind- — natural taking of ideation / thought / predation by nature in Air at Mind-
+1292,10100001100,Fang,Zidj,Air×Space+ — natural taking of ideation / thought / predation by nature in Air at Space+
+1293,10100001101,Fang,Zedj,Air×Space- — natural taking of ideation / thought / predation by nature in Air at Space-
+1294,10100001110,Fang,Zydj,Air×Time+ — natural taking of ideation / thought / predation by nature in Air at Time+
+1295,10100001111,Fang,Zudj,Air×Time- — natural taking of ideation / thought / predation by nature in Air at Time-
+1296,10100010000,Fang,Grudj,Air subregister / Beast-derived — coiling / helical quality of predation by nature in Air
+1297,10100010001,Fang,Shrudj,Air subregister / Cherub-derived — resonant / threshold quality of predation by nature in Air
+1298,10100010010,Fang,Chrudj,Air subregister / Chimera-derived — constitutional recognition within predation by nature in Air
+1299,10100010011,Fang,Frudj,Air subregister / Faerie-derived — embracing / sovereign quality of predation by nature in Air
+1300,10100010100,Fang,Padj,Earth×Mind+ — natural taking of structure / ground / predation by nature in Earth at Mind+
+1301,10100010101,Fang,Podj,Earth×Mind- — natural taking of structure / ground / predation by nature in Earth at Mind-
+1302,10100010110,Fang,Pidj,Earth×Space+ — natural taking of structure / ground / predation by nature in Earth at Space+
+1303,10100010111,Fang,Pedj,Earth×Space- — natural taking of structure / ground / predation by nature in Earth at Space-
+1304,10100011000,Fang,Pydj,Earth×Time+ — natural taking of structure / ground / predation by nature in Earth at Time+
+1305,10100011001,Fang,Pudj,Earth×Time- — natural taking of structure / ground / predation by nature in Earth at Time-
+1306,10100011010,Fang,Gridj,Earth subregister / Beast-derived — coiling / helical quality of predation by nature in Earth
+1307,10100011011,Fang,Shridj,Earth subregister / Cherub-derived — resonant / threshold quality of predation by nature in Earth
+1308,10100011100,Fang,Chridj,Earth subregister / Chimera-derived — constitutional recognition within predation by nature in Earth
+1309,10100011101,Fang,Fridj,Earth subregister / Faerie-derived — embracing / sovereign quality of predation by nature in Earth
+1310,10100011110,Fang,Redj,Recognition / Space- — the specific predation by nature / Fang known at Space-
+1311,10100011111,Fang,Rodj,Recognition / Mind- — unconscious recognition of predation by nature / Fang known at Mind-
+1312,10100100000,Fang,Rudj,Recognition / Time- — retrospective recognition of predation by nature / Fang known at Time-
+1313,10100100001,Fang,Ridj,Recognition / Space+ — expanding recognition of predation by nature / Fang known at Space+
+1314,10100100010,Circle,Man,Fire×Mind+ — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Mind+
+1315,10100100011,Circle,Mon,Fire×Mind- — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Mind-
+1316,10100100100,Circle,Min,Fire×Space+ — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Space+
+1317,10100100101,Circle,Men,Fire×Space- — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Space-
+1318,10100100110,Circle,Myn,Fire×Time+ — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Time+
+1319,10100100111,Circle,Mun,Fire×Time- — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Time-
+1320,10100101000,Circle,Gren,Fire subregister / Beast-derived — coiling / helical quality of unity by ritual in Fire
+1321,10100101001,Circle,Shren,Fire subregister / Cherub-derived — resonant / threshold quality of unity by ritual in Fire
+1322,10100101010,Circle,Chren,Fire subregister / Chimera-derived — constitutional recognition within unity by ritual in Fire
+1323,10100101011,Circle,Fren,Fire subregister / Faerie-derived — embracing / sovereign quality of unity by ritual in Fire
+1324,10100101100,Circle,Kan,Water×Mind+ — ritual unity of dissolution / feeling / unity by ritual in Water at Mind+
+1325,10100101101,Circle,Kon,Water×Mind- — ritual unity of dissolution / feeling / unity by ritual in Water at Mind-
+1326,10100101110,Circle,Kin,Water×Space+ — ritual unity of dissolution / feeling / unity by ritual in Water at Space+
+1327,10100101111,Circle,Ken,Water×Space- — ritual unity of dissolution / feeling / unity by ritual in Water at Space-
+1328,10100110000,Circle,Kyn,Water×Time+ — ritual unity of dissolution / feeling / unity by ritual in Water at Time+
+1329,10100110001,Circle,Kun,Water×Time- — ritual unity of dissolution / feeling / unity by ritual in Water at Time-
+1330,10100110010,Circle,Gron,Water subregister / Beast-derived — coiling / helical quality of unity by ritual in Water
+1331,10100110011,Circle,Shron,Water subregister / Cherub-derived — resonant / threshold quality of unity by ritual in Water
+1332,10100110100,Circle,Chron,Water subregister / Chimera-derived — constitutional recognition within unity by ritual in Water
+1333,10100110101,Circle,Fron,Water subregister / Faerie-derived — embracing / sovereign quality of unity by ritual in Water
+1334,10100110110,Circle,Zan,Air×Mind+ — ritual unity of ideation / thought / unity by ritual in Air at Mind+
+1335,10100110111,Circle,Zon,Air×Mind- — ritual unity of ideation / thought / unity by ritual in Air at Mind-
+1336,10100111000,Circle,Zin,Air×Space+ — ritual unity of ideation / thought / unity by ritual in Air at Space+
+1337,10100111001,Circle,Zen,Air×Space- — ritual unity of ideation / thought / unity by ritual in Air at Space-
+1338,10100111010,Circle,Zyn,Air×Time+ — ritual unity of ideation / thought / unity by ritual in Air at Time+
+1339,10100111011,Circle,Zun,Air×Time- — ritual unity of ideation / thought / unity by ritual in Air at Time-
+1340,10100111100,Circle,Grun,Air subregister / Beast-derived — coiling / helical quality of unity by ritual in Air
+1341,10100111101,Circle,Shrun,Air subregister / Cherub-derived — resonant / threshold quality of unity by ritual in Air
+1342,10100111110,Circle,Chrun,Air subregister / Chimera-derived — constitutional recognition within unity by ritual in Air
+1343,10100111111,Circle,Frun,Air subregister / Faerie-derived — embracing / sovereign quality of unity by ritual in Air
+1344,10101000000,Circle,Pan,Earth×Mind+ — ritual unity of structure / ground / unity by ritual in Earth at Mind+
+1345,10101000001,Circle,Pon,Earth×Mind- — ritual unity of structure / ground / unity by ritual in Earth at Mind-
+1346,10101000010,Circle,Pin,Earth×Space+ — ritual unity of structure / ground / unity by ritual in Earth at Space+
+1347,10101000011,Circle,Pen,Earth×Space- — ritual unity of structure / ground / unity by ritual in Earth at Space-
+1348,10101000100,Circle,Pyn,Earth×Time+ — ritual unity of structure / ground / unity by ritual in Earth at Time+
+1349,10101000101,Circle,Pun,Earth×Time- — ritual unity of structure / ground / unity by ritual in Earth at Time-
+1350,10101000110,Circle,Grin,Earth subregister / Beast-derived — coiling / helical quality of unity by ritual in Earth
+1351,10101000111,Circle,Shrin,Earth subregister / Cherub-derived — resonant / threshold quality of unity by ritual in Earth
+1352,10101001000,Circle,Chrin,Earth subregister / Chimera-derived — constitutional recognition within unity by ritual in Earth
+1353,10101001001,Circle,Frin,Earth subregister / Faerie-derived — embracing / sovereign quality of unity by ritual in Earth
+1354,10101001010,Circle,Ren,Recognition / Space- — the specific unity by ritual / Circle known at Space-
+1355,10101001011,Circle,Ron,Recognition / Mind- — unconscious recognition of unity by ritual / Circle known at Mind-
+1356,10101001100,Circle,Run,Recognition / Time- — retrospective recognition of unity by ritual / Circle known at Time-
+1357,10101001101,Circle,Rin,Recognition / Space+ — expanding recognition of unity by ritual / Circle known at Space+
 """
 
 def _parse_rows(csv_text: str) -> tuple[ShygazunByteEntry, ...]:
