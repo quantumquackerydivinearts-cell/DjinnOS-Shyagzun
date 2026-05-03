@@ -1528,14 +1528,33 @@ function compileKobraFromEntities(entities) {
     const id = String(entity.id || "anon");
     const xTok = _encodeRoseNumeral(entity.x || 0);
     const yTok = _encodeRoseNumeral(entity.y || 0);
-    const tokens = [xTok, yTok];
+    const tokens = [];
+
+    // Presence: Ta (active being / present) or Zo (absence / deliberately absent)
+    const presence = String(entity.presence_token || entity.presence || "Ta");
+    tokens.push(presence === "Zo" ? "Zo" : "Ta");
+
+    tokens.push(xTok, yTok);
     if (entity.z && entity.z !== 0) tokens.push(_encodeRoseNumeral(entity.z));
-    const colorKey = String(entity.color || "").toLowerCase();
-    if (colorKey && _KOBRA_COLOR_TO_ROSE[colorKey]) tokens.push(_KOBRA_COLOR_TO_ROSE[colorKey]);
-    const lex = String(entity.akinenwun || entity.lex || "").trim();
-    if (lex) tokens.push(lex);
+
+    // Full Shygazun color token — carried directly, not coerced to hex
+    const colorToken = String(entity.color_token || "Ha").trim();
+    if (colorToken) tokens.push(colorToken);
+
+    // Traversal: Va (Order/Structure/Life = walkable) or Vo (Chaos/Boundary = blocker)
+    const meta = entity.meta && typeof entity.meta === "object" ? entity.meta : {};
+    const tc = String(meta.traversal_class || (meta.walkable === true ? "walkable_surface" : meta.walkable === false ? "visual_unwalkable" : ""));
+    if (tc === "walkable_surface") tokens.push("Va");
+    else if (tc === "visual_unwalkable") tokens.push("Vo");
+
+    // Daisy structural type (Lo=NPC, To=prop, Ne=exit, Gl=door, Ro=portal, St=spawn)
     const daisy = _KOBRA_KIND_TO_DAISY[String(entity.kind || "").toLowerCase()];
     if (daisy) tokens.push(daisy);
+
+    // Lex / akinenwun entity payload
+    const lex = String(entity.akinenwun || entity.lex || "").trim();
+    if (lex) tokens.push(lex);
+
     return `${id} : [${tokens.join(" ")}]`;
   }).join("\n");
 }

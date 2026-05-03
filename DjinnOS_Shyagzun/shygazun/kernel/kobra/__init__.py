@@ -29,6 +29,20 @@ Types re-exported for consumers
 """
 from .parser import parse
 from .sublayer import segment
+from .evaluator import (
+    KobraEvaluator,
+    DocumentResult,
+    ClusterResult,
+    SectionResult,
+    WitnessState,
+)
+from .vm import (
+    KobraVM,
+    KaelShi,
+    KaelKe,
+    Result,
+    VMFrame,
+)
 from .topology import (
     TopologyKind,
     EdgeKind,
@@ -75,6 +89,12 @@ __all__ = [
     # entry points
     "parse",
     "segment",
+    # evaluator
+    "KobraEvaluator",
+    "DocumentResult",
+    "ClusterResult",
+    "SectionResult",
+    "WitnessState",
     # topology
     "TopologyKind",
     "EdgeKind",

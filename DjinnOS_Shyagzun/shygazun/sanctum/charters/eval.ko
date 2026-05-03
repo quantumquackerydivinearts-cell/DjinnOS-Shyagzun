@@ -1,0 +1,201 @@
+SethEval: MavoEval {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoEvalMeta(TyShiSao) {
+
+  [MavoEvalInput
+    Syr
+    TySi]
+
+  [MavoEvalNs
+    Seth
+    Ep
+    Kael
+    Sao]
+
+  [MavoEvalFrame
+    Sao
+    Kael]
+
+  [MavoEvalWitness
+    Sao
+    Kael]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoSpecEval(TyEpGwevSanKaelShiKe) {
+
+  [MavoFindMavoKey
+    MavoStash MavoFKIn Kyra
+    Ier MavoStrStartsMavo Kyra
+    MavoListHead Kyra
+    San Kyra
+    MavoUnstash MavoFKIn Kyra
+    MavoListRemoveFirstMavo Kyra
+    San]
+
+  [MavoCheckTaShyMa
+    MavoStrStartsTaShyMa Kyra
+    MavoStrExtractParen]
+
+  [MavoFilterTaShyMa
+    MavoStash MavoFTIn Kyra
+    MavoStrNotStartsTaShyMa Kyra
+    MavoUnstash MavoFTIn Kyra
+    MavoStrToTokens]
+
+  [MavoSpecKeyEval
+    MavoFindMavoKey Kyra
+    MavoListHead]
+
+  [MavoSpecDefnEval
+    MavoFindMavoKey Kyra
+    Su]
+
+  [MavoSpecEpNs
+    MavoSpecKeyEval Kyra
+    MavoSpecDefnEval Kyra
+    Ep Kyra
+    MavoEvalNs Gwev Kyra
+    KaelShi]
+
+  [MavoSpecCannabisEval
+    MavoSpecTokens Kyra
+    Ier MavoIsCannabis Kyra
+    San MavoEvalWitness Kyra
+    KaelShi]
+
+  [MavoSpecEvalShiWuUng
+    MavoSpecKeyEval KaelShi
+    MavoSpecDefnEval KaelShi
+    MavoSpecEpNs KaelShi
+    MavoSpecCannabisEval KaelShi
+    Kysha
+    KaelShi]
+
+  [MavoSpecEvalKeWuUng
+    MavoSpecKeyEval MavoKeWuUng
+    Kysha
+    KaelKe]
+
+  [MavoSpecEvalEpEm
+    MavoSpecEvalShiWuUng Kyra
+    MavoSpecEvalKeWuUng Kyra
+    Kysha]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoSectionEval(TySiSuIerSanGwevKaelShiKe) {
+
+  [MavoTySu TySu]
+
+  [MavoSplitSpecs
+    MavoStrSplitOnOpen Kyra
+    Ier MavoStrBeforeClose Kyra
+    MavoFilterEmpty]
+
+  [MavoSectionBodyParse
+    MavoSplitSpecs Kyra
+    Syr]
+
+  [MavoSectionTaShyMaAddr
+    MavoSectionBodyParse Kyra
+    Ier MavoCheckTaShyMa Kyra
+    Si Kyra
+    Sao]
+
+  [MavoSectionSpecsFilter
+    MavoSectionBodyParse Kyra
+    Ier MavoFilterTaShyMa Kyra
+    Syr]
+
+  [MavoSectionSpecsEval
+    MavoSectionSpecsFilter Kyra
+    Ier MavoSpecEval Kyra
+    San MavoEvalNs Kyra
+    KaelShi]
+
+  [MavoSectionCommit
+    MavoSectionTaShyMaAddr Kyra
+    MavoEvalFrame Gwev Kyra
+    KaelShi]
+
+  [MavoSectionEvalShiWuUng
+    MavoSectionBodyParse KaelShi
+    MavoSectionSpecsEval KaelShi
+    MavoSectionCommit KaelShi
+    Kysha
+    KaelShi]
+
+  [MavoSectionEvalKeWuUng
+    MavoSectionBodyParse MavoKeWuUng
+    MavoSectionSpecsEval MavoKeWuUng
+    Kysha
+    KaelKe]
+
+  [MavoSectionEvalEpEm
+    MavoSectionEvalShiWuUng Kyra
+    MavoSectionEvalKeWuUng Kyra
+    Kysha]
+
+  [TaShyMa(Ye)]
+}
+
+LoUi: MavoClusterEval(TySiSuIerSanKaelShiKe) {
+
+  [MavoTySu TySu]
+
+  [MavoClusterIter
+    Ier MavoSectionEval Kyra
+    San MavoEvalNs Kyra
+    KaelShi]
+
+  [MavoClusterEvalShiWuUng
+    MavoClusterIter KaelShi
+    Kysha
+    KaelShi]
+
+  [MavoClusterEvalKeWuUng
+    MavoClusterIter MavoKeWuUng
+    Kysha
+    KaelKe]
+
+  [MavoClusterEvalEpEm
+    MavoClusterEvalShiWuUng Kyra
+    MavoClusterEvalKeWuUng Kyra
+    Kysha]
+
+  [TaShyMa(Ui)]
+}
+
+LoShu: MavoDocEval(TySiSuIerSanGwevKaelShiKe) {
+
+  [MavoTySu TySu]
+
+  [MavoDocIter
+    Ier MavoClusterEval Kyra
+    San MavoEvalNs Kyra
+    KaelShi]
+
+  [MavoDocShiWuUng
+    MavoDocIter KaelShi
+    Kysha
+    KaelShi]
+
+  [MavoDocKeWuUng
+    MavoDocIter MavoKeWuUng
+    Kysha
+    KaelKe]
+
+  [MavoDocEpEm
+    MavoDocShiWuUng Kyra
+    MavoDocKeWuUng Kyra
+    Kysha]
+
+  [TaShyMa(Shu)]
+}
+
+} }

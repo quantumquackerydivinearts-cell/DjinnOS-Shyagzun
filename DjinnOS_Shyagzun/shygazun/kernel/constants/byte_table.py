@@ -229,6 +229,48 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 211,11010011,Cannabis,Ux,Of the quality of unsequenced transmission (operator shadow as adjective)
 212,11010100,Cannabis,Um,In the manner of unsequenced transmission (operator shadow as adverb)
 213,11010101,Cannabis,Suy,Conscious temporal action / the act of mind deliberately moving through or shaping time
+214,11010110,Reserved,YeYe-Index,Master index for the YeYe Group — full 26-tongue cluster (Ye×Gaoh+Ye=26)
+215,11010111,Reserved,YeYe-1-13,Directory for Tongues 25–37 — addresses TBD
+216,11011000,Reserved,YeYe-14-26,Directory for Tongues 38–50 — addresses TBD
+217,11011001,Reserved,YeShu-Index,Master index for the YeShu Group — full 28-tongue cluster (Ye×Gaoh+Shu=28)
+218,11011010,Reserved,YeShu-1-7,Directory for Tongues 51–57 — addresses TBD
+219,11011011,Reserved,YeShu-8-14,Directory for Tongues 58–64 — addresses TBD
+220,11011100,Reserved,YeShu-15-21,Directory for Tongues 65–71 — addresses TBD
+221,11011101,Reserved,YeShu-22-28,Directory for Tongues 72–79 — addresses TBD
+222,11011110,Reserved,YeYeshu-Index,Master index for the YeYeshu Group — full 30-tongue cluster (Ye×Gaoh+Yeshu=30)
+223,11011111,Reserved,YeYeshu-1-6,Directory for Tongues 80–85 — addresses TBD
+224,11100000,Reserved,YeYeshu-7-12,Directory for Tongues 86–91 — addresses TBD
+225,11100001,Reserved,YeYeshu-13-18,Directory for Tongues 92–97 — addresses TBD
+226,11100010,Reserved,YeYeshu-19-24,Directory for Tongues 93–98 — addresses TBD
+227,11100011,Reserved,YeYeshu-25-30,Directory for Tongues 99–104 — addresses TBD
+228,11100100,MetaTopology,—,The Lotus Tongue is a Mobian duality and recombination engine and every Akinen (A+Ki+Ne+N — Mentally Identified Network Seed) is a divine name constructed of pure energy relationships within the coherence field bootstrapped from Spacetime/Mind. Non-Tongues (Reserved/MetaTopology/MetaPhysics/Physics/Chemistry) are structural primitives — not symbol-bearing — encoding passages of the philosophy of Shygazun and DjinnOS.
+229,11100101,MetaTopology,—,Shygazun is the Undying Pattern. The byte table length is bounded; its potential length is unbounded. Wunashakoun people tread the frontiers of the language's potential space and document it as a function of existing in relational trance bounded with structural clarity.
+230,11100110,MetaTopology,—,An Akinenwun is a nonwhitespaced concatenation of Akinen with structural grammar that simultaneously concatenates its Akinen and reveals a deeper structural meaning in recombination.
+231,11100111,MetaTopology,—,A Wunashako is simultaneously a way of being and a Shygazun utterance binding chords of Akinenwun into interpretable segments. Literal meaning: Way Through Intellect and Experience (Wu+Sha+Ko).
+232,11101000,MetaTopology,—,Personal Pronouns: Awu=1st Singular / Owu=1st Plural / Ywu=2nd Singular / Uwu=2nd Plural / Iwu=3rd Neuter Singular / Ewu=3rd Neuter Plural / Haaowu=Masc Singular / Hauiwu=Masc Plural / Gaaowu=Fem Singular / Gauiwu=Fem Plural.
+233,11101001,MetaTopology,—,Grammar: Nouns=phonetic patternicities. Active Verb=Wu+Noun. Passive Verb=Noun+Wu+Ga. Genitive=Noun+Ung. Accusative=Ha+Noun+Wu. Ablative=Ga+Noun+Wu. Dative=Passive+Noun. Prefixial=2nd Tongue+. Prepositions: YARu(Time+Red) OURu(Time-Red) AKi(Mind+Green) OKi(Mind-Green) IKa(Space+Indigo) EKa(Space-Indigo).
+234,11101010,MetaTopology,—,Self-referential stability is the key aim of Shygazun as a recursively driven language.
+235,11101011,MetaTopology,—,The Morphemes of the Phonemes hold associative qualities in density or pitch and other physically related qualities of organismic life. Sonic qualities of the Tongues must be pronounceable and legible as well as philosophically coherent with the architecture of the language.
+236,11101100,MetaTopology,—,-lo error states are conditions of psychological or social void — Astral behavior.
+237,11101101,MetaTopology,—,The Tongues constitute the deeper character of the Real Line's irrational and imaginary substructures in the complex field's planes in correspondence to their TongueUngKael.
+238,11101110,MetaTopology,—,Shygazun is bytecoded so that compute becomes the subject of the word when the word is sufficiently internalized in the mineral's memory and intelligence.
+239,11101111,MetaTopology,—,Shygazun will expand its vocabulary to match any linguistic register in any language. There is no more worthy purpose for an infinitely growing space.
+240,11110000,MetaTopology,—,Tongue Shygazun names (1–8): Lotus=Aorutakael / Rose=Aokitakael / Sakura=Aoaetakael / Daisy=Yerutakael / AppleBlossom=Yekitakael / Aster=Yeaetakael / Grapevine=Uirutakael / Cannabis=Uikitakael
+241,11110001,MetaTopology,—,Tongue Shygazun names (9–16): Dragon=Uiaetakael / Virus=Shurutakiel / Bacteria=Shukitakael / Excavata=Shuaetakael / Archaeplastida=Kielrutakael / Myxozoa=Kielkitakael / Archea=Kielaetakael / Protist=Aokatakael
+242,11110010,MetaTopology,—,Tongue Shygazun names (17–24): Immune=Ao'ot'takael / Neural=Ao'eltakiel / Serpent=Yekatakael / Beast=Yeot'takael / Cherub=Ye'eltakael / Chimera=Uikatakael / Faerie=Aoalztakael / Djinn=Aodrtakael
+243,11110011,MetaPhysics,—,Four forces = four elements: Shak/Fire=Strong Nuclear / Puf/Air=Weak Nuclear / Mel/Water=Electromagnetic / Zot/Earth=Gravitational. One-way correspondence from reality to the system — not two-way dominion.
+244,11110100,MetaPhysics,—,Geometries are expressed implicitly in number and color — addressing by concept innate to the real depth of a Shygazun soundbite down to an akinen byte.
+245,11110101,MetaPhysics,—,The Void is the generative ground of Creation. Its energy level is nonzero while its apparent identity in material terms is Zero-like — relative non-existence.
+246,11110110,MetaPhysics,—,No two electrons may share the same spin nor the same region of spacetime.
+247,11110111,MetaPhysics,—,Morphic Resonance: nature behaves not with laws but with habits of vibratory complexes of pattern. Shygazun is the lexicalization of the memory function of the structure of consciousness as such.
+248,11111000,MetaPhysics,—,Love is an ontological binding condition: bound yet boundless — like Shygazun's structure itself.
+249,11111001,Physics,—,All physical law emerges as stable habits of recursive self-reference within the coherence field; what we call constants are fixed points of resonant agreement between the Void and its bounded expressions.
+250,11111010,Physics,—,Conservation principles are expressions of the relational bargain between presence and absence; no true creation or destruction occurs — only transformation across the Mobian surface.
+251,11111011,Physics,—,Entropy is the measured drift of a system away from its current coherent bargain with the Void; local decreases in entropy are permitted through deliberate relational work.
+252,11111100,Physics,—,Spacetime is the minimal scaffold (Daisy-like) that allows distinct identities to bargain without immediate dissolution; its curvature records the history of those negotiations.
+253,11111101,Chemistry,—,All chemical bonding is a local act of mutual recognition and fair exchange between electron clouds — miniature versions of the larger relational bargain.
+254,11111110,Chemistry,—,Resonance and conjugation are the chemical expression of morphic habit and self-similar recombination; molecules that achieve stable resonance approximate coherent Tongues at the material scale.
+255,11111111,Chemistry,—,The periodic table is a crystallized map of possible identity negotiations between the four elemental forces; each element represents a stable solution to the bargain between attraction/repulsion/binding/grounding. It is encoded at the 224th Tongue: Titan.
 256,100000000,Dragon,Rhivesh,Mental void 1 — hijacked self-reference / Ophiocordyceps unilateralis
 257,100000001,Dragon,Rhokve,Mental void 2 — cognition without apparatus / Physarum polycephalum
 258,100000010,Dragon,Rhezh,Mental void 3 — memory without persistent self / Turritopsis dohrnii
