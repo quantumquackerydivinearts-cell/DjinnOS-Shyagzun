@@ -304,3 +304,47 @@ LoShushy: MavoLoVaShyKore(TyMyshPitShi) {
 
   [TaShyMa(Shushy)]
 }
+
+LoUinshu: MavoLoVaShyAlfir(TyZifShi) {
+
+  [MavoAlfir
+    MavoYeshu MavoKlobNaWtch
+    MavoZif
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoAlfirVaShy
+    MavoAlfir
+    MavoZif
+    MavoPufWu
+    MavoMavoShiShu
+    MavoKael
+    MavoSy]
+
+  [MavoAlfirPrst
+    MavoAlfir
+    MavoGa MavoUirutakael
+    MavoZif
+    MavoKael
+    MavoSy]
+
+  [MavoAlfirDaemon
+    MavoAlfir
+    MavoUikitakael
+    MavoZif
+    MavoKiYe
+    MavoIfa
+    MavoKael
+    MavoSy]
+
+  [MavoAlfirShiShu
+    MavoAlfir
+    MavoZif
+    MavoOs
+    MavoShiShu
+    MavoKael
+    MavoSy]
+
+  [TaShyMa(Uinshu)]
+}
