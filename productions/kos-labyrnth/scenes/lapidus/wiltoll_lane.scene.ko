@@ -1,0 +1,65 @@
+SethVaShy: MavoKoLoSceneLapidusWiltollLane {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoSceneMeta(TyLapidusOtElMelZotDi) {
+
+  [MavoSceneId      lapidus/wiltoll_lane]
+  [MavoSceneName    MavoWiltollLane]
+  [MavoRealm        MavoLapidus]
+  [MavoSceneType    MavoVoxelExterior]
+  [MavoSpawn        Kiel Shu Ao]
+  [MavoCamera       Ui Uinshu Ye Yeshu Ao]
+  [MavoAmbient      MavoWiltollMorningTheme]
+  [MavoTimeOfDay    MavoMorning]
+  [MavoWidth        Ao Ye]
+  [MavoDepth        Ao Gaoh]
+  [MavoHeight       Shu]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoFloor(TyElMelZotOtTaVa) {
+
+  [Gaoh  Gaoh Gaoh  El     Ta Va]  [Ao    Gaoh Gaoh  El     Ta Va]
+  [Ye    Gaoh Gaoh  El     Ta Va]  [Ui    Gaoh Gaoh  El     Ta Va]
+  [Shu   Gaoh Gaoh  MelZot Ta Va]  [Kiel  Gaoh Gaoh  El     Ta Va]
+  [Yeshu Gaoh Gaoh  El     Ta Va]  [Lao   Gaoh Gaoh  El     Ta Va]
+  [Shushy Gaoh Gaoh El     Ta Va]  [Uinshu Gaoh Gaoh El     Ta Va]
+  [Kokiel Gaoh Gaoh MelZot Ta Va]  [Aonkiel Gaoh Gaoh El    Ta Va]
+  [Ao Gaoh Gaoh Gaoh  El   Ta Va]
+
+  [Gaoh  Ao   Gaoh  El     Ta Va]  [Ao    Ao   Gaoh  El     Ta Va]
+  [Ye    Ao   Gaoh  El     Ta Va]  [Ui    Ao   Gaoh  El     Ta Va]
+  [Shu   Ao   Gaoh  MelZot Ta Va]  [Kiel  Ao   Gaoh  El     Ta Va]
+  [Yeshu Ao   Gaoh  El     Ta Va]  [Lao   Ao   Gaoh  El     Ta Va]
+  [Shushy Ao  Gaoh  El     Ta Va]  [Uinshu Ao  Gaoh  El     Ta Va]
+  [Kokiel Ao  Gaoh  MelZot Ta Va]  [Aonkiel Ao Gaoh  El     Ta Va]
+  [Ao Gaoh Ao  Gaoh  El    Ta Va]
+
+  [TaShyMa(Ao)]
+}
+
+LoYeshu: MavoInteractions(TyVaDiElKiOt) {
+
+  [MavoSpawnWiltollHomeEnd
+    Kiel Shu Ao
+    TaVa Va
+    MavoKael MavoSy]
+
+  [MavoEnterHome
+    Yeshu Gaoh Ao
+    MavoExitToHomeMorning
+    Di Va
+    MavoKael MavoSy]
+
+  [MavoEnterAzonithia
+    Kiel Ao Ye Gaoh Ao
+    MavoEnterAzonithia
+    Di Va
+    MavoKael MavoSy]
+
+  [TaShyMa(Yeshu)]
+}
+
+} }

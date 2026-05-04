@@ -1,0 +1,1 @@
+# djinnos_runtime.vms — registered VM entry points for DjinnOS

@@ -1,0 +1,837 @@
+SethVaShy: MavoKoLoKlobChars {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoCharMeta(TyOtElKiKiKielKiYeshuKiLao) {
+
+  [MavoKlobNaPrst  OtUi]
+  [MavoKlobNaAssn  OtShu]
+  [MavoKlobNaRoyl  OtYeshu]
+  [MavoKlobNaGnom  ElAo]
+  [MavoKlobNaNymp  ElYe]
+  [MavoKlobNaUndi  ElUi]
+  [MavoKlobNaSala  ElShu]
+  [MavoKlobNaDrya  ElKiel]
+  [MavoKlobNaDjnn  ElYeshu]
+  [MavoKlobNaVdwr  KiAo]
+  [MavoKlobNaDmon  KiYe]
+  [MavoKlobNaDemi  KiUi]
+  [MavoKlobNaSold  OtKiel]
+  [MavoKlobNaGods  KiKiel]
+  [MavoKlobNaPrim  KiYeshu]
+  [MavoKlobNaAnmu  KiLao]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoLoVaShyWtchPrstAssn(TyOtYeOtUiOtShuZotKiKaGa) {
+
+  [MavoForest
+    MavoLao MavoKlobNaWtch
+    MavoKev
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoForestVaShy
+    MavoForest
+    ZotVa TaVa Ki
+    MavoKael MavoSy]
+
+  [MavoForestLoVaShy
+    MavoForest
+    MavoShu
+    MavoSuKoLo
+    MavoKev
+    MavoKael MavoSy]
+
+  [MavoSaffron
+    MavoShushy MavoKlobNaPrst
+    MavoSaf
+    MavoSy MavoKael MavoMavo]
+
+  [MavoSaffronVaShy
+    MavoSaffron
+    Ki FyKo Na
+    MavoKael MavoSy]
+
+  [MavoLucion
+    MavoUinshu MavoKlobNaPrst
+    MavoLuc
+    MavoSy MavoKael MavoMavo]
+
+  [MavoLucionVaShy
+    MavoLucion
+    AE FyKo
+    MavoKael MavoSy]
+
+  [MavoRachelle
+    MavoKokiel MavoKlobNaPrst
+    MavoRach
+    MavoSy MavoKael MavoMavo]
+
+  [MavoRachelleVaShy
+    MavoRachelle
+    Ki Mel
+    MavoKael MavoSy]
+
+  [MavoHue
+    MavoAonkiel MavoKlobNaAssn
+    MavoHeu
+    MavoSy MavoKael MavoMavo]
+
+  [MavoHueVaShy
+    MavoHue
+    Ka Di Ga
+    MavoKael MavoSy]
+
+  [MavoHueAelyKore
+    MavoHue
+    MavoAonkiel MavoKlobNaWtch
+    Ka Ga
+    MavoKael MavoSy]
+
+  [MavoCyrus
+    Ao Gaoh MavoKlobNaAssn
+    MavoCyr
+    MavoSy MavoKael MavoMavo]
+
+  [MavoCyrusVaShy
+    MavoCyrus
+    Ka Di
+    MavoKael MavoSy]
+
+  [MavoAsmoth
+    Ao Ao MavoKlobNaAssn
+    MavoAsm
+    MavoSy MavoKael MavoMavo]
+
+  [MavoAsmothVaShy
+    MavoAsmoth
+    Ka Zhuk
+    MavoKael MavoSy]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoLoVaShyRoyl(TyOtYeshuElKaFyNaMuSha) {
+
+  [MavoChancellorKelly
+    Ao Ye MavoKlobNaRoyl
+    MavoKel
+    MavoSy MavoKael MavoMavo]
+
+  [MavoChancellorKellyVaShy
+    MavoChancellorKelly
+    Fy Na Zot
+    MavoKael MavoSy]
+
+  [MavoKingBombastus
+    Ao Ui MavoKlobNaRoyl
+    MavoBom
+    MavoSy MavoKael MavoMavo]
+
+  [MavoKingBombastusVaShy
+    MavoKingBombastus
+    El Ha Ka
+    MavoKael MavoSy]
+
+  [MavoQueenHildegarde
+    Ao Shu MavoKlobNaRoyl
+    MavoHil
+    MavoSy MavoKael MavoMavo]
+
+  [MavoQueenHildegardeVaShy
+    MavoQueenHildegarde
+    El Ki Mel
+    MavoKael MavoSy]
+
+  [MavoLordNexiott
+    Ao Kiel MavoKlobNaRoyl
+    MavoNex
+    MavoSy MavoKael MavoMavo]
+
+  [MavoLordNexiottVaShy
+    MavoLordNexiott
+    El Ka Na
+    MavoKael MavoSy]
+
+  [MavoDukeEomann
+    Ao Yeshu MavoKlobNaRoyl
+    MavoEom
+    MavoSy MavoKael MavoMavo]
+
+  [MavoDukeEomannVaShy
+    MavoDukeEomann
+    Ot Ka
+    MavoKael MavoSy]
+
+  [MavoPrincessLuminyx
+    Ao Lao MavoKlobNaRoyl
+    MavoLyx
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoPrincessLuminyxVaShy
+    MavoPrincessLuminyx
+    El TaVa
+    Soa
+    MavoKael MavoSy]
+
+  [MavoPrincessLuminyxShi
+    MavoPrincessLuminyx
+    MavoLyx
+    MavoSiSu
+    MavoKael MavoSy]
+
+  [TaShyMa(Ye)]
+}
+
+LoUi: MavoLoVaShyFaeLesser(TyElAoElYeElUiZotMelKiPuf) {
+
+  [MavoClint
+    Ao Shushy MavoKlobNaGnom
+    MavoKln
+    MavoSy MavoKael MavoMavo]
+
+  [MavoClintVaShy
+    MavoClint
+    Zot Ki
+    MavoKael MavoSy]
+
+  [MavoGnolan
+    Ao Uinshu MavoKlobNaGnom
+    MavoGno
+    MavoSy MavoKael MavoMavo]
+
+  [MavoGnolanVaShy
+    MavoGnolan
+    Zot FyKo
+    MavoKael MavoSy]
+
+  [MavoWinnona
+    Ao Kokiel MavoKlobNaGnom
+    MavoWin
+    MavoSy MavoKael MavoMavo]
+
+  [MavoWinnonaVaShy
+    MavoWinnona
+    Zot Na Ki
+    MavoKael MavoSy]
+
+  [MavoAmelia
+    Ao Aonkiel MavoKlobNaNymp
+    MavoAml
+    MavoSy MavoKael MavoMavo]
+
+  [MavoAmeliaVaShy
+    MavoAmelia
+    Mel Ki Puf
+    MavoKael MavoSy]
+
+  [MavoEcho
+    Ye Gaoh MavoKlobNaNymp
+    MavoEko
+    MavoSy MavoKael MavoMavo]
+
+  [MavoEchoVaShy
+    MavoEcho
+    Mel Fy
+    MavoKael MavoSy]
+
+  [MavoKarlia
+    Ye Ao MavoKlobNaNymp
+    MavoKrl
+    MavoSy MavoKael MavoMavo]
+
+  [MavoKarliaVaShy
+    MavoKarlia
+    Mel Ki
+    MavoKael MavoSy]
+
+  [MavoSophia
+    Ye Ye MavoKlobNaUndi
+    MavoSop
+    MavoSy MavoKael MavoMavo]
+
+  [MavoSophiaVaShy
+    MavoSophia
+    Fu Mel Ki
+    MavoKael MavoSy]
+
+  [MavoLectura
+    Ye Ui MavoKlobNaUndi
+    MavoLec
+    MavoSy MavoKael MavoMavo]
+
+  [MavoLecturaVaShy
+    MavoLectura
+    Mel FyKo
+    MavoKael MavoSy]
+
+  [MavoFaygoru
+    Ye Shu MavoKlobNaUndi
+    MavoFay
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoFaygoruVaShy
+    MavoFaygoru
+    Mel Ku Ki
+    I
+    MavoKael MavoSy]
+
+  [MavoFaygoruAelyOhadame
+    MavoFaygoru
+    Shu Kokiel MavoKlobNaGods
+    Mel Ku
+    MavoKael MavoSy]
+
+  [TaShyMa(Ui)]
+}
+
+LoShu: MavoLoVaShyFaeGreater(TyElShuElKielElYeshuShakZotKiPuf) {
+
+  [MavoChazak
+    Ye Kiel MavoKlobNaSala
+    MavoChz
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoChazakVaShy
+    MavoChazak
+    Shak Mel Ki MuSha
+    Av
+    MavoKael MavoSy]
+
+  [MavoChazakAelyMoshize
+    MavoChazak
+    Ye Shushy MavoKlobNaGods
+    MuSha Ki
+    MavoKael MavoSy]
+
+  [MavoAxiozul
+    Ye Yeshu MavoKlobNaSala
+    MavoAxz
+    MavoSy MavoKael MavoMavo]
+
+  [MavoAxiozulVaShy
+    MavoAxiozul
+    Shak Ka
+    MavoKael MavoSy]
+
+  [MavoSavvi
+    Ye Lao MavoKlobNaSala
+    MavoSav
+    MavoSy MavoKael MavoMavo]
+
+  [MavoSavviVaShy
+    MavoSavvi
+    Shak Ka El
+    MavoKael MavoSy]
+
+  [MavoEukala
+    Ye Shushy MavoKlobNaDrya
+    MavoEuk
+    MavoSy MavoKael MavoMavo]
+
+  [MavoEukalaVaShy
+    MavoEukala
+    TaVa Zot Ki Puf
+    MavoKael MavoSy]
+
+  [MavoTymona
+    Ye Uinshu MavoKlobNaDrya
+    MavoTym
+    MavoSy MavoKael MavoMavo]
+
+  [MavoTymonaVaShy
+    MavoTymona
+    TaVa Zot Ki
+    MavoKael MavoSy]
+
+  [MavoVajil
+    Ye Kokiel MavoKlobNaDrya
+    MavoVaj
+    MavoSy MavoKael MavoMavo]
+
+  [MavoVajilVaShy
+    MavoVajil
+    TaVa Zot
+    MavoKael MavoSy]
+
+  [MavoGiann
+    Ye Aonkiel MavoKlobNaDjnn
+    MavoGian
+    MavoSy MavoKael MavoMavo]
+
+  [MavoGiannVaShy
+    MavoGiann
+    Puf Ki
+    MavoKael MavoSy]
+
+  [MavoKeshi
+    Ui Gaoh MavoKlobNaDjnn
+    MavoKesh
+    MavoSy MavoKael MavoMavo]
+
+  [MavoKeshiVaShy
+    MavoKeshi
+    Puf FyKo
+    MavoKael MavoSy]
+
+  [MavoDrovitth
+    Ui Ao MavoKlobNaDjnn
+    MavoDrov
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoDrovitthVaShy
+    MavoDrovitth
+    Puf FyKo Soa
+    MavoKael MavoSy]
+
+  [MavoDrovitthOrrery
+    MavoDrovitth
+    MavoRoyalBehavior
+    Soa Ko
+    MavoKael MavoSy]
+
+  [TaShyMa(Shu)]
+}
+
+LoKiel: MavoLoVaShyLiminal(TyKiAoKiYeKiUiOtKielGaKaShakKu) {
+
+  [MavoHaldoro
+    Ui Ye MavoKlobNaVdwr
+    MavoHld
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoHaldoroVaShy
+    MavoHaldoro
+    Ga MuSha Ki
+    I
+    MavoKael MavoSy]
+
+  [MavoHaldoroKo
+    MavoHaldoro
+    MavoUikitakael
+    Ga MuSha
+    MavoKael MavoSy]
+
+  [MavoVios
+    Ui Ui MavoKlobNaVdwr
+    MavoVios
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoViosVaShy
+    MavoVios
+    Ga Ki Fy
+    I
+    MavoKael MavoSy]
+
+  [MavoNegaya
+    Ui Shu MavoKlobNaVdwr
+    MavoNeg
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoNegayaVaShy
+    MavoNegaya
+    Ga Ka Ku
+    An
+    MavoKael MavoSy]
+
+  [MavoNegayaAelyTagame
+    MavoNegaya
+    Shu Ye MavoKlobNaDemi
+    Ga TaVa
+    MavoKael MavoSy]
+
+  [MavoOtheiru
+    Ui Kiel MavoKlobNaDmon
+    MavoOth
+    MavoSy MavoKael MavoMavo]
+
+  [MavoOtheiruVaShy
+    MavoOtheiru
+    Ka Ku Ga
+    Yzr
+    MavoKael MavoSy]
+
+  [MavoKielum
+    Ui Yeshu MavoKlobNaDmon
+    MavoKum
+    MavoSy MavoKael MavoMavo]
+
+  [MavoKielumVaShy
+    MavoKielum
+    Ka Zhuk Ga
+    MavoKael MavoSy]
+
+  [MavoRuzoa
+    Ui Lao MavoKlobNaDmon
+    MavoRuz
+    MavoSy MavoKael MavoMavo]
+
+  [MavoRuzoaVaShy
+    MavoRuzoa
+    Ru Shak
+    MavoKael MavoSy]
+
+  [MavoPOElfan
+    Ui Shushy MavoKlobNaDmon
+    MavoPelf
+    MavoSy MavoKael MavoMavo]
+
+  [MavoPOElfanVaShy
+    MavoPOElfan
+    Ki Ga Fy
+    MavoKael MavoSy]
+
+  [MavoKaganue
+    Ui Uinshu MavoKlobNaDmon
+    MavoKag
+    MavoSy MavoKael MavoMavo]
+
+  [MavoKaganueVaShy
+    MavoKaganue
+    Ka El Ga
+    MavoKael MavoSy]
+
+  [MavoZukoru
+    Ui Kokiel MavoKlobNaDmon
+    MavoZuk
+    MavoSy MavoKael MavoMavo]
+
+  [MavoZukoruVaShy
+    MavoZukoru
+    Ga Mel Ku
+    MavoKael MavoSy]
+
+  [MavoZukoruAelyLanzu
+    MavoZukoru
+    Shu Ao MavoKlobNaDemi
+    Ga Shak
+    MavoKael MavoSy]
+
+  [MavoStAlaro
+    Ui Aonkiel MavoKlobNaDmon
+    MavoAlr
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoStAlaroVaShy
+    MavoStAlaro
+    El Fy Ka Soa
+    Ar
+    MavoKael MavoSy]
+
+  [MavoStAlaroBreathOfKo
+    MavoStAlaro
+    MavoCosmic Wu
+    Soa Ka
+    MavoKael MavoSy]
+
+  [MavoShapieru
+    Shu Gaoh MavoKlobNaDemi
+    MavoShap
+    MavoSy MavoKael MavoMavo]
+
+  [MavoShapieruVaShy
+    MavoShapieru
+    Ki Shak TaVa
+    MavoKael MavoSy]
+
+  [MavoLanzu
+    Shu Ao MavoKlobNaDemi
+    MavoLanz
+    MavoSy MavoKael MavoMavo]
+
+  [MavoLanzuVaShy
+    MavoLanzu
+    Shak Mel
+    MavoKael MavoSy]
+
+  [MavoTagame
+    Shu Ye MavoKlobNaDemi
+    MavoTag
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoTagameVaShy
+    MavoTagame
+    TaVa Ki Shak
+    MavoKael MavoSy]
+
+  [MavoTagameAelyKore
+    MavoTagame
+    MavoKiel MavoKlobNaWtch
+    TaVa Mel
+    MavoKael MavoSy]
+
+  [MavoCaptainLanvaki
+    Shu Ui MavoKlobNaSold
+    MavoLanv
+    MavoSy MavoKael MavoMavo]
+
+  [MavoCaptainLanvakiVaShy
+    MavoCaptainLanvaki
+    Ka Na Zot
+    MavoKael MavoSy]
+
+  [MavoSgtAkande
+    Shu Shu MavoKlobNaSold
+    MavoAknd
+    MavoSy MavoKael MavoMavo]
+
+  [MavoSgtAkandeVaShy
+    MavoSgtAkande
+    Ka Zot Di
+    MavoKael MavoSy]
+
+  [MavoPvtKilesha
+    Shu Kiel MavoKlobNaSold
+    MavoKish
+    MavoSy MavoKael MavoMavo]
+
+  [MavoPvtKileshaVaShy
+    MavoPvtKilesha
+    Ka Zot
+    MavoKael MavoSy]
+
+  [TaShyMa(Kiel)]
+}
+
+LoYeshu: MavoLoVaShyGods(TyKiKielHaShakKiFyKoMuShaZo) {
+
+  [MavoMoshize
+    Shu Yeshu MavoKlobNaGods
+    MavoMosh
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoMoshizeVaShy
+    MavoMoshize
+    Ha MuSha Ki
+    MavoKael MavoSy]
+
+  [MavoShakzefan
+    Shu Lao MavoKlobNaGods
+    MavoShzf
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoShakzefanVaShy
+    MavoShakzefan
+    Shak Ga TaVa
+    Af
+    MavoKael MavoSy]
+
+  [MavoLakota
+    Shu Shushy MavoKlobNaGods
+    MavoLkot
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoLakotaVaShy
+    MavoLakota
+    Shak Mel Ki
+    MavoKael MavoSy]
+
+  [MavoLakotaAelySala
+    MavoLakota
+    ElShu
+    Shak TaVa
+    MavoKael MavoSy]
+
+  [MavoJabiru
+    Shu Uinshu MavoKlobNaGods
+    MavoJabr
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoJabiruVaShy
+    MavoJabiru
+    Ko Fy Ki
+    Soa
+    MavoKael MavoSy]
+
+  [MavoOhadame
+    Shu Kokiel MavoKlobNaGods
+    MavoOhd
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoOhadameVaShy
+    MavoOhadame
+    MuSha Soa Ki
+    I Soa
+    MavoKael MavoSy]
+
+  [MavoKo
+    Shu Aonkiel MavoKlobNaGods
+    Ko
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoKoVaShy
+    MavoKo
+    MuSha Ko
+    Y Soa
+    MavoKael MavoSy]
+
+  [MavoKoShiShu
+    MavoKo
+    Ko
+    MavoKokiel Ha
+    MavoKael MavoSy]
+
+  [MavoKoga
+    Kiel Gaoh MavoKlobNaGods
+    MavoKog
+    MavoSy MavoKael MavoMavo]
+
+  [MavoKogaVaShy
+    MavoKoga
+    AE Ki Puf
+    MavoKael MavoSy]
+
+  [MavoMona
+    Kiel Ao MavoKlobNaGods
+    MavoMona
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoMonaVaShy
+    MavoMona
+    Ki Shak Mel
+    MavoKael MavoSy]
+
+  [MavoZoha
+    Kiel Ye MavoKlobNaGods
+    MavoZoha
+    MavoSy MavoKael MavoMavo]
+
+  [MavoZohaVaShy
+    MavoZoha
+    Zo Ka
+    MavoKael MavoSy]
+
+  [TaShyMa(Yeshu)]
+}
+
+LoLao: MavoLoVaShyPrimAnmu(TyKiYeshuKiLaoGaNaHaUngWuKaelZotShakPuf) {
+
+  [MavoGa
+    Kiel Ui MavoKlobNaPrim
+    Ga
+    MavoSy MavoKael MavoMavo]
+
+  [MavoNa
+    Kiel Shu MavoKlobNaPrim
+    Na
+    MavoSy MavoKael MavoMavo]
+
+  [MavoHa
+    Kiel Kiel MavoKlobNaPrim
+    Ha
+    MavoSy MavoKael MavoMavo]
+
+  [MavoUng
+    Kiel Yeshu MavoKlobNaPrim
+    Ung
+    MavoSy MavoKael MavoMavo]
+
+  [MavoWu
+    Kiel Lao MavoKlobNaPrim
+    Wu
+    MavoSy MavoKael MavoMavo]
+
+  [MavoKaelPrim
+    Kiel Shushy MavoKlobNaPrim
+    Kael
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoKaelPrimVaShy
+    MavoKaelPrim
+    Kael TaVa Soa
+    Y Soa
+    MavoKael MavoSy]
+
+  [MavoLapidus
+    Kiel Uinshu MavoKlobNaAnmu
+    MavoLapd
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoLapidusVaShy
+    MavoLapidus
+    Zot TaVa Na
+    At Soa
+    MavoKael MavoSy]
+
+  [MavoMercurie
+    Kiel Kokiel MavoKlobNaAnmu
+    MavoMerc
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoMercurieVaShy
+    MavoMercurie
+    Puf Ki TaVa
+    I Soa
+    MavoKael MavoSy]
+
+  [MavoSulphera
+    Kiel Aonkiel MavoKlobNaAnmu
+    MavoSulph
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoSulpheraVaShy
+    MavoSulphera
+    Shak Ga TaVa
+    An Soa
+    MavoKael MavoSy]
+
+  [MavoPythiaSolunikae
+    Yeshu Gaoh MavoKlobNaAnmu MavoKlobNaPrim
+    MavoPyth
+    MavoSy
+    MavoKael
+    MavoMavo]
+
+  [MavoPythiaSolunikaeVaShy
+    MavoPythiaSolunikae
+    Zot Puf Shak Ki
+    Y Soa
+    MavoKael MavoSy]
+
+  [TaShyMa(Lao)]
+}
+
+} }

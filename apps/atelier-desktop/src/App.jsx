@@ -13,6 +13,7 @@ import { CalculatorPanel } from "./panels/CalculatorPanel";
 import { RenderLabPanel } from "./panels/RenderLabPanel";
 import { LotusPanel } from "./panels/LotusPanel";
 import { AlchemySubjectPanel } from "./panels/AlchemySubjectPanel";
+import { KobraStudioPanel } from "./panels/KobraStudioPanel";
 import { ShopManagerPanel } from "./panels/ShopManagerPanel";
 import { Q3Panel } from "./panels/Q3Panel";
 import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
@@ -130,7 +131,8 @@ const NAV_ITEMS = [
   "Shop Manager",
   "Q3",
   "Supra Librix",
-  "Sequential Art"
+  "Sequential Art",
+  "Kobra Studio"
 ];
 
 function capabilitiesForRole(role) {
@@ -1432,6 +1434,62 @@ function parseKobraShygazunScript(sourceText) {
       }
       return;
     }
+    // Kobra bracket spec — voxel or named entity
+    if (lineText.startsWith("[") && lineText.endsWith("]")) {
+      const inner = lineText.slice(1, -1).trim();
+      if (!inner || inner.startsWith("TaShyMa")) return;
+      const toks = inner.split(/\s+/).filter(Boolean);
+      if (!toks.length) return;
+      if (toks[0] in ROSE_NUMERAL_MAP) {
+        // [x y z ColorTok PresenceTok TraversalTok …]
+        let pos = 0;
+        const [x, nx] = parseRoseCoord(toks, pos); pos += nx;
+        const [y, ny] = parseRoseCoord(toks, pos); pos += ny;
+        const [z, nz] = parseRoseCoord(toks, pos); pos += nz;
+        const props = toks.slice(pos);
+        const colorTok = props.find(t => t in GAME_VOXEL_COLOR_MAP) || null;
+        const color = colorTok ? GAME_VOXEL_COLOR_MAP[colorTok] : "#888888";
+        const akinenwun = props.join(" ");
+        current = {
+          id: `voxel_${x}_${y}_${z}`,
+          x, y, z, color,
+          color_token: colorTok || "",
+          walkable: props.includes("Va") && !props.includes("Vo"),
+          solid: props.includes("Vo"),
+          tag: "voxel", meta: {},
+        };
+        entities.push(current);
+        if (akinenwun) words.push({ word: akinenwun, symbols: splitAkinenwun(akinenwun) });
+      } else if (toks[0].startsWith("Mavo") && toks[0] !== "MavoKael" && toks[0] !== "MavoSy") {
+        // [MavoName x y z ActionTok … MavoKael MavoSy]
+        let pos = 1;
+        const [x, nx] = parseRoseCoord(toks, pos); pos += nx;
+        const [y, ny] = parseRoseCoord(toks, pos); pos += ny;
+        const [z, nz] = parseRoseCoord(toks, pos); pos += nz;
+        const rest = toks.slice(pos).filter(t => t !== "MavoKael" && t !== "MavoSy");
+        const actionMavo = rest.find(t => t.startsWith("Mavo")) || null;
+        const shyToks = rest.filter(t => !t.startsWith("Mavo"));
+        const akinenwun = shyToks.join(" ");
+        current = {
+          id: mavoToNodeId(toks[0]),
+          x, y, z, color: "#607d8b",
+          tag: "interaction",
+          meta: actionMavo ? { action_mavo: actionMavo } : {},
+        };
+        if (akinenwun) {
+          current.akinenwun = akinenwun;
+          current.meta.akinenwun = akinenwun;
+          words.push({ word: akinenwun, symbols: splitAkinenwun(akinenwun) });
+        }
+        entities.push(current);
+      }
+      return;
+    }
+    // Skip Kobra section/structure headers
+    if (/^(SethVaShy|YeGaoh|Lo[A-Z]|MavoHopefare|MyrunKyl)\b/.test(lineText)) {
+      current = null;
+      return;
+    }
     if (/^entity\s+/i.test(lineText)) {
       const parts = lineText.split(/\s+/);
       const zCandidate = parts[4];
@@ -1751,6 +1809,16 @@ function stylizeVoxelColor(hex, style) {
     }
     return `#${byteToHex(r)}${byteToHex(g)}${byteToHex(b)}`;
   }
+  if (mode === "koslabyrinth") {
+    // Game palette colours are set at parse time via GAME_VOXEL_COLOR_MAP.
+    // Apply a slight warm-ambient push for the Octopath painterly feel.
+    const rgb = parseHexColor(hex);
+    if (!rgb) return hex;
+    const r = Math.min(255, Math.round(rgb.r * 1.05 + 4));
+    const g = Math.min(255, Math.round(rgb.g * 1.02 + 2));
+    const b = Math.min(255, Math.round(rgb.b * 0.97));
+    return `#${byteToHex(r)}${byteToHex(g)}${byteToHex(b)}`;
+  }
   if (mode !== "default") {
     return hex;
   }
@@ -1758,7 +1826,8 @@ function stylizeVoxelColor(hex, style) {
 }
 
 function isHighFidelityStyle(style) {
-  return String(style || "").toLowerCase() === "pokemon_g45";
+  const s = String(style || "").toLowerCase();
+  return s === "pokemon_g45" || s === "koslabyrinth";
 }
 
 function isHybridPixelVoxelStyle(style) {
@@ -1829,6 +1898,30 @@ const ASTER_RIGHT_CHIRAL_TOKENS = {
 
 const ASTER_RIGHT_TOKENS = Object.keys(ASTER_RIGHT_CHIRAL_TOKENS);
 const ASTER_LEFT_TOKENS = Object.keys(ASTER_LEFT_CHIRAL_TOKENS);
+
+// Game voxel material palette — matches scene_compiler.py and *.scene.ko
+const GAME_VOXEL_COLOR_MAP = {
+  Ot:  "#8B6914", El:  "#696969", Ru:  "#8B0000",
+  Fu:  "#87CEEB", Ka:  "#4B0082", AE:  "#9400D3",
+  Ki:  "#3A7D44", Na:  "#C0C0C0", Ha:  "#FFFFFF",
+  Ga:  "#1A1A1A", Ung: "#654321", Wu:  "#000000",
+};
+
+// Rose numeral → integer for Kobra bracket spec coordinate parsing
+const ROSE_NUMERAL_MAP = {
+  Gaoh:0, Ao:1, Ye:2, Ui:3, Shu:4, Kiel:5,
+  Yeshu:6, Lao:7, Shushy:8, Uinshu:9, Kokiel:10, Aonkiel:11,
+};
+function parseRoseCoord(tokens, i) {
+  if (i >= tokens.length || !(tokens[i] in ROSE_NUMERAL_MAP)) return [0, 0];
+  const v = ROSE_NUMERAL_MAP[tokens[i]];
+  if (i + 1 < tokens.length && tokens[i + 1] in ROSE_NUMERAL_MAP)
+    return [v * 12 + ROSE_NUMERAL_MAP[tokens[i + 1]], 2];
+  return [v, 1];
+}
+function mavoToNodeId(name) {
+  return name.replace(/^Mavo/, "").replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase().replace(/_intr$/, "");
+}
 
 const ROSE_COLOR_COMBINATION_PRESETS = [
   { label: "Light Brown", value: "RuOtKi" },
@@ -3241,6 +3334,9 @@ function buildRendererFrameHtml(kind, source, engineState) {
         if (!parts || parts.length === 0) return [raw];
         return parts;
       }
+      const _GVC={Ot:"#8B6914",El:"#696969",Ru:"#8B0000",Fu:"#87CEEB",Ka:"#4B0082",AE:"#9400D3",Ki:"#3A7D44",Na:"#C0C0C0",Ha:"#FFFFFF",Ga:"#1A1A1A",Ung:"#654321",Wu:"#000000"};
+      const _RN={Gaoh:0,Ao:1,Ye:2,Ui:3,Shu:4,Kiel:5,Yeshu:6,Lao:7,Shushy:8,Uinshu:9,Kokiel:10,Aonkiel:11};
+      function _rc(t,i){if(i>=t.length||!(t[i] in _RN))return[0,0];const v=_RN[t[i]];if(i+1<t.length&&t[i+1] in _RN)return[v*12+_RN[t[i+1]],2];return[v,1];}
       function parseKobraShygazun(sourceText) {
         const normalized = String(sourceText || "").split("\\r").join("");
         const lines = normalized.split("\\n");
@@ -3251,47 +3347,50 @@ function buildRendererFrameHtml(kind, source, engineState) {
           const indent = rawLine.length - rawLine.trimStart().length;
           const lineText = rawLine.trim();
           if (!lineText || lineText.startsWith("#")) return;
+          if (lineText.startsWith("[") && lineText.endsWith("]")) {
+            const inner = lineText.slice(1,-1).trim();
+            if (!inner || inner.startsWith("TaShyMa")) return;
+            const toks = inner.split(/\s+/).filter(Boolean);
+            if (!toks.length) return;
+            if (toks[0] in _RN) {
+              let p=0;const[x,nx]=_rc(toks,p);p+=nx;const[y,ny]=_rc(toks,p);p+=ny;const[z,nz]=_rc(toks,p);p+=nz;
+              const props=toks.slice(p);const ct=props.find(t=>t in _GVC)||null;
+              const akw=props.join(" ");
+              current={id:"v_"+x+"_"+y+"_"+z,x,y,z,color:ct?_GVC[ct]:"#888888",color_token:ct||"",walkable:props.includes("Va")&&!props.includes("Vo"),solid:props.includes("Vo"),tag:"voxel",meta:{}};
+              entities.push(current);
+              if(akw)words.push({word:akw,symbols:splitAkinenwun(akw)});
+            } else if(toks[0].startsWith("Mavo")&&toks[0]!=="MavoKael"&&toks[0]!=="MavoSy"){
+              let p=1;const[x,nx]=_rc(toks,p);p+=nx;const[y,ny]=_rc(toks,p);p+=ny;const[z,nz]=_rc(toks,p);p+=nz;
+              const rest=toks.slice(p).filter(t=>t!=="MavoKael"&&t!=="MavoSy");
+              const am=rest.find(t=>t.startsWith("Mavo"))||null;
+              const shy=rest.filter(t=>!t.startsWith("Mavo")).join(" ");
+              const nid=toks[0].replace(/^Mavo/,"").replace(/([a-z])([A-Z])/g,"$1_$2").toLowerCase().replace(/_intr$/,"");
+              current={id:nid,x,y,z,color:"#607d8b",tag:"interaction",meta:am?{action_mavo:am}:{}};
+              if(shy){current.akinenwun=shy;current.meta.akinenwun=shy;words.push({word:shy,symbols:splitAkinenwun(shy)});}
+              entities.push(current);
+            }
+            return;
+          }
+          if(/^(SethVaShy|YeGaoh|Lo[A-Z]|MavoHopefare|MyrunKyl)\b/.test(lineText)){current=null;return;}
           if (indent > 0 && current) {
             const colonAt = lineText.indexOf(":");
-            let key = "";
-            let value = "";
-            if (colonAt > 0) {
-              key = lineText.slice(0, colonAt).trim();
-              value = lineText.slice(colonAt + 1).trim();
-            } else {
-              const spaceAt = lineText.indexOf(" ");
-              if (spaceAt > 0) {
-                key = lineText.slice(0, spaceAt).trim();
-                value = lineText.slice(spaceAt + 1).trim();
-              } else {
-                key = lineText;
-              }
-            }
+            let key = "", value = "";
+            if (colonAt > 0){key=lineText.slice(0,colonAt).trim();value=lineText.slice(colonAt+1).trim();}
+            else{const sp=lineText.indexOf(" ");if(sp>0){key=lineText.slice(0,sp).trim();value=lineText.slice(sp+1).trim();}else{key=lineText;}}
             if (!current.meta) current.meta = {};
             current.meta[key] = value;
-            if (key === "lex" || key === "akinenwun" || key === "shygazun") {
-              current.akinenwun = value;
-              words.push({ word: value, symbols: splitAkinenwun(value) });
-            }
+            if (key==="lex"||key==="akinenwun"||key==="shygazun"){current.akinenwun=value;words.push({word:value,symbols:splitAkinenwun(value)});}
             return;
           }
-          if (lineText.startsWith("entity ") ) {
+          if (lineText.startsWith("entity ")) {
             const parts = lineText.split(/\s+/);
-            current = {
-              id: parts[1] || "anon",
-              x: Number(parts[2] || 0),
-              y: Number(parts[3] || 0),
-              tag: parts[4] || "none",
-              meta: {}
-            };
-            entities.push(current);
-            return;
+            current={id:parts[1]||"anon",x:Number(parts[2]||0),y:Number(parts[3]||0),tag:parts[4]||"none",meta:{}};
+            entities.push(current); return;
           }
           current = null;
-          if (lineText.startsWith("lex ") || lineText.startsWith("akinenwun ") || lineText.startsWith("word ") ) {
-            const spaceAt = lineText.indexOf(" ");
-            const word = spaceAt > 0 ? lineText.slice(spaceAt + 1).trim() : "";
-            if (word) words.push({ word, symbols: splitAkinenwun(word) });
+          if (lineText.startsWith("lex ")||lineText.startsWith("akinenwun ")||lineText.startsWith("word ")) {
+            const sp=lineText.indexOf(" ");const word=sp>0?lineText.slice(sp+1).trim():"";
+            if(word)words.push({word,symbols:splitAkinenwun(word)});
           }
         });
         return { entities, words };
@@ -4482,6 +4581,7 @@ function applyVoxelMaterials(voxels, materialsMap, layersMap, atlasMap) {
 
 function normalizeRenderMode(raw) {
   const s = String(raw || "").toLowerCase();
+  if (s === "gl") return "gl";
   if (s === "3d") return "3d";
   if (s === "2d") return "2d";
   return "2.5d";
@@ -4788,6 +4888,83 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
       }
     }
   });
+}
+
+// Ko's Labyrinth GL contract: 3D voxels (Cardinal projection) + 2D sprite markers.
+// renderer_bridge.ko Cannabis mode I camera: tile=20, zScale=8.
+// renderer_bridge.ko Na trust lighting: ambient=0.30, intensity=0.80.
+function drawVoxelSceneGL(canvas, voxels, settings = {}) {
+  if (!canvas) return;
+  const spriteEntities = voxels.filter(v => v.tag === "interaction");
+  const voxelEntities  = voxels.filter(v => v.tag !== "interaction");
+
+  const glSettings = {
+    ...settings,
+    renderMode:   "2.5d",
+    projection:   "cardinal",
+    visualStyle:  "koslabyrinth",
+    tile:         Number(settings.tile)   || 20,
+    zScale:       Number(settings.zScale) || 8,
+    outline:      true,
+    outlineColor: settings.outlineColor || "#1a2a3a",
+    edgeGlow:     false,
+    lighting: {
+      enabled:   true,
+      x: 0.4, y: -0.6, z: 0.7,
+      ambient:   0.30,
+      intensity: 0.80,
+    },
+  };
+
+  drawVoxelScene(canvas, voxelEntities, glSettings);
+
+  if (!spriteEntities.length) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const tile   = glSettings.tile;
+  const zScale = glSettings.zScale;
+  const sorted = voxelEntities.slice().sort((a, b) => (a.y - b.y) || (a.x - b.x) || (a.z - b.z));
+  const bounds = computeCardinalContentBounds(sorted, tile, zScale);
+  if (!Number.isFinite(bounds.minX)) return;
+
+  const w = Math.max(1, canvas.clientWidth);
+  const h = Math.max(1, canvas.clientHeight);
+  const dpr = window.devicePixelRatio || 1;
+  const offsetX = (w - Math.max(1, bounds.maxX - bounds.minX)) * 0.5 - bounds.minX;
+  const offsetY = (h - Math.max(1, bounds.maxY - bounds.minY)) * 0.5 - bounds.minY + 16;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  spriteEntities.forEach(entity => {
+    const sx = Number(entity.x || 0) * tile + offsetX + tile * 0.5;
+    const sy = Number(entity.y || 0) * tile - Number(entity.z || 0) * zScale + offsetY;
+    const r  = tile * 0.36;
+    ctx.save();
+    ctx.globalAlpha = 0.90;
+    ctx.fillStyle   = entity.color || "#607d8b";
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(sx,     sy - r);
+    ctx.lineTo(sx + r, sy    );
+    ctx.lineTo(sx,     sy + r);
+    ctx.lineTo(sx - r, sy    );
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    if (entity.meta && entity.meta.action_mavo) {
+      const glyph = entity.meta.action_mavo.replace(/^Mavo/, "")[0] || "·";
+      ctx.globalAlpha = 1.0;
+      ctx.fillStyle   = "#ffffff";
+      ctx.font        = `bold ${Math.round(r * 0.85)}px monospace`;
+      ctx.textAlign   = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(glyph, sx, sy);
+    }
+    ctx.restore();
+  });
+  ctx.restore();
 }
 
 function drawVoxelSceneCardinal(canvas, ctx, voxels, settings, shared) {
@@ -5161,6 +5338,10 @@ function drawVoxelScene(canvas, voxels, settings = {}) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const renderMode = normalizeRenderMode(settings.renderMode);
+  if (renderMode === "gl") {
+    drawVoxelSceneGL(canvas, voxels, settings);
+    return;
+  }
   if (renderMode === "3d") {
     drawVoxelScene3D(canvas, voxels, settings);
     return;
@@ -10253,6 +10434,26 @@ function extractPythonSavedPath(outputText) {
     setRendererSandboxPacks((prev) => prev.filter((item) => item && item.pack_id !== targetId));
     setRendererSandboxStatus(`deleted:${targetId}`);
     setNotice(`sandbox_deleted:${targetId}`);
+  }
+
+  function applyKosLabyrinthPreset() {
+    setVoxelSettings((prev) => ({
+      ...prev,
+      renderMode:   "gl",
+      projection:   "cardinal",
+      renderScale:  2,
+      visualStyle:  "koslabyrinth",
+      pixelate:     false,
+      tile:         20,
+      zScale:       8,
+      background:   "#0b1426",
+      outline:      true,
+      outlineColor: "#1a2a3a",
+      edgeGlow:     false,
+      labelMode:    "none",
+      lighting: { ...(prev.lighting || {}), enabled: true, x: 0.4, y: -0.6, z: 0.7, ambient: 0.30, intensity: 0.80 },
+    }));
+    setNotice("renderer_preset:koslabyrinth");
   }
 
   function applyPokemonDsPreset() {
@@ -16390,6 +16591,7 @@ function extractPythonSavedPath(outputText) {
                     }))
                   }
                 >
+                  <option value="gl">Render GL</option>
                   <option value="2.5d">Render 2.5D</option>
                   <option value="2d">Render 2D</option>
                   <option value="3d">Render 3D</option>
@@ -16429,10 +16631,11 @@ function extractPythonSavedPath(outputText) {
                   value={voxelSettings.visualStyle || "default"}
                   onChange={(e) => setVoxelSettings((prev) => ({ ...prev, visualStyle: e.target.value }))}
                 >
+                  <option value="koslabyrinth">Style: Ko's Labyrinth</option>
                   <option value="default">Style: Default</option>
+                  <option value="classic_fallout">Style: Classic Fallout</option>
                   <option value="pokemon_ds">Style: Pokemon DS</option>
                   <option value="pokemon_g45">Style: Pokemon G4/G5</option>
-                  <option value="classic_fallout">Style: Classic Fallout</option>
                 </select>
                 <label className="inline-toggle">
                   <input
@@ -16447,9 +16650,10 @@ function extractPythonSavedPath(outputText) {
                   onChange={(e) => setVoxelSettings((prev) => ({ ...prev, background: e.target.value }))}
                   placeholder="background"
                 />
+                <button className="action" onClick={applyKosLabyrinthPreset}>Ko's Labyrinth Preset</button>
+                <button className="action" onClick={applyClassicFalloutPreset}>Classic Fallout Preset</button>
                 <button className="action" onClick={applyPokemonDsPreset}>Pokemon DS Preset</button>
                 <button className="action" onClick={applyPokemonG45Preset}>Pokemon G4/G5 Preset</button>
-                <button className="action" onClick={applyClassicFalloutPreset}>Classic Fallout Preset</button>
                 <button className="action" onClick={loadSpritesPreset}>Load Sprites Demo</button>
                 <button className="action" onClick={loadStructuresPreset}>Load Structures Demo</button>
                 <button className="action" onClick={loadLandscapePreset}>Load Landscape Demo</button>
@@ -19234,6 +19438,9 @@ function extractPythonSavedPath(outputText) {
     }
     if (section === "Alchemy Lab") {
       return <AlchemySubjectPanel apiBase={API_BASE} />;
+    }
+    if (section === "Kobra Studio") {
+      return <KobraStudioPanel />;
     }
     if (section === "Shop Manager") {
       return <ShopManagerPanel apiBase={API_BASE} authToken={authToken} artisanId={artisanId} />;

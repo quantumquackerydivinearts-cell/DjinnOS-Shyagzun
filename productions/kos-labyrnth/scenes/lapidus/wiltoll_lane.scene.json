@@ -1,0 +1,319 @@
+{
+  "schema": "atelier.scene.content.v1",
+  "scene_id": "lapidus/wiltoll_lane",
+  "realm_id": "lapidus",
+  "name": "Wiltoll Lane",
+  "description": "Player starting home in Lapidus.",
+  "nodes": [
+    {
+      "node_id": "spawn_point",
+      "kind": "spawn",
+      "x": 0.0,
+      "y": 0.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "lapidus/wiltoll_lane:spawn_point"
+      }
+    },
+    {
+      "node_id": "spawn_wiltoll_home_end",
+      "kind": "interaction",
+      "x": 5.0,
+      "y": 4.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "lapidus/wiltoll_lane:spawn_wiltoll_home_end"
+      }
+    },
+    {
+      "node_id": "enter_home",
+      "kind": "interaction",
+      "x": 6.0,
+      "y": 0.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "lapidus/wiltoll_lane:enter_home"
+      }
+    },
+    {
+      "node_id": "enter_azonithia",
+      "kind": "interaction",
+      "x": 5.0,
+      "y": 1.0,
+      "metadata": {
+        "z": 2,
+        "placement_id": "lapidus/wiltoll_lane:enter_azonithia"
+      }
+    }
+  ],
+  "edges": [],
+  "renderer": {
+    "scene": {
+      "scene_id": "lapidus/wiltoll_lane",
+      "scene_name": "Wiltoll Lane",
+      "scene_type": "voxel_interior",
+      "realm_id": "lapidus",
+      "dimensions": {
+        "width": 14,
+        "depth": 12,
+        "height": 4
+      },
+      "spawn_point": {
+        "x": 6,
+        "y": 6,
+        "z": 1
+      },
+      "camera_default": {
+        "angle": 45,
+        "elevation": 30,
+        "zoom": 1
+      },
+      "voxels": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 8,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 11,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 8,
+          "y": 1,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 9,
+          "y": 1,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 11,
+          "y": 1,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 1,
+          "color": "#B87333",
+          "color_token": "El",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        }
+      ],
+      "ambient_music": "wiltoll_morning_theme",
+      "time_of_day": "morning"
+    }
+  }
+}

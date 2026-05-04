@@ -1,0 +1,415 @@
+SethVaShy: MavoKoLoKlstQuests {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoQuestMeta(TyAIYSoa) {
+
+  [MavoQuestActive       A]
+  [MavoQuestInterior     I]
+  [MavoQuestTranscendent Y]
+  [MavoQuestPersistent   Soa]
+  [MavoQuestInfernal     An]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoQuestAwakening(TyTaVaShakFyKoElGaMuSha) {
+
+  [MavoFateKnocks
+    Ao RuUi
+    TaVa Shak
+    A
+    MavoKael MavoSy]
+
+  [MavoDestinyCalls
+    Ye RuUi
+    TaVa FyKo
+    A
+    MavoKael MavoSy]
+
+  [MavoYellowBrickRoad
+    Ui RuUi
+    Zot TaVa
+    At
+    MavoKael MavoSy]
+
+  [MavoGoldenPath
+    Shu RuUi
+    El Fy
+    I Soa
+    MavoKael MavoSy]
+
+  [MavoDarkerSecrets
+    Kiel RuUi
+    Ga Ki
+    I
+    MavoKael MavoSy]
+
+  [MavoTwaddlespeak
+    Yeshu RuUi
+    Fy Na
+    A
+    MavoKael MavoSy]
+
+  [MavoDreamOfGlass
+    Lao RuUi
+    MuSha Fu
+    Ar
+    MavoKael MavoSy]
+
+  [MavoBunsenForHire
+    Shushy RuUi
+    FyKo Shak
+    Af
+    MavoKael MavoSy]
+
+  [MavoDemonsAndDiamonds
+    Uinshu RuUi
+    Ka AE
+    An
+    MavoOutcomeSteal    Ka Ku Zhuk
+    MavoOutcomeTrade    MavoDesireCrystal Af Ar
+    MavoOutcomeAbsinthe MavoAbsinthe A
+    MavoKael MavoSy]
+
+  [MavoPerfectCircles
+    Kokiel RuUi
+    Zo Na
+    I
+    MavoKael MavoSy]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoQuestDescent(TyFuMelKaZhukShakGaKiElPuf) {
+
+  [MavoTheSirenSounds
+    Ao Gaoh RuUi
+    Fu Mel TaVa
+    Azr
+    MavoKael MavoSy]
+
+  [MavoTheMines
+    Ao Ao RuUi
+    Ka Zot Ot
+    At
+    MavoKael MavoSy]
+
+  [MavoWarNeverChanges
+    Ao Ye RuUi
+    Ka Zhuk
+    A
+    MavoKael MavoSy]
+
+  [MavoBombast
+    Ao Ui RuUi
+    Zhuk Puf
+    A
+    MavoKael MavoSy]
+
+  [MavoUnderworld
+    Ao Shu RuUi
+    Shak Ga
+    An
+    MavoKael MavoSy]
+
+  [MavoTranscendental
+    Ao Kiel RuUi
+    MuSha Ki Soa
+    Av
+    MavoKael MavoSy]
+
+  [MavoLossIFear
+    Ao Yeshu RuUi
+    Ga Ki
+    I
+    MavoKael MavoSy]
+
+  [MavoGrowingPains
+    Ao Lao RuUi
+    TaVa Shak
+    Af
+    MavoKael MavoSy]
+
+  [MavoWishUponAHorse
+    Ao Shushy RuUi
+    Ki Puf
+    Y
+    MavoKael MavoSy]
+
+  [MavoWishUponAFallingStar
+    Ao Uinshu RuUi
+    El Ki
+    Y
+    MavoKael MavoSy]
+
+  [MavoStarlightShows
+    Ao Kokiel RuUi
+    El Puf
+    Y
+    MavoKael MavoSy]
+
+  [TaShyMa(Ye)]
+}
+
+LoUi: MavoQuestCrossing(TyKaNaGaKiMuShaZoFuShak) {
+
+  [MavoGoodSoldiers
+    Ye Gaoh RuUi
+    Ka Na
+    A
+    MavoKael MavoSy]
+
+  [MavoMercenaryType
+    Ye Ao RuUi
+    Ka El Ot
+    A At
+    MavoKael MavoSy]
+
+  [MavoDeathHallows
+    Ye Ye RuUi
+    Ku Ga
+    I
+    MavoKael MavoSy]
+
+  [MavoAssassination
+    Ye Ui RuUi
+    Ka Di Ga
+    A
+    MavoKael MavoSy]
+
+  [MavoGoodGrief
+    Ye Shu RuUi
+    MuSha Ga Soa
+    Yv
+    MavoKael MavoSy]
+
+  [MavoEchoesOfThePast
+    Ye Kiel RuUi
+    MuSha Fy
+    I
+    MavoKael MavoSy]
+
+  [MavoHauntingNotion
+    Ye Yeshu RuUi
+    Ga Mel Ki
+    I
+    MavoKael MavoSy]
+
+  [MavoDoomAndGloom
+    Ye Lao RuUi
+    Ga Zhuk
+    I
+    MavoKael MavoSy]
+
+  [MavoPlasmaFreeze
+    Ye Shushy RuUi
+    Fu Shak
+    Y
+    MavoKael MavoSy]
+
+  [MavoMasterKoga
+    Ye Uinshu RuUi
+    Ka Zot TaVa
+    At
+    MavoKael MavoSy]
+
+  [MavoMonaLisa
+    Ye Kokiel RuUi
+    Ki Mel Puf
+    I Soa
+    MavoKael MavoSy]
+
+  [TaShyMa(Ui)]
+}
+
+LoShu: MavoQuestRevelation(TyZoKiShakGaFyElZhukKypa) {
+
+  [MavoZohaAre
+    Ui Gaoh RuUi
+    Zo Ki
+    I
+    MavoKael MavoSy]
+
+  [MavoChildrenByAtom
+    Ui Ao RuUi
+    Zhuk FyKo
+    Y
+    MavoKael MavoSy]
+
+  [MavoChoicesInHell
+    Ui Ye RuUi
+    Shak Ka
+    An Af
+    MavoKael MavoSy]
+
+  [MavoConsequence
+    Ui Ui RuUi
+    Soa Ga
+    I Soa
+    MavoKael MavoSy]
+
+  [MavoWitchingHour
+    Ui Shu RuUi
+    Shak Ki
+    Ar
+    MavoKael MavoSy]
+
+  [MavoWildThings
+    Ui Kiel RuUi
+    TaVa Puf Ki
+    A
+    MavoKael MavoSy]
+
+  [MavoStorybook
+    Ui Yeshu RuUi
+    Fy Ki
+    I
+    MavoKael MavoSy]
+
+  [MavoPriceless
+    Ui Lao RuUi
+    El Ha Ki
+    I
+    MavoKael MavoSy]
+
+  [MavoPoisonsAndLectures
+    Ui Shushy RuUi
+    Kypa FyKo
+    A
+    MavoKael MavoSy]
+
+  [MavoMeaningLess
+    Ui Uinshu RuUi
+    Ga Fy
+    I
+    MavoKael MavoSy]
+
+  [MavoLessIsMore
+    Ui Kokiel RuUi
+    Na Fy
+    I
+    MavoKael MavoSy]
+
+  [TaShyMa(Shu)]
+}
+
+LoKiel: MavoQuestConvergence(TyOtKiElGaZhukMuShaKo) {
+
+  [MavoVoracity
+    Shu Gaoh RuUi
+    Ot Ki TaVa
+    Yf
+    MavoKael MavoSy]
+
+  [MavoGoodOldColt
+    Shu Ao RuUi
+    Ka Zhuk
+    A
+    MavoKael MavoSy]
+
+  [MavoMostObscenities
+    Shu Ye RuUi
+    Ga Zhuk Soa
+    Y
+    MavoKael MavoSy]
+
+  [MavoShapedCharge
+    Shu Ui RuUi
+    Zhuk Ka Zot
+    A
+    MavoKael MavoSy]
+
+  [MavoDeLucion
+    Shu Shu RuUi
+    MuSha AE
+    Ar
+    MavoKael MavoSy]
+
+  [MavoHadMeFirstHalf
+    Shu Kiel RuUi
+    Fy Ki
+    Af
+    MavoKael MavoSy]
+
+  [MavoProphetOfKo
+    Shu Yeshu RuUi
+    Ko Fy Ki
+    Y
+    MavoKael MavoSy]
+
+  [MavoEclipse
+    Shu Lao RuUi
+    El Ga
+    Y Soa
+    MavoKael MavoSy]
+
+  [MavoTheAbyss
+    Shu Shushy RuUi
+    Ga Ku
+    Y
+    MavoKael MavoSy]
+
+  [MavoChosenDues
+    Shu Uinshu RuUi
+    El Soa
+    Y At
+    MavoKael MavoSy]
+
+  [MavoStolenValor
+    Shu Kokiel RuUi
+    Ka El Ga
+    A
+    MavoKael MavoSy]
+
+  [TaShyMa(Kiel)]
+}
+
+LoYeshu: MavoQuestApotheosis(TyElKiKoTaVaSoaFuMel) {
+
+  [MavoRingADingDing
+    Kiel Gaoh RuUi
+    Ka El Soa
+    Ar Azr Av At Yzr Af Yf
+    MavoKael MavoSy]
+
+  [MavoPriestlyAffair
+    Kiel Ao RuUi
+    Ki FyKo Na
+    I
+    MavoKael MavoSy]
+
+  [MavoFairlyPriestess
+    Kiel Ye RuUi
+    Ki TaVa Fy
+    I
+    MavoKael MavoSy]
+
+  [MavoRousingTheDepths
+    Kiel Ui RuUi
+    Fu Mel Ki
+    Azr Y
+    MavoKael MavoSy]
+
+  [MavoTheWoods
+    Kiel Shu RuUi
+    TaVa Zot Ki
+    I
+    MavoKael MavoSy]
+
+  [MavoServiceToStarlight
+    Kiel Kiel RuUi
+    El Ki Soa
+    Y Soa
+    MavoKael MavoSy]
+
+  [MavoKosGreatTale
+    Kiel Yeshu RuUi
+    Ko TaVa Soa
+    Y Soa
+    MavoKael MavoSy]
+
+  [TaShyMa(Yeshu)]
+}
+
+} }

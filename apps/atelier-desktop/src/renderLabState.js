@@ -37,14 +37,14 @@ export const RENDERER_STORAGE_KEYS = {
 
 export function defaultVoxelSettings() {
   return {
-    renderMode:              "2.5d",
-    projection:              "isometric",
+    renderMode:              "gl",
+    projection:              "cardinal",
     camera3d:                { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
     camera2d:                { panX: 0, panY: 0, zoom: 1 },
-    tile:                    18,
+    tile:                    20,
     zScale:                  8,
-    renderScale:             1,
-    visualStyle:             "default",
+    renderScale:             2,
+    visualStyle:             "koslabyrinth",
     pixelate:                false,
     background:              "#0b1426",
     outline:                 false,
@@ -55,7 +55,7 @@ export function defaultVoxelSettings() {
     classicFalloutShowLabels: false,
     labelMode:               "none",
     labelColor:              "#d9e6ff",
-    lighting:                { enabled: false, x: 0.4, y: -0.6, z: 0.7, ambient: 0.35, intensity: 0.85 },
+    lighting:                { enabled: true, x: 0.4, y: -0.6, z: 0.7, ambient: 0.30, intensity: 0.80 },
     lod:                     { mode: "auto_zoom", level: 2 },
     rose:                    { enabled: true, strength: 0.35 },
   };

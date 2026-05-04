@@ -1,0 +1,262 @@
+SethVaShy: MavoKoLoKlobItems {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoItemMeta(TyVaTaVaSoaToKaFyKo) {
+
+  [MavoItemStackable  To]
+  [MavoItemBotanica   TaVa Zot]
+  [MavoItemVital      Va Mel]
+  [MavoItemReliquary  Soa Va]
+  [MavoItemArm        Ka Zot Di]
+  [MavoItemRecipe     FyKo]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoBotanica(TyTaVaZotKiPufShakMel) {
+
+  [MavoCherry
+    Ao RuYe
+    MavoItemBotanica
+    Shak Ki
+    MavoKael MavoSy]
+
+  [MavoApple
+    Ye RuYe
+    MavoItemBotanica
+    ZotVa Ki
+    MavoKael MavoSy]
+
+  [MavoPomegranate
+    Ui RuYe
+    MavoItemBotanica
+    Mel Ha Ki
+    MavoKael MavoSy]
+
+  [MavoBarley
+    Shu RuYe
+    MavoItemBotanica
+    MavoItemStackable
+    Zot TaVa
+    MavoKael MavoSy]
+
+  [MavoPineNeedle
+    Kiel RuYe
+    MavoItemBotanica
+    Puf Zot
+    MavoKael MavoSy]
+
+  [MavoAcorn
+    Yeshu RuYe
+    MavoItemBotanica
+    Zot Ki
+    MavoKael MavoSy]
+
+  [MavoLotusFlower
+    Lao RuYe
+    MavoItemBotanica
+    Mel Ki
+    MavoKael MavoSy]
+
+  [MavoLotusSeed
+    Shushy RuYe
+    MavoItemBotanica
+    Ki Soa
+    MavoKael MavoSy]
+
+  [MavoPineNut
+    Uinshu RuYe
+    MavoItemBotanica
+    Zot Mel
+    MavoKael MavoSy]
+
+  [MavoWormwood
+    Kokiel RuYe
+    MavoItemBotanica
+    MavoItemStackable
+    Kypa Puf
+    MavoKael MavoSy]
+
+  [MavoAnise
+    Aonkiel RuYe
+    MavoItemBotanica
+    MavoItemStackable
+    Puf MelZot
+    MavoKael MavoSy]
+
+  [MavoFennel
+    Aonkiel Ao RuYe
+    MavoItemBotanica
+    MavoItemStackable
+    Puf Zot Ki
+    MavoKael MavoSy]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoVitals(TyVaMelShakKypaPuf) {
+
+  [MavoHealthPotion
+    Ao Gaoh RuYe
+    MavoItemVital
+    Mel TaVa
+    At
+    MavoKael MavoSy]
+
+  [MavoWhiteWine
+    Ao Ao RuYe
+    MavoItemVital
+    Mel Shak
+    MavoKael MavoSy]
+
+  [MavoAquaVitae
+    Ao Ye RuYe
+    MavoItemVital
+    MelShak Va
+    A
+    MavoKael MavoSy]
+
+  [MavoAbsinthe
+    Ao Ui RuYe
+    MavoItemVital
+    Kypa Mel Puf
+    A
+    MavoKael MavoSy]
+
+  [TaShyMa(Ye)]
+}
+
+LoUi: MavoReliquary(TySoaVaAEKaFuKiAfArAt) {
+
+  [MavoDesireCrystal
+    Ye Gaoh RuYe
+    MavoItemReliquary
+    AE TaVa
+    Af Ar
+    MavoKael MavoSy]
+
+  [MavoHypatiasDagger
+    Ye Ao RuYe
+    MavoItemReliquary
+    Ka Zot FyKo
+    At
+    MavoKael MavoSy]
+
+  [MavoMapOfMercurie
+    Ye Ye RuYe
+    MavoItemReliquary
+    Fu Ki Fy
+    I Soa
+    MavoKael MavoSy]
+
+  [MavoNecklace
+    Ye Ui RuYe
+    MavoItemReliquary
+    Na Ha
+    MavoKael MavoSy]
+
+  [TaShyMa(Ui)]
+}
+
+LoShu: MavoTradeGoods(TyToKaZotDiElNaZo) {
+
+  [MavoRing
+    Ui Gaoh RuYe
+    MavoItemStackable
+    Na Zot Zo
+    MavoKael MavoSy]
+
+  [MavoIngot
+    Ui Ao RuYe
+    MavoItemStackable
+    Ka Zot
+    MavoKael MavoSy]
+
+  [MavoCoin
+    Ui Ye RuYe
+    MavoItemStackable
+    El Zot
+    MavoKael MavoSy]
+
+  [MavoDagger
+    Ui Ui RuYe
+    MavoItemStackable
+    Ka Zot Di
+    MavoKael MavoSy]
+
+  [MavoSword
+    Ui Shu RuYe
+    MavoItemStackable
+    Ka Zot Va
+    MavoKael MavoSy]
+
+  [MavoShield
+    Ui Kiel RuYe
+    Ka Zot De
+    MavoKael MavoSy]
+
+  [MavoBow
+    Ui Yeshu RuYe
+    ZotVa TaVa
+    MavoKael MavoSy]
+
+  [MavoArrow
+    Ui Lao RuYe
+    MavoItemStackable
+    Zot Puf Di
+    MavoKael MavoSy]
+
+  [MavoStaff
+    Ui Shushy RuYe
+    MavoItemStackable
+    ZotVa FyKo
+    MavoKael MavoSy]
+
+  [TaShyMa(Shu)]
+}
+
+LoKiel: MavoArmaments(TyKaZotElFuKypaZhuk) {
+
+  [MavoAngelicSpear
+    Shu Gaoh RuYe
+    MavoItemArm
+    El Ka Zot Puf
+    MavoKael MavoSy]
+
+  [MavoAngelicGun
+    Shu Ao RuYe
+    MavoItemArm
+    El Ka Zot Fy
+    MavoKael MavoSy]
+
+  [MavoDemonicIrons
+    Shu Ye RuYe
+    MavoItemArm
+    Ka Zhuk Kypa
+    An
+    MavoKael MavoSy]
+
+  [TaShyMa(Kiel)]
+}
+
+LoYeshu: MavoRecipes(TyFyKoMelShakZotKypa) {
+
+  [MavoRecipeAquaVitae
+    Kiel Gaoh RuYe
+    MavoItemRecipe
+    MavoWhiteWine
+    A
+    MavoKael MavoSy]
+
+  [MavoRecipeAbsinthe
+    Kiel Ao RuYe
+    MavoItemRecipe
+    MavoWormwood MavoAnise MavoFennel MavoAquaVitae
+    A
+    MavoKael MavoSy]
+
+  [TaShyMa(Yeshu)]
+}
+
+} }

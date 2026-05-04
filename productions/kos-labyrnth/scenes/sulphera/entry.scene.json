@@ -1,0 +1,771 @@
+{
+  "schema": "atelier.scene.content.v1",
+  "scene_id": "sulphera/entry",
+  "realm_id": "sulphera",
+  "name": "Sulphera Entry",
+  "description": "Player starting home in Sulphera.",
+  "nodes": [
+    {
+      "node_id": "spawn_point",
+      "kind": "spawn",
+      "x": 4.0,
+      "y": 4.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "sulphera/entry:spawn_point"
+      }
+    },
+    {
+      "node_id": "exit_lapidus",
+      "kind": "interaction",
+      "x": 4.0,
+      "y": 0.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "sulphera/entry:exit_lapidus"
+      }
+    },
+    {
+      "node_id": "enter_ring_pride",
+      "kind": "interaction",
+      "x": 4.0,
+      "y": 7.0,
+      "metadata": {
+        "z": 1,
+        "placement_id": "sulphera/entry:enter_ring_pride"
+      }
+    }
+  ],
+  "edges": [],
+  "renderer": {
+    "scene": {
+      "scene_id": "sulphera/entry",
+      "scene_name": "Sulphera Entry",
+      "scene_type": "voxel_interior",
+      "realm_id": "sulphera",
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 5
+      },
+      "spawn_point": {
+        "x": 4,
+        "y": 4,
+        "z": 1
+      },
+      "camera_default": {
+        "angle": 45,
+        "elevation": 30,
+        "zoom": 1
+      },
+      "voxels": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 0,
+          "color": "#B87333",
+          "color_token": "Ru",
+          "presence_token": "Ta",
+          "material": "metal_tool",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "z": 0,
+          "color": "#FF4500",
+          "color_token": "Ru",
+          "presence_token": "Ta",
+          "material": "furnace",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 2,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 2,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 4,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 4,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 5,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 5,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 5,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 6,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "z": 0,
+          "color": "#4B0082",
+          "color_token": "Ka",
+          "presence_token": "Ta",
+          "material": "cloth",
+          "walkable": true,
+          "solid": false
+        }
+      ],
+      "ambient_music": "infernal_theme",
+      "time_of_day": "night"
+    }
+  }
+}

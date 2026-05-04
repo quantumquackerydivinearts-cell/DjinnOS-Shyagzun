@@ -1,0 +1,345 @@
+{
+  "scenes": [
+    {
+      "scene_id": "lapidus/home_morning",
+      "realm_id": "lapidus",
+      "akinen": "At Soa",
+      "exits": [
+        {
+          "action_id": "exit_to_lapidus_town",
+          "scene_id": "lapidus/wiltoll_lane",
+          "spawn_id": "spawn_wiltoll_home_end"
+        }
+      ]
+    },
+    {
+      "scene_id": "lapidus/home_apothecary",
+      "realm_id": "lapidus",
+      "akinen": "Va FyKo",
+      "exits": [
+        {
+          "action_id": "exit_to_home_morning",
+          "scene_id": "lapidus/home_morning",
+          "spawn_id": "spawn_point"
+        }
+      ]
+    },
+    {
+      "scene_id": "lapidus/wiltoll_lane",
+      "realm_id": "lapidus",
+      "akinen": "Zot Di",
+      "exits": [
+        {
+          "action_id": "enter_home",
+          "scene_id": "lapidus/home_morning",
+          "spawn_id": "spawn_point"
+        },
+        {
+          "action_id": "enter_azonithia",
+          "scene_id": "lapidus/azonithia_west",
+          "spawn_id": "spawn_wiltoll_east"
+        }
+      ]
+    },
+    {
+      "scene_id": "lapidus/azonithia_west",
+      "realm_id": "lapidus",
+      "akinen": "El Ki Zot",
+      "exits": [
+        {
+          "action_id": "exit_west",
+          "scene_id": "lapidus/wiltoll_lane",
+          "spawn_id": "spawn_azon_west"
+        },
+        {
+          "action_id": "exit_east",
+          "scene_id": "lapidus/azonithia_central",
+          "spawn_id": "spawn_azon_west_entry"
+        }
+      ]
+    },
+    {
+      "scene_id": "lapidus/azonithia_central",
+      "realm_id": "lapidus",
+      "akinen": "El Ka Zot",
+      "exits": [
+        {
+          "action_id": "exit_west",
+          "scene_id": "lapidus/azonithia_west",
+          "spawn_id": "spawn_central_west"
+        },
+        {
+          "action_id": "exit_east",
+          "scene_id": "lapidus/azonithia_east",
+          "spawn_id": "spawn_central_east"
+        }
+      ]
+    },
+    {
+      "scene_id": "lapidus/azonithia_east",
+      "realm_id": "lapidus",
+      "akinen": "Ka Zot Di",
+      "exits": [
+        {
+          "action_id": "exit_west",
+          "scene_id": "lapidus/azonithia_central",
+          "spawn_id": "spawn_east_west"
+        },
+        {
+          "action_id": "exit_hope",
+          "scene_id": "lapidus/hopefare",
+          "spawn_id": "spawn_hope_entry"
+        }
+      ]
+    },
+    {
+      "scene_id": "lapidus/hopefare",
+      "realm_id": "lapidus",
+      "akinen": "MelZot Di El",
+      "exits": [
+        {
+          "action_id": "exit_azonithia",
+          "scene_id": "lapidus/azonithia_east",
+          "spawn_id": "spawn_hope_exit"
+        },
+        {
+          "action_id": "exit_serpent",
+          "scene_id": "lapidus/serpents_pass",
+          "spawn_id": "spawn_serpent_entry"
+        }
+      ]
+    },
+    {
+      "scene_id": "lapidus/serpents_pass",
+      "realm_id": "lapidus",
+      "akinen": "Ka Zot",
+      "exits": [
+        {
+          "action_id": "exit_hopefare",
+          "scene_id": "lapidus/hopefare",
+          "spawn_id": "spawn_serpent_exit"
+        },
+        {
+          "action_id": "exit_mines",
+          "scene_id": "lapidus/mines_hieronymus",
+          "spawn_id": "spawn_mines_entry"
+        }
+      ]
+    },
+    {
+      "scene_id": "lapidus/mines_hieronymus",
+      "realm_id": "lapidus",
+      "akinen": "Ka Zot Ot",
+      "exits": [
+        {
+          "action_id": "exit_surface",
+          "scene_id": "lapidus/serpents_pass",
+          "spawn_id": "spawn_mines_exit"
+        }
+      ]
+    },
+    {
+      "scene_id": "sulphera/entry",
+      "realm_id": "sulphera",
+      "akinen": "Shak Ga An",
+      "exits": [
+        {
+          "action_id": "exit_lapidus",
+          "scene_id": "lapidus/home_morning",
+          "spawn_id": "spawn_point"
+        }
+      ]
+    },
+    {
+      "scene_id": "sulphera/ring_pride",
+      "realm_id": "sulphera",
+      "akinen": "Shak Ka Ar",
+      "exits": [
+        {
+          "action_id": "exit_entry",
+          "scene_id": "sulphera/entry",
+          "spawn_id": "spawn_ring_exit"
+        },
+        {
+          "action_id": "exit_greed",
+          "scene_id": "sulphera/ring_greed",
+          "spawn_id": "spawn_pride_exit"
+        }
+      ]
+    },
+    {
+      "scene_id": "sulphera/ring_greed",
+      "realm_id": "sulphera",
+      "akinen": "El Ka Azr",
+      "exits": [
+        {
+          "action_id": "exit_pride",
+          "scene_id": "sulphera/ring_pride",
+          "spawn_id": "spawn_greed_entry"
+        },
+        {
+          "action_id": "exit_envy",
+          "scene_id": "sulphera/ring_envy",
+          "spawn_id": "spawn_greed_exit"
+        }
+      ]
+    },
+    {
+      "scene_id": "sulphera/ring_envy",
+      "realm_id": "sulphera",
+      "akinen": "Fu Mel Av",
+      "exits": [
+        {
+          "action_id": "exit_greed",
+          "scene_id": "sulphera/ring_greed",
+          "spawn_id": "spawn_envy_entry"
+        },
+        {
+          "action_id": "exit_glut",
+          "scene_id": "sulphera/ring_gluttony",
+          "spawn_id": "spawn_envy_exit"
+        }
+      ]
+    },
+    {
+      "scene_id": "sulphera/ring_gluttony",
+      "realm_id": "sulphera",
+      "akinen": "Ot Ki At",
+      "exits": [
+        {
+          "action_id": "exit_envy",
+          "scene_id": "sulphera/ring_envy",
+          "spawn_id": "spawn_glut_entry"
+        },
+        {
+          "action_id": "exit_sloth",
+          "scene_id": "sulphera/ring_sloth",
+          "spawn_id": "spawn_glut_exit"
+        }
+      ]
+    },
+    {
+      "scene_id": "sulphera/ring_sloth",
+      "realm_id": "sulphera",
+      "akinen": "Ki Na Yzr",
+      "exits": [
+        {
+          "action_id": "exit_glut",
+          "scene_id": "sulphera/ring_gluttony",
+          "spawn_id": "spawn_sloth_entry"
+        },
+        {
+          "action_id": "exit_wrath",
+          "scene_id": "sulphera/ring_wrath",
+          "spawn_id": "spawn_sloth_exit"
+        }
+      ]
+    },
+    {
+      "scene_id": "sulphera/ring_wrath",
+      "realm_id": "sulphera",
+      "akinen": "Ru Shak Af",
+      "exits": [
+        {
+          "action_id": "exit_sloth",
+          "scene_id": "sulphera/ring_sloth",
+          "spawn_id": "spawn_wrath_entry"
+        },
+        {
+          "action_id": "exit_lust",
+          "scene_id": "sulphera/ring_lust",
+          "spawn_id": "spawn_wrath_exit"
+        }
+      ]
+    },
+    {
+      "scene_id": "sulphera/ring_lust",
+      "realm_id": "sulphera",
+      "akinen": "Ry Ka Yf",
+      "exits": [
+        {
+          "action_id": "exit_wrath",
+          "scene_id": "sulphera/ring_wrath",
+          "spawn_id": "spawn_lust_entry"
+        },
+        {
+          "action_id": "exit_royal",
+          "scene_id": "sulphera/royal_ring",
+          "spawn_id": "spawn_lust_exit"
+        }
+      ]
+    },
+    {
+      "scene_id": "sulphera/royal_ring",
+      "realm_id": "sulphera",
+      "akinen": "Shak El Soa",
+      "exits": [
+        {
+          "action_id": "exit_lust",
+          "scene_id": "sulphera/ring_lust",
+          "spawn_id": "spawn_royal_entry"
+        }
+      ]
+    },
+    {
+      "scene_id": "mercurie/dryad_dungeon",
+      "realm_id": "mercurie",
+      "akinen": "Ki Zot",
+      "exits": [
+        {
+          "action_id": "exit_lapidus",
+          "scene_id": "lapidus/wiltoll_lane",
+          "spawn_id": "spawn_point"
+        }
+      ]
+    },
+    {
+      "scene_id": "mercurie/undine_dungeon",
+      "realm_id": "mercurie",
+      "akinen": "Fu Mel",
+      "exits": [
+        {
+          "action_id": "exit_lapidus",
+          "scene_id": "lapidus/wiltoll_lane",
+          "spawn_id": "spawn_point"
+        }
+      ]
+    },
+    {
+      "scene_id": "mercurie/salamander_dungeon",
+      "realm_id": "mercurie",
+      "akinen": "Shak Zot",
+      "exits": [
+        {
+          "action_id": "exit_lapidus",
+          "scene_id": "lapidus/wiltoll_lane",
+          "spawn_id": "spawn_point"
+        }
+      ]
+    },
+    {
+      "scene_id": "mercurie/gnome_dungeon",
+      "realm_id": "mercurie",
+      "akinen": "Zot Ne",
+      "exits": [
+        {
+          "action_id": "exit_lapidus",
+          "scene_id": "lapidus/wiltoll_lane",
+          "spawn_id": "spawn_point"
+        }
+      ]
+    },
+    {
+      "scene_id": "mercurie/faerie_dungeon",
+      "realm_id": "mercurie",
+      "akinen": "Puf Ki",
+      "exits": [
+        {
+          "action_id": "exit_lapidus",
+          "scene_id": "lapidus/wiltoll_lane",
+          "spawn_id": "spawn_point"
+        }
+      ]
+    }
+  ]
+}

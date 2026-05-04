@@ -1,0 +1,216 @@
+SethVaShy: MavoKoLoSceneGraph {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoSceneGraphMeta(TyLapidusHomeMorningAzonithiaHopefareSulpheraMercurie) {
+
+  [MavoRealmLapidus   MavoLapidus   Zot TaVa Na]
+  [MavoRealmMercurie  MavoMercurie  Puf Ki TaVa]
+  [MavoRealmSulphera  MavoSulphera  Shak Ga TaVa]
+
+  [MavoExitBehavior   Di Va]
+  [MavoSpawnBehavior  TaVa Ao]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoSceneLapidusHome(TyOtTaVaSoaDi) {
+
+  [MavoHomeMorning
+    lapidus/home_morning
+    MavoLapidus
+    MavoExitToLapidusTown  lapidus/wiltoll_lane   spawn_wiltoll_home_end
+    At Soa
+    MavoKael MavoSy]
+
+  [MavoHomeApothecary
+    lapidus/home_apothecary
+    MavoLapidus
+    MavoExitToHomeMorning  lapidus/home_morning   spawn_point
+    Va FyKo
+    MavoKael MavoSy]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoSceneLapidusStreet(TyZotDiMelZotElKi) {
+
+  [MavoWiltollLane
+    lapidus/wiltoll_lane
+    MavoLapidus
+    MavoEnterHome        lapidus/home_morning   spawn_point
+    MavoEnterAzonithia   lapidus/azonithia_west spawn_wiltoll_east
+    Zot Di
+    MavoKael MavoSy]
+
+  [MavoAzonithiaWest
+    lapidus/azonithia_west
+    MavoLapidus
+    MavoExitWest   lapidus/wiltoll_lane       spawn_azon_west
+    MavoExitEast   lapidus/azonithia_central  spawn_azon_west_entry
+    El Ki Zot
+    MavoKael MavoSy]
+
+  [MavoAzonithiaCentral
+    lapidus/azonithia_central
+    MavoLapidus
+    MavoExitWest   lapidus/azonithia_west     spawn_central_west
+    MavoExitEast   lapidus/azonithia_east     spawn_central_east
+    El Ka Zot
+    MavoKael MavoSy]
+
+  [MavoAzonithiaEast
+    lapidus/azonithia_east
+    MavoLapidus
+    MavoExitWest   lapidus/azonithia_central  spawn_east_west
+    MavoExitHope   lapidus/hopefare           spawn_hope_entry
+    Ka Zot Di
+    MavoKael MavoSy]
+
+  [MavoHopefare
+    lapidus/hopefare
+    MavoLapidus
+    MavoExitAzonithia  lapidus/azonithia_east  spawn_hope_exit
+    MavoExitSerpent    lapidus/serpents_pass   spawn_serpent_entry
+    MelZot Di El
+    MavoKael MavoSy]
+
+  [MavoSerpentsPass
+    lapidus/serpents_pass
+    MavoLapidus
+    MavoExitHopefare  lapidus/hopefare          spawn_serpent_exit
+    MavoExitMines     lapidus/mines_hieronymus  spawn_mines_entry
+    Ka Zot De
+    MavoKael MavoSy]
+
+  [TaShyMa(Ye)]
+}
+
+LoUi: MavoSceneLapidusDungeon(TyKaZotElFuKiShakGa) {
+
+  [MavoMinesHieronymus
+    lapidus/mines_hieronymus
+    MavoLapidus
+    MavoExitSurface  lapidus/serpents_pass  spawn_mines_exit
+    Ka Zot Ot
+    MavoKael MavoSy]
+
+  [TaShyMa(Ui)]
+}
+
+LoShu: MavoSceneSulphera(TyShakGaKaAnArAzrAvAtYzrAfYf) {
+
+  [MavoSulpheraEntry
+    sulphera/entry
+    MavoSulphera
+    MavoExitLapidus    lapidus/home_morning  spawn_point
+    Shak Ga An
+    MavoKael MavoSy]
+
+  [MavoRingPridScene
+    sulphera/ring_pride
+    MavoSulphera
+    MavoExitEntry   sulphera/entry           spawn_ring_exit
+    MavoExitGreed   sulphera/ring_greed      spawn_pride_exit
+    Shak Ka Ar
+    MavoKael MavoSy]
+
+  [MavoRingGreedScene
+    sulphera/ring_greed
+    MavoSulphera
+    MavoExitPride   sulphera/ring_pride      spawn_greed_entry
+    MavoExitEnvy    sulphera/ring_envy       spawn_greed_exit
+    El Ka Azr
+    MavoKael MavoSy]
+
+  [MavoRingEnvyScene
+    sulphera/ring_envy
+    MavoSulphera
+    MavoExitGreed   sulphera/ring_greed      spawn_envy_entry
+    MavoExitGlut    sulphera/ring_gluttony   spawn_envy_exit
+    Fu Mel Av
+    MavoKael MavoSy]
+
+  [MavoRingGluttonyScene
+    sulphera/ring_gluttony
+    MavoSulphera
+    MavoExitEnvy    sulphera/ring_envy       spawn_glut_entry
+    MavoExitSloth   sulphera/ring_sloth      spawn_glut_exit
+    Ot Ki At
+    MavoKael MavoSy]
+
+  [MavoRingSlothScene
+    sulphera/ring_sloth
+    MavoSulphera
+    MavoExitGlut    sulphera/ring_gluttony   spawn_sloth_entry
+    MavoExitWrath   sulphera/ring_wrath      spawn_sloth_exit
+    Ki Na Yzr
+    MavoKael MavoSy]
+
+  [MavoRingWrathScene
+    sulphera/ring_wrath
+    MavoSulphera
+    MavoExitSloth   sulphera/ring_sloth      spawn_wrath_entry
+    MavoExitLust    sulphera/ring_lust       spawn_wrath_exit
+    Ru Shak Af
+    MavoKael MavoSy]
+
+  [MavoRingLustScene
+    sulphera/ring_lust
+    MavoSulphera
+    MavoExitWrath   sulphera/ring_wrath      spawn_lust_entry
+    MavoExitRoyal   sulphera/royal_ring      spawn_lust_exit
+    Ry Ka Yf
+    MavoKael MavoSy]
+
+  [MavoRoyalRingScene
+    sulphera/royal_ring
+    MavoSulphera
+    MavoExitLust    sulphera/ring_lust       spawn_royal_entry
+    Shak El Soa
+    MavoKael MavoSy]
+
+  [TaShyMa(Shu)]
+}
+
+LoKiel: MavoSceneMercurie(TyPufKiTaVaFuMelShakZot) {
+
+  [MavoDryadDungeon
+    mercurie/dryad_dungeon
+    MavoMercurie
+    MavoExitLapidus   lapidus/wiltoll_lane  spawn_point
+    Ki Zot
+    MavoKael MavoSy]
+
+  [MavoUndineDungeon
+    mercurie/undine_dungeon
+    MavoMercurie
+    MavoExitLapidus   lapidus/wiltoll_lane  spawn_point
+    Fu Mel
+    MavoKael MavoSy]
+
+  [MavoSalamanderDungeon
+    mercurie/salamander_dungeon
+    MavoMercurie
+    MavoExitLapidus   lapidus/wiltoll_lane  spawn_point
+    Shak Zot
+    MavoKael MavoSy]
+
+  [MavoGnomeDungeon
+    mercurie/gnome_dungeon
+    MavoMercurie
+    MavoExitLapidus   lapidus/wiltoll_lane  spawn_point
+    Zot Ne
+    MavoKael MavoSy]
+
+  [MavoFaerieDungeon
+    mercurie/faerie_dungeon
+    MavoMercurie
+    MavoExitLapidus   lapidus/wiltoll_lane  spawn_point
+    Puf Ki
+    MavoKael MavoSy]
+
+  [TaShyMa(Kiel)]
+}
+
+} }

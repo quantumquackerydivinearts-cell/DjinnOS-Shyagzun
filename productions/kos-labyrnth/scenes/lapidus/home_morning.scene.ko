@@ -1,0 +1,422 @@
+SethVaShy: MavoKoLoSceneLapidusHomeMorning {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoSceneMeta(TyLapidusOtElKiFuShakMuSha) {
+
+  [MavoSceneId      lapidus/home_morning]
+  [MavoSceneName    MavoAlexandriaCottage]
+  [MavoRealm        MavoLapidus]
+  [MavoSceneType    MavoVoxelInterior]
+  [MavoSpawn        Yeshu Yeshu Ao]
+  [MavoCamera       Ui Uinshu  Ye Yeshu  Ao]
+  [MavoAmbient      MavoHomeHearthTheme]
+  [MavoTimeOfDay    MavoMorning]
+  [MavoWidth        Ao Gaoh]
+  [MavoDepth        Shushy]
+  [MavoHeight       Yeshu]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoFloor(TyOtTaVa) {
+
+  [Gaoh    Gaoh    Gaoh  Ot Ta Va]
+  [Ao      Gaoh    Gaoh  Ot Ta Va]
+  [Ye      Gaoh    Gaoh  Ot Ta Va]
+  [Ui      Gaoh    Gaoh  Ot Ta Va]
+  [Shu     Gaoh    Gaoh  Ot Ta Va]
+  [Kiel    Gaoh    Gaoh  Ot Ta Va]
+  [Yeshu   Gaoh    Gaoh  Ot Ta Va]
+  [Lao     Gaoh    Gaoh  Ot Ta Va]
+  [Shushy  Gaoh    Gaoh  Ot Ta Va]
+  [Uinshu  Gaoh    Gaoh  Ot Ta Va]
+  [Kokiel  Gaoh    Gaoh  Ot Ta Va]
+  [Aonkiel Gaoh    Gaoh  Ot Ta Va]
+
+  [Gaoh    Ao      Gaoh  Ot Ta Va]
+  [Ao      Ao      Gaoh  Ot Ta Va]
+  [Ye      Ao      Gaoh  Ot Ta Va]
+  [Ui      Ao      Gaoh  Ot Ta Va]
+  [Shu     Ao      Gaoh  Ot Ta Va]
+  [Kiel    Ao      Gaoh  Ot Ta Va]
+  [Yeshu   Ao      Gaoh  Ot Ta Va]
+  [Lao     Ao      Gaoh  Ot Ta Va]
+  [Shushy  Ao      Gaoh  Ot Ta Va]
+  [Uinshu  Ao      Gaoh  Ot Ta Va]
+  [Kokiel  Ao      Gaoh  Ot Ta Va]
+  [Aonkiel Ao      Gaoh  Ot Ta Va]
+
+  [Gaoh    Ye      Gaoh  Ot Ta Va]
+  [Ao      Ye      Gaoh  Ot Ta Va]
+  [Ye      Ye      Gaoh  Ot Ta Va]
+  [Ui      Ye      Gaoh  Ot Ta Va]
+  [Shu     Ye      Gaoh  Ot Ta Va]
+  [Kiel    Ye      Gaoh  Ot Ta Va]
+  [Yeshu   Ye      Gaoh  Ot Ta Va]
+  [Lao     Ye      Gaoh  Ot Ta Va]
+  [Shushy  Ye      Gaoh  Ot Ta Va]
+  [Uinshu  Ye      Gaoh  Ot Ta Va]
+  [Kokiel  Ye      Gaoh  Ot Ta Va]
+  [Aonkiel Ye      Gaoh  Ot Ta Va]
+
+  [Gaoh    Ui      Gaoh  Ot Ta Va]
+  [Ao      Ui      Gaoh  Ot Ta Va]
+  [Ye      Ui      Gaoh  Ot Ta Va]
+  [Ui      Ui      Gaoh  Ot Ta Va]
+  [Shu     Ui      Gaoh  Ot Ta Va]
+  [Kiel    Ui      Gaoh  Ot Ta Va]
+  [Yeshu   Ui      Gaoh  Ot Ta Va]
+  [Lao     Ui      Gaoh  Ot Ta Va]
+  [Shushy  Ui      Gaoh  Ot Ta Va]
+  [Uinshu  Ui      Gaoh  Ot Ta Va]
+  [Kokiel  Ui      Gaoh  Ot Ta Va]
+  [Aonkiel Ui      Gaoh  Ot Ta Va]
+
+  [Gaoh    Shu     Gaoh  Ot Ta Va]
+  [Ao      Shu     Gaoh  Ot Ta Va]
+  [Ye      Shu     Gaoh  Ot Ta Va]
+  [Ui      Shu     Gaoh  Ot Ta Va]
+  [Shu     Shu     Gaoh  Ot Ta Va]
+  [Kiel    Shu     Gaoh  Ot Ta Va]
+  [Yeshu   Shu     Gaoh  Ot Ta Va]
+  [Lao     Shu     Gaoh  Ot Ta Va]
+  [Shushy  Shu     Gaoh  Ot Ta Va]
+  [Uinshu  Shu     Gaoh  Ot Ta Va]
+  [Kokiel  Shu     Gaoh  Ot Ta Va]
+  [Aonkiel Shu     Gaoh  Ot Ta Va]
+
+  [Gaoh    Kiel    Gaoh  Ot Ta Va]
+  [Ao      Kiel    Gaoh  Ot Ta Va]
+  [Ye      Kiel    Gaoh  Ot Ta Va]
+  [Ui      Kiel    Gaoh  Ot Ta Va]
+  [Shu     Kiel    Gaoh  Ot Ta Va]
+  [Kiel    Kiel    Gaoh  Ot Ta Va]
+  [Yeshu   Kiel    Gaoh  Ot Ta Va]
+  [Lao     Kiel    Gaoh  Ot Ta Va]
+  [Shushy  Kiel    Gaoh  Ot Ta Va]
+  [Uinshu  Kiel    Gaoh  Ot Ta Va]
+  [Kokiel  Kiel    Gaoh  Ot Ta Va]
+  [Aonkiel Kiel    Gaoh  Ot Ta Va]
+
+  [Gaoh    Yeshu   Gaoh  Ot Ta Va]
+  [Ao      Yeshu   Gaoh  Ot Ta Va]
+  [Ye      Yeshu   Gaoh  Ot Ta Va]
+  [Ui      Yeshu   Gaoh  Ot Ta Va]
+  [Shu     Yeshu   Gaoh  Ot Ta Va]
+  [Kiel    Yeshu   Gaoh  Ot Ta Va]
+  [Yeshu   Yeshu   Gaoh  Ot Ta Va]
+  [Lao     Yeshu   Gaoh  Ot Ta Va]
+  [Shushy  Yeshu   Gaoh  Ot Ta Va]
+  [Uinshu  Yeshu   Gaoh  Ot Ta Va]
+  [Kokiel  Yeshu   Gaoh  Ot Ta Va]
+  [Aonkiel Yeshu   Gaoh  Ot Ta Va]
+
+  [Gaoh    Lao     Gaoh  Ot Ta Va]
+  [Ao      Lao     Gaoh  Ot Ta Va]
+  [Ye      Lao     Gaoh  Ot Ta Va]
+  [Ui      Lao     Gaoh  Ot Ta Va]
+  [Shu     Lao     Gaoh  Ot Ta Va]
+  [Kiel    Lao     Gaoh  Ot Ta Va]
+  [Yeshu   Lao     Gaoh  Ot Ta Va]
+  [Lao     Lao     Gaoh  Ot Ta Va]
+  [Shushy  Lao     Gaoh  Ot Ta Va]
+  [Uinshu  Lao     Gaoh  Ot Ta Va]
+  [Kokiel  Lao     Gaoh  Ot Ta Va]
+  [Aonkiel Lao     Gaoh  Ot Ta Va]
+
+  [TaShyMa(Ao)]
+}
+
+LoYe: MavoWallsZ1(TyElTaVo) {
+
+  [Gaoh    Gaoh    Ao  El Ta Vo]
+  [Ao      Gaoh    Ao  El Ta Vo]
+  [Ye      Gaoh    Ao  El Ta Vo]
+  [Ui      Gaoh    Ao  El Ta Vo]
+  [Shu     Gaoh    Ao  El Ta Vo]
+  [Kiel    Gaoh    Ao  El Ta Vo]
+  [Yeshu   Gaoh    Ao  El Ta Vo]
+  [Lao     Gaoh    Ao  El Ta Vo]
+  [Shushy  Gaoh    Ao  El Ta Vo]
+  [Uinshu  Gaoh    Ao  El Ta Vo]
+  [Kokiel  Gaoh    Ao  El Ta Vo]
+  [Aonkiel Gaoh    Ao  El Ta Vo]
+
+  [Gaoh    Lao     Ao  El Ta Vo]
+  [Ao      Lao     Ao  El Ta Vo]
+  [Ye      Lao     Ao  El Ta Vo]
+  [Ui      Lao     Ao  El Ta Vo]
+  [Shu     Lao     Ao  El Ta Vo]
+  [Kiel    Lao     Ao  El Ta Vo]
+  [Yeshu   Lao     Ao  Ru Ta Di]
+  [Lao     Lao     Ao  El Ta Vo]
+  [Shushy  Lao     Ao  El Ta Vo]
+  [Uinshu  Lao     Ao  El Ta Vo]
+  [Kokiel  Lao     Ao  El Ta Vo]
+  [Aonkiel Lao     Ao  El Ta Vo]
+
+  [Gaoh    Ao      Ao  El Ta Vo]
+  [Gaoh    Ye      Ao  El Ta Vo]
+  [Gaoh    Ui      Ao  El Ta Vo]
+  [Gaoh    Shu     Ao  El Ta Vo]
+  [Gaoh    Kiel    Ao  El Ta Vo]
+  [Gaoh    Yeshu   Ao  El Ta Vo]
+
+  [Aonkiel Ao      Ao  El Ta Vo]
+  [Aonkiel Ye      Ao  El Ta Vo]
+  [Aonkiel Ui      Ao  El Ta Vo]
+  [Aonkiel Shu     Ao  El Ta Vo]
+  [Aonkiel Kiel    Ao  El Ta Vo]
+  [Aonkiel Yeshu   Ao  El Ta Vo]
+
+  [TaShyMa(Ye)]
+}
+
+LoUi: MavoWallsZ2(TyElFuRuTaVoVa) {
+
+  [Gaoh    Gaoh    Ye  El Ta Vo]
+  [Ao      Gaoh    Ye  El Ta Vo]
+  [Ye      Gaoh    Ye  El Ta Vo]
+  [Ui      Gaoh    Ye  El Ta Vo]
+  [Shu     Gaoh    Ye  El Ta Vo]
+  [Kiel    Gaoh    Ye  Fu Wu Va]
+  [Yeshu   Gaoh    Ye  Fu Wu Va]
+  [Lao     Gaoh    Ye  El Ta Vo]
+  [Shushy  Gaoh    Ye  El Ta Vo]
+  [Uinshu  Gaoh    Ye  El Ta Vo]
+  [Kokiel  Gaoh    Ye  El Ta Vo]
+  [Aonkiel Gaoh    Ye  El Ta Vo]
+
+  [Gaoh    Lao     Ye  El Ta Vo]
+  [Ao      Lao     Ye  El Ta Vo]
+  [Ye      Lao     Ye  El Ta Vo]
+  [Ui      Lao     Ye  El Ta Vo]
+  [Shu     Lao     Ye  El Ta Vo]
+  [Kiel    Lao     Ye  El Ta Vo]
+  [Yeshu   Lao     Ye  Ru Ta Di]
+  [Lao     Lao     Ye  El Ta Vo]
+  [Shushy  Lao     Ye  El Ta Vo]
+  [Uinshu  Lao     Ye  El Ta Vo]
+  [Kokiel  Lao     Ye  El Ta Vo]
+  [Aonkiel Lao     Ye  El Ta Vo]
+
+  [Gaoh    Ao      Ye  El Ta Vo]
+  [Gaoh    Ye      Ye  El Ta Vo]
+  [Gaoh    Ui      Ye  El Ta Vo]
+  [Gaoh    Shu     Ye  El Ta Vo]
+  [Gaoh    Kiel    Ye  El Ta Vo]
+  [Gaoh    Yeshu   Ye  El Ta Vo]
+
+  [Aonkiel Ao      Ye  El Ta Vo]
+  [Aonkiel Ye      Ye  El Ta Vo]
+  [Aonkiel Ui      Ye  El Ta Vo]
+  [Aonkiel Shu     Ye  El Ta Vo]
+  [Aonkiel Kiel    Ye  El Ta Vo]
+  [Aonkiel Yeshu   Ye  El Ta Vo]
+
+  [TaShyMa(Ui)]
+}
+
+LoShu: MavoObjects(TyOtRuKaAEMelFyKoShak) {
+
+  [Ye      Ye      Ao  Ot Ta Vo]
+  [Ye      Ui      Ao  Ot Ta Vo]
+  [Ui      Ye      Ao  Ot Ta Vo]
+  [Ui      Ui      Ao  Ot Ta Vo]
+  [Shu     Ye      Ao  Ot Ta Vo]
+  [Shu     Ui      Ao  Ot Ta Vo]
+
+  [Ye      Ye      Ye  Ru Ta Va]
+  [Ui      Ye      Ye  Ru Ta Va]
+  [Ui      Ui      Ye  Ru Ta Va]
+  [Shu     Ui      Ye  Ru Ta Va]
+
+  [Uinshu  Shu     Ao  Ru Ta Vo]
+  [Uinshu  Shu     Ye  Ru Shak Ta Vo]
+  [Uinshu  Shu     Ui  Ru Shak Ta Vo]
+
+  [Shushy  Ao      Ao  Ka Ta Vo]
+  [Shushy  Ye      Ao  Ka Ta Vo]
+  [Uinshu  Ao      Ao  Ka Ta Vo]
+
+  [Ye      Yeshu   Ao  Ot Ta Vo]
+  [Ui      Yeshu   Ao  Ot Ta Vo]
+
+  [Yeshu   Shu     Ao  AE Ta Va]
+
+  [Shu     Ao      Ao  Ot Ta Vo]
+  [Kiel    Ao      Ao  Ot Ta Vo]
+  [Yeshu   Ao      Ao  Ot Ta Vo]
+  [Lao     Ao      Ao  Ot Ta Vo]
+
+  [Shu     Ao      Ye  Ot FyKo Ta Va]
+  [Kiel    Ao      Ye  Ot FyKo Ta Va]
+  [Yeshu   Ao      Ye  Ot FyKo Ta Va]
+  [Lao     Ao      Ye  Ot FyKo Ta Va]
+
+  [TaShyMa(Shu)]
+}
+
+LoKiel: MavoRoof(TyOtShakTaVo) {
+
+  [Gaoh    Gaoh    Shu  Ot Shak Ta Vo]
+  [Ao      Gaoh    Shu  Ot Shak Ta Vo]
+  [Ye      Gaoh    Shu  Ot Shak Ta Vo]
+  [Ui      Gaoh    Shu  Ot Shak Ta Vo]
+  [Shu     Gaoh    Shu  Ot Shak Ta Vo]
+  [Kiel    Gaoh    Shu  Ot Shak Ta Vo]
+  [Yeshu   Gaoh    Shu  Ot Shak Ta Vo]
+  [Lao     Gaoh    Shu  Ot Shak Ta Vo]
+  [Shushy  Gaoh    Shu  Ot Shak Ta Vo]
+  [Uinshu  Gaoh    Shu  Ot Shak Ta Vo]
+  [Kokiel  Gaoh    Shu  Ot Shak Ta Vo]
+  [Aonkiel Gaoh    Shu  Ot Shak Ta Vo]
+
+  [Gaoh    Ao      Shu  Ot Shak Ta Vo]
+  [Ao      Ao      Shu  Ot Shak Ta Vo]
+  [Ye      Ao      Shu  Ot Shak Ta Vo]
+  [Ui      Ao      Shu  Ot Shak Ta Vo]
+  [Shu     Ao      Shu  Ot Shak Ta Vo]
+  [Kiel    Ao      Shu  Ot Shak Ta Vo]
+  [Yeshu   Ao      Shu  Ot Shak Ta Vo]
+  [Lao     Ao      Shu  Ot Shak Ta Vo]
+  [Shushy  Ao      Shu  Ot Shak Ta Vo]
+  [Uinshu  Ao      Shu  Ot Shak Ta Vo]
+  [Kokiel  Ao      Shu  Ot Shak Ta Vo]
+  [Aonkiel Ao      Shu  Ot Shak Ta Vo]
+
+  [Gaoh    Ye      Shu  Ot Shak Ta Vo]
+  [Ao      Ye      Shu  Ot Shak Ta Vo]
+  [Ye      Ye      Shu  Ot Shak Ta Vo]
+  [Ui      Ye      Shu  Ot Shak Ta Vo]
+  [Shu     Ye      Shu  Ot Shak Ta Vo]
+  [Kiel    Ye      Shu  Ot Shak Ta Vo]
+  [Yeshu   Ye      Shu  Ot Shak Ta Vo]
+  [Lao     Ye      Shu  Ot Shak Ta Vo]
+  [Shushy  Ye      Shu  Ot Shak Ta Vo]
+  [Uinshu  Ye      Shu  Ot Shak Ta Vo]
+  [Kokiel  Ye      Shu  Ot Shak Ta Vo]
+  [Aonkiel Ye      Shu  Ot Shak Ta Vo]
+
+  [Gaoh    Ui      Shu  Ot Shak Ta Vo]
+  [Ao      Ui      Shu  Ot Shak Ta Vo]
+  [Ye      Ui      Shu  Ot Shak Ta Vo]
+  [Ui      Ui      Shu  Ot Shak Ta Vo]
+  [Shu     Ui      Shu  Ot Shak Ta Vo]
+  [Kiel    Ui      Shu  Ot Shak Ta Vo]
+  [Yeshu   Ui      Shu  Ot Shak Ta Vo]
+  [Lao     Ui      Shu  Ot Shak Ta Vo]
+  [Shushy  Ui      Shu  Ot Shak Ta Vo]
+  [Uinshu  Ui      Shu  Ot Shak Ta Vo]
+  [Kokiel  Ui      Shu  Ot Shak Ta Vo]
+  [Aonkiel Ui      Shu  Ot Shak Ta Vo]
+
+  [Gaoh    Shu     Shu  Ot Shak Ta Vo]
+  [Ao      Shu     Shu  Ot Shak Ta Vo]
+  [Ye      Shu     Shu  Ot Shak Ta Vo]
+  [Ui      Shu     Shu  Ot Shak Ta Vo]
+  [Shu     Shu     Shu  Ot Shak Ta Vo]
+  [Kiel    Shu     Shu  Ot Shak Ta Vo]
+  [Yeshu   Shu     Shu  Ot Shak Ta Vo]
+  [Lao     Shu     Shu  Ot Shak Ta Vo]
+  [Shushy  Shu     Shu  Ot Shak Ta Vo]
+  [Uinshu  Shu     Shu  Ot Shak Ta Vo]
+  [Kokiel  Shu     Shu  Ot Shak Ta Vo]
+  [Aonkiel Shu     Shu  Ot Shak Ta Vo]
+
+  [Gaoh    Kiel    Shu  Ot Shak Ta Vo]
+  [Ao      Kiel    Shu  Ot Shak Ta Vo]
+  [Ye      Kiel    Shu  Ot Shak Ta Vo]
+  [Ui      Kiel    Shu  Ot Shak Ta Vo]
+  [Shu     Kiel    Shu  Ot Shak Ta Vo]
+  [Kiel    Kiel    Shu  Ot Shak Ta Vo]
+  [Yeshu   Kiel    Shu  Ot Shak Ta Vo]
+  [Lao     Kiel    Shu  Ot Shak Ta Vo]
+  [Shushy  Kiel    Shu  Ot Shak Ta Vo]
+  [Uinshu  Kiel    Shu  Ot Shak Ta Vo]
+  [Kokiel  Kiel    Shu  Ot Shak Ta Vo]
+  [Aonkiel Kiel    Shu  Ot Shak Ta Vo]
+
+  [Gaoh    Yeshu   Shu  Ot Shak Ta Vo]
+  [Ao      Yeshu   Shu  Ot Shak Ta Vo]
+  [Ye      Yeshu   Shu  Ot Shak Ta Vo]
+  [Ui      Yeshu   Shu  Ot Shak Ta Vo]
+  [Shu     Yeshu   Shu  Ot Shak Ta Vo]
+  [Kiel    Yeshu   Shu  Ot Shak Ta Vo]
+  [Yeshu   Yeshu   Shu  Ot Shak Ta Vo]
+  [Lao     Yeshu   Shu  Ot Shak Ta Vo]
+  [Shushy  Yeshu   Shu  Ot Shak Ta Vo]
+  [Uinshu  Yeshu   Shu  Ot Shak Ta Vo]
+  [Kokiel  Yeshu   Shu  Ot Shak Ta Vo]
+  [Aonkiel Yeshu   Shu  Ot Shak Ta Vo]
+
+  [Gaoh    Lao     Shu  Ot Shak Ta Vo]
+  [Ao      Lao     Shu  Ot Shak Ta Vo]
+  [Ye      Lao     Shu  Ot Shak Ta Vo]
+  [Ui      Lao     Shu  Ot Shak Ta Vo]
+  [Shu     Lao     Shu  Ot Shak Ta Vo]
+  [Kiel    Lao     Shu  Ot Shak Ta Vo]
+  [Yeshu   Lao     Shu  Ot Shak Ta Vo]
+  [Lao     Lao     Shu  Ot Shak Ta Vo]
+  [Shushy  Lao     Shu  Ot Shak Ta Vo]
+  [Uinshu  Lao     Shu  Ot Shak Ta Vo]
+  [Kokiel  Lao     Shu  Ot Shak Ta Vo]
+  [Aonkiel Lao     Shu  Ot Shak Ta Vo]
+
+  [TaShyMa(Kiel)]
+}
+
+LoYeshu: MavoInteractions(TyVaDiMuShaFyKoSoaTaVaShak) {
+
+  [MavoSpawnPoint
+    Yeshu Yeshu Ao
+    TaVa Va
+    MavoKael MavoSy]
+
+  [MavoAlchemyBenchIntr
+    Ye Ye Ao
+    MavoOpenAlchemyUi
+    Va
+    MavoKael MavoSy]
+
+  [MavoExitIntr
+    Yeshu Lao Ao
+    MavoExitToLapidusTown
+    Di Va
+    MavoKael MavoSy]
+
+  [MavoFurnaceIntr
+    Uinshu Shu Ye
+    MavoOpenSmeltUi
+    Shak Va
+    MavoKael MavoSy]
+
+  [MavoMeditateIntr
+    Yeshu Shu Ao
+    MavoMeditationTutorial
+    MuSha Va
+    MavoKael MavoSy]
+
+  [MavoReadIntr
+    Shu Ao Ye
+    MavoLoreBooks
+    FyKo Va
+    MavoKael MavoSy]
+
+  [MavoRestIntr
+    Shushy Ao Ao
+    MavoSaveAndHeal
+    TaVa Soa
+    MavoKael MavoSy]
+
+  [MavoStorageIntr
+    Ye Yeshu Ao
+    MavoOpenChest
+    Soa Va
+    MavoKael MavoSy]
+
+  [TaShyMa(Yeshu)]
+}
+
+} }

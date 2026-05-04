@@ -108,7 +108,7 @@ if ($UiMode -eq "dev") {
     $uiCmd = "& '$npmCmd' run dev"
     $null = Start-ShellProcess -Title "Atelier Desktop" -Workdir $desktopRepo -Command $uiCmd
 } else {
-    $exe = Join-Path $desktopRepo "release/QuantumQuackeryAtelier-win32-x64/QuantumQuackeryAtelier.exe"
+    $exe = Join-Path $desktopRepo "release/desktop/win-unpacked/Atelier Desktop.exe"
     if (-not (Test-Path -LiteralPath $exe)) {
         throw "Desktop executable not found: $exe"
     }

@@ -1,0 +1,81 @@
+SethVaShy: MavoKoLoSceneSulpheraEntry {
+
+YeGaoh-1-8: MavoAo {
+
+LoGaoh: MavoSceneMeta(TyShakGaKaAnTaVaDi) {
+
+  [MavoSceneId      sulphera/entry]
+  [MavoSceneName    MavoSulpheraEntry]
+  [MavoRealm        MavoSulphera]
+  [MavoSceneType    MavoVoxelInterior]
+  [MavoSpawn        Shu Shu Ao]
+  [MavoCamera       Ui Uinshu Ye Yeshu Ao]
+  [MavoAmbient      MavoInfernalTheme]
+  [MavoTimeOfDay    MavoNight]
+  [MavoWidth        Shushy]
+  [MavoDepth        Shushy]
+  [MavoHeight       Kiel]
+
+  [TaShyMa(Gaoh)]
+}
+
+LoAo: MavoFloor(TyKaGaTaVo) {
+
+  [Gaoh Gaoh Gaoh  Ka Ta Va]  [Ao   Gaoh Gaoh  Ka Ta Va]  [Ye   Gaoh Gaoh  Ka Ta Va]
+  [Ui   Gaoh Gaoh  Ka Ta Va]  [Shu  Gaoh Gaoh  Ru Ta Va]  [Kiel Gaoh Gaoh  Ka Ta Va]
+  [Yeshu Gaoh Gaoh Ka Ta Va]  [Lao  Gaoh Gaoh  Ka Ta Va]
+
+  [Gaoh Ao Gaoh  Ka Ta Va]  [Ao   Ao Gaoh  Ka Ta Va]  [Ye   Ao Gaoh  Ka Ta Va]
+  [Ui   Ao Gaoh  Ka Ta Va]  [Shu  Ao Gaoh  Ru Shak Ta Va] [Kiel Ao Gaoh Ka Ta Va]
+  [Yeshu Ao Gaoh Ka Ta Va]  [Lao  Ao Gaoh  Ka Ta Va]
+
+  [Gaoh Ye Gaoh  Ka Ta Va]  [Ao   Ye Gaoh  Ka Ta Va]  [Ye   Ye Gaoh  Ka Ta Va]
+  [Ui   Ye Gaoh  Ka Ta Va]  [Shu  Ye Gaoh  Ka Ta Va]  [Kiel Ye Gaoh  Ka Ta Va]
+  [Yeshu Ye Gaoh Ka Ta Va]  [Lao  Ye Gaoh  Ka Ta Va]
+
+  [Gaoh Ui Gaoh  Ka Ta Va]  [Ao   Ui Gaoh  Ka Ta Va]  [Ye   Ui Gaoh  Ka Ta Va]
+  [Ui   Ui Gaoh  Ka Ta Va]  [Shu  Ui Gaoh  Ka Ta Va]  [Kiel Ui Gaoh  Ka Ta Va]
+  [Yeshu Ui Gaoh Ka Ta Va]  [Lao  Ui Gaoh  Ka Ta Va]
+
+  [Gaoh Shu Gaoh  Ka Ta Va]  [Ao   Shu Gaoh  Ka Ta Va]  [Ye   Shu Gaoh  Ka Ta Va]
+  [Ui   Shu Gaoh  Ka Ta Va]  [Shu  Shu Gaoh  Ka Ta Va]  [Kiel Shu Gaoh  Ka Ta Va]
+  [Yeshu Shu Gaoh Ka Ta Va]  [Lao  Shu Gaoh  Ka Ta Va]
+
+  [Gaoh Kiel Gaoh  Ka Ta Va]  [Ao   Kiel Gaoh  Ka Ta Va]  [Ye   Kiel Gaoh  Ka Ta Va]
+  [Ui   Kiel Gaoh  Ka Ta Va]  [Shu  Kiel Gaoh  Ka Ta Va]  [Kiel Kiel Gaoh  Ka Ta Va]
+  [Yeshu Kiel Gaoh Ka Ta Va]  [Lao  Kiel Gaoh  Ka Ta Va]
+
+  [Gaoh Yeshu Gaoh  Ka Ta Va]  [Ao   Yeshu Gaoh  Ka Ta Va]  [Ye   Yeshu Gaoh  Ka Ta Va]
+  [Ui   Yeshu Gaoh  Ka Ta Va]  [Shu  Yeshu Gaoh  Ka Ta Va]  [Kiel Yeshu Gaoh  Ka Ta Va]
+  [Yeshu Yeshu Gaoh Ka Ta Va]  [Lao  Yeshu Gaoh  Ka Ta Va]
+
+  [Gaoh Lao Gaoh  Ka Ta Va]  [Ao   Lao Gaoh  Ka Ta Va]  [Ye   Lao Gaoh  Ka Ta Va]
+  [Ui   Lao Gaoh  Ka Ta Va]  [Shu  Lao Gaoh  Ka Ta Va]  [Kiel Lao Gaoh  Ka Ta Va]
+  [Yeshu Lao Gaoh Ka Ta Va]  [Lao  Lao Gaoh  Ka Ta Va]
+
+  [TaShyMa(Ao)]
+}
+
+LoYeshu: MavoInteractions(TyAnShakKaDiVa) {
+
+  [MavoSpawnPoint
+    Shu Shu Ao
+    TaVa Va
+    MavoKael MavoSy]
+
+  [MavoExitLapidus
+    Shu Gaoh Ao
+    MavoExitToHomeMorning
+    Di Va
+    MavoKael MavoSy]
+
+  [MavoEnterRingPride
+    Shu Lao Ao
+    MavoExitPride
+    An Shak Di Va
+    MavoKael MavoSy]
+
+  [TaShyMa(Yeshu)]
+}
+
+} }
