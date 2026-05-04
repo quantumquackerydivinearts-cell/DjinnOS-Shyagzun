@@ -14,6 +14,7 @@ import { RenderLabPanel } from "./panels/RenderLabPanel";
 import { LotusPanel } from "./panels/LotusPanel";
 import { AlchemySubjectPanel } from "./panels/AlchemySubjectPanel";
 import { KobraStudioPanel } from "./panels/KobraStudioPanel";
+import { drawWebGL2 } from "./glVoxelRenderer";
 import { ShopManagerPanel } from "./panels/ShopManagerPanel";
 import { Q3Panel } from "./panels/Q3Panel";
 import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
@@ -4890,24 +4891,33 @@ function drawVoxelScene3D(canvas, voxels, settings = {}) {
   });
 }
 
-// Ko's Labyrinth GL contract: 3D voxels (Cardinal projection) + 2D sprite markers.
-// renderer_bridge.ko Cannabis mode I camera: tile=20, zScale=8.
-// renderer_bridge.ko Na trust lighting: ambient=0.30, intensity=0.80.
+// Ko's Labyrinth GL contract: WebGL2 voxel renderer + 2D sprite markers.
+// Lighting: lapidus_world.frag model (sun/ambient/rim + interseam shadow).
+// Falls back to drawVoxelScene3D if OffscreenCanvas / WebGL2 unavailable.
 function drawVoxelSceneGL(canvas, voxels, settings = {}) {
   if (!canvas) return;
   const spriteEntities = voxels.filter(v => v.tag === "interaction");
   const voxelEntities  = voxels.filter(v => v.tag !== "interaction");
+  if (!voxelEntities.length) return;
 
+  // Ko's Labyrinth GL: use the 3D perspective renderer (matches Ambroflow's
+  // WorldRenderer look) not the flat Cardinal mode.
   const glSettings = {
     ...settings,
-    renderMode:   "2.5d",
-    projection:   "cardinal",
+    renderMode:   "3d",
     visualStyle:  "koslabyrinth",
-    tile:         Number(settings.tile)   || 20,
-    zScale:       Number(settings.zScale) || 8,
+    tile:         Number(settings.tile)   || 24,
+    zScale:       Number(settings.zScale) || 16,
     outline:      true,
     outlineColor: settings.outlineColor || "#1a2a3a",
     edgeGlow:     false,
+    camera3d: {
+      yaw:   (settings.camera3d && settings.camera3d.yaw   != null) ? settings.camera3d.yaw   : -35,
+      pitch: (settings.camera3d && settings.camera3d.pitch != null) ? settings.camera3d.pitch : 40,
+      zoom:  (settings.camera3d && settings.camera3d.zoom  != null) ? settings.camera3d.zoom  : 1,
+      panX:  (settings.camera3d && settings.camera3d.panX  != null) ? settings.camera3d.panX  : 0,
+      panY:  (settings.camera3d && settings.camera3d.panY  != null) ? settings.camera3d.panY  : 0,
+    },
     lighting: {
       enabled:   true,
       x: 0.4, y: -0.6, z: 0.7,
@@ -4916,7 +4926,11 @@ function drawVoxelSceneGL(canvas, voxels, settings = {}) {
     },
   };
 
-  drawVoxelScene(canvas, voxelEntities, glSettings);
+  // Attempt WebGL2 path; fall back to Canvas2D perspective if unavailable
+  const webgl2ok = drawWebGL2(canvas, voxelEntities, glSettings);
+  if (!webgl2ok) {
+    drawVoxelScene3D(canvas, voxelEntities, glSettings);
+  }
 
   if (!spriteEntities.length) return;
   const ctx = canvas.getContext("2d");
@@ -10440,17 +10454,17 @@ function extractPythonSavedPath(outputText) {
     setVoxelSettings((prev) => ({
       ...prev,
       renderMode:   "gl",
-      projection:   "cardinal",
       renderScale:  2,
       visualStyle:  "koslabyrinth",
       pixelate:     false,
-      tile:         20,
-      zScale:       8,
+      tile:         24,
+      zScale:       16,
       background:   "#0b1426",
       outline:      true,
       outlineColor: "#1a2a3a",
       edgeGlow:     false,
       labelMode:    "none",
+      camera3d:     { yaw: -35, pitch: 40, zoom: 1, panX: 0, panY: 0 },
       lighting: { ...(prev.lighting || {}), enabled: true, x: 0.4, y: -0.6, z: 0.7, ambient: 0.30, intensity: 0.80 },
     }));
     setNotice("renderer_preset:koslabyrinth");

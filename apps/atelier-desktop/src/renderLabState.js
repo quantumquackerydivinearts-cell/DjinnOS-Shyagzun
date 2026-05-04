@@ -38,11 +38,11 @@ export const RENDERER_STORAGE_KEYS = {
 export function defaultVoxelSettings() {
   return {
     renderMode:              "gl",
-    projection:              "cardinal",
-    camera3d:                { yaw: -35, pitch: 28, zoom: 1, panX: 0, panY: 0 },
+    projection:              "isometric",
+    camera3d:                { yaw: -35, pitch: 40, zoom: 1, panX: 0, panY: 0 },
     camera2d:                { panX: 0, panY: 0, zoom: 1 },
-    tile:                    20,
-    zScale:                  8,
+    tile:                    24,
+    zScale:                  16,
     renderScale:             2,
     visualStyle:             "koslabyrinth",
     pixelate:                false,
