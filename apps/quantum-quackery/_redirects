@@ -1,22 +1,5 @@
 # quantum-quackery/_redirects
 # Cloudflare Pages redirect rules.
 
-# API calls from the landing page proxy to Render
-# (alternative to calling Render directly — avoids mixed content
-#  and keeps the API URL consistent if you ever move hosts)
+# API calls proxy to Render
 /api/*  https://djinnos-shyagzun-atelier-api.onrender.com/:splat  200
-
-# Route clean paths to HTML files
-/encyclopedia  /encyclopedia-esoterica.html  200
-/encyclopedia/  /encyclopedia-esoterica.html  200
-/atelier  /atelier.html  200
-/atelier/  /atelier.html  200
-/guild  /guild.html  200
-/guild/  /guild.html  200
-/shygazun  /shygazun_literary_companion.html  200
-/shygazun/  /shygazun_literary_companion.html  200
-/synthesis  /shygazun_photonic_synthesis_companion.html  200
-/synthesis/  /shygazun_photonic_synthesis_companion.html  200
-
-# Redirect bare domain to www (or remove if you prefer bare)
-# http://quantumquackery.org/*  https://www.quantumquackery.org/:splat  301
