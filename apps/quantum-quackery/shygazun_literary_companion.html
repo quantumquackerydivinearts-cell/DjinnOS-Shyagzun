@@ -1,3 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shygazun Literary Companion — Quantum Quackery</title>
+  <meta name="description" content="Composition prompts for native Shygazun writing across the tongues. Semantic-first, placement-last." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --font-sans:                 "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      --color-text-primary:        #e4e4f0;
+      --color-text-secondary:      #7878a0;
+      --color-text-danger:         #d44848;
+      --color-background-primary:  #16161f;
+      --color-background-secondary:#1c1c28;
+      --color-border-tertiary:     #2a2a3a;
+      --border-radius-lg:          10px;
+      --border-radius-md:           6px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #0e0e16;
+      color: var(--color-text-primary);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+    }
+
+    .page-nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(14, 14, 22, 0.92);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-bottom: 0.5px solid var(--color-border-tertiary);
+      padding: 0.75rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .page-nav a {
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.15s;
+    }
+    .page-nav a:hover { color: var(--color-text-primary); }
+    .page-nav .page-title {
+      color: var(--color-text-primary);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .page-wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    select, input[type=text], textarea {
+      background: var(--color-background-secondary);
+      color: var(--color-text-primary);
+      border: 0.5px solid var(--color-border-tertiary);
+      border-radius: var(--border-radius-md);
+      padding: 7px 10px;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    select:focus, textarea:focus { border-color: #4a4a7a; }
+
+    button {
+      background: var(--color-background-secondary);
+      color: var(--color-text-primary);
+      border: 0.5px solid var(--color-border-tertiary);
+      border-radius: var(--border-radius-md);
+      padding: 7px 14px;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover {
+      background: #242438;
+      border-color: #4a4a7a;
+    }
+
+    input[type=range] {
+      accent-color: #AFA9EC;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="page-nav">
+  <a href="/">← Quantum Quackery</a>
+  <span class="page-title">Shygazun Literary Companion</span>
+</nav>
+
+<div class="page-wrap">
 
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -350,3 +458,7 @@ async function analyzeComposition() {
   sendPrompt(`Please reflect the structural moves of this Shygazun composition back to me — identify which tongues are active, what path through the manifold it traces, and what it does phenomenologically: "${text}"`);
 }
 </script>
+
+</div>
+</body>
+</html>
