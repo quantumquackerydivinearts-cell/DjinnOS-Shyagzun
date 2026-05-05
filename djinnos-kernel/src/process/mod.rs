@@ -104,6 +104,15 @@ pub fn yield_now() {
 
         CURRENT.store(next_idx, Ordering::Relaxed);
 
+        // Transition states: outgoing → Ready so it can be rescheduled,
+        // incoming → Running so it won't be double-scheduled.
+        if let Some(ref mut p) = PROCS[cur_idx] {
+            if p.state == ProcessState::Running { p.state = ProcessState::Ready; }
+        }
+        if let Some(ref mut p) = PROCS[next_idx] {
+            p.state = ProcessState::Running;
+        }
+
         if PROCS[cur_idx].is_some() && PROCS[next_idx].is_some() {
             let from = core::ptr::addr_of_mut!(
                 PROCS[cur_idx].as_mut().unwrap().context);
