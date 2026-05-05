@@ -99,6 +99,8 @@ impl BlockDriver {
             let status_phys = BLK_STATUS.as_ptr() as u64;
 
             // header (R) → data buffer (W) → status byte (W)
+            // Save free_head so we can reclaim the 3 descriptors after poll().
+            let saved_head = self.queue.free_head;
             self.queue.send3(
                 hdr_phys,    16,          0,           // readonly header
                 data_phys,   512,         DESC_F_WRITE, // device writes data
@@ -106,6 +108,8 @@ impl BlockDriver {
             );
             self.dev.write(REG_QUEUE_NOTIFY, 0);
             self.queue.poll();
+            // Synchronous one-at-a-time I/O: device is done, reclaim descriptors.
+            self.queue.free_head = saved_head;
 
             BLK_STATUS[0] == BLK_S_OK
         }

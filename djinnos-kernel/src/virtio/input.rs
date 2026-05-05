@@ -123,19 +123,15 @@ impl InputDriver {
         let ev_value = u32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]);
 
         if ev_type != EV_KEY { return None; }
-        if ev_value != KEY_PRESS && ev_value != KEY_REPEAT { return None; }
 
-        // Track shift state
-        match ev_code {
-            42 | 54 => { self.shift_held = true;  return None; }
-            _       => {}
-        }
-        // Note: release events are filtered out by the press/repeat check above,
-        // so shift_held is cleared via a separate release check:
-        if ev_value == 0 && (ev_code == 42 || ev_code == 54) {
-            self.shift_held = false;
+        // Track shift state before the press/repeat filter so release events
+        // (ev_value == 0) can clear shift_held.
+        if ev_code == 42 || ev_code == 54 {
+            self.shift_held = ev_value == KEY_PRESS || ev_value == KEY_REPEAT;
             return None;
         }
+
+        if ev_value != KEY_PRESS && ev_value != KEY_REPEAT { return None; }
 
         match ev_code {
             28 => Some(Key::Enter),
@@ -163,7 +159,9 @@ fn keycode_to_char(code: u16, shift: bool) -> Option<u8> {
         34 => Some((b'g', b'G')),  35 => Some((b'h', b'H')),
         36 => Some((b'j', b'J')),  37 => Some((b'k', b'K')),
         38 => Some((b'l', b'L')),  39 => Some((b';', b':')),
+        26 => Some((b'[', b'{')),  27 => Some((b']', b'}')),
         40 => Some((b'\'',b'"')),  41 => Some((b'`', b'~')),
+        43 => Some((b'\\',b'|')),
         44 => Some((b'z', b'Z')),  45 => Some((b'x', b'X')),
         46 => Some((b'c', b'C')),  47 => Some((b'v', b'V')),
         48 => Some((b'b', b'B')),  49 => Some((b'n', b'N')),

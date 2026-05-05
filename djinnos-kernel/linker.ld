@@ -29,6 +29,13 @@ SECTIONS {
         _bss_end = .;
     } > RAM
 
-    /* Stack grows downward from 8 MiB mark */
-    _stack_top = 0x80000000 + 8 * 1024 * 1024;
+    /* Boot stack: placed explicitly after all BSS so it never collides with
+       the 8 MiB static heap or the per-process stack array.
+       256 KiB is ample for the deepest kernel call chains. */
+    .stack (NOLOAD) : {
+        . = ALIGN(16);
+        _stack_bottom = .;
+        . += 256 * 1024;
+        _stack_top = .;
+    } > RAM
 }
