@@ -24,6 +24,7 @@ pub const REG_QUEUE_NOTIFY:     usize = 0x050;
 pub const REG_INTERRUPT_STATUS: usize = 0x060;
 pub const REG_INTERRUPT_ACK:    usize = 0x064;
 pub const REG_STATUS:           usize = 0x070;
+// Version 2 (modern) queue ring pointers
 pub const REG_QUEUE_DESC_LOW:   usize = 0x080;
 pub const REG_QUEUE_DESC_HIGH:  usize = 0x084;
 pub const REG_QUEUE_AVAIL_LOW:  usize = 0x090;
@@ -31,6 +32,11 @@ pub const REG_QUEUE_AVAIL_HIGH: usize = 0x094;
 pub const REG_QUEUE_USED_LOW:   usize = 0x0a0;
 pub const REG_QUEUE_USED_HIGH:  usize = 0x0a4;
 pub const REG_CONFIG:           usize = 0x100;
+
+// Version 1 (legacy) queue registers
+pub const REG_GUEST_PAGE_SIZE:  usize = 0x028;
+pub const REG_QUEUE_ALIGN:      usize = 0x03c;
+pub const REG_QUEUE_PFN:        usize = 0x040;
 
 // Device status bits
 pub const STATUS_ACKNOWLEDGE:  u32 = 1;
@@ -64,13 +70,24 @@ impl VirtioMmio {
 }
 
 /// Scan VirtIO MMIO bus and return the base address of the first GPU device.
+/// Prints each slot's magic/version/device_id for diagnosis.
 pub fn find_gpu() -> Option<u64> {
+    use crate::uart;
     for slot in 0..VIRTIO_SLOTS {
         let base = VIRTIO_BASE + slot * VIRTIO_STRIDE;
         let dev  = VirtioMmio::new(base);
-        if dev.read(REG_MAGIC)     != VIRTIO_MAGIC { continue; }
-        if dev.read(REG_VERSION)   != 2            { continue; }
-        if dev.read(REG_DEVICE_ID) == DEVICE_GPU   { return Some(base); }
+        let magic  = dev.read(REG_MAGIC);
+        let ver    = dev.read(REG_VERSION);
+        let dev_id = dev.read(REG_DEVICE_ID);
+        uart::puts("  slot "); uart::putu(slot);
+        uart::puts(" @ 0x"); uart::putx(base);
+        uart::puts("  magic=0x"); uart::putx(magic as u64);
+        uart::puts(" ver="); uart::putu(ver as u64);
+        uart::puts(" id="); uart::putu(dev_id as u64);
+        uart::puts("\r\n");
+        if magic != VIRTIO_MAGIC         { continue; }
+        if ver != 1 && ver != 2          { continue; }
+        if dev_id == DEVICE_GPU          { return Some(base); }
     }
     None
 }

@@ -11,7 +11,7 @@
 // Framebuffer format: BGRX8888 (4 bytes per pixel, blue first).
 
 use super::mmio::{VirtioMmio, *};
-use super::queue::{VirtQueue, Descriptor, AvailRing, UsedRing, QUEUE_SIZE};
+use super::queue::{VirtQueue, Descriptor, AvailRing, UsedRing, UsedElem, QUEUE_SIZE};
 use core::ptr::write_volatile;
 
 // ── VirtIO GPU command types ─────────────────────────────────────────────────
@@ -110,17 +110,26 @@ struct ResourceFlush {
     padding:     u32,
 }
 
-// ── Static queue memory ──────────────────────────────────────────────────────
+// ── Static queue memory ───────────────────────────────────────────────────────
+//
+// VirtIO MMIO v1 (legacy) requires a specific page-aligned layout:
+//   Page 0: descriptor table (1024 B) + available ring (134 B) + padding
+//   Page 1: used ring (518 B)
+//
+// The entire block is referenced by a single page-frame-number written to
+// REG_QUEUE_PFN.  Offsets within it are fixed by the spec.
+
+const V1_QUEUE_BYTES: usize = 8192;  // 2 × 4096-byte pages
 
 #[repr(C, align(4096))]
-struct QueueMem {
-    desc:  [Descriptor;  QUEUE_SIZE],
-    avail: AvailRing,
-    used:  UsedRing,
-}
+struct V1QueueMem([u8; V1_QUEUE_BYTES]);
 
-// Zero-init in BSS — safe for VirtIO (all-zero is "empty queue").
-static mut CTRL_QUEUE_MEM: QueueMem = unsafe { core::mem::zeroed() };
+static mut CTRL_QUEUE_MEM: V1QueueMem = V1QueueMem([0u8; V1_QUEUE_BYTES]);
+
+// Byte offsets within V1QueueMem (queue size = 64)
+const V1_DESC_OFF:  usize = 0;                       // 0
+const V1_AVAIL_OFF: usize = QUEUE_SIZE * 16;          // 1024
+const V1_USED_OFF:  usize = 4096;                     // page-aligned gap
 
 // Staging buffers for commands and responses.
 static mut CMD:  [u8; 256] = [0u8; 256];
@@ -154,39 +163,28 @@ impl GpuDriver {
         dev.write(REG_STATUS, s);
         if dev.read(REG_STATUS) & STATUS_FEATURES_OK == 0 { return None; }
 
-        // Set up control queue (queue 0)
+        // Set up control queue (queue 0) — v1 legacy protocol
+        dev.write(REG_GUEST_PAGE_SIZE, 4096);
         dev.write(REG_QUEUE_SEL, 0);
         let qmax = dev.read(REG_QUEUE_NUM_MAX) as usize;
         if qmax < QUEUE_SIZE { return None; }
-        dev.write(REG_QUEUE_NUM, QUEUE_SIZE as u32);
+        dev.write(REG_QUEUE_NUM,   QUEUE_SIZE as u32);
+        dev.write(REG_QUEUE_ALIGN, 4096);
 
-        let (desc_phys, avail_phys, used_phys) = unsafe {
-            let m = &raw mut CTRL_QUEUE_MEM;
-            let desc  = &raw mut (*m).desc  as u64;
-            let avail = &raw mut (*m).avail as u64;
-            let used  = &raw const (*m).used  as u64;
-            (desc, avail, used)
+        let base_phys = unsafe {
+            CTRL_QUEUE_MEM.0.as_ptr() as u64
         };
-
-        dev.write(REG_QUEUE_DESC_LOW,  (desc_phys  & 0xffff_ffff) as u32);
-        dev.write(REG_QUEUE_DESC_HIGH, (desc_phys  >> 32)         as u32);
-        dev.write(REG_QUEUE_AVAIL_LOW, (avail_phys & 0xffff_ffff) as u32);
-        dev.write(REG_QUEUE_AVAIL_HIGH,(avail_phys >> 32)         as u32);
-        dev.write(REG_QUEUE_USED_LOW,  (used_phys  & 0xffff_ffff) as u32);
-        dev.write(REG_QUEUE_USED_HIGH, (used_phys  >> 32)         as u32);
-        dev.write(REG_QUEUE_READY, 1);
+        dev.write(REG_QUEUE_PFN, (base_phys >> 12) as u32);
 
         dev.write(REG_STATUS, dev.read(REG_STATUS) | STATUS_DRIVER_OK);
 
+        // Build VirtQueue view over the raw bytes
         let queue = unsafe {
-            let m = &raw mut CTRL_QUEUE_MEM;
-            VirtQueue {
-                desc:      &mut (*m).desc,
-                avail:     &mut (*m).avail,
-                used:      &    (*m).used,
-                free_head: 0,
-                last_used: 0,
-            }
+            let base = CTRL_QUEUE_MEM.0.as_mut_ptr();
+            let desc  = &mut *(base.add(V1_DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE]);
+            let avail = &mut *(base.add(V1_AVAIL_OFF) as *mut AvailRing);
+            let used  = &    *(base.add(V1_USED_OFF)  as *const UsedRing);
+            VirtQueue { desc, avail, used, free_head: 0, last_used: 0 }
         };
 
         let mut gpu = GpuDriver { dev, queue, width: FB_MAX_W, height: FB_MAX_H };
