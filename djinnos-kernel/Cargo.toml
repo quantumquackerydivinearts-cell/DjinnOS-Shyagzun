@@ -1,0 +1,17 @@
+[package]
+name    = "djinnos-kernel"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name              = "djinnos-kernel"
+path              = "src/main.rs"
+
+[profile.dev]
+panic         = "abort"
+
+[profile.release]
+opt-level     = "z"
+lto           = true
+codegen-units = 1
+panic         = "abort"

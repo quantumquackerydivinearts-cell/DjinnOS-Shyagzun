@@ -1,0 +1,310 @@
+// VirtIO GPU driver — polling mode.
+//
+// Implements the minimal command set needed for a framebuffer display:
+//   1. GET_DISPLAY_INFO   → learn screen dimensions
+//   2. RESOURCE_CREATE_2D → allocate a host-side resource
+//   3. RESOURCE_ATTACH_BACKING → link our physical framebuffer pages
+//   4. SET_SCANOUT        → connect resource to the physical display
+//   5. TRANSFER_TO_HOST_2D → mark our writes as ready
+//   6. RESOURCE_FLUSH     → push to screen
+//
+// Framebuffer format: BGRX8888 (4 bytes per pixel, blue first).
+
+use super::mmio::{VirtioMmio, *};
+use super::queue::{VirtQueue, Descriptor, AvailRing, UsedRing, QUEUE_SIZE};
+use core::ptr::write_volatile;
+
+// ── VirtIO GPU command types ─────────────────────────────────────────────────
+
+const CMD_GET_DISPLAY_INFO:     u32 = 0x0100;
+const CMD_RESOURCE_CREATE_2D:   u32 = 0x0101;
+const CMD_SET_SCANOUT:          u32 = 0x0103;
+const CMD_RESOURCE_FLUSH:       u32 = 0x0104;
+const CMD_TRANSFER_TO_HOST_2D:  u32 = 0x0105;
+const CMD_RESOURCE_ATTACH_BACKING: u32 = 0x0106;
+
+const RESP_OK_NODATA:           u32 = 0x1100;
+const RESP_OK_DISPLAY_INFO:     u32 = 0x1101;
+
+const FORMAT_BGRX8888: u32 = 1;
+const RESOURCE_ID:     u32 = 1;   // arbitrary non-zero resource handle
+
+// Framebuffer lives at a fixed physical address (96 MiB into RAM).
+// 1280 × 800 × 4 = 4 096 000 bytes ≈ 4 MiB — well within QEMU's 128 MiB.
+pub const FB_PHYS: u64   = 0x80000000 + 96 * 1024 * 1024;
+pub const FB_MAX_W: u32  = 1280;
+pub const FB_MAX_H: u32  = 800;
+
+// ── Command / response wire structs ─────────────────────────────────────────
+
+#[repr(C)]
+struct CtrlHdr {
+    type_:    u32,
+    flags:    u32,
+    fence_id: u64,
+    ctx_id:   u32,
+    padding:  u32,
+}
+
+impl CtrlHdr {
+    const fn cmd(t: u32) -> Self {
+        Self { type_: t, flags: 0, fence_id: 0, ctx_id: 0, padding: 0 }
+    }
+}
+
+#[repr(C)] struct Rect { x: u32, y: u32, w: u32, h: u32 }
+
+#[repr(C)]
+struct DisplayInfo {
+    hdr:   CtrlHdr,
+    pmodes: [DisplayMode; 16],
+}
+#[repr(C)]
+struct DisplayMode {
+    rect:    Rect,
+    enabled: u32,
+    flags:   u32,
+}
+
+#[repr(C)]
+struct ResourceCreate2d {
+    hdr:         CtrlHdr,
+    resource_id: u32,
+    format:      u32,
+    width:        u32,
+    height:       u32,
+}
+
+#[repr(C)]
+struct ResourceAttachBacking {
+    hdr:         CtrlHdr,
+    resource_id: u32,
+    nr_entries:  u32,
+    addr:        u64,
+    length:      u32,
+    padding:     u32,
+}
+
+#[repr(C)]
+struct SetScanout {
+    hdr:         CtrlHdr,
+    r:           Rect,
+    scanout_id:  u32,
+    resource_id: u32,
+}
+
+#[repr(C)]
+struct TransferToHost {
+    hdr:         CtrlHdr,
+    r:           Rect,
+    offset:      u64,
+    resource_id: u32,
+    padding:     u32,
+}
+
+#[repr(C)]
+struct ResourceFlush {
+    hdr:         CtrlHdr,
+    r:           Rect,
+    resource_id: u32,
+    padding:     u32,
+}
+
+// ── Static queue memory ──────────────────────────────────────────────────────
+
+#[repr(C, align(4096))]
+struct QueueMem {
+    desc:  [Descriptor;  QUEUE_SIZE],
+    avail: AvailRing,
+    used:  UsedRing,
+}
+
+// Zero-init in BSS — safe for VirtIO (all-zero is "empty queue").
+static mut CTRL_QUEUE_MEM: QueueMem = unsafe { core::mem::zeroed() };
+
+// Staging buffers for commands and responses.
+static mut CMD:  [u8; 256] = [0u8; 256];
+static mut RESP: [u8; 256] = [0u8; 256];
+
+// ── GpuDriver ────────────────────────────────────────────────────────────────
+
+pub struct GpuDriver {
+    dev:    VirtioMmio,
+    queue:  VirtQueue,
+    pub width:  u32,
+    pub height: u32,
+}
+
+impl GpuDriver {
+    /// Initialise the VirtIO GPU at `base`.  Returns None if negotiation fails.
+    pub fn init(base: u64) -> Option<Self> {
+        let dev = VirtioMmio::new(base);
+
+        // Device initialisation sequence (VirtIO spec §3.1.1)
+        dev.write(REG_STATUS, 0);                                    // reset
+        dev.write(REG_STATUS, STATUS_ACKNOWLEDGE);
+        dev.write(REG_STATUS, STATUS_ACKNOWLEDGE | STATUS_DRIVER);
+
+        // Accept no optional features for now
+        dev.write(REG_DEVICE_FEAT_SEL,  0);
+        dev.write(REG_DRIVER_FEAT_SEL, 0);
+        dev.write(REG_DRIVER_FEATURES,  0);
+
+        let s = dev.read(REG_STATUS) | STATUS_FEATURES_OK;
+        dev.write(REG_STATUS, s);
+        if dev.read(REG_STATUS) & STATUS_FEATURES_OK == 0 { return None; }
+
+        // Set up control queue (queue 0)
+        dev.write(REG_QUEUE_SEL, 0);
+        let qmax = dev.read(REG_QUEUE_NUM_MAX) as usize;
+        if qmax < QUEUE_SIZE { return None; }
+        dev.write(REG_QUEUE_NUM, QUEUE_SIZE as u32);
+
+        let (desc_phys, avail_phys, used_phys) = unsafe {
+            let m = &raw mut CTRL_QUEUE_MEM;
+            let desc  = &raw mut (*m).desc  as u64;
+            let avail = &raw mut (*m).avail as u64;
+            let used  = &raw const (*m).used  as u64;
+            (desc, avail, used)
+        };
+
+        dev.write(REG_QUEUE_DESC_LOW,  (desc_phys  & 0xffff_ffff) as u32);
+        dev.write(REG_QUEUE_DESC_HIGH, (desc_phys  >> 32)         as u32);
+        dev.write(REG_QUEUE_AVAIL_LOW, (avail_phys & 0xffff_ffff) as u32);
+        dev.write(REG_QUEUE_AVAIL_HIGH,(avail_phys >> 32)         as u32);
+        dev.write(REG_QUEUE_USED_LOW,  (used_phys  & 0xffff_ffff) as u32);
+        dev.write(REG_QUEUE_USED_HIGH, (used_phys  >> 32)         as u32);
+        dev.write(REG_QUEUE_READY, 1);
+
+        dev.write(REG_STATUS, dev.read(REG_STATUS) | STATUS_DRIVER_OK);
+
+        let queue = unsafe {
+            let m = &raw mut CTRL_QUEUE_MEM;
+            VirtQueue {
+                desc:      &mut (*m).desc,
+                avail:     &mut (*m).avail,
+                used:      &    (*m).used,
+                free_head: 0,
+                last_used: 0,
+            }
+        };
+
+        let mut gpu = GpuDriver { dev, queue, width: FB_MAX_W, height: FB_MAX_H };
+
+        // Discover real display dimensions
+        if let Some((w, h)) = gpu.get_display_info() {
+            gpu.width  = w.min(FB_MAX_W);
+            gpu.height = h.min(FB_MAX_H);
+        }
+
+        // Create resource, attach backing, set scanout
+        gpu.resource_create_2d();
+        gpu.resource_attach_backing();
+        gpu.set_scanout();
+
+        Some(gpu)
+    }
+
+    fn send_cmd<T>(&mut self, cmd: &T, cmd_size: u32) {
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                cmd as *const T as *const u8,
+                CMD.as_mut_ptr(),
+                cmd_size as usize,
+            );
+            let cmd_phys  = CMD.as_ptr()  as u64;
+            let resp_phys = RESP.as_ptr() as u64;
+            self.queue.send(cmd_phys, cmd_size, resp_phys, 64);
+            self.dev.write(REG_QUEUE_NOTIFY, 0);
+            self.queue.poll();
+        }
+    }
+
+    fn get_display_info(&mut self) -> Option<(u32, u32)> {
+        let cmd = CtrlHdr::cmd(CMD_GET_DISPLAY_INFO);
+        self.send_cmd(&cmd, core::mem::size_of::<CtrlHdr>() as u32);
+        unsafe {
+            let info = &*(RESP.as_ptr() as *const DisplayInfo);
+            if info.hdr.type_ == RESP_OK_DISPLAY_INFO && info.pmodes[0].enabled != 0 {
+                let w = info.pmodes[0].rect.w;
+                let h = info.pmodes[0].rect.h;
+                if w > 0 && h > 0 { return Some((w, h)); }
+            }
+        }
+        None
+    }
+
+    fn resource_create_2d(&mut self) {
+        let cmd = ResourceCreate2d {
+            hdr:         CtrlHdr::cmd(CMD_RESOURCE_CREATE_2D),
+            resource_id: RESOURCE_ID,
+            format:      FORMAT_BGRX8888,
+            width:        self.width,
+            height:       self.height,
+        };
+        self.send_cmd(&cmd, core::mem::size_of::<ResourceCreate2d>() as u32);
+    }
+
+    fn resource_attach_backing(&mut self) {
+        let fb_len = self.width * self.height * 4;
+        let cmd = ResourceAttachBacking {
+            hdr:         CtrlHdr::cmd(CMD_RESOURCE_ATTACH_BACKING),
+            resource_id: RESOURCE_ID,
+            nr_entries:  1,
+            addr:        FB_PHYS,
+            length:      fb_len,
+            padding:     0,
+        };
+        self.send_cmd(&cmd, core::mem::size_of::<ResourceAttachBacking>() as u32);
+    }
+
+    fn set_scanout(&mut self) {
+        let cmd = SetScanout {
+            hdr:         CtrlHdr::cmd(CMD_SET_SCANOUT),
+            r:           Rect { x: 0, y: 0, w: self.width, h: self.height },
+            scanout_id:  0,
+            resource_id: RESOURCE_ID,
+        };
+        self.send_cmd(&cmd, core::mem::size_of::<SetScanout>() as u32);
+    }
+
+    /// Write pixel data to the physical framebuffer then flush to screen.
+    pub fn flush(&mut self) {
+        // Tell the host our pixel data is ready
+        let transfer = TransferToHost {
+            hdr:         CtrlHdr::cmd(CMD_TRANSFER_TO_HOST_2D),
+            r:           Rect { x: 0, y: 0, w: self.width, h: self.height },
+            offset:      0,
+            resource_id: RESOURCE_ID,
+            padding:     0,
+        };
+        self.send_cmd(&transfer, core::mem::size_of::<TransferToHost>() as u32);
+
+        // Flush to display
+        let flush = ResourceFlush {
+            hdr:         CtrlHdr::cmd(CMD_RESOURCE_FLUSH),
+            r:           Rect { x: 0, y: 0, w: self.width, h: self.height },
+            resource_id: RESOURCE_ID,
+            padding:     0,
+        };
+        self.send_cmd(&flush, core::mem::size_of::<ResourceFlush>() as u32);
+    }
+
+    /// Fill the entire screen with a solid colour (BGRX format).
+    pub fn fill(&self, b: u8, g: u8, r: u8) {
+        let pixel: u32 = (r as u32) << 16 | (g as u32) << 8 | (b as u32);
+        let count = (self.width * self.height) as usize;
+        let fb = FB_PHYS as *mut u32;
+        for i in 0..count {
+            unsafe { write_volatile(fb.add(i), pixel); }
+        }
+    }
+
+    /// Write a single pixel at (x, y).
+    pub fn set_pixel(&self, x: u32, y: u32, b: u8, g: u8, r: u8) {
+        if x >= self.width || y >= self.height { return; }
+        let idx = (y * self.width + x) as usize;
+        let pixel: u32 = (r as u32) << 16 | (g as u32) << 8 | (b as u32);
+        unsafe { write_volatile((FB_PHYS as *mut u32).add(idx), pixel); }
+    }
+}
