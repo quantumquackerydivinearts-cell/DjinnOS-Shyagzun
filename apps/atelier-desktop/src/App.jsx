@@ -6740,6 +6740,17 @@ export function App() {
   const [tileRectEnd, setTileRectEnd] = useState(null);
   const [tileRectLodLevel, setTileRectLodLevel] = useState("3");
   const [tileRectFeatherScaleAware, setTileRectFeatherScaleAware] = useState(true);
+
+  // ── Pixel Atlas Editor ──────────────────────────────────────────────────────
+  const [pxEditorOpen, setPxEditorOpen] = useState(false);
+  const [pxAtlas,      setPxAtlas]      = useState("lapidus");
+  const [pxTileIdx,    setPxTileIdx]    = useState(0);
+  const [pxTiles,      setPxTiles]      = useState({});   // "atlas:idx" → string[1024]
+  const [pxTool,       setPxTool]       = useState("pencil");
+  const [pxColor,      setPxColor]      = useState("#8b6914");
+  const [pxZoom,       setPxZoom]       = useState(12);
+  const [pxUndoStack,  setPxUndoStack]  = useState([]);   // stroke-level undo
+
   const [tileProcCode, setTileProcCode] = useState(
     [
       "// Return { tiles, links, entities? }",
@@ -9078,6 +9089,113 @@ export function App() {
       setTilePngStatus(msg);
       setNotice(msg);
     }
+  }
+
+  // ── Pixel Atlas Editor — helpers ────────────────────────────────────────────
+
+  const PX_W = 32;
+
+  const PX_ATLAS_LABELS = {
+    lapidus:  ["FLOOR","GRASS","ROAD","WALL","WATER","STONE","VOID","DOOR","BRIDGE",
+               "YELLOW_BRICK","MARBLE","PORTAL","DUNGEON","TREE","STAIRS_UP","STAIRS_DN",
+               "CERAMIC","SLATE","SILICA"],
+    interior: ["FLOOR","—","—","WALL","—","—","VOID",
+               "BED","TABLE","JOURNAL","FURNACE","ANVIL","COUNTER","REGISTER","ALTAR","BOOKSHELF"],
+  };
+
+  function pxBeginStroke() {
+    const k = `${pxAtlas}:${pxTileIdx}`;
+    const cur = pxTiles[k] || new Array(PX_W * PX_W).fill("#1a1a2e");
+    setPxUndoStack(s => [...s.slice(-19), { atlas: pxAtlas, idx: pxTileIdx, pixels: cur }]);
+  }
+
+  function pxSetPixel(x, y, color) {
+    setPxTiles(t => {
+      const k = `${pxAtlas}:${pxTileIdx}`;
+      const cur = t[k] || new Array(PX_W * PX_W).fill("#1a1a2e");
+      const next = [...cur];
+      next[y * PX_W + x] = color;
+      return { ...t, [k]: next };
+    });
+  }
+
+  function pxFillBucket(startX, startY, newColor) {
+    const k = `${pxAtlas}:${pxTileIdx}`;
+    const cur = pxTiles[k] || new Array(PX_W * PX_W).fill("#1a1a2e");
+    const target = cur[startY * PX_W + startX] || "#1a1a2e";
+    if (target === newColor) return;
+    const next = [...cur];
+    const stack = [[startX, startY]];
+    const seen = new Set();
+    while (stack.length) {
+      const [x, y] = stack.pop();
+      if (x < 0 || x >= PX_W || y < 0 || y >= PX_W) continue;
+      const i = y * PX_W + x;
+      if (seen.has(i)) continue;
+      seen.add(i);
+      if (next[i] !== target) continue;
+      next[i] = newColor;
+      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    }
+    setPxTiles(t => ({ ...t, [k]: next }));
+  }
+
+  function pxEyedrop(x, y) {
+    const k = `${pxAtlas}:${pxTileIdx}`;
+    const c = (pxTiles[k] || [])[y * PX_W + x];
+    if (c) { setPxColor(c); setPxTool("pencil"); }
+  }
+
+  function pxHandleDraw(x, y) {
+    if      (pxTool === "pencil")      pxSetPixel(x, y, pxColor);
+    else if (pxTool === "eraser")      pxSetPixel(x, y, "#000000");
+    else if (pxTool === "fill")        pxFillBucket(x, y, pxColor);
+    else if (pxTool === "eyedropper")  pxEyedrop(x, y);
+  }
+
+  function pxUndo() {
+    if (!pxUndoStack.length) return;
+    const entry = pxUndoStack[pxUndoStack.length - 1];
+    setPxUndoStack(s => s.slice(0, -1));
+    setPxTiles(t => ({ ...t, [`${entry.atlas}:${entry.idx}`]: entry.pixels }));
+  }
+
+  function pxSeedTile(atlas, idx, baseColor) {
+    const k = `${atlas}:${idx}`;
+    setPxTiles(t => ({ ...t, [k]: new Array(PX_W * PX_W).fill(baseColor || "#1a1a2e") }));
+  }
+
+  function pxExportAtlas(atlasName) {
+    const labels = PX_ATLAS_LABELS[atlasName] || PX_ATLAS_LABELS.lapidus;
+    const N = labels.length;
+    const canvas = document.createElement("canvas");
+    canvas.width  = PX_W * N;
+    canvas.height = PX_W;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    labels.forEach((_, idx) => {
+      const k = `${atlasName}:${idx}`;
+      const pixels = pxTiles[k];
+      if (pixels && pixels.length === PX_W * PX_W) {
+        const imgData = ctx.createImageData(PX_W, PX_W);
+        pixels.forEach((hex, i) => {
+          const h = (hex || "#000000").replace("#", "").padEnd(6, "0");
+          imgData.data[i * 4]     = parseInt(h.slice(0, 2), 16);
+          imgData.data[i * 4 + 1] = parseInt(h.slice(2, 4), 16);
+          imgData.data[i * 4 + 2] = parseInt(h.slice(4, 6), 16);
+          imgData.data[i * 4 + 3] = 255;
+        });
+        ctx.putImageData(imgData, idx * PX_W, 0);
+      } else {
+        ctx.fillStyle = "#1a1a2e";
+        ctx.fillRect(idx * PX_W, 0, PX_W, PX_W);
+      }
+    });
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `atlas_${atlasName}.png`;
+    a.click();
   }
 
   function buildDirectionalFrameSchema() {
@@ -18246,6 +18364,122 @@ function extractPythonSavedPath(outputText) {
               </div>
             </div>
           </section>
+
+          {/* ── Pixel Atlas Editor ─────────────────────────────────────────── */}
+          <section className="panel pixel-atlas-editor">
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 0 }}>
+              <h2 style={{ margin: 0 }}>Pixel Atlas Editor</h2>
+              <button className="action" onClick={() => setPxEditorOpen(o => !o)}>
+                {pxEditorOpen ? "Collapse" : "Open"}
+              </button>
+            </div>
+            {pxEditorOpen && (
+              <div style={{ marginTop: 12 }}>
+
+                {/* Atlas + tile selectors */}
+                <div className="row" style={{ gap: 8, marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <label style={{ fontSize: 12 }}>Atlas</label>
+                  <select value={pxAtlas} onChange={e => { setPxAtlas(e.target.value); setPxTileIdx(0); setPxUndoStack([]); }}>
+                    <option value="lapidus">Lapidus outdoor (19 tiles)</option>
+                    <option value="interior">Interior / home (16 tiles)</option>
+                  </select>
+                  <label style={{ fontSize: 12 }}>Tile</label>
+                  <select value={pxTileIdx} onChange={e => { setPxTileIdx(Number(e.target.value)); setPxUndoStack([]); }}>
+                    {(PX_ATLAS_LABELS[pxAtlas] || PX_ATLAS_LABELS.lapidus).map((label, i) => (
+                      <option key={i} value={i}>{i}: {label}</option>
+                    ))}
+                  </select>
+                  <button className="action"
+                    title="Fill this tile with the active TPN color token"
+                    onClick={() => { const base = GAME_VOXEL_COLOR_MAP[tileColorToken] || "#333333"; pxBeginStroke(); pxSeedTile(pxAtlas, pxTileIdx, base); }}>
+                    Seed from TPN token ({tileColorToken})
+                  </button>
+                  <button className="action" onClick={pxUndo} disabled={!pxUndoStack.length} style={{ marginLeft: "auto" }}>
+                    Undo ({pxUndoStack.length})
+                  </button>
+                  <button className="action" onClick={() => pxExportAtlas(pxAtlas)}>
+                    Export {pxAtlas} atlas PNG
+                  </button>
+                </div>
+
+                {/* Tools + zoom */}
+                <div className="row" style={{ gap: 6, marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  {[["pencil","✏ pencil"],["fill","⬛ fill"],["eyedropper","⊕ pick"],["eraser","◻ erase"]].map(([t, label]) => (
+                    <button key={t} className={`action${pxTool === t ? " active" : ""}`} onClick={() => setPxTool(t)}>
+                      {label}
+                    </button>
+                  ))}
+                  <span style={{ fontSize: 11, color: "#888", marginLeft: 12 }}>Zoom</span>
+                  {[6, 8, 12, 16].map(z => (
+                    <button key={z} className={`action${pxZoom === z ? " active" : ""}`} onClick={() => setPxZoom(z)}>
+                      {z}×
+                    </button>
+                  ))}
+                </div>
+
+                {/* Kobra token palette + hex */}
+                <div className="row" style={{ gap: 4, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: "#888", marginRight: 4 }}>Kobra</span>
+                  {Object.entries(GAME_VOXEL_COLOR_MAP).map(([tok, hex]) => (
+                    <button key={tok} onClick={() => setPxColor(hex)} title={tok}
+                      style={{
+                        width: 26, height: 22, background: hex, padding: 0,
+                        border: pxColor === hex ? "2px solid #fff" : "1px solid rgba(255,255,255,0.18)",
+                        borderRadius: 3, cursor: "pointer", fontSize: 8,
+                        color: "#fff", textShadow: "0 0 3px #000",
+                      }}>
+                      {tok}
+                    </button>
+                  ))}
+                  <input type="color" value={pxColor} onChange={e => setPxColor(e.target.value)}
+                    style={{ width: 28, height: 22, padding: 0, border: "none", cursor: "pointer", borderRadius: 3 }}
+                    title="Custom colour" />
+                  <code style={{ fontSize: 11, color: "#aaa" }}>{pxColor}</code>
+                </div>
+
+                {/* Pixel grid */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${PX_W}, ${pxZoom}px)`,
+                    width: `${PX_W * pxZoom}px`,
+                    height: `${PX_W * pxZoom}px`,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    cursor: "crosshair",
+                    userSelect: "none",
+                    flexShrink: 0,
+                    overflow: "hidden",
+                  }}
+                >
+                  {Array.from({ length: PX_W * PX_W }, (_, i) => {
+                    const x = i % PX_W;
+                    const y = Math.floor(i / PX_W);
+                    const k = `${pxAtlas}:${pxTileIdx}`;
+                    const color = (pxTiles[k] || [])[i] || "#1a1a2e";
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          width: pxZoom,
+                          height: pxZoom,
+                          background: color,
+                          outline: pxZoom >= 8 ? "0.5px solid rgba(0,0,0,0.15)" : "none",
+                          boxSizing: "border-box",
+                        }}
+                        onMouseDown={e => { e.preventDefault(); pxBeginStroke(); pxHandleDraw(x, y); }}
+                        onMouseEnter={e => { if (e.buttons === 1) pxHandleDraw(x, y); }}
+                      />
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: 11, color: "#666", marginTop: 6 }}>
+                  {PX_W}×{PX_W} px · tile {pxTileIdx} ({(PX_ATLAS_LABELS[pxAtlas] || [])[pxTileIdx] || "?"}) · {pxAtlas} atlas
+                </p>
+
+              </div>
+            )}
+          </section>
+
           <section className="panel">
             <h2>Module Browser (Renderer Lab)</h2>
             <p>Run modules while watching renderer/runtime outputs update in the same workspace.</p>
