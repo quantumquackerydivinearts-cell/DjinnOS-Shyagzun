@@ -5,6 +5,7 @@
 
 use crate::font;
 use crate::fs::SaVolume;
+use crate::mm;
 use crate::virtio::{BlockDriver, GpuDriver};
 use crate::byte_table;
 
@@ -212,6 +213,19 @@ impl Shell {
                 self.push_line(&buf[..n], [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"process: Ko (coord 19)  kernel (coord 9)",
                     [R_DIM, G_DIM, B_DIM]);
+                // Heap stats
+                let (free, blocks) = mm::ALLOCATOR.stats();
+                let mut hbuf = [0u8; 80];
+                let pfx = b"heap: ";
+                let plen = pfx.len();
+                hbuf[..plen].copy_from_slice(pfx);
+                let mut n = plen;
+                n += write_u32(&mut hbuf[n..], (free / 1024) as u32);
+                let sfx = b" KiB free  blocks: ";
+                hbuf[n..n + sfx.len()].copy_from_slice(sfx); n += sfx.len();
+                n += write_u32(&mut hbuf[n..], blocks as u32);
+                self.push_line(&hbuf[..n], [R_DIM, G_DIM, B_DIM]);
+
                 match vol {
                     Some(v) => {
                         let mut vbuf = [0u8; 80];

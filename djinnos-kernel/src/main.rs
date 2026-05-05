@@ -3,9 +3,12 @@
 #![allow(dead_code)]
 #![allow(static_mut_refs)]
 
+extern crate alloc;
+
 mod byte_table;
 mod font;
 mod fs;
+mod mm;
 mod process;
 mod shell;
 mod uart;
@@ -18,6 +21,12 @@ core::arch::global_asm!(include_str!("boot.s"));
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
     uart::puts("\r\nDjinnOS kernel\r\n");
+
+    mm::init();
+    uart::puts("heap: online  ");
+    let (free, _) = mm::ALLOCATOR.stats();
+    uart::putu(free as u64 / 1024);
+    uart::puts(" KiB free\r\n");
 
     process::init();
     uart::puts("process subsystem: online\r\n");
