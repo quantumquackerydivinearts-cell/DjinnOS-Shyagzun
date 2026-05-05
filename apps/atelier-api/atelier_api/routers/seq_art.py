@@ -131,7 +131,7 @@ def update_page(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.delete("/v1/projects/{project_id}/pages/{page_id}", status_code=204)
+@router.delete("/v1/projects/{project_id}/pages/{page_id}", status_code=204, response_model=None)
 def delete_page(
     project_id: str,
     page_id: str,
@@ -223,6 +223,7 @@ def update_panel(
 @router.delete(
     "/v1/projects/{project_id}/pages/{page_id}/panels/{panel_id}",
     status_code=204,
+    response_model=None,
 )
 def delete_panel(
     project_id: str,
@@ -296,7 +297,7 @@ def update_character(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.delete("/v1/projects/{project_id}/characters/{char_id}", status_code=204)
+@router.delete("/v1/projects/{project_id}/characters/{char_id}", status_code=204, response_model=None)
 def delete_character(
     project_id: str,
     char_id: str,
