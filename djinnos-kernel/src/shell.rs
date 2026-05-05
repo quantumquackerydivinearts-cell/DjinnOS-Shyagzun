@@ -40,6 +40,7 @@ pub struct Shell {
 
     rule_y:    u32,
     dirty:     bool,
+    _frame:    u64,
 }
 
 const PROMPT: &[u8] = b"Ko > ";
@@ -55,6 +56,7 @@ impl Shell {
             input_len:  0,
             rule_y,
             dirty:      true,
+            _frame:     0,
         }
     }
 
@@ -109,6 +111,12 @@ impl Shell {
 
     pub fn needs_flush(&self) -> bool { self.dirty }
 
+    pub fn set_frame(&mut self, f: u64) {
+        let _ = f;  // will render in render() below
+        self._frame = f;
+        self.dirty = true;
+    }
+
     /// Render everything to the GPU framebuffer (does NOT call gpu.flush()).
     pub fn render(&mut self, gpu: &GpuDriver) {
         if !self.dirty { return; }
@@ -152,6 +160,18 @@ impl Shell {
                 gpu.set_pixel(cx + dx, y + dy, B_IN, G_IN, R_IN);
             }
         }
+
+        // Frame counter — top-right of desktop floor (proves loop is alive)
+        let mut fc_buf = [0u8; 12];
+        let fc_len = write_u32(&mut fc_buf, (self._frame & 0xFFFFFFFF) as u32);
+        let fc_str = core::str::from_utf8(&fc_buf[..fc_len]).unwrap_or("?");
+        let fc_w   = fc_len as u32 * CHAR_W;
+        font::draw_str(gpu,
+            gpu.width - fc_w - 4,
+            floor_top + 4,
+            fc_str, SCALE,
+            0x40, 0x40, 0x40,
+        );
     }
 
     // ── Internal ──────────────────────────────────────────────────────────────

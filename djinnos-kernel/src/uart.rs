@@ -11,6 +11,8 @@ pub fn puts(s: &str) {
     for b in s.bytes() { putc(b); }
 }
 
+pub fn putc_char(c: u8) { putc(c); }
+
 pub fn putu(mut n: u64) {
     if n == 0 { putc(b'0'); return; }
     let mut buf = [0u8; 20];

@@ -60,18 +60,28 @@ pub extern "C" fn kernel_main() -> ! {
     process::spawn(19, ko_idle, 0);
 
     // ── Main event loop ───────────────────────────────────────────────────────
+    let mut frame: u64 = 0;
     loop {
-        let mut got_input = false;
         if let Some(ref mut k) = kbd {
             while let Some(key) = k.poll() {
+                // Serial debug: show every event
+                use virtio::input::Key;
+                match key {
+                    Key::Char(c) => { uart::puts("KEY:"); uart::putc_char(c); uart::puts("\r\n"); }
+                    Key::Enter    => uart::puts("KEY:ENTER\r\n"),
+                    Key::Backspace=> uart::puts("KEY:BKSP\r\n"),
+                }
                 sh.handle_key(key);
-                got_input = true;
             }
         }
-        if got_input || sh.needs_flush() {
-            sh.render(&gpu);
-            gpu.flush();
-        }
+
+        // Render every frame so a frame counter proves the loop is alive.
+        // Once we confirm keyboard works we can gate this on dirty.
+        sh.set_frame(frame);
+        sh.render(&gpu);
+        gpu.flush();
+        frame = frame.wrapping_add(1);
+
         process::yield_now();
     }
 }

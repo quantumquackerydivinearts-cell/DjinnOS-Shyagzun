@@ -70,35 +70,25 @@ impl VirtioMmio {
 }
 
 /// Scan VirtIO MMIO bus for the first input device (ID 18).
+/// GPU: bus=virtio-mmio-bus.1 → slot 1 (0x10002000)
+/// KBD: bus=virtio-mmio-bus.3 → slot 3 (0x10004000)
 pub fn find_input() -> Option<u64> {
     for slot in 0..VIRTIO_SLOTS {
-        let base = VIRTIO_BASE + slot * VIRTIO_STRIDE;
-        let dev  = VirtioMmio::new(base);
-        if dev.read(REG_MAGIC)     != VIRTIO_MAGIC      { continue; }
+        let base   = VIRTIO_BASE + slot * VIRTIO_STRIDE;
+        let dev    = VirtioMmio::new(base);
+        if dev.read(REG_MAGIC)     != VIRTIO_MAGIC           { continue; }
         if dev.read(REG_DEVICE_ID) == super::input::DEVICE_INPUT { return Some(base); }
     }
     None
 }
 
 /// Scan VirtIO MMIO bus and return the base address of the first GPU device.
-/// Prints each slot's magic/version/device_id for diagnosis.
 pub fn find_gpu() -> Option<u64> {
-    use crate::uart;
     for slot in 0..VIRTIO_SLOTS {
         let base = VIRTIO_BASE + slot * VIRTIO_STRIDE;
         let dev  = VirtioMmio::new(base);
-        let magic  = dev.read(REG_MAGIC);
-        let ver    = dev.read(REG_VERSION);
-        let dev_id = dev.read(REG_DEVICE_ID);
-        uart::puts("  slot "); uart::putu(slot);
-        uart::puts(" @ 0x"); uart::putx(base);
-        uart::puts("  magic=0x"); uart::putx(magic as u64);
-        uart::puts(" ver="); uart::putu(ver as u64);
-        uart::puts(" id="); uart::putu(dev_id as u64);
-        uart::puts("\r\n");
-        if magic != VIRTIO_MAGIC          { continue; }
-        if ver != 1 && ver != 2           { continue; }
-        if dev_id == DEVICE_GPU           { return Some(base); }
+        if dev.read(REG_MAGIC)     != VIRTIO_MAGIC { continue; }
+        if dev.read(REG_DEVICE_ID) == DEVICE_GPU   { return Some(base); }
     }
     None
 }
