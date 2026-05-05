@@ -91,4 +91,32 @@ impl VirtQueue {
         }
         self.last_used = self.last_used.wrapping_add(1);
     }
+
+    /// Offer a single device-writable buffer (receive pattern for input queues).
+    pub fn offer(&mut self, buf: u64, len: u32) {
+        let i = self.free_head as usize;
+        self.desc[i] = Descriptor {
+            addr:  buf,
+            len,
+            flags: DESC_F_WRITE,
+            next:  0,
+        };
+        self.free_head = ((i + 1) % QUEUE_SIZE) as u16;
+
+        let avail_idx = (self.avail.idx as usize) % QUEUE_SIZE;
+        self.avail.ring[avail_idx] = i as u16;
+        fence(Ordering::SeqCst);
+        self.avail.idx = self.avail.idx.wrapping_add(1);
+        fence(Ordering::SeqCst);
+    }
+
+    /// Non-blocking: return the descriptor id if the device has written an event.
+    pub fn try_recv(&mut self) -> Option<u16> {
+        fence(Ordering::SeqCst);
+        if self.used.idx == self.last_used { return None; }
+        let idx  = (self.last_used as usize) % QUEUE_SIZE;
+        let id   = self.used.ring[idx].id as u16;
+        self.last_used = self.last_used.wrapping_add(1);
+        Some(id)
+    }
 }
