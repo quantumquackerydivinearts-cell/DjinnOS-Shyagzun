@@ -16,7 +16,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 try:
     import anthropic
     _ANTHROPIC_AVAILABLE = True
@@ -234,8 +234,9 @@ def get_client() -> anthropic.Anthropic:
 # ---------------------------------------------------------------------------
 
 class PromptRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     tongue: str = "any"
-    register: str = "any"
+    tongue_register: str = Field("any", alias="register")  # alias keeps API stable; avoids ABCMeta.register shadow
     mode: str = "prompt"  # prompt | ritual | grimoire | pedagogy | gilgamesh
     depth: str = "mid"    # surface | mid | deep | ritual
     tablet_id: Optional[str] = None  # for gilgamesh mode
@@ -423,7 +424,7 @@ Original content: {tablet['original_summary']}
             "role": "user",
             "content": f"""Generate a {mode_map.get(req.mode, 'literary composition')} prompt for Shygazun.
 Tongue focus: {req.tongue if req.tongue != 'any' else 'open across all tongues'}
-Register: {req.register if req.register != 'any' else 'open'}
+Register: {req.tongue_register if req.tongue_register != 'any' else 'open'}
 Depth: {depth_map.get(req.depth, depth_map['mid'])}
 {tablet_context}
 The prompt should invite genuine native composition — an encounter worth writing toward, not an assignment.
@@ -433,7 +434,7 @@ Return ONLY the prompt text. No preamble, no metadata."""
     return {
         "prompt": msg.content[0].text.strip(),
         "tongue": req.tongue,
-        "register": req.register,
+        "register": req.tongue_register,
         "mode": req.mode,
         "depth": req.depth,
         "tablet_id": req.tablet_id,
