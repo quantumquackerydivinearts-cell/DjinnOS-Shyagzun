@@ -5,6 +5,7 @@
 
 mod byte_table;
 mod font;
+mod fs;
 mod process;
 mod shell;
 mod uart;
@@ -48,8 +49,30 @@ pub extern "C" fn kernel_main() -> ! {
         .and_then(|base| virtio::InputDriver::init(base));
     match kbd {
         Some(_) => uart::puts("KBD: online\r\n"),
-        None    => uart::puts("KBD: not found (add -device virtio-keyboard-device)\r\n"),
+        None    => uart::puts("KBD: not found\r\n"),
     }
+
+    // ── Block device + filesystem ─────────────────────────────────────────────
+    uart::puts("BLK: scanning...\r\n");
+    let mut blk = virtio::find_block()
+        .and_then(|base| virtio::BlockDriver::init(base));
+    let vol = match blk.as_mut() {
+        None => { uart::puts("BLK: not found\r\n"); None }
+        Some(b) => {
+            uart::puts("BLK: online  sectors=");
+            uart::putu(b.capacity);
+            uart::puts("\r\n");
+            match fs::SaVolume::mount(b) {
+                None    => { uart::puts("FS: no Sa volume\r\n"); None }
+                Some(v) => {
+                    uart::puts("FS: Sa volume mounted  files=");
+                    uart::putu(v.count as u64);
+                    uart::puts("\r\n");
+                    Some(v)
+                }
+            }
+        }
+    };
 
     // ── Shell ─────────────────────────────────────────────────────────────────
     let mut sh = shell::Shell::new(rule_y);
@@ -64,14 +87,7 @@ pub extern "C" fn kernel_main() -> ! {
     loop {
         if let Some(ref mut k) = kbd {
             while let Some(key) = k.poll() {
-                // Serial debug: show every event
-                use virtio::input::Key;
-                match key {
-                    Key::Char(c) => { uart::puts("KEY:"); uart::putc_char(c); uart::puts("\r\n"); }
-                    Key::Enter    => uart::puts("KEY:ENTER\r\n"),
-                    Key::Backspace=> uart::puts("KEY:BKSP\r\n"),
-                }
-                sh.handle_key(key);
+                sh.handle_key(key, blk.as_mut(), vol.as_ref());
             }
         }
 

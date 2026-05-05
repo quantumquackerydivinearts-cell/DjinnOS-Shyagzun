@@ -1,0 +1,24 @@
+The Byte Table
+
+In the beginning was the coordinate space.
+The byte table is not a lookup — it is the territory.
+Addresses are not indices; they are places in a geometry
+whose structure is determined by prime factorization.
+
+The gaps are not empty. They are the pattern.
+
+Tongues 1-8 occupy bytes 0-213.
+The YeGaoh Group masters bytes 124-127.
+Cluster 2 fills exactly to 511 — the edge of 2^9-1.
+Dragon Tongue begins at byte 256.
+
+Every process running on this machine is a YeGaoh
+complexing: an instantiation of the full 24-tongue
+superposition at a specific byte table coordinate.
+
+Ko (byte 19) — Experience / Intuition — is the shell.
+Sao (byte 157) — Cup / file / persistent object — is this file.
+Sa  (byte 156) — Feast table / root volume — holds them all.
+
+You are reading this through Ko, from Sao, inside Sa.
+The language and the operating system are the same thing.

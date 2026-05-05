@@ -49,7 +49,8 @@ pub const STATUS_FAILED:       u32 = 128;
 pub const VIRTIO_MAGIC: u32 = 0x74726976;
 
 // Device IDs
-pub const DEVICE_GPU: u32 = 16;
+pub const DEVICE_GPU:   u32 = 16;
+pub const DEVICE_BLOCK: u32 =  2;
 
 pub struct VirtioMmio {
     pub base: u64,
@@ -78,6 +79,17 @@ pub fn find_input() -> Option<u64> {
         let dev    = VirtioMmio::new(base);
         if dev.read(REG_MAGIC)     != VIRTIO_MAGIC           { continue; }
         if dev.read(REG_DEVICE_ID) == super::input::DEVICE_INPUT { return Some(base); }
+    }
+    None
+}
+
+/// Scan VirtIO MMIO bus for the first block device (ID 2).
+pub fn find_block() -> Option<u64> {
+    for slot in 0..VIRTIO_SLOTS {
+        let base = VIRTIO_BASE + slot * VIRTIO_STRIDE;
+        let dev  = VirtioMmio::new(base);
+        if dev.read(REG_MAGIC)     != VIRTIO_MAGIC  { continue; }
+        if dev.read(REG_DEVICE_ID) == DEVICE_BLOCK  { return Some(base); }
     }
     None
 }

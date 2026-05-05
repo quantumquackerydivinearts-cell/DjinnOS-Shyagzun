@@ -4,7 +4,8 @@
 // Renders below the rule line using the 8×8 bitmap font at 2× scale (16×16 px).
 
 use crate::font;
-use crate::virtio::GpuDriver;
+use crate::fs::SaVolume;
+use crate::virtio::{BlockDriver, GpuDriver};
 use crate::byte_table;
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -73,7 +74,12 @@ impl Shell {
     }
 
     /// Handle a decoded key event from the keyboard driver.
-    pub fn handle_key(&mut self, key: crate::virtio::input::Key) {
+    pub fn handle_key(
+        &mut self,
+        key: crate::virtio::input::Key,
+        blk: Option<&mut BlockDriver>,
+        vol: Option<&SaVolume>,
+    ) {
         use crate::virtio::input::Key;
         match key {
             Key::Char(c) => {
@@ -102,7 +108,7 @@ impl Shell {
                 let clen = cmd_len.min(80 - plen);
                 echo[plen..plen + clen].copy_from_slice(&cmd_buf[..clen]);
                 self.push_line(&echo[..plen + clen], [R_IN, G_IN, B_IN]);
-                self.execute(&cmd_buf[..cmd_len]);
+                self.execute(&cmd_buf[..cmd_len], blk, vol);
                 self.input_len = 0;
                 self.dirty = true;
             }
@@ -187,14 +193,16 @@ impl Shell {
         }
     }
 
-    fn execute(&mut self, cmd: &[u8]) {
+    fn execute(&mut self, cmd: &[u8], blk: Option<&mut BlockDriver>, vol: Option<&SaVolume>) {
         let cmd = trim(cmd);
         match cmd {
             b"help" => {
                 self.push_line(b"commands:", [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  help    show this list", [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  info    byte table stats", [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  clear   clear terminal", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  help          show this list", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  info          system info", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  clear         clear terminal", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  ls            list files (Sa volume)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  cat <file>    print file contents", [R_DIM, G_DIM, B_DIM]);
             }
             b"info" => {
                 let mut buf = [0u8; 80];
@@ -204,17 +212,103 @@ impl Shell {
                 self.push_line(&buf[..n], [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"process: Ko (coord 19)  kernel (coord 9)",
                     [R_DIM, G_DIM, B_DIM]);
+                match vol {
+                    Some(v) => {
+                        let mut vbuf = [0u8; 80];
+                        let pfx = b"volume: Sa  files: ";
+                        let plen = pfx.len();
+                        vbuf[..plen].copy_from_slice(pfx);
+                        let n = write_u32(&mut vbuf[plen..], v.count);
+                        self.push_line(&vbuf[..plen + n], [R_DIM, G_DIM, B_DIM]);
+                    }
+                    None => self.push_line(b"volume: no disk", [R_DIM, G_DIM, B_DIM]),
+                }
             }
             b"clear" => {
-                for i in 0..self.lines.len() {
-                    self.line_len[i] = 0;
-                }
+                for i in 0..self.lines.len() { self.line_len[i] = 0; }
                 self.next_line = 0;
+            }
+            b"ls" => {
+                match vol {
+                    None => self.push_line(b"no volume mounted", [0xa0, 0x40, 0x40]),
+                    Some(v) => {
+                        if v.list().is_empty() {
+                            self.push_line(b"(empty)", [R_DIM, G_DIM, B_DIM]);
+                        }
+                        for entry in v.list() {
+                            let mut line = [0u8; 80];
+                            let name = entry.name_str();
+                            let nlen = name.len().min(40);
+                            line[..nlen].copy_from_slice(&name[..nlen]);
+                            // right-align size
+                            let mut sz_buf = [0u8; 12];
+                            let sz_len = write_u32(&mut sz_buf, entry.len);
+                            let sz_off = 48usize.saturating_sub(sz_len);
+                            if sz_off >= nlen {
+                                line[sz_off..sz_off + sz_len]
+                                    .copy_from_slice(&sz_buf[..sz_len]);
+                                let b_sfx = b" B";
+                                let boff = sz_off + sz_len;
+                                line[boff..boff + 2].copy_from_slice(b_sfx);
+                                self.push_line(&line[..boff + 2], [R_IN, G_IN, B_IN]);
+                            } else {
+                                self.push_line(&line[..nlen], [R_IN, G_IN, B_IN]);
+                            }
+                        }
+                    }
+                }
+            }
+            _ if cmd.starts_with(b"cat ") || cmd == b"cat" => {
+                let arg = trim(if cmd.len() > 4 { &cmd[4..] } else { b"" });
+                if arg.is_empty() {
+                    self.push_line(b"usage: cat <filename>", [0xa0, 0x40, 0x40]);
+                } else {
+                    match (vol, blk) {
+                        (Some(v), Some(b)) => {
+                            match v.find(arg) {
+                                None => {
+                                    let mut msg = [0u8; 80];
+                                    let pfx = b"not found: ";
+                                    let plen = pfx.len();
+                                    msg[..plen].copy_from_slice(pfx);
+                                    let alen = arg.len().min(80 - plen);
+                                    msg[plen..plen + alen].copy_from_slice(&arg[..alen]);
+                                    self.push_line(&msg[..plen + alen], [0xa0, 0x40, 0x40]);
+                                }
+                                Some(entry) => {
+                                    // Read up to 8 KiB — enough for any file in our tiny volume
+                                    static mut FILE_BUF: [u8; 8192] = [0u8; 8192];
+                                    let n = unsafe {
+                                        v.read_file(b, entry, &mut FILE_BUF)
+                                    };
+                                    let data = unsafe { &FILE_BUF[..n] };
+                                    // Split on newlines and push each line
+                                    let mut start = 0;
+                                    for (i, &byte) in data.iter().enumerate() {
+                                        if byte == b'\n' || i == n - 1 {
+                                            let end = if byte == b'\n' { i } else { i + 1 };
+                                            let slice = &data[start..end.min(n)];
+                                            // wrap at 78 chars
+                                            let mut off = 0;
+                                            while off < slice.len() {
+                                                let chunk = &slice[off..(off + 78).min(slice.len())];
+                                                self.push_line(chunk, [R_DIM, G_DIM, B_DIM]);
+                                                off += 78;
+                                            }
+                                            start = i + 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => self.push_line(b"no volume mounted", [0xa0, 0x40, 0x40]),
+                    }
+                }
             }
             b"" => {}
             _ => {
                 let mut msg = [0u8; 80];
-                let pfx = b"unknown command: ";
+                let pfx = b"unknown: ";
                 let plen = pfx.len();
                 msg[..plen].copy_from_slice(pfx);
                 let clen = cmd.len().min(80 - plen);

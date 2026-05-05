@@ -1,0 +1,9 @@
+Welcome to DjinnOS.
+
+This terminal is Ko — byte 19 — Experience and Intuition.
+The byte table is alive. The coordinate space is established.
+
+Type 'ls'           to list files on this volume.
+Type 'cat <name>'   to read a file.
+Type 'help'         for built-in shell commands.
+Type 'info'         for system information.

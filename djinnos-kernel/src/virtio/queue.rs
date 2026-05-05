@@ -84,6 +84,32 @@ impl VirtQueue {
         i as u16
     }
 
+    /// Send a three-descriptor chain (used for block I/O: header → data → status).
+    pub fn send3(
+        &mut self,
+        a0: u64, n0: u32, f0: u16,
+        a1: u64, n1: u32, f1: u16,
+        a2: u64, n2: u32, f2: u16,
+    ) -> u16 {
+        let i = self.free_head as usize;
+        let j = (i + 1) % QUEUE_SIZE;
+        let k = (i + 2) % QUEUE_SIZE;
+
+        self.desc[i] = Descriptor { addr: a0, len: n0, flags: f0 | DESC_F_NEXT, next: j as u16 };
+        self.desc[j] = Descriptor { addr: a1, len: n1, flags: f1 | DESC_F_NEXT, next: k as u16 };
+        self.desc[k] = Descriptor { addr: a2, len: n2, flags: f2,               next: 0 };
+
+        self.free_head = ((k + 1) % QUEUE_SIZE) as u16;
+
+        let avail_idx = (self.avail.idx as usize) % QUEUE_SIZE;
+        self.avail.ring[avail_idx] = i as u16;
+        fence(Ordering::SeqCst);
+        self.avail.idx = self.avail.idx.wrapping_add(1);
+        fence(Ordering::SeqCst);
+
+        i as u16
+    }
+
     /// Spin until the device has consumed at least one entry from the used ring.
     pub fn poll(&mut self) {
         while self.used.idx == self.last_used {
