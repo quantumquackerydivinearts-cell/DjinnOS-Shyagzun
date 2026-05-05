@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 #![allow(static_mut_refs)]
 mod byte_table;
+mod font;
 mod process;
 mod uart;
 mod virtio;
@@ -76,27 +77,52 @@ pub extern "C" fn kernel_main() -> ! {
     }
 }
 
-// ── Splash screen ─────────────────────────────────────────────────────────────
+// ── Splash / desktop bootstrap ────────────────────────────────────────────────
 //
-// DjinnOS identity colours derived from the byte table:
-//   Background: deep void (byte 6 — Wu, void, #080608)
-//   Rule line:  Ko-gold  (byte 19 — Ko, experience, warm amber)
+// Colours from the byte table:
+//   Void background : byte  6 — Void         #080608
+//   Ko-gold         : byte 19 — Ko           #c8964b  (warm amber)
+//   Desktop floor   : byte  9 — Ta           #0e0c10  (barely lighter than void)
+
+// BGR components for Ko-gold (#c8964b)
+const KO_B: u8 = 0x4b;
+const KO_G: u8 = 0x96;
+const KO_R: u8 = 0xc8;
 
 fn splash(gpu: &mut virtio::GpuDriver) {
     let w = gpu.width;
     let h = gpu.height;
 
-    // Void background
+    // ── Void background ───────────────────────────────────────────────────────
     gpu.fill(0x08, 0x06, 0x08);
 
-    // Ko-gold horizontal rule at 60% height
-    let rule_y = h * 6 / 10;
-    for x in (w / 8)..(w * 7 / 8) {
-        gpu.set_pixel(x, rule_y,     0x4b, 0x96, 0xc8);  // Ko gold (BGR)
-        gpu.set_pixel(x, rule_y + 1, 0x2a, 0x5a, 0x8b);  // dim echo
+    // ── Ko-gold rule at 55% height ────────────────────────────────────────────
+    let rule_y   = h * 55 / 100;
+    let rule_x0  = w / 10;
+    let rule_x1  = w * 9 / 10;
+    for x in rule_x0..rule_x1 {
+        gpu.set_pixel(x, rule_y,     KO_B, KO_G, KO_R);
+        gpu.set_pixel(x, rule_y + 1, KO_B / 2, KO_G / 2, KO_R / 2);
     }
 
-    // Flush everything to the physical display
+    // ── "DjinnOS" centred above the rule — 4× scale ───────────────────────────
+    let text      = "DjinnOS";
+    let char_w    = font::GLYPH_W * 4;
+    let char_h    = font::GLYPH_H * 4;
+    let text_w    = text.len() as u32 * char_w;
+    let text_x    = (w - text_w) / 2;
+    let text_y    = rule_y - char_h - 24;   // 24px gap above rule
+
+    font::draw_str(gpu, text_x, text_y, text, 4, KO_R, KO_G, KO_B);
+
+    // ── Desktop floor below the rule ─────────────────────────────────────────
+    // Slightly lighter void — the empty desktop space
+    for py in (rule_y + 4)..h {
+        for px in 0..w {
+            gpu.set_pixel(px, py, 0x10, 0x0c, 0x10);
+        }
+    }
+
     gpu.flush();
 }
 
