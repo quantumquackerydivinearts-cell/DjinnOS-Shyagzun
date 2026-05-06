@@ -40,6 +40,18 @@ _ensure_repo_root_on_path()
 from qqva.world_stream import WorldStreamController
 from qqva.aster_colors import resolve_aster_color
 from qqva.shygazun_compiler import derive_semantic_runtime_dispatch
+from qqva.world_state_7klgs import (
+    EVENT_HYPATIA_DISAPPEARANCE,
+    EVENT_HYPATIA_LAB_SEAL,
+    flags_after_disappearance,
+    flags_after_intro_forestalled,
+    flags_after_intro_met,
+    flags_after_lab_seal,
+    initial_hypatia_flags,
+    disappearance_queue_entry,
+    lab_seal_queue_entry,
+    read_hypatia_state,
+)
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
@@ -1397,6 +1409,29 @@ class AtelierService:
         flags["intro.fate_knocks_current_step"] = "resolved_hypatia_meeting" if met_hypatia else "await_hypatia_meeting"
         flags["intro.next_quest_id"] = "0002_KLST" if destiny_unlocked else ""
 
+        # ── 7_KLGS Hypatia world state initialisation ─────────────────────────
+        # Seed hypatia flags on first castle report if not yet present,
+        # and enqueue the two deterministic day-events into the clock queue.
+        hypatia_clock: Optional[dict] = None
+        if "hypatia.presence_state" not in flags:
+            flags.update(initial_hypatia_flags())
+            base_clock = dict(state.tables.clock)
+            ticks_per_day = self._int_from_table(base_clock.get("ticks_per_day"), 100)
+            eq = list(self._list_of_dicts(base_clock.get("event_queue")))
+            existing_kinds = {str(e.get("kind") or "") for e in eq}
+            if EVENT_HYPATIA_DISAPPEARANCE not in existing_kinds:
+                eq.append(disappearance_queue_entry(ticks_per_day))
+            if EVENT_HYPATIA_LAB_SEAL not in existing_kinds:
+                eq.append(lab_seal_queue_entry(ticks_per_day))
+            base_clock["event_queue"] = eq
+            hypatia_clock = base_clock
+
+        # Update introduction and apprenticeship state from met_hypatia result.
+        if met_hypatia:
+            flags = flags_after_intro_met(flags)
+        else:
+            flags = flags_after_intro_forestalled(flags)
+
         quest_states_obj = self._dict_from_table(flags.get("quest_states"))
         quest_states: dict[str, object] = dict(quest_states_obj)
         quest_states["0001_KLST"] = {
@@ -1416,12 +1451,18 @@ class AtelierService:
             }
         flags["quest_states"] = quest_states
 
+        # Merge flags (always) and clock (only when hypatia events were queued).
+        merge_tables = (
+            PlayerStateTables(flags=flags, clock=hypatia_clock)
+            if hypatia_clock is not None
+            else PlayerStateTables(flags=flags)
+        )
         self.apply_player_state(
             payload=PlayerStateApplyInput(
                 workspace_id=workspace_id,
                 actor_id=actor_id,
                 mode="merge",
-                tables=PlayerStateTables(flags=flags),
+                tables=merge_tables,
             ),
             actor_id=actor_id,
             workshop_id=workshop_id,
@@ -1455,6 +1496,25 @@ class AtelierService:
             "destiny_calls_unlocked": destiny_unlocked,
             "destiny_calls_quest_id": "0002_KLST" if destiny_unlocked else "",
         }
+
+    def get_hypatia_state(
+        self,
+        *,
+        workspace_id: str,
+        actor_id: str,
+    ) -> dict[str, object]:
+        """
+        Return the current Hypatia world state for a player's Game 7 session.
+
+        Response keys:
+          presence_state     — HypatiaPresenceState value string
+          introduction_state — HypatiaIntroductionState value string
+          apprenticeship     — ApprenticeshipState value string
+          lab_accessibility  — LabAccessibility value string
+          disappearance_day  — int | None
+        """
+        state = self.get_player_state(workspace_id=workspace_id, actor_id=actor_id)
+        return read_hypatia_state(state.tables.flags)
 
     def _fate_knocks_deadline_check(
         self,
@@ -6192,6 +6252,40 @@ class AtelierService:
                 flags["math_fibonacci_ordering"] = result.model_dump()
                 updated_tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
                 return updated_tables, GameTickEventResult(kind=event.kind, ok=True, detail="ok", payload=result.model_dump())
+
+            # ── 7_KLGS: Hypatia world-state events ───────────────────────────
+            if kind == EVENT_HYPATIA_DISAPPEARANCE:
+                # Deterministic trigger: fires end of day 5 regardless of
+                # player state.  Idempotent — no-op if already disappeared.
+                flags = dict(tables.flags)
+                if flags.get("hypatia.presence_state") == "disappeared":
+                    return tables, GameTickEventResult(
+                        kind=event.kind, ok=True, detail="already_disappeared",
+                        payload={"presence_state": "disappeared"},
+                    )
+                day = self._int_from_table(payload.get("day"), 5)
+                flags = flags_after_disappearance(flags, day=day)
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
+                return updated_tables, GameTickEventResult(
+                    kind=event.kind, ok=True, detail="disappeared",
+                    payload=read_hypatia_state(flags),
+                )
+
+            if kind == EVENT_HYPATIA_LAB_SEAL:
+                # Day-35 seal by Saffron.  Idempotent.
+                flags = dict(tables.flags)
+                if flags.get("hypatia.lab_accessibility") == "sealed_by_saffron":
+                    return tables, GameTickEventResult(
+                        kind=event.kind, ok=True, detail="already_sealed",
+                        payload={"lab_accessibility": "sealed_by_saffron"},
+                    )
+                flags = flags_after_lab_seal(flags)
+                updated_tables = PlayerStateTables(**{**tables.model_dump(), "flags": flags})
+                return updated_tables, GameTickEventResult(
+                    kind=event.kind, ok=True, detail="lab_sealed",
+                    payload=read_hypatia_state(flags),
+                )
+
         except Exception as exc:
             return tables, GameTickEventResult(kind=event.kind, ok=False, detail=str(exc), payload=dict(payload))
         return tables, GameTickEventResult(kind=event.kind, ok=False, detail="unsupported_event", payload=dict(payload))

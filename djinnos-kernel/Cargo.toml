@@ -7,6 +7,15 @@ edition = "2021"
 name              = "djinnos-kernel"
 path              = "src/main.rs"
 
+# Network stack — RISC-V only (VirtIO device lives on the virt machine bus).
+[target.'cfg(target_arch = "riscv64")'.dependencies]
+smoltcp = { version = "0.11", default-features = false, features = [
+    "medium-ethernet",
+    "proto-ipv4",
+    "socket-tcp",
+    "alloc",
+] }
+
 [profile.dev]
 panic         = "abort"
 

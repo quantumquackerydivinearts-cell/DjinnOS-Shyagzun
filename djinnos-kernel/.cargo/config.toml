@@ -3,7 +3,7 @@ target = "riscv64gc-unknown-none-elf"
 
 [target.riscv64gc-unknown-none-elf]
 rustflags = ["-C", "link-arg=-Tlinker.ld"]
-runner    = "qemu-system-riscv64 -machine virt -serial stdio -device virtio-gpu-device,bus=virtio-mmio-bus.1,xres=1280,yres=800 -device virtio-keyboard-device,bus=virtio-mmio-bus.3 -drive file=disk.img,if=none,format=raw,id=hd0 -device virtio-blk-device,bus=virtio-mmio-bus.4,drive=hd0 -bios none -kernel"
+runner    = "qemu-system-riscv64 -machine virt -serial stdio -device virtio-gpu-device,bus=virtio-mmio-bus.1,xres=1280,yres=800 -device virtio-keyboard-device,bus=virtio-mmio-bus.3 -drive file=disk.img,if=none,format=raw,id=hd0 -device virtio-blk-device,bus=virtio-mmio-bus.4,drive=hd0 -netdev user,id=net0,hostfwd=tcp::8080-:80 -device virtio-net-device,bus=virtio-mmio-bus.5,netdev=net0 -bios none -kernel"
 
 [target.x86_64-unknown-none]
 rustflags = [

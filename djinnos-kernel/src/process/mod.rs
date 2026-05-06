@@ -150,11 +150,20 @@ pub fn current_idx() -> usize {
 }
 
 /// Mark the current process as Dead (called by sys_exit before yield_now).
+/// Releases all IPC state (Rope bindings, Hook registrations, Fang contracts).
 pub fn kill_current() {
     unsafe {
         let idx = CURRENT.load(Ordering::Relaxed);
         if let Some(p) = PROCS[idx].as_mut() {
+            let pid = p.id.0;
             p.state = ProcessState::Dead;
+            // Release IPC and file resources — before the slot is reclaimed.
+            #[cfg(target_arch = "riscv64")]
+            {
+                crate::ipc::cleanup(pid);
+                crate::vfs::close_all(pid);
+            }
+            let _ = pid;
         }
     }
 }
@@ -195,6 +204,19 @@ pub fn unblock_stdin_waiters() -> bool {
             }
         }
         false
+    }
+}
+
+/// Wake a specific process slot unconditionally (IPC / Circle wakeup).
+pub fn unblock_slot(slot: usize) {
+    unsafe {
+        if slot < MAX_PROCS {
+            if let Some(p) = PROCS[slot].as_mut() {
+                if p.state == ProcessState::Blocked {
+                    p.state = ProcessState::Ready;
+                }
+            }
+        }
     }
 }
 

@@ -45,4 +45,8 @@ pub use x86_64::{
     uart_init,
     uart_putc,
     uart_getc,
+    inb,
+    outb,
+    inl,
+    outl,
 };

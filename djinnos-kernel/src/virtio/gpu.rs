@@ -289,7 +289,7 @@ impl GpuDriver {
     }
 
     /// Fill the entire screen with a solid colour (BGRX format).
-    pub fn fill(&self, b: u8, g: u8, r: u8) {
+    pub fn fill(&self, b: u8, g: u8, r: u8) {  // also used directly in splash()
         let pixel: u32 = (r as u32) << 16 | (g as u32) << 8 | (b as u32);
         let count = (self.width * self.height) as usize;
         let fb = FB_PHYS as *mut u32;
@@ -305,4 +305,14 @@ impl GpuDriver {
         let pixel: u32 = (r as u32) << 16 | (g as u32) << 8 | (b as u32);
         unsafe { write_volatile((FB_PHYS as *mut u32).add(idx), pixel); }
     }
+}
+
+// ── GpuSurface implementation ─────────────────────────────────────────────────
+
+impl crate::gpu::GpuSurface for GpuDriver {
+    fn width(&self)  -> u32 { self.width  }
+    fn height(&self) -> u32 { self.height }
+    fn set_pixel(&self, x: u32, y: u32, b: u8, g: u8, r: u8) { self.set_pixel(x, y, b, g, r) }
+    fn fill(&self, b: u8, g: u8, r: u8)                       { self.fill(b, g, r) }
+    fn flush(&mut self)                                         { self.flush() }
 }

@@ -34,14 +34,9 @@ const KBD_DESC_OFF:  usize = 0;
 const KBD_AVAIL_OFF: usize = QUEUE_SIZE * 16;
 const KBD_USED_OFF:  usize = 4096;
 
-// ── Public key event ──────────────────────────────────────────────────────────
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Key {
-    Char(u8),
-    Enter,
-    Backspace,
-}
+// Re-export the shared Key type so existing call sites that import
+// crate::virtio::input::Key continue to work without changes.
+pub use crate::input::Key;
 
 // ── Driver ────────────────────────────────────────────────────────────────────
 

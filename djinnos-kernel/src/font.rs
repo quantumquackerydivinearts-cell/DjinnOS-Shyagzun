@@ -204,7 +204,7 @@ pub static FONT: &[u8] = &[
 /// Draw a single character at pixel (x, y) with given scale and colour.
 /// `scale` = 1 means 8×8 px; `scale` = 4 means 32×32 px on screen.
 pub fn draw_char(
-    gpu:   &crate::virtio::GpuDriver,
+    gpu:   &dyn crate::gpu::GpuSurface,
     x:     u32, y: u32,
     ch:    u8,
     scale: u32,
@@ -230,7 +230,7 @@ pub fn draw_char(
 
 /// Draw a string; returns the x position after the last character.
 pub fn draw_str(
-    gpu:   &crate::virtio::GpuDriver,
+    gpu:   &dyn crate::gpu::GpuSurface,
     x:     u32, y: u32,
     s:     &str,
     scale: u32,

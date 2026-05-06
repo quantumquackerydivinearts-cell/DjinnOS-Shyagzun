@@ -1,0 +1,2 @@
+cargo:rerun-if-changed=C:\DjinnOS\djinnos-loader\../djinnos-kernel/target/x86_64-unknown-none/release/djinnos-kernel
+cargo:rustc-env=KERNEL_ELF=C:\DjinnOS\djinnos-loader\../djinnos-kernel/target/x86_64-unknown-none/release/djinnos-kernel

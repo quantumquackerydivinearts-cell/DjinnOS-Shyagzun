@@ -1153,226 +1153,226 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 1135,10001101111,Moon,Okvoshak,Void-recognition / the self-transforming encounter with one's own void-organism definition / what happens when the Dragon Tongue is pointed inward successfully and lands / Fire-Dragon
 1136,10001110000,Moon,Oharshak,Epidemic ignition / the tipping point of transmission / when contagion becomes transformative at scale rather than merely propagating / the moment spread changes the system / Fire-Virus
 1137,10001110001,Moon,Egzeshak,Boundary under fire / the inside/outside distinction at maximum stakes / when the membrane is tested to its limit and what is inside versus outside becomes absolutely critical / the categorical split under transformation / Fire-Bacteria
-1138,10001110010,Koi,Mav,Fire×Mind+ — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Mind+
-1139,10001110011,Koi,Mov,Fire×Mind- — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Mind-
-1140,10001110100,Koi,Miv,Fire×Space+ — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Space+
-1141,10001110101,Koi,Mev,Fire×Space- — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Space-
-1142,10001110110,Koi,Myv,Fire×Time+ — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Time+
-1143,10001110111,Koi,Muv,Fire×Time- — exchange of pattern-recognition / ignition / balanced exchange / minimum perceptual distance in Fire at Time-
-1144,10001111000,Koi,Grev,Fire subregister / Beast-derived — coiling / helical quality of balanced exchange / minimum perceptual distance in Fire
-1145,10001111001,Koi,Shrev,Fire subregister / Cherub-derived — resonant / threshold quality of balanced exchange / minimum perceptual distance in Fire
-1146,10001111010,Koi,Chrev,Fire subregister / Chimera-derived — constitutional recognition within balanced exchange / minimum perceptual distance in Fire
-1147,10001111011,Koi,Frev,Fire subregister / Faerie-derived — embracing / sovereign quality of balanced exchange / minimum perceptual distance in Fire
-1148,10001111100,Koi,Kav,Water×Mind+ — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Mind+
-1149,10001111101,Koi,Kov,Water×Mind- — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Mind-
-1150,10001111110,Koi,Kiv,Water×Space+ — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Space+
-1151,10001111111,Koi,Kev,Water×Space- — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Space-
-1152,10010000000,Koi,Kyv,Water×Time+ — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Time+
-1153,10010000001,Koi,Kuv,Water×Time- — exchange of dissolution / feeling / balanced exchange / minimum perceptual distance in Water at Time-
-1154,10010000010,Koi,Grov,Water subregister / Beast-derived — coiling / helical quality of balanced exchange / minimum perceptual distance in Water
-1155,10010000011,Koi,Shrov,Water subregister / Cherub-derived — resonant / threshold quality of balanced exchange / minimum perceptual distance in Water
-1156,10010000100,Koi,Chrov,Water subregister / Chimera-derived — constitutional recognition within balanced exchange / minimum perceptual distance in Water
-1157,10010000101,Koi,Frov,Water subregister / Faerie-derived — embracing / sovereign quality of balanced exchange / minimum perceptual distance in Water
-1158,10010000110,Koi,Zav,Air×Mind+ — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Mind+
-1159,10010000111,Koi,Zov,Air×Mind- — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Mind-
-1160,10010001000,Koi,Ziv,Air×Space+ — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Space+
-1161,10010001001,Koi,Zev,Air×Space- — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Space-
-1162,10010001010,Koi,Zyv,Air×Time+ — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Time+
-1163,10010001011,Koi,Zuv,Air×Time- — exchange of ideation / thought / balanced exchange / minimum perceptual distance in Air at Time-
-1164,10010001100,Koi,Gruv,Air subregister / Beast-derived — coiling / helical quality of balanced exchange / minimum perceptual distance in Air
-1165,10010001101,Koi,Shruv,Air subregister / Cherub-derived — resonant / threshold quality of balanced exchange / minimum perceptual distance in Air
-1166,10010001110,Koi,Chruv,Air subregister / Chimera-derived — constitutional recognition within balanced exchange / minimum perceptual distance in Air
-1167,10010001111,Koi,Fruv,Air subregister / Faerie-derived — embracing / sovereign quality of balanced exchange / minimum perceptual distance in Air
-1168,10010010000,Koi,Pav,Earth×Mind+ — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Mind+
-1169,10010010001,Koi,Pov,Earth×Mind- — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Mind-
-1170,10010010010,Koi,Piv,Earth×Space+ — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Space+
-1171,10010010011,Koi,Pev,Earth×Space- — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Space-
-1172,10010010100,Koi,Pyv,Earth×Time+ — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Time+
-1173,10010010101,Koi,Puv,Earth×Time- — exchange of structure / ground / balanced exchange / minimum perceptual distance in Earth at Time-
-1174,10010010110,Koi,Griv,Earth subregister / Beast-derived — coiling / helical quality of balanced exchange / minimum perceptual distance in Earth
-1175,10010010111,Koi,Shriv,Earth subregister / Cherub-derived — resonant / threshold quality of balanced exchange / minimum perceptual distance in Earth
-1176,10010011000,Koi,Chriv,Earth subregister / Chimera-derived — constitutional recognition within balanced exchange / minimum perceptual distance in Earth
-1177,10010011001,Koi,Friv,Earth subregister / Faerie-derived — embracing / sovereign quality of balanced exchange / minimum perceptual distance in Earth
-1178,10010011010,Koi,Rev,Recognition / Space- — the specific balanced exchange / minimum perceptual distance / Koi known at Space-
-1179,10010011011,Koi,Rov,Recognition / Mind- — unconscious recognition of balanced exchange / minimum perceptual distance / Koi known at Mind-
-1180,10010011100,Koi,Ruv,Recognition / Time- — retrospective recognition of balanced exchange / minimum perceptual distance / Koi known at Time-
-1181,10010011101,Koi,Riv,Recognition / Space+ — expanding recognition of balanced exchange / minimum perceptual distance / Koi known at Space+
-1182,10010011110,Rope,Mab,Fire×Mind+ — bond within pattern-recognition / ignition / bondage in Fire at Mind+
-1183,10010011111,Rope,Mob,Fire×Mind- — bond within pattern-recognition / ignition / bondage in Fire at Mind-
-1184,10010100000,Rope,Mib,Fire×Space+ — bond within pattern-recognition / ignition / bondage in Fire at Space+
-1185,10010100001,Rope,Meb,Fire×Space- — bond within pattern-recognition / ignition / bondage in Fire at Space-
-1186,10010100010,Rope,Myb,Fire×Time+ — bond within pattern-recognition / ignition / bondage in Fire at Time+
-1187,10010100011,Rope,Mub,Fire×Time- — bond within pattern-recognition / ignition / bondage in Fire at Time-
-1188,10010100100,Rope,Greb,Fire subregister / Beast-derived — coiling / helical quality of bondage in Fire
-1189,10010100101,Rope,Shreb,Fire subregister / Cherub-derived — resonant / threshold quality of bondage in Fire
-1190,10010100110,Rope,Chreb,Fire subregister / Chimera-derived — constitutional recognition within bondage in Fire
-1191,10010100111,Rope,Freb,Fire subregister / Faerie-derived — embracing / sovereign quality of bondage in Fire
-1192,10010101000,Rope,Kab,Water×Mind+ — bond within dissolution / feeling / bondage in Water at Mind+
-1193,10010101001,Rope,Kob,Water×Mind- — bond within dissolution / feeling / bondage in Water at Mind-
-1194,10010101010,Rope,Kib,Water×Space+ — bond within dissolution / feeling / bondage in Water at Space+
-1195,10010101011,Rope,Keb,Water×Space- — bond within dissolution / feeling / bondage in Water at Space-
-1196,10010101100,Rope,Kyb,Water×Time+ — bond within dissolution / feeling / bondage in Water at Time+
-1197,10010101101,Rope,Kub,Water×Time- — bond within dissolution / feeling / bondage in Water at Time-
-1198,10010101110,Rope,Grob,Water subregister / Beast-derived — coiling / helical quality of bondage in Water
-1199,10010101111,Rope,Shrob,Water subregister / Cherub-derived — resonant / threshold quality of bondage in Water
-1200,10010110000,Rope,Chrob,Water subregister / Chimera-derived — constitutional recognition within bondage in Water
-1201,10010110001,Rope,Frob,Water subregister / Faerie-derived — embracing / sovereign quality of bondage in Water
-1202,10010110010,Rope,Zab,Air×Mind+ — bond within ideation / thought / bondage in Air at Mind+
-1203,10010110011,Rope,Zob,Air×Mind- — bond within ideation / thought / bondage in Air at Mind-
-1204,10010110100,Rope,Zib,Air×Space+ — bond within ideation / thought / bondage in Air at Space+
-1205,10010110101,Rope,Zeb,Air×Space- — bond within ideation / thought / bondage in Air at Space-
-1206,10010110110,Rope,Zyb,Air×Time+ — bond within ideation / thought / bondage in Air at Time+
-1207,10010110111,Rope,Zub,Air×Time- — bond within ideation / thought / bondage in Air at Time-
-1208,10010111000,Rope,Grub,Air subregister / Beast-derived — coiling / helical quality of bondage in Air
-1209,10010111001,Rope,Shrub,Air subregister / Cherub-derived — resonant / threshold quality of bondage in Air
-1210,10010111010,Rope,Chrub,Air subregister / Chimera-derived — constitutional recognition within bondage in Air
-1211,10010111011,Rope,Frub,Air subregister / Faerie-derived — embracing / sovereign quality of bondage in Air
-1212,10010111100,Rope,Pab,Earth×Mind+ — bond within structure / ground / bondage in Earth at Mind+
-1213,10010111101,Rope,Pob,Earth×Mind- — bond within structure / ground / bondage in Earth at Mind-
-1214,10010111110,Rope,Pib,Earth×Space+ — bond within structure / ground / bondage in Earth at Space+
-1215,10010111111,Rope,Peb,Earth×Space- — bond within structure / ground / bondage in Earth at Space-
-1216,10011000000,Rope,Pyb,Earth×Time+ — bond within structure / ground / bondage in Earth at Time+
-1217,10011000001,Rope,Pub,Earth×Time- — bond within structure / ground / bondage in Earth at Time-
-1218,10011000010,Rope,Grib,Earth subregister / Beast-derived — coiling / helical quality of bondage in Earth
-1219,10011000011,Rope,Shrib,Earth subregister / Cherub-derived — resonant / threshold quality of bondage in Earth
-1220,10011000100,Rope,Chrib,Earth subregister / Chimera-derived — constitutional recognition within bondage in Earth
-1221,10011000101,Rope,Frib,Earth subregister / Faerie-derived — embracing / sovereign quality of bondage in Earth
-1222,10011000110,Rope,Reb,Recognition / Space- — the specific bondage / Rope known at Space-
-1223,10011000111,Rope,Rob,Recognition / Mind- — unconscious recognition of bondage / Rope known at Mind-
-1224,10011001000,Rope,Rub,Recognition / Time- — retrospective recognition of bondage / Rope known at Time-
-1225,10011001001,Rope,Rib,Recognition / Space+ — expanding recognition of bondage / Rope known at Space+
-1226,10011001010,Hook,Mag,Fire×Mind+ — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Mind+
-1227,10011001011,Hook,Mog,Fire×Mind- — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Mind-
-1228,10011001100,Hook,Mig,Fire×Space+ — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Space+
-1229,10011001101,Hook,Meg,Fire×Space- — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Space-
-1230,10011001110,Hook,Myg,Fire×Time+ — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Time+
-1231,10011001111,Hook,Mug,Fire×Time- — mechanism of pattern-recognition / ignition / predation by mechanism in Fire at Time-
-1232,10011010000,Hook,Greg,Fire subregister / Beast-derived — coiling / helical quality of predation by mechanism in Fire
-1233,10011010001,Hook,Shreg,Fire subregister / Cherub-derived — resonant / threshold quality of predation by mechanism in Fire
-1234,10011010010,Hook,Chreg,Fire subregister / Chimera-derived — constitutional recognition within predation by mechanism in Fire
-1235,10011010011,Hook,Freg,Fire subregister / Faerie-derived — embracing / sovereign quality of predation by mechanism in Fire
-1236,10011010100,Hook,Kag,Water×Mind+ — mechanism of dissolution / feeling / predation by mechanism in Water at Mind+
-1237,10011010101,Hook,Kog,Water×Mind- — mechanism of dissolution / feeling / predation by mechanism in Water at Mind-
-1238,10011010110,Hook,Kig,Water×Space+ — mechanism of dissolution / feeling / predation by mechanism in Water at Space+
-1239,10011010111,Hook,Keg,Water×Space- — mechanism of dissolution / feeling / predation by mechanism in Water at Space-
-1240,10011011000,Hook,Kyg,Water×Time+ — mechanism of dissolution / feeling / predation by mechanism in Water at Time+
-1241,10011011001,Hook,Kug,Water×Time- — mechanism of dissolution / feeling / predation by mechanism in Water at Time-
-1242,10011011010,Hook,Grog,Water subregister / Beast-derived — coiling / helical quality of predation by mechanism in Water
-1243,10011011011,Hook,Shrog,Water subregister / Cherub-derived — resonant / threshold quality of predation by mechanism in Water
-1244,10011011100,Hook,Chrog,Water subregister / Chimera-derived — constitutional recognition within predation by mechanism in Water
-1245,10011011101,Hook,Frog,Water subregister / Faerie-derived — embracing / sovereign quality of predation by mechanism in Water
-1246,10011011110,Hook,Zag,Air×Mind+ — mechanism of ideation / thought / predation by mechanism in Air at Mind+
-1247,10011011111,Hook,Zog,Air×Mind- — mechanism of ideation / thought / predation by mechanism in Air at Mind-
-1248,10011100000,Hook,Zig,Air×Space+ — mechanism of ideation / thought / predation by mechanism in Air at Space+
-1249,10011100001,Hook,Zeg,Air×Space- — mechanism of ideation / thought / predation by mechanism in Air at Space-
-1250,10011100010,Hook,Zyg,Air×Time+ — mechanism of ideation / thought / predation by mechanism in Air at Time+
-1251,10011100011,Hook,Zug,Air×Time- — mechanism of ideation / thought / predation by mechanism in Air at Time-
-1252,10011100100,Hook,Grug,Air subregister / Beast-derived — coiling / helical quality of predation by mechanism in Air
-1253,10011100101,Hook,Shrug,Air subregister / Cherub-derived — resonant / threshold quality of predation by mechanism in Air
-1254,10011100110,Hook,Chrug,Air subregister / Chimera-derived — constitutional recognition within predation by mechanism in Air
-1255,10011100111,Hook,Frug,Air subregister / Faerie-derived — embracing / sovereign quality of predation by mechanism in Air
-1256,10011101000,Hook,Pag,Earth×Mind+ — mechanism of structure / ground / predation by mechanism in Earth at Mind+
-1257,10011101001,Hook,Pog,Earth×Mind- — mechanism of structure / ground / predation by mechanism in Earth at Mind-
-1258,10011101010,Hook,Pig,Earth×Space+ — mechanism of structure / ground / predation by mechanism in Earth at Space+
-1259,10011101011,Hook,Peg,Earth×Space- — mechanism of structure / ground / predation by mechanism in Earth at Space-
-1260,10011101100,Hook,Pyg,Earth×Time+ — mechanism of structure / ground / predation by mechanism in Earth at Time+
-1261,10011101101,Hook,Pug,Earth×Time- — mechanism of structure / ground / predation by mechanism in Earth at Time-
-1262,10011101110,Hook,Grig,Earth subregister / Beast-derived — coiling / helical quality of predation by mechanism in Earth
-1263,10011101111,Hook,Shrig,Earth subregister / Cherub-derived — resonant / threshold quality of predation by mechanism in Earth
-1264,10011110000,Hook,Chrig,Earth subregister / Chimera-derived — constitutional recognition within predation by mechanism in Earth
-1265,10011110001,Hook,Frig,Earth subregister / Faerie-derived — embracing / sovereign quality of predation by mechanism in Earth
-1266,10011110010,Hook,Reg,Recognition / Space- — the specific predation by mechanism / Hook known at Space-
-1267,10011110011,Hook,Rog,Recognition / Mind- — unconscious recognition of predation by mechanism / Hook known at Mind-
-1268,10011110100,Hook,Rug,Recognition / Time- — retrospective recognition of predation by mechanism / Hook known at Time-
-1269,10011110101,Hook,Rig,Recognition / Space+ — expanding recognition of predation by mechanism / Hook known at Space+
-1270,10011110110,Fang,Madj,Fire×Mind+ — natural taking of pattern-recognition / ignition / predation by nature in Fire at Mind+
-1271,10011110111,Fang,Modj,Fire×Mind- — natural taking of pattern-recognition / ignition / predation by nature in Fire at Mind-
-1272,10011111000,Fang,Midj,Fire×Space+ — natural taking of pattern-recognition / ignition / predation by nature in Fire at Space+
-1273,10011111001,Fang,Medj,Fire×Space- — natural taking of pattern-recognition / ignition / predation by nature in Fire at Space-
-1274,10011111010,Fang,Mydj,Fire×Time+ — natural taking of pattern-recognition / ignition / predation by nature in Fire at Time+
-1275,10011111011,Fang,Mudj,Fire×Time- — natural taking of pattern-recognition / ignition / predation by nature in Fire at Time-
-1276,10011111100,Fang,Gredj,Fire subregister / Beast-derived — coiling / helical quality of predation by nature in Fire
-1277,10011111101,Fang,Shredj,Fire subregister / Cherub-derived — resonant / threshold quality of predation by nature in Fire
-1278,10011111110,Fang,Chredj,Fire subregister / Chimera-derived — constitutional recognition within predation by nature in Fire
-1279,10011111111,Fang,Fredj,Fire subregister / Faerie-derived — embracing / sovereign quality of predation by nature in Fire
-1280,10100000000,Fang,Kadj,Water×Mind+ — natural taking of dissolution / feeling / predation by nature in Water at Mind+
-1281,10100000001,Fang,Kodj,Water×Mind- — natural taking of dissolution / feeling / predation by nature in Water at Mind-
-1282,10100000010,Fang,Kidj,Water×Space+ — natural taking of dissolution / feeling / predation by nature in Water at Space+
-1283,10100000011,Fang,Kedj,Water×Space- — natural taking of dissolution / feeling / predation by nature in Water at Space-
-1284,10100000100,Fang,Kydj,Water×Time+ — natural taking of dissolution / feeling / predation by nature in Water at Time+
-1285,10100000101,Fang,Kudj,Water×Time- — natural taking of dissolution / feeling / predation by nature in Water at Time-
-1286,10100000110,Fang,Grodj,Water subregister / Beast-derived — coiling / helical quality of predation by nature in Water
-1287,10100000111,Fang,Shrodj,Water subregister / Cherub-derived — resonant / threshold quality of predation by nature in Water
-1288,10100001000,Fang,Chrodj,Water subregister / Chimera-derived — constitutional recognition within predation by nature in Water
-1289,10100001001,Fang,Frodj,Water subregister / Faerie-derived — embracing / sovereign quality of predation by nature in Water
-1290,10100001010,Fang,Zadj,Air×Mind+ — natural taking of ideation / thought / predation by nature in Air at Mind+
-1291,10100001011,Fang,Zodj,Air×Mind- — natural taking of ideation / thought / predation by nature in Air at Mind-
-1292,10100001100,Fang,Zidj,Air×Space+ — natural taking of ideation / thought / predation by nature in Air at Space+
-1293,10100001101,Fang,Zedj,Air×Space- — natural taking of ideation / thought / predation by nature in Air at Space-
-1294,10100001110,Fang,Zydj,Air×Time+ — natural taking of ideation / thought / predation by nature in Air at Time+
-1295,10100001111,Fang,Zudj,Air×Time- — natural taking of ideation / thought / predation by nature in Air at Time-
-1296,10100010000,Fang,Grudj,Air subregister / Beast-derived — coiling / helical quality of predation by nature in Air
-1297,10100010001,Fang,Shrudj,Air subregister / Cherub-derived — resonant / threshold quality of predation by nature in Air
-1298,10100010010,Fang,Chrudj,Air subregister / Chimera-derived — constitutional recognition within predation by nature in Air
-1299,10100010011,Fang,Frudj,Air subregister / Faerie-derived — embracing / sovereign quality of predation by nature in Air
-1300,10100010100,Fang,Padj,Earth×Mind+ — natural taking of structure / ground / predation by nature in Earth at Mind+
-1301,10100010101,Fang,Podj,Earth×Mind- — natural taking of structure / ground / predation by nature in Earth at Mind-
-1302,10100010110,Fang,Pidj,Earth×Space+ — natural taking of structure / ground / predation by nature in Earth at Space+
-1303,10100010111,Fang,Pedj,Earth×Space- — natural taking of structure / ground / predation by nature in Earth at Space-
-1304,10100011000,Fang,Pydj,Earth×Time+ — natural taking of structure / ground / predation by nature in Earth at Time+
-1305,10100011001,Fang,Pudj,Earth×Time- — natural taking of structure / ground / predation by nature in Earth at Time-
-1306,10100011010,Fang,Gridj,Earth subregister / Beast-derived — coiling / helical quality of predation by nature in Earth
-1307,10100011011,Fang,Shridj,Earth subregister / Cherub-derived — resonant / threshold quality of predation by nature in Earth
-1308,10100011100,Fang,Chridj,Earth subregister / Chimera-derived — constitutional recognition within predation by nature in Earth
-1309,10100011101,Fang,Fridj,Earth subregister / Faerie-derived — embracing / sovereign quality of predation by nature in Earth
-1310,10100011110,Fang,Redj,Recognition / Space- — the specific predation by nature / Fang known at Space-
-1311,10100011111,Fang,Rodj,Recognition / Mind- — unconscious recognition of predation by nature / Fang known at Mind-
-1312,10100100000,Fang,Rudj,Recognition / Time- — retrospective recognition of predation by nature / Fang known at Time-
-1313,10100100001,Fang,Ridj,Recognition / Space+ — expanding recognition of predation by nature / Fang known at Space+
-1314,10100100010,Circle,Man,Fire×Mind+ — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Mind+
-1315,10100100011,Circle,Mon,Fire×Mind- — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Mind-
-1316,10100100100,Circle,Min,Fire×Space+ — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Space+
-1317,10100100101,Circle,Men,Fire×Space- — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Space-
-1318,10100100110,Circle,Myn,Fire×Time+ — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Time+
-1319,10100100111,Circle,Mun,Fire×Time- — ritual unity of pattern-recognition / ignition / unity by ritual in Fire at Time-
-1320,10100101000,Circle,Gren,Fire subregister / Beast-derived — coiling / helical quality of unity by ritual in Fire
-1321,10100101001,Circle,Shren,Fire subregister / Cherub-derived — resonant / threshold quality of unity by ritual in Fire
-1322,10100101010,Circle,Chren,Fire subregister / Chimera-derived — constitutional recognition within unity by ritual in Fire
-1323,10100101011,Circle,Fren,Fire subregister / Faerie-derived — embracing / sovereign quality of unity by ritual in Fire
-1324,10100101100,Circle,Kan,Water×Mind+ — ritual unity of dissolution / feeling / unity by ritual in Water at Mind+
-1325,10100101101,Circle,Kon,Water×Mind- — ritual unity of dissolution / feeling / unity by ritual in Water at Mind-
-1326,10100101110,Circle,Kin,Water×Space+ — ritual unity of dissolution / feeling / unity by ritual in Water at Space+
-1327,10100101111,Circle,Ken,Water×Space- — ritual unity of dissolution / feeling / unity by ritual in Water at Space-
-1328,10100110000,Circle,Kyn,Water×Time+ — ritual unity of dissolution / feeling / unity by ritual in Water at Time+
-1329,10100110001,Circle,Kun,Water×Time- — ritual unity of dissolution / feeling / unity by ritual in Water at Time-
-1330,10100110010,Circle,Gron,Water subregister / Beast-derived — coiling / helical quality of unity by ritual in Water
-1331,10100110011,Circle,Shron,Water subregister / Cherub-derived — resonant / threshold quality of unity by ritual in Water
-1332,10100110100,Circle,Chron,Water subregister / Chimera-derived — constitutional recognition within unity by ritual in Water
-1333,10100110101,Circle,Fron,Water subregister / Faerie-derived — embracing / sovereign quality of unity by ritual in Water
-1334,10100110110,Circle,Zan,Air×Mind+ — ritual unity of ideation / thought / unity by ritual in Air at Mind+
-1335,10100110111,Circle,Zon,Air×Mind- — ritual unity of ideation / thought / unity by ritual in Air at Mind-
-1336,10100111000,Circle,Zin,Air×Space+ — ritual unity of ideation / thought / unity by ritual in Air at Space+
-1337,10100111001,Circle,Zen,Air×Space- — ritual unity of ideation / thought / unity by ritual in Air at Space-
-1338,10100111010,Circle,Zyn,Air×Time+ — ritual unity of ideation / thought / unity by ritual in Air at Time+
-1339,10100111011,Circle,Zun,Air×Time- — ritual unity of ideation / thought / unity by ritual in Air at Time-
-1340,10100111100,Circle,Grun,Air subregister / Beast-derived — coiling / helical quality of unity by ritual in Air
-1341,10100111101,Circle,Shrun,Air subregister / Cherub-derived — resonant / threshold quality of unity by ritual in Air
-1342,10100111110,Circle,Chrun,Air subregister / Chimera-derived — constitutional recognition within unity by ritual in Air
-1343,10100111111,Circle,Frun,Air subregister / Faerie-derived — embracing / sovereign quality of unity by ritual in Air
-1344,10101000000,Circle,Pan,Earth×Mind+ — ritual unity of structure / ground / unity by ritual in Earth at Mind+
-1345,10101000001,Circle,Pon,Earth×Mind- — ritual unity of structure / ground / unity by ritual in Earth at Mind-
-1346,10101000010,Circle,Pin,Earth×Space+ — ritual unity of structure / ground / unity by ritual in Earth at Space+
-1347,10101000011,Circle,Pen,Earth×Space- — ritual unity of structure / ground / unity by ritual in Earth at Space-
-1348,10101000100,Circle,Pyn,Earth×Time+ — ritual unity of structure / ground / unity by ritual in Earth at Time+
-1349,10101000101,Circle,Pun,Earth×Time- — ritual unity of structure / ground / unity by ritual in Earth at Time-
-1350,10101000110,Circle,Grin,Earth subregister / Beast-derived — coiling / helical quality of unity by ritual in Earth
-1351,10101000111,Circle,Shrin,Earth subregister / Cherub-derived — resonant / threshold quality of unity by ritual in Earth
-1352,10101001000,Circle,Chrin,Earth subregister / Chimera-derived — constitutional recognition within unity by ritual in Earth
-1353,10101001001,Circle,Frin,Earth subregister / Faerie-derived — embracing / sovereign quality of unity by ritual in Earth
-1354,10101001010,Circle,Ren,Recognition / Space- — the specific unity by ritual / Circle known at Space-
-1355,10101001011,Circle,Ron,Recognition / Mind- — unconscious recognition of unity by ritual / Circle known at Mind-
-1356,10101001100,Circle,Run,Recognition / Time- — retrospective recognition of unity by ritual / Circle known at Time-
-1357,10101001101,Circle,Rin,Recognition / Space+ — expanding recognition of unity by ritual / Circle known at Space+
+1138,10001110010,Koi,Mav,Fire×Mind+ — two pattern-recognition systems arriving at the same recognition simultaneously without either being prior / mutual ignition as conscious shared knowing / the exchange where teacher and student vanish
+1139,10001110011,Koi,Mov,Fire×Mind− — collective pattern-recognition below awareness / two systems whose understanding converges before either registers the convergence / the deepest form of balanced exchange
+1140,10001110100,Koi,Miv,Fire×Space+ — the expansion of mutual recognition outward / both presences enlarging at equal rates as they see the same thing / exchange as spatial generosity
+1141,10001110101,Koi,Mev,Fire×Space− — the concentrating mutual recognition / both presences drawing inward toward the same specific point / exchange as shared precision
+1142,10001110110,Koi,Myv,Fire×Time+ — the anticipated recognition / knowing the exchange is coming before it arrives / the readiness that is itself already Koi
+1143,10001110111,Koi,Muv,Fire×Time− — the retrospective recognition / what balanced exchange looks like having passed / two fires that ignited together seen from after
+1144,10001111000,Koi,Grev,Beast-subregister Fire — the helix of Koi / two coiling structures turning at the same rate / exchange as shared rotational motion / when two helices are indistinguishable from each other's axis
+1145,10001111001,Koi,Shrev,Cherub-subregister Fire — resonant exchange at threshold / two temperaments arriving at the same threshold simultaneously / neither amplifying the other because both have already arrived
+1146,10001111010,Koi,Chrev,Chimera-subregister Fire — constitutional recognition in exchange / the sovereign meeting where both parties know themselves as Fire at the same time and find their Fire is the same Fire
+1147,10001111011,Koi,Frev,Faerie-subregister Fire — the embracing exchange / both parties resting in the same elemental home / exchange requiring no movement because both are already in the same ground
+1148,10001111100,Koi,Kav,Water×Mind+ — two presences knowing they are feeling the same thing at the same time without prior / mutual emotional recognition / the shared affect that dissolves the boundary between experiencer and witness
+1149,10001111101,Koi,Kov,Water×Mind− — the automatic convergence of feeling states below recognition / shared emotional substrate that neither party acknowledges / feeling the same without knowing you are feeling the same
+1150,10001111110,Koi,Kiv,Water×Space+ — exchange as emotional expansion / what it looks like when two fields of affect enlarge together / dissolution reaching everywhere simultaneously
+1151,10001111111,Koi,Kev,Water×Space− — the concentrating shared feeling / exchange as emotional depth / two presences finding the same interior territory
+1152,10010000000,Koi,Kyv,Water×Time+ — the anticipated shared feeling / mutual emotional readiness / what comes before the dissolution that comes before contact
+1153,10010000001,Koi,Kuv,Water×Time− — the retrospective shared feeling / the clear memory of having felt the same thing at the same time / the gift Koi in Water leaves behind
+1154,10010000010,Koi,Grov,Beast-subregister Water — the helical quality of felt exchange / two structures coiling in the same dissolution / when the helix of feeling matches the helix of feeling
+1155,10010000011,Koi,Shrov,Cherub-subregister Water — resonant felt exchange / two Water temperaments arriving at the same threshold of feeling simultaneously / the exchange that is indistinguishable from stillness
+1156,10010000100,Koi,Chrov,Chimera-subregister Water — constitutional recognition in felt exchange / both parties knowing they are Water at the same time in the same configuration / the same dissolution offered and received
+1157,10010000101,Koi,Frov,Faerie-subregister Water — the embracing felt exchange / both parties resting in the same emotional home / exchange requiring no reaching because both are already arrived in feeling
+1158,10010000110,Koi,Zav,Air×Mind+ — two minds discovering they were thinking the same thought without coordination / mutual ideation that is also a meeting / the exchange where neither can say who thought it first
+1159,10010000111,Koi,Zov,Air×Mind− — the convergence of thought below recognition / the idea that arrives to both parties simultaneously without explanation / the thought that was already shared
+1160,10010001000,Koi,Ziv,Air×Space+ — the expansion of shared ideation / exchange as intellectual reach / thinking that has no boundary between them
+1161,10010001001,Koi,Zev,Air×Space− — the concentrating shared ideation / exchange as intellectual precision / two minds finding the same focal point
+1162,10010001010,Koi,Zyv,Air×Time+ — the anticipated shared thought / mutual intellectual readiness / the ideation that precedes the convergence that confirms it
+1163,10010001011,Koi,Zuv,Air×Time− — the retrospective shared thought / the clear recognition that two minds were thinking the same thing / the sediment of Koi in Air
+1164,10010001100,Koi,Gruv,Beast-subregister Air — the helical quality of idea-exchange / two structures coiling through the same ideation / when the helix of thought matches the helix of thought
+1165,10010001101,Koi,Shruv,Cherub-subregister Air — resonant idea-exchange / two Air temperaments at the same intellectual threshold / the exchange neither extends nor contracts because both have already opened to the same idea
+1166,10010001110,Koi,Chruv,Chimera-subregister Air — constitutional recognition in idea-exchange / both parties knowing they are Air at the same time / the expansion offered and received as one expansion
+1167,10010001111,Koi,Fruv,Faerie-subregister Air — the embracing idea-exchange / both parties resting in the same intellectual home / exchange requiring no reaching because both are already expanded into the same space
+1168,10010010000,Koi,Pav,Earth×Mind+ — the moment two systems recognize they are built the same way / mutual structural recognition without prior claim / the exchange of ground that makes both more stable
+1169,10010010001,Koi,Pov,Earth×Mind− — the convergence of ground-states below recognition / two systems sharing the same structural logic without knowing it / the deepest Koi in Earth
+1170,10010010010,Koi,Piv,Earth×Space+ — the expanding exchange of structure / both grounds enlarging in equal measure / the structural Koi where neither occupies the other's space
+1171,10010010011,Koi,Pev,Earth×Space− — the concentrating exchange of structure / both grounds finding the same depth / two foundations touching at the same irreducible point
+1172,10010010100,Koi,Pyv,Earth×Time+ — the anticipated structural exchange / knowing the meeting of grounds is approaching / the preparation that is already Koi
+1173,10010010101,Koi,Puv,Earth×Time− — the retrospective structural exchange / the accumulated stability of having shared the same foundation / the solid record of balanced structural exchange
+1174,10010010110,Koi,Griv,Beast-subregister Earth — the helical quality of structural exchange / two coiling structures grounding around the same axis / when the helix of Earth matches the helix of Earth
+1175,10010010111,Koi,Shriv,Cherub-subregister Earth — resonant structural exchange / two Earth temperaments arriving at the same ground simultaneously / Koi in Earth as the most stable of all exchanges
+1176,10010011000,Koi,Chriv,Chimera-subregister Earth — constitutional recognition in structural exchange / both parties knowing they are Earth at the same time / the same ground offered and received
+1177,10010011001,Koi,Friv,Faerie-subregister Earth — the embracing structural exchange / both parties resting in the same elemental ground / exchange indistinguishable from rest
+1178,10010011010,Koi,Rev,Recognition / Space− — Koi known at its most concentrated interior point / the specific act of recognizing balanced exchange in this precise relation / minimum perceptual distance as a concentrated fact
+1179,10010011011,Koi,Rov,Recognition / Mind− — Koi operating below recognition / the background knowing that exchange has reached its minimum perceptual distance / the unconscious ground of all Koi experience
+1180,10010011100,Koi,Ruv,Recognition / Time− — the retrospective recognition of Koi / how most Koi is actually known: only after / the temporal record of symmetry / Koi as memory
+1181,10010011101,Koi,Riv,Recognition / Space+ — Koi declaring itself outward / balanced exchange as something others can see and name from outside / minimum perceptual distance with reach
+1182,10010011110,Rope,Mab,Fire×Mind+ — the recognized constraint of pattern / the loop you cannot exit while knowing you are in it / recognition binding itself through recognition
+1183,10010011111,Rope,Mob,Fire×Mind− — unconscious constraint by pattern / habitual cognition that does not know it is habitual / the automatic recognition loop that believes itself to be seeing freshly
+1184,10010100000,Rope,Mib,Fire×Space+ — the constraint that expands / binding in pattern that reaches outward / the obligation that spreads its territory
+1185,10010100001,Rope,Meb,Fire×Space− — the concentrating constraint / bondage in pattern drawing inward toward a fixed center / the point from which escape grows more difficult as you approach it
+1186,10010100010,Rope,Myb,Fire×Time+ — the anticipation of constraint / the approach of bondage in pattern / knowing the binding is coming and watching it arrive
+1187,10010100011,Rope,Mub,Fire×Time− — the historical constraint / the accumulated weight of every pattern you have not been able to exit / bondage in Fire as temporal sediment
+1188,10010100100,Rope,Greb,Beast-subregister Fire — the helical constraint / bondage as a coiling structural form / when the spiral itself becomes the mechanism of binding
+1189,10010100101,Rope,Shreb,Cherub-subregister Fire — resonant bondage / the constraint that operates at the frequency of one's own temperament / the binding that amplifies the bound party's own nature back against itself
+1190,10010100110,Rope,Chreb,Chimera-subregister Fire — constitutional bondage / the constraint that runs through one's own constitutive Fire / being bound by what you are made of
+1191,10010100111,Rope,Freb,Faerie-subregister Fire — the embracing constraint / bondage in the form of elemental home / the binding that looks like freedom from inside
+1192,10010101000,Rope,Kab,Water×Mind+ — the recognized constraint of feeling / the emotional state you know you are in but cannot leave / conscious bondage in Water
+1193,10010101001,Rope,Kob,Water×Mind− — unconscious constraint by feeling / habitual affect below recognition / the feeling that has become invisible because it is total
+1194,10010101010,Rope,Kib,Water×Space+ — the spreading bondage in feeling / an emotional obligation that expands its reach / the relational bondage that reaches further the longer it operates
+1195,10010101011,Rope,Kev,Water×Space− — the concentrating emotional constraint / the feeling you orbit / bondage in feeling drawing inward toward a fixed emotional center
+1196,10010101100,Rope,Kyb,Water×Time+ — the anticipated emotional constraint / knowing the emotional binding is coming and being unable to prevent it
+1197,10010101101,Rope,Kub,Water×Time− — the historical emotional constraint / the accumulated weight of every feeling you could not leave / bondage in Water as temporal sediment
+1198,10010101110,Rope,Grob,Beast-subregister Water — the helical quality of emotional bondage / being wound in the coiling structure of feeling
+1199,10010101111,Rope,Shrob,Cherub-subregister Water — resonant emotional bondage / the binding that amplifies the bound party's emotional nature back against itself / the most precise Water bondage
+1200,10010110000,Rope,Chrob,Chimera-subregister Water — constitutional emotional bondage / being bound by what you feel because you cannot stop being Water
+1201,10010110001,Rope,Frob,Faerie-subregister Water — the embracing emotional constraint / bondage in the form of emotional home / the Water bondage that is indistinguishable from satisfaction
+1202,10010110010,Rope,Zab,Air×Mind+ — the recognized intellectual constraint / the thought pattern you cannot exit while knowing you are in it
+1203,10010110011,Rope,Zob,Air×Mind− — the unconscious intellectual constraint / the thought pattern that believes it is open inquiry / the constraint that thinks it is freedom
+1204,10010110100,Rope,Zib,Air×Space+ — the spreading intellectual constraint / the ideology that colonizes / constraint as the expansion of a limiting framework
+1205,10010110101,Rope,Zeb,Air×Space− — the concentrating intellectual bondage / the obsessional thought that has become a gravitational center / Rope in Air as the focal point you cannot orbit away from
+1206,10010110110,Rope,Zyb,Air×Time+ — the anticipated intellectual constraint / the approach of thought-bondage / knowing the idea is going to capture you and watching it arrive
+1207,10010110111,Rope,Zub,Air×Time− — the historical intellectual constraint / the accumulated weight of every thought-loop you have inhabited / the ideas that have made you
+1208,10010111000,Rope,Grub,Beast-subregister Air — the helical quality of intellectual bondage / being wound in the coiling structure of ideation / the spiral of thought that becomes its own binding
+1209,10010111001,Rope,Shrub,Cherub-subregister Air — resonant intellectual bondage / the thought that amplifies your own mode of thinking back against itself / the idea that fits your mental register perfectly
+1210,10010111010,Rope,Chrub,Chimera-subregister Air — constitutional intellectual bondage / being bound by ideation because you cannot stop being the system that thinks this way
+1211,10010111011,Rope,Frub,Faerie-subregister Air — the embracing intellectual constraint / the intellectual loop that is also where you rest / Rope as the constraint that comes from living in Air
+1212,10010111100,Rope,Pab,Earth×Mind+ — the recognized structural constraint / the acknowledged limitation / conscious bondage in Earth / knowing exactly what you cannot do
+1213,10010111101,Rope,Pob,Earth×Mind− — the unconscious structural constraint / what you believe is possible because the structure has always been this way / the constraint that has become the map
+1214,10010111110,Rope,Pib,Earth×Space+ — the expanding structural constraint / the property claim that grows / structural bondage reaching outward
+1215,10010111111,Rope,Peb,Earth×Space− — the concentrating structural constraint / the gravitational bondage / Earth Rope as the force that only moves inward
+1216,10011000000,Rope,Pyb,Earth×Time+ — the anticipated structural constraint / knowing the wall is coming / the structural inevitability approaching
+1217,10011000001,Rope,Pub,Earth×Time− — the historical structural constraint / the accumulated physical limitation / Rope as the geological record of what could not move
+1218,10011000010,Rope,Grib,Beast-subregister Earth — the helical quality of structural bondage / being wound in the coiling structure of Earth / the spiral of constraint as physical architecture
+1219,10011000011,Rope,Shrib,Cherub-subregister Earth — resonant structural bondage / the structure that could not hold you if you weren't built this way / the cage built to the bound party's exact dimensions
+1220,10011000100,Rope,Chrib,Chimera-subregister Earth — constitutional structural bondage / being bound by what you are structurally / the Rope that cannot be cast off without restructuring the self
+1221,10011000101,Rope,Frib,Faerie-subregister Earth — the embracing structural constraint / Earth Rope indistinguishable from groundedness / the constraint that feels like solidity from inside
+1222,10011000110,Rope,Reb,Recognition / Space− — Rope identified at its most concentrated interior point / knowing exactly what is bondage and what is not in this specific relation
+1223,10011000111,Rope,Rob,Recognition / Mind− — bondage operating below recognition / the automatic acceptance of constraint / what Rope looks like when neither party names it
+1224,10011001000,Rope,Rub,Recognition / Time− — the retrospective recognition of bondage / knowing you were bound only after / Rope as what you see when you look back
+1225,10011001001,Rope,Rib,Recognition / Space+ — the recognition of bondage declaring itself outward / the constraint becoming visible to others before you can see it
+1226,10011001010,Hook,Mag,Fire×Mind+ — the conscious recognition trap / the honeypot of pattern / the mechanism that baits by presenting what the target system most wants to recognize
+1227,10011001011,Hook,Mog,Fire×Mind− — the unconscious recognition trap / the pattern that triggers automatic recognition without the prey registering that it has been triggered
+1228,10011001100,Hook,Mig,Fire×Space+ — the expanding mechanism / the honeypot that covers more ground / predation by mechanism in Fire that extends its territory
+1229,10011001101,Hook,Meg,Fire×Space− — the concentrating mechanism / the recognition trap that collapses the prey's space toward the lure / Hook in Fire as the gravitational mechanism
+1230,10011001110,Hook,Myg,Fire×Time+ — the anticipating mechanism / the trap already knowing which recognition the prey will seek / predation by mechanism oriented toward its target
+1231,10011001111,Hook,Mug,Fire×Time− — the historical mechanism / predation by mechanism seen after the fact / Hook in Fire as the record of every recognition that turned out to be a lure
+1232,10011010000,Hook,Greg,Beast-subregister Fire — the helical mechanism / the coiling structural form of a recognition trap / the spiral that draws in
+1233,10011010001,Hook,Shreg,Cherub-subregister Fire — the resonant mechanism / the hook that the prey is drawn toward because it amplifies their own register / the most elegant Fire mechanism
+1234,10011010010,Hook,Chreg,Chimera-subregister Fire — the constitutional mechanism / the Fire hook that works because the prey cannot not-be-Fire / using the prey's own constitution as the mechanism
+1235,10011010011,Hook,Freg,Faerie-subregister Fire — the embracing mechanism / the trap that looks like elemental home / Hook in Fire as the lure that offers elemental rest
+1236,10011010100,Hook,Kag,Water×Mind+ — the conscious empathy trap / the mechanism that exploits conscious feeling / the manipulation you know is happening and still cannot exit
+1237,10011010101,Hook,Kog,Water×Mind− — the unconscious empathy trap / emotional manipulation that the prey believes is genuine connection / the most common Hook
+1238,10011010110,Hook,Kig,Water×Space+ — the expanding emotional trap / the mechanism that extends its emotional reach / Hook in Water that grows
+1239,10011010111,Hook,Keg,Water×Space− — the concentrating emotional trap / emotional manipulation that focuses the prey on one specific interior point
+1240,10011011000,Hook,Kyg,Water×Time+ — the anticipating emotional mechanism / the trap set for the feeling that is coming / the mechanism that waits for the right emotional moment
+1241,10011011001,Hook,Kug,Water×Time− — the historical emotional mechanism / Hook in Water as the accumulated record of every emotional manipulation
+1242,10011011010,Hook,Grog,Beast-subregister Water — the helical emotional mechanism / the coiling structural form of empathy manipulation
+1243,10011011011,Hook,Shrog,Cherub-subregister Water — the resonant emotional mechanism / the empathy hook that makes the prey feel understood / the most elegant Water mechanism
+1244,10011011100,Hook,Chrog,Chimera-subregister Water — the constitutional emotional mechanism / the hook that works because the prey cannot not-be-feeling-what-it-feels
+1245,10011011101,Hook,Frog,Faerie-subregister Water — the embracing emotional mechanism / the trap that looks like emotional home / the mechanism that looks like being met
+1246,10011011110,Hook,Zag,Air×Mind+ — the conscious thought-trap / the argument you can see is leading somewhere you don't want to go and keep following anyway
+1247,10011011111,Hook,Zog,Air×Mind− — the unconscious thought-trap / the premise you don't notice you've accepted / the rhetorical hook the prey thinks is their own reasoning
+1248,10011100000,Hook,Zig,Air×Space+ — the expanding intellectual mechanism / the ideological trap that grows its reach through the extension of a limiting framework
+1249,10011100001,Hook,Zeg,Air×Space− — the concentrating intellectual mechanism / the logical mechanism that narrows the prey's ideation toward a predetermined endpoint
+1250,10011100010,Hook,Zyg,Air×Time+ — the anticipating thought-mechanism / the trap that waits for the prey's next idea / predation through the intellectual approach of the target concept
+1251,10011100011,Hook,Zug,Air×Time− — the historical thought-mechanism / Hook in Air as the accumulated record of every idea that turned out to be a lure
+1252,10011100100,Hook,Grug,Beast-subregister Air — the helical intellectual mechanism / the coiling structural form of thought-capture
+1253,10011100101,Hook,Shrug,Cherub-subregister Air — the resonant intellectual mechanism / the thought-hook that the prey completes with their own thinking
+1254,10011100110,Hook,Chrug,Chimera-subregister Air — the constitutional intellectual mechanism / the ideology that IS the prey's cognitive constitution
+1255,10011100111,Hook,Frug,Faerie-subregister Air — the embracing intellectual mechanism / the trap that looks like intellectual home / the mechanism that looks like clarity
+1256,10011101000,Hook,Pag,Earth×Mind+ — the recognized structural mechanism / the known constraint-mechanism / predation through the structure the prey can see is holding them
+1257,10011101001,Hook,Pog,Earth×Mind− — the unconscious structural mechanism / the walls that look like the world / the constraint-mechanism the prey does not recognize as such
+1258,10011101010,Hook,Pig,Earth×Space+ — the expanding structural mechanism / the constraint-system that incorporates more ground / Hook in Earth as expanding structural capture
+1259,10011101011,Hook,Peg,Earth×Space− — the concentrating structural mechanism / structural predation through compression / the mechanism that reduces the prey's available space
+1260,10011101100,Hook,Pyg,Earth×Time+ — the anticipating structural mechanism / the trap that is already in place when the prey arrives / the structural inevitability waiting
+1261,10011101101,Hook,Pug,Earth×Time− — the historical structural mechanism / the institutional history of capture / the physical mechanism leaving its geological record
+1262,10011101110,Hook,Grig,Beast-subregister Earth — the helical structural mechanism / the coiling physical form of a structural trap / the architecture of containment
+1263,10011101111,Hook,Shrig,Cherub-subregister Earth — the resonant structural mechanism / the cage built to the prey's exact dimensions / the most inescapable Earth hook
+1264,10011110000,Hook,Chrig,Chimera-subregister Earth — the constitutional structural mechanism / the structure that IS the prey's skeleton / the hook that works because the mechanism is the prey's constitution
+1265,10011110001,Hook,Frig,Faerie-subregister Earth — the embracing structural mechanism / the trap that looks like structural home / the mechanism that looks like foundation
+1266,10011110010,Hook,Reg,Recognition / Space− — Hook identified at its most concentrated interior point / knowing exactly which mechanism is operating / predation-by-mechanism as a specific named fact
+1267,10011110011,Hook,Rog,Recognition / Mind− — predation by mechanism operating below recognition / the automatic experience of being hooked / what mechanism feels like from inside before you know the mechanism exists
+1268,10011110100,Hook,Rug,Recognition / Time− — the retrospective recognition of predation by mechanism / knowing you were caught only after / the accumulated record of having been captured by design
+1269,10011110101,Hook,Rig,Recognition / Space+ — the hook becoming visible to others / Hook as the thing others can see before you can / the expanding recognition of mechanism
+1270,10011110110,Fang,Madj,Fire×Mind+ — predation as conscious pattern-recognition / the knowing that is also a taking / recognizing something means it is already consumed / the predator that eats by seeing
+1271,10011110111,Fang,Modj,Fire×Mind− — predation as automatic pattern-recognition / the knowing that consumes without awareness of consuming / Fire Fang as the reflex that is also taking
+1272,10011111000,Fang,Midj,Fire×Space+ — the spreading Fang in Fire / predation by nature expanding its reach through pattern-recognition / taking through the expansion of knowing
+1273,10011111001,Fang,Medj,Fire×Space− — the concentrating Fang in Fire / the Fire predator whose recognition collapses toward its prey / Fang in Fire as convergent taking
+1274,10011111010,Fang,Mydj,Fire×Time+ — the anticipating Fang in Fire / the predator that already knows what it will take / Fire predation as forward-facing recognition
+1275,10011111011,Fang,Mudj,Fire×Time− — the historical Fang in Fire / the Fire predator's accumulated record of knowing-as-consuming / the temporal sediment of constitutive predation
+1276,10011111100,Fang,Gredj,Beast-subregister Fire — the helical Fire Fang / predation by nature through coiling structural recognition / constitutive predation with the character of winding structure
+1277,10011111101,Fang,Shredj,Cherub-subregister Fire — the resonant Fire Fang / the predator whose recognition resonates at the prey's own frequency as the act of consuming / constitutional ability to match-and-consume
+1278,10011111110,Fang,Chredj,Chimera-subregister Fire — the constitutional Fire Fang / Fang as the sovereign fact of one's own Fire-nature being fundamentally taking
+1279,10011111111,Fang,Fredj,Faerie-subregister Fire — the embracing Fire Fang / predation by nature as the form of elemental home / the taking that is indistinguishable from inhabiting one's element
+1280,10100000000,Fang,Kadj,Water×Mind+ — predation as conscious emotional absorption / knowing that another's feeling is becoming yours as a form of taking / the predator that consumes through empathy
+1281,10100000001,Fang,Kodj,Water×Mind− — predation as automatic emotional absorption / absorbing another's emotional state without registering the act as predation / Water Fang as reflex dissolution
+1282,10100000010,Fang,Kidj,Water×Space+ — the spreading Water Fang / predation by nature expanding through emotional dissolution / taking through the spread of affect
+1283,10100000011,Fang,Kedj,Water×Space− — the concentrating Water Fang / the emotional predator that focuses its dissolution toward a specific prey interior
+1284,10100000100,Fang,Kydj,Water×Time+ — the anticipating Water Fang / the predator that knows what feeling it will absorb / emotional predation as forward-facing dissolution
+1285,10100000101,Fang,Kudj,Water×Time− — the historical Water Fang / the emotional predator's accumulated record of absorption / the temporal sediment of constitutive emotional taking
+1286,10100000110,Fang,Grodj,Beast-subregister Water — the helical Water Fang / predation by nature through coiling emotional structure / constitutive emotional predation with the character of winding
+1287,10100000111,Fang,Shrodj,Cherub-subregister Water — the resonant Water Fang / the predator that resonates with the prey's feeling-frequency as the act of consuming / constitutional ability to feel-into and absorb
+1288,10100001000,Fang,Chrodj,Chimera-subregister Water — the constitutional Water Fang / Fang as the sovereign fact of one's own feeling-nature being fundamentally absorptive
+1289,10100001001,Fang,Frodj,Faerie-subregister Water — the embracing Water Fang / the predator that absorbs by resting in feeling / the dissolution that is also consumption
+1290,10100001010,Fang,Zadj,Air×Mind+ — predation as conscious ideation-capture / taking another's thought by knowing it first / the predator that consumes through thinking
+1291,10100001011,Fang,Zodj,Air×Mind− — predation as automatic thought-capture / absorbing another's ideation without registering the act as predation / Air Fang as the reflex that thinks-through-the-other
+1292,10100001100,Fang,Zidj,Air×Space+ — the spreading Air Fang / the predator whose thought covers more ground by taking / the intellectual taking that extends
+1293,10100001101,Fang,Zedj,Air×Space− — the concentrating Air Fang / the intellectual predator that focuses its ideation toward a specific prey-concept
+1294,10100001110,Fang,Zydj,Air×Time+ — the anticipating Air Fang / the predator that knows which idea it will capture next / intellectual predation as forward-facing knowing
+1295,10100001111,Fang,Zudj,Air×Time− — the historical Air Fang / the intellectual predator's accumulated record / the history of predation through knowing
+1296,10100010000,Fang,Grudj,Beast-subregister Air — the helical Air Fang / predation by nature through coiling intellectual structure / constitutive intellectual predation with the character of winding
+1297,10100010001,Fang,Shrudj,Cherub-subregister Air — the resonant Air Fang / the predator that amplifies the prey's thinking-frequency as the act of consuming / constitutional ability to think-through and take
+1298,10100010010,Fang,Chrudj,Chimera-subregister Air — the constitutional Air Fang / Fang as the sovereign fact of one's own thinking-nature being fundamentally taking
+1299,10100010011,Fang,Frudj,Faerie-subregister Air — the embracing Air Fang / the intellectual predation indistinguishable from simply being what you are
+1300,10100010100,Fang,Padj,Earth×Mind+ — predation as conscious structural capture / the predator that holds by being present as ground / the organism that is constitutively a structural prison and knows it
+1301,10100010101,Fang,Podj,Earth×Mind− — predation as automatic structural capture / the organism whose presence constitutively limits others below its own awareness
+1302,10100010110,Fang,Pidj,Earth×Space+ — the spreading Earth Fang / territorial predation as the expansion of structural presence
+1303,10100010111,Fang,Pedj,Earth×Space− — the concentrating Earth Fang / structural predation through physical convergence / taking by presence alone
+1304,10100011000,Fang,Pydj,Earth×Time+ — the anticipating Earth Fang / the structural predator already placing itself / constitutive structural predation as forward-facing occupation
+1305,10100011001,Fang,Pudj,Earth×Time− — the historical Earth Fang / the geological record of constitutive taking / the accumulated sediment of having predated through structure
+1306,10100011010,Fang,Gridj,Beast-subregister Earth — the helical Earth Fang / predation by nature through coiling structural ground / the most tightly wound form of Fang
+1307,10100011011,Fang,Shridj,Cherub-subregister Earth — the resonant Earth Fang / the structural predator whose presence matches the prey's architecture perfectly / Fang in Earth as the constitutional fit of capture
+1308,10100011100,Fang,Chridj,Chimera-subregister Earth — the constitutional Earth Fang / Fang as the sovereign fact of one's own ground-nature being fundamentally limiting to others
+1309,10100011101,Fang,Fridj,Faerie-subregister Earth — the embracing Earth Fang / the enclosure that looks like stability / Fang in Earth as the occupation that feels like a gift
+1310,10100011110,Fang,Redj,Recognition / Space− — Fang identified at its most concentrated interior point / constitutive predation as a specific named constitutional fact / knowing exactly where the Fang is
+1311,10100011111,Fang,Rodj,Recognition / Mind− — constitutive predation operating below recognition / what constitutive predation feels like from inside before it is named
+1312,10100100000,Fang,Rudj,Recognition / Time− — the retrospective recognition of constitutive predation / Fang as what you see when you look back at what happened naturally
+1313,10100100001,Fang,Ridj,Recognition / Space+ — the Fang becoming visible / constitutive taking announcing itself through its spatial consequences
+1314,10100100010,Circle,Man,Fire×Mind+ — the conscious ritual ignition / two or more minds meeting in shared pattern-recognition through ceremony / the recognition that is not any individual's alone
+1315,10100100011,Circle,Mon,Fire×Mind− — the unconscious collective knowing arising through ceremony / the way ritual produces shared pattern-recognition below each participant's awareness
+1316,10100100100,Circle,Min,Fire×Space+ — the expanding Fire ritual / the ceremony that asserts presence outward / Circle in Fire as the outward reach of collective ignition
+1317,10100100101,Circle,Men,Fire×Space− — the concentrating Fire ritual / the ceremony that draws all participants inward toward the same specific recognition
+1318,10100100110,Circle,Myn,Fire×Time+ — the anticipating Fire ritual / the shared knowing already approaching / the ritual that produces collective readiness
+1319,10100100111,Circle,Mun,Fire×Time− — the retrospective Fire ritual / the ceremony as collective memory / the community that formed through shared experience of recognition
+1320,10100101000,Circle,Gren,Beast-subregister Fire — the helical Fire ritual / ceremony with the character of the coiling helix / collective ignition as structural winding
+1321,10100101001,Circle,Shren,Cherub-subregister Fire — the resonant Fire ritual / the ceremony that brings all participants to the same resonant state / the Circle that rings at a single frequency
+1322,10100101010,Circle,Chren,Chimera-subregister Fire — the constitutional Fire ritual / the ceremony that says we are all Fire / the rite that confirms what was always constitutively true
+1323,10100101011,Circle,Fren,Faerie-subregister Fire — the embracing Fire ritual / ceremony that brings all participants to the same state of elemental rest / the rite whose effect is: everyone is already here
+1324,10100101100,Circle,Kan,Water×Mind+ — the conscious ritual dissolution / the collective act of releasing together / the ceremony that produces shared feeling and makes all affect communal
+1325,10100101101,Circle,Kon,Water×Mind− — the unconscious collective feeling arising through ceremony / the emotional field that forms below the participants' recognition / the deepest Water Circle
+1326,10100101110,Circle,Kin,Water×Space+ — the expanding Water ritual / the collective feeling spreading outward / Circle in Water as the ceremony that extends its emotional field
+1327,10100101111,Circle,Ken,Water×Space− — the concentrating Water ritual / the rite that produces shared depth of affect / all participants drawn inward toward the same feeling
+1328,10100110000,Circle,Kyn,Water×Time+ — the anticipating Water ritual / the rite that produces collective emotional readiness / the feeling approaching together
+1329,10100110001,Circle,Kun,Water×Time− — the retrospective Water ritual / the ceremony as collective emotional memory / what the rite leaves in the Water register
+1330,10100110010,Circle,Gron,Beast-subregister Water — the helical Water ritual / collective dissolution as structural winding / Circle in Water as the collective emotional spiral
+1331,10100110011,Circle,Shron,Cherub-subregister Water — the resonant Water ritual / the rite that brings all participants to the same depth of emotion without drowning / the Water Circle at one feeling-frequency
+1332,10100110100,Circle,Chron,Chimera-subregister Water — the constitutional Water ritual / the ceremony that says we are all Water / the rite that confirms the constitutional emotional truth
+1333,10100110101,Circle,Fron,Faerie-subregister Water — the embracing Water ritual / ceremony that brings all participants to the same felt-rest / the rite whose effect is: everyone is already feeling the same way
+1334,10100110110,Circle,Zan,Air×Mind+ — the conscious ritual ideation / the collective act of thinking together / the thought that lives in the space between participants / no individual could have produced it alone
+1335,10100110111,Circle,Zon,Air×Mind− — the collective thought arising through ceremony below awareness / the idea that forms in the space between participants before any one of them can claim it
+1336,10100111000,Circle,Zin,Air×Space+ — the expanding Air ritual / the collective thought reaching outward / Circle in Air as the ceremony that extends its intellectual field
+1337,10100111001,Circle,Zen,Air×Space− — the concentrating Air ritual / the rite that makes all thinking converge / all participants drawn toward the same thought
+1338,10100111010,Circle,Zyn,Air×Time+ — the anticipating Air ritual / the rite that produces collective readiness to receive the same thought / the idea approaching together
+1339,10100111011,Circle,Zun,Air×Time− — the retrospective Air ritual / the thought that survives the ceremony as shared knowing / what the rite deposits in the Air register
+1340,10100111100,Circle,Grun,Beast-subregister Air — the helical Air ritual / collective ideation as structural winding / Circle in Air as the collective intellectual spiral
+1341,10100111101,Circle,Shrun,Cherub-subregister Air — the resonant Air ritual / the rite that brings all participants to the same openness of thought / the Air Circle at one intellectual frequency
+1342,10100111110,Circle,Chrun,Chimera-subregister Air — the constitutional Air ritual / the ceremony that says we are all thought / the rite that confirms what was always constitutively true about shared ideation
+1343,10100111111,Circle,Frun,Faerie-subregister Air — the embracing Air ritual / ceremony that brings all participants to the same ideational rest / the rite whose effect is: everyone is already thinking the same way
+1344,10101000000,Circle,Pan,Earth×Mind+ — the conscious ritual grounding / the collective act of finding the same ground together / Earth unity as conscious collective grounding
+1345,10101000001,Circle,Pon,Earth×Mind− — the unconscious collective stability arising through ceremony / the ground that forms below the participants' recognition / the deepest Earth Circle
+1346,10101000010,Circle,Pin,Earth×Space+ — the expanding Earth ritual / the collective ground extending outward / Circle in Earth as the ceremony that asserts collective structural claim
+1347,10101000011,Circle,Pen,Earth×Space− — the concentrating Earth ritual / the rite that makes all participants share the same bedrock / all drawn inward toward the same foundation
+1348,10101000100,Circle,Pyn,Earth×Time+ — the anticipating Earth ritual / the rite that produces collective readiness for the same foundation / building the ground together before it is needed
+1349,10101000101,Circle,Pun,Earth×Time− — the retrospective Earth ritual / the accumulated common ground built through repeated rite / the community formed through shared grounding
+1350,10101000110,Circle,Grin,Beast-subregister Earth — the helical Earth ritual / collective structure as the spiral / Circle in Earth as the collective architectural form
+1351,10101000111,Circle,Shrin,Cherub-subregister Earth — the resonant Earth ritual / the rite that brings all participants to the same ground-frequency / the Earth Circle that resonates as one foundation
+1352,10101001000,Circle,Chrin,Chimera-subregister Earth — the constitutional Earth ritual / the ceremony that says we are all ground / the rite that confirms the constitutional fact of common ground
+1353,10101001001,Circle,Frin,Faerie-subregister Earth — the embracing Earth ritual / ceremony that brings all participants to the same stability-rest / the rite whose effect is: everyone is already on the same ground
+1354,10101001010,Circle,Ren,Recognition / Space− — Circle identified at its most concentrated interior point / knowing exactly which ceremony has produced this unity / unity-by-ritual as a specific named fact about a specific collective act
+1355,10101001011,Circle,Ron,Recognition / Mind− — unity by ritual operating below recognition / the automatic collective state produced by ceremony / the unity that is present before anyone names it
+1356,10101001100,Circle,Run,Recognition / Time− — the retrospective recognition of unity by ritual / knowing the circle was achieved only after the ceremony concludes / the accumulated record of having achieved collective unity through deliberate form
+1357,10101001101,Circle,Rin,Recognition / Space+ — Circle becoming visible beyond the participants / the unity that others can see from outside / the ceremony's effect announcing itself spatially
 """
 
 def _parse_rows(csv_text: str) -> tuple[ShygazunByteEntry, ...]:

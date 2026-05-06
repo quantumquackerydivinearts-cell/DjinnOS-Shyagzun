@@ -34,6 +34,8 @@ if ($args[0] -eq "run" -or $args[0] -eq "debug") {
         -serial stdio `
         -display none `
         -kernel $BIN `
+        -device ich9-intel-hda `
+        -device hda-output `
         -no-reboot `
         -no-shutdown
 }

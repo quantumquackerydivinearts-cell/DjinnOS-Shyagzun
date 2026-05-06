@@ -4459,6 +4459,29 @@ def tick_game_state(
     return svc.game_tick(payload=payload, actor_id=ctx.actor_id, workshop_id=workshop.identity.workshop_id)
 
 
+# ── 7_KLGS: Hypatia world-state endpoint ─────────────────────────────────────
+
+@app.get("/v1/game7/hypatia/state")
+def get_hypatia_state(
+    workspace_id: str,
+    actor_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    svc: AtelierService = Depends(_kernel_only_service),
+) -> dict:
+    """
+    Return the current Hypatia world-state for a player's 7_KLGS session.
+
+    Fields:
+      presence_state     — "present" | "disappeared"
+      introduction_state — "not_met" | "met" | "forestalled"
+      apprenticeship     — "not_started" | "active_with_hypatia" | "on_your_own"
+      lab_accessibility  — "gated_by_hypatia" | "open" | "sealed_by_saffron"
+      disappearance_day  — int | null
+    """
+    _enforce(ctx, "game.read")
+    return svc.get_hypatia_state(workspace_id=workspace_id, actor_id=actor_id)
+
+
 @app.get("/v1/assets/manifests")
 def list_asset_manifests(
     workspace_id: str,

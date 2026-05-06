@@ -1,4 +1,15 @@
-/* DjinnOS kernel — x86_64 (multiboot2, loaded at 1 MiB) */
+/* DjinnOS kernel — x86_64 (multiboot2 ELF64 + multiboot1 flat binary fallback)
+ * Load address: 1 MiB (0x100000).
+ *
+ * Section order matters:
+ *   .note.Xen     PVH ELF note (QEMU 9+ direct load experiment — harmless)
+ *   .text         multiboot2 + multiboot1 headers, then _start + 64-bit code
+ *   .rodata
+ *   .data         GDT, saved MB2 ptr
+ *   .boot_pt      Six 4 KiB page tables — BEFORE .bss so BSS clear is safe
+ *   .bss          Zero-initialised data (cleared by _start64)
+ *   .stack        256 KiB boot stack
+ */
 
 ENTRY(_start)
 
@@ -14,7 +25,7 @@ SECTIONS {
     } > RAM
 
     .text : {
-        KEEP(*(.text.boot))    /* multiboot1 header + _start */
+        KEEP(*(.text.boot))
         *(.text .text.*)
     } > RAM
 
@@ -26,8 +37,9 @@ SECTIONS {
         *(.data .data.*)
     } > RAM
 
-    /* Boot page tables: before .bss so zeroing [_bss_start, _bss_end)
-       never touches live PML4/PDPT/PD during early init. */
+    /* Boot page tables — six 4 KiB pages (PML4 + PDPT + PD0–PD3 = 24 KiB).
+     * Placed before .bss so that zeroing [_bss_start, _bss_end) never
+     * touches live page table data. */
     .boot_pt (NOLOAD) : {
         . = ALIGN(4096);
         *(.boot_pt)

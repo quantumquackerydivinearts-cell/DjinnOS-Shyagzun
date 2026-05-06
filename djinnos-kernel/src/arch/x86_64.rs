@@ -20,6 +20,18 @@ pub unsafe fn inb(port: u16) -> u8 {
     val
 }
 
+#[inline(always)]
+pub unsafe fn outl(port: u16, val: u32) {
+    asm!("out dx, eax", in("dx") port, in("eax") val, options(nostack, nomem));
+}
+
+#[inline(always)]
+pub unsafe fn inl(port: u16) -> u32 {
+    let val: u32;
+    asm!("in eax, dx", out("eax") val, in("dx") port, options(nostack, nomem));
+    val
+}
+
 #[inline]
 fn io_wait() {
     unsafe { outb(0x80, 0) }
