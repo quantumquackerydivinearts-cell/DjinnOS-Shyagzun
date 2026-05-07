@@ -2453,9 +2453,9 @@ def add_workspace_member(
 
 @app.get("/v1/me/workspace")
 def get_my_workspace(
-    ctx: CapabilityContext = Depends(_capability_context),
-    workshop: WorkshopContext = Depends(_workshop_context),
-    _: RoleContext = Depends(_role_context),
+    ctx: CapabilityContext = Depends(_capability_context_lenient),
+    workshop: WorkshopContext = Depends(_workshop_context_lenient),
+    _: RoleContext = Depends(_role_context_lenient),
     svc: AtelierService = Depends(_atelier_service),
 ) -> Dict[str, Any]:
     """Return the current artisan's resolved workspace and full workspace list."""
