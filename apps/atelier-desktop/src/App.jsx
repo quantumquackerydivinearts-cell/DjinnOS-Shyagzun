@@ -6045,7 +6045,7 @@ const RENDERER_SYNC_CHANNEL = "atelier-renderer-sync-v1";
 
 export function App() {
   const [section, setSection] = useState(resolveInitialSection);
-  const [role, setRole] = useState(() => localStorage.getItem("atelier.role") || "senior_artisan");
+  const [role, setRole] = useState(() => localStorage.getItem("atelier.role") || "steward");
   const [authToken, setAuthToken] = useState(() => localStorage.getItem("atelier.auth_token") || null);
   const [artisanId, setArtisanId] = useState(() => localStorage.getItem("atelier.artisan_id") || "");
   const [workshopId, setWorkshopId] = useState(() => localStorage.getItem("atelier.workshop_id") || "");
@@ -6389,10 +6389,14 @@ export function App() {
   const unifiedCameraDragRef = useRef(null);
   const fullscreenCameraDragRef = useRef(null);
 
-  const [contactName, setContactName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contacts, setContacts] = useState([]);
-  const [contactFilter, setContactFilter] = useState("");
+  const [contactName,    setContactName]    = useState("");
+  const [contactEmail,   setContactEmail]   = useState("");
+  const [contactPhone,   setContactPhone]   = useState("");
+  const [contactAddress, setContactAddress] = useState("");
+  const [contactWebsite, setContactWebsite] = useState("");
+  const [contactNotes,   setContactNotes]   = useState("");
+  const [contacts,       setContacts]       = useState([]);
+  const [contactFilter,  setContactFilter]  = useState("");
 
   const [bookingStart, setBookingStart] = useState("");
   const [bookingEnd, setBookingEnd] = useState("");
@@ -11321,7 +11325,7 @@ function extractPythonSavedPath(outputText) {
   const filtered = (items, text, keys) =>
     items.filter((it) => (text ? keys.map((k) => String(it[k] || "")).join(" ").toLowerCase().includes(text.toLowerCase()) : true));
 
-  const filteredContacts = filtered(contacts, contactFilter, ["full_name", "email"]);
+  const filteredContacts = filtered(contacts, contactFilter, ["full_name", "email", "phone", "address", "website", "notes"]);
   const filteredBookings = filtered(bookings, bookingFilter, ["status", "starts_at", "ends_at"]);
   const filteredLessons = filtered(lessons, lessonFilter, ["title", "status"]);
   const filteredModules = filtered(modules, moduleFilter, ["title", "status"]);
@@ -15855,18 +15859,69 @@ function extractPythonSavedPath(outputText) {
       );
     }
     if (section === "CRM") {
+      const resetContactForm = () => {
+        setContactName(""); setContactEmail(""); setContactPhone("");
+        setContactAddress(""); setContactWebsite(""); setContactNotes("");
+      };
+      const doCreateContact = () => createEntity(
+        "contacts_create",
+        "/v1/crm/contacts",
+        {
+          workspace_id: workspaceId,
+          full_name:    contactName,
+          email:        contactEmail   || null,
+          phone:        contactPhone   || null,
+          address:      contactAddress || null,
+          website:      contactWebsite || null,
+          notes:        contactNotes,
+        },
+        resetContactForm,
+        listContacts,
+      );
       return (
-        <section className="panel">
-          <h2>CRM</h2>
-          <div className="row">
-            <input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="contact name" />
-            <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact email" />
-            <button className="action" onClick={() => createEntity("contacts_create", "/v1/crm/contacts", { workspace_id: workspaceId, full_name: contactName, email: contactEmail || null, notes: "" }, () => { setContactName(""); setContactEmail(""); }, listContacts)}>Create</button>
-            <button className="action" onClick={listContacts}>Refresh</button>
-          </div>
-          <div className="row"><input value={contactFilter} onChange={(e) => setContactFilter(e.target.value)} placeholder="filter contacts" /><button className="action" onClick={() => downloadJson(`contacts-${workspaceId}.json`, filteredContacts)}>Export</button></div>
-          <pre>{JSON.stringify(filteredContacts, null, 2)}</pre>
-        </section>
+        <>
+          <section className="panel">
+            <h2>New Contact</h2>
+            <div className="row">
+              <input value={contactName}    onChange={e => setContactName(e.target.value)}    placeholder="full name *" style={{ flex: 2 }} />
+              <input value={contactEmail}   onChange={e => setContactEmail(e.target.value)}   placeholder="email" style={{ flex: 2 }} />
+              <input value={contactPhone}   onChange={e => setContactPhone(e.target.value)}   placeholder="phone" style={{ flex: 1 }} />
+            </div>
+            <div className="row">
+              <input value={contactWebsite} onChange={e => setContactWebsite(e.target.value)} placeholder="website" style={{ flex: 2 }} />
+              <input value={contactAddress} onChange={e => setContactAddress(e.target.value)} placeholder="address" style={{ flex: 3 }} />
+            </div>
+            <textarea
+              value={contactNotes}
+              onChange={e => setContactNotes(e.target.value)}
+              placeholder="notes"
+              rows={3}
+              style={{ width: "100%", marginTop: "0.4rem" }}
+            />
+            <div className="row" style={{ marginTop: "0.4rem" }}>
+              <button className="action" onClick={doCreateContact}>Create Contact</button>
+              <button className="action" onClick={listContacts}>Refresh</button>
+              <input value={contactFilter} onChange={e => setContactFilter(e.target.value)} placeholder="filter" style={{ flex: 1 }} />
+              <button className="action" onClick={() => downloadJson(`contacts-${workspaceId}.json`, filteredContacts)}>Export</button>
+              <span className="badge">{`${filteredContacts.length} contacts`}</span>
+            </div>
+          </section>
+          <section className="panel">
+            {filteredContacts.length === 0 && <p style={{ opacity: 0.5 }}>No contacts yet.</p>}
+            {filteredContacts.map(c => (
+              <div key={c.id} style={{ padding: "0.6rem 0", borderBottom: "1px solid #2a2030" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem" }}>
+                  <strong>{c.full_name}</strong>
+                  {c.email   && <a href={`mailto:${c.email}`}   style={{ opacity: 0.8, fontSize: "0.9em" }}>{c.email}</a>}
+                  {c.phone   && <span style={{ opacity: 0.7, fontSize: "0.9em" }}>{c.phone}</span>}
+                  {c.website && <a href={c.website} target="_blank" rel="noreferrer" style={{ opacity: 0.7, fontSize: "0.85em" }}>{c.website}</a>}
+                </div>
+                {c.address && <div style={{ opacity: 0.6, fontSize: "0.85em", marginTop: "0.15rem" }}>{c.address}</div>}
+                {c.notes   && <div style={{ opacity: 0.55, fontSize: "0.82em", marginTop: "0.15rem", fontStyle: "italic" }}>{c.notes}</div>}
+              </div>
+            ))}
+          </section>
+        </>
       );
     }
     if (section === "Booking System") {

@@ -4864,6 +4864,8 @@ class AtelierService:
             full_name=payload.full_name,
             email=payload.email,
             phone=payload.phone,
+            address=payload.address,
+            website=payload.website,
             notes=payload.notes,
         )
         out = self._require_repo().create_contact(row)

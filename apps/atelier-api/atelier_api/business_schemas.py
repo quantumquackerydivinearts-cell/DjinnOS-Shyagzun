@@ -59,20 +59,24 @@ CANONICAL_GAME_SKILLS: tuple[str, ...] = (
 
 class ContactCreate(BaseModel):
     workspace_id: str
-    full_name: str
-    email: str | None = None
-    phone: str | None = None
-    notes: str = ""
+    full_name:    str
+    email:        str | None = None
+    phone:        str | None = None
+    address:      str | None = None
+    website:      str | None = None
+    notes:        str = ""
 
 
 class ContactOut(BaseModel):
-    id: str
+    id:           str
     workspace_id: str
-    full_name: str
-    email: str | None
-    phone: str | None
-    notes: str
-    created_at: datetime
+    full_name:    str
+    email:        str | None
+    phone:        str | None
+    address:      str | None
+    website:      str | None
+    notes:        str
+    created_at:   datetime
 
 
 class BookingCreate(BaseModel):

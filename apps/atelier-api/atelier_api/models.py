@@ -99,11 +99,13 @@ class CRMContact(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     workspace_id: Mapped[str] = mapped_column(String(36), ForeignKey("workspaces.id"), nullable=False)
-    full_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
-    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    full_name: Mapped[str]        = mapped_column(String(200), nullable=False)
+    email:     Mapped[str | None] = mapped_column(String(320), nullable=True)
+    phone:     Mapped[str | None] = mapped_column(String(40),  nullable=True)
+    address:   Mapped[str | None] = mapped_column(Text,        nullable=True)
+    website:   Mapped[str | None] = mapped_column(String(500), nullable=True)
+    notes:     Mapped[str]        = mapped_column(Text,        nullable=False, default="")
+    created_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
     workspace: Mapped[Workspace] = relationship()
 
