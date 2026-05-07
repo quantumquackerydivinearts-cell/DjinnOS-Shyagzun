@@ -7569,7 +7569,7 @@ export function App() {
   }, [profileName, profileEmail, role, workspaceId]);
   useEffect(() => {
     void fetchArtisanAccessStatus();
-  }, [profileName, profileEmail, role, workspaceId]);
+  }, []);  // run once on mount — profile data from API seeds the initial state
   useEffect(() => {
     if (!studioSelectedFile) {
       setStudioRenameFileName("");
