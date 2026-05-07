@@ -15915,6 +15915,14 @@ function extractPythonSavedPath(outputText) {
                   {c.email   && <a href={`mailto:${c.email}`}   style={{ opacity: 0.8, fontSize: "0.9em" }}>{c.email}</a>}
                   {c.phone   && <span style={{ opacity: 0.7, fontSize: "0.9em" }}>{c.phone}</span>}
                   {c.website && <a href={c.website} target="_blank" rel="noreferrer" style={{ opacity: 0.7, fontSize: "0.85em" }}>{c.website}</a>}
+                  <button
+                    className="action"
+                    style={{ marginLeft: "auto", opacity: 0.5, fontSize: "0.8em", padding: "0.1rem 0.4rem" }}
+                    onClick={() => runAction("contact_delete", async () => {
+                      await apiCall(`/v1/crm/contacts/${c.id}`, "DELETE", null);
+                      await listContacts();
+                    })}
+                  >✕</button>
                 </div>
                 {c.address && <div style={{ opacity: 0.6, fontSize: "0.85em", marginTop: "0.15rem" }}>{c.address}</div>}
                 {c.notes   && <div style={{ opacity: 0.55, fontSize: "0.82em", marginTop: "0.15rem", fontStyle: "italic" }}>{c.notes}</div>}

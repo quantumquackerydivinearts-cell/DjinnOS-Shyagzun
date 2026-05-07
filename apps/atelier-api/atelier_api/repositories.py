@@ -118,6 +118,16 @@ class AtelierRepository:
         self._db.refresh(row)
         return row
 
+    def delete_contact(self, contact_id: str, workspace_id: str) -> bool:
+        row = self._db.scalar(
+            select(CRMContact).where(CRMContact.id == contact_id, CRMContact.workspace_id == workspace_id)
+        )
+        if row is None:
+            return False
+        self._db.delete(row)
+        self._db.commit()
+        return True
+
     def list_bookings(self, workspace_id: str) -> Sequence[Booking]:
         return self._db.scalars(select(Booking).where(Booking.workspace_id == workspace_id)).all()
 

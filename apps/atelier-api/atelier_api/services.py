@@ -4858,6 +4858,11 @@ class AtelierService:
         rows = self._require_repo().list_contacts(workspace_id=workspace_id)
         return [ContactOut.model_validate(row, from_attributes=True) for row in rows]
 
+    def delete_contact(self, contact_id: str, workspace_id: str) -> None:
+        found = self._require_repo().delete_contact(contact_id, workspace_id)
+        if not found:
+            raise ValueError("contact_not_found")
+
     def create_contact(self, payload: ContactCreate) -> ContactOut:
         row = CRMContact(
             workspace_id=payload.workspace_id,
