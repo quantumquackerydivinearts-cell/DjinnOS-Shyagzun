@@ -38,10 +38,12 @@ def _rose_multi(toks: list[str], i: int) -> tuple[int, int]:
     return v, 1
 
 def _coords(toks: list[str]) -> tuple[int, int, int, int]:
-    """Parse x y z as three single Rose tokens. Returns (x, y, z, consumed)."""
-    x, nx = _rose_single(toks, 0)
-    y, ny = _rose_single(toks, nx)
-    z, nz = _rose_single(toks, nx + ny)
+    """Parse x y z as three Rose positions (1 or 2 tokens each, base-12).
+    Single token covers 0–11; two tokens cover 0–143. Always pair-encode
+    positions > 11 in scene files (e.g. Ao Shushy = 1×12+8 = 20)."""
+    x, nx = _rose_multi(toks, 0)
+    y, ny = _rose_multi(toks, nx)
+    z, nz = _rose_multi(toks, nx + ny)
     return x, y, z, nx + ny + nz
 
 # ── Material mappings ──────────────────────────────────────────────────────────
@@ -72,13 +74,28 @@ def _material(tset: set[str], ctok: str) -> tuple[str, str]:
     return "unknown", _COLOR_HEX.get(ctok, "#888888")
 
 _ACTION_MAP: dict[str, tuple[str, str, str]] = {
-    "MavoOpenAlchemyUi":      ("alchemy_bench", "open_alchemy_ui",      "Press E to use alchemy workbench"),
-    "MavoExitToLapidusTown":  ("exit",          "exit_to_lapidus_town", "Press E to go outside"),
-    "MavoOpenSmeltUi":        ("furnace",        "open_smelt_ui",        "Press E to use furnace"),
-    "MavoMeditationTutorial": ("meditate",       "meditation_tutorial",  "Press E to meditate"),
-    "MavoLoreBooks":          ("read",           "lore_books",           "Press E to read books"),
-    "MavoSaveAndHeal":        ("rest",           "save_and_heal",        "Press E to rest (saves game)"),
-    "MavoOpenChest":          ("storage",        "open_chest",           "Press E to open chest"),
+    # ── Alchemy / crafting ────────────────────────────────────────────────────
+    "MavoOpenAlchemyUi":      ("alchemy_bench",  "open_alchemy_ui",       "Press E to use alchemy workbench"),
+    "MavoOpenSmeltUi":        ("furnace",         "open_smelt_ui",         "Press E to use furnace"),
+    # ── Journal ───────────────────────────────────────────────────────────────
+    "MavoReadJournal":        ("journal",         "read_journal",          "Press E to read your journal"),
+    "MavoOpenJournal":        ("journal",         "read_journal",          "Press E to open journal"),
+    "MavoLoreBooks":          ("books",           "lore_books",            "Press E to read books"),
+    # ── Rest / save ───────────────────────────────────────────────────────────
+    "MavoRest":               ("bed",             "rest",                  "Press E to rest (saves game)"),
+    "MavoSaveAndHeal":        ("rest",            "save_and_heal",         "Press E to rest (saves game)"),
+    # ── Stairs ───────────────────────────────────────────────────────────────
+    "MavoStairsUp":           ("stairs",          "stairs_up",             "Press E to go upstairs"),
+    "MavoStairsDown":         ("stairs",          "stairs_down",           "Press E to go downstairs"),
+    # ── Shop / trade ──────────────────────────────────────────────────────────
+    "MavoOpenShopUi":         ("shop_counter",    "open_shop_ui",          "Press E to manage your shop"),
+    "MavoManageShop":         ("shop_counter",    "open_shop_ui",          "Press E to manage your shop"),
+    # ── Meditation ───────────────────────────────────────────────────────────
+    "MavoMeditationTutorial": ("cushion",         "meditation_tutorial",   "Press E to meditate"),
+    "MavoMeditate":           ("cushion",         "meditate",              "Press E to meditate"),
+    # ── Storage / exits ───────────────────────────────────────────────────────
+    "MavoOpenChest":          ("storage",         "open_chest",            "Press E to open chest"),
+    "MavoExitToLapidusTown":  ("exit",            "exit_to_lapidus_town",  "Press E to go outside"),
 }
 
 def _mavo_snake(name: str) -> str:

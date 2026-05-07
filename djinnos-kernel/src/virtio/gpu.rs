@@ -178,13 +178,17 @@ impl GpuDriver {
 
         dev.write(REG_STATUS, dev.read(REG_STATUS) | STATUS_DRIVER_OK);
 
-        // Build VirtQueue view over the raw bytes
+        // Build VirtQueue view over the raw bytes (raw pointers — no aliasing UB)
         let queue = unsafe {
-            let base = CTRL_QUEUE_MEM.0.as_mut_ptr();
-            let desc  = &mut *(base.add(V1_DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE]);
-            let avail = &mut *(base.add(V1_AVAIL_OFF) as *mut AvailRing);
-            let used  = &    *(base.add(V1_USED_OFF)  as *const UsedRing);
-            VirtQueue { desc, avail, used, free_head: 0, last_used: 0 }
+            let base  = CTRL_QUEUE_MEM.0.as_mut_ptr();
+            let desc  = base.add(V1_DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE];
+            let avail = base.add(V1_AVAIL_OFF) as *mut AvailRing;
+            let used  = base.add(V1_USED_OFF)  as *const UsedRing;
+            // VIRTQ_AVAIL_F_NO_INTERRUPT: we poll used.idx directly; tell the
+            // device not to raise interrupts.  Un-acked interrupts accumulate in
+            // QEMU and eventually cause the device to stop writing to used ring.
+            core::ptr::write_volatile(&mut (*avail).flags, 1u16);
+            VirtQueue::new(desc, avail, used)
         };
 
         let mut gpu = GpuDriver { dev, queue, width: FB_MAX_W, height: FB_MAX_H };
@@ -205,11 +209,14 @@ impl GpuDriver {
 
     fn send_cmd<T>(&mut self, cmd: &T, cmd_size: u32) {
         unsafe {
-            core::ptr::copy_nonoverlapping(
-                cmd as *const T as *const u8,
-                CMD.as_mut_ptr(),
-                cmd_size as usize,
-            );
+            // Volatile byte-by-byte copy into CMD: the GPU reads this buffer via DMA.
+            // Non-volatile copy_nonoverlapping is eliminated by LTO when it sees no
+            // Rust-visible read of CMD — causing the GPU to process stale/garbage data.
+            let src = cmd as *const T as *const u8;
+            let dst = CMD.as_mut_ptr();
+            for i in 0..cmd_size as usize {
+                core::ptr::write_volatile(dst.add(i), src.add(i).read());
+            }
             let cmd_phys  = CMD.as_ptr()  as u64;
             let resp_phys = RESP.as_ptr() as u64;
             self.queue.send(cmd_phys, cmd_size, resp_phys, 64);
@@ -222,10 +229,19 @@ impl GpuDriver {
         let cmd = CtrlHdr::cmd(CMD_GET_DISPLAY_INFO);
         self.send_cmd(&cmd, core::mem::size_of::<CtrlHdr>() as u32);
         unsafe {
-            let info = &*(RESP.as_ptr() as *const DisplayInfo);
-            if info.hdr.type_ == RESP_OK_DISPLAY_INFO && info.pmodes[0].enabled != 0 {
-                let w = info.pmodes[0].rect.w;
-                let h = info.pmodes[0].rect.h;
+            // Volatile reads from RESP: the GPU writes this buffer via DMA.
+            // Non-volatile reads risk the compiler caching a pre-DMA value.
+            // DisplayInfo layout: hdr(24) + pmodes[0]: rect{x,y,w,h}(16) + enabled(4) + flags(4)
+            //   hdr.type_           offset 0
+            //   pmodes[0].rect.w    offset 32
+            //   pmodes[0].rect.h    offset 36
+            //   pmodes[0].enabled   offset 40
+            let resp = RESP.as_ptr();
+            let hdr_type = core::ptr::read_volatile(resp as *const u32);
+            let w       = core::ptr::read_volatile((resp as *const u8).add(32) as *const u32);
+            let h       = core::ptr::read_volatile((resp as *const u8).add(36) as *const u32);
+            let enabled = core::ptr::read_volatile((resp as *const u8).add(40) as *const u32);
+            if hdr_type == RESP_OK_DISPLAY_INFO && enabled != 0 {
                 if w > 0 && h > 0 { return Some((w, h)); }
             }
         }
@@ -315,4 +331,21 @@ impl crate::gpu::GpuSurface for GpuDriver {
     fn set_pixel(&self, x: u32, y: u32, b: u8, g: u8, r: u8) { self.set_pixel(x, y, b, g, r) }
     fn fill(&self, b: u8, g: u8, r: u8)                       { self.fill(b, g, r) }
     fn flush(&mut self)                                         { self.flush() }
+
+    /// #[inline(never)] keeps this a real function call from Shell::render.
+    /// write_volatile prevents −Oz from miscomputing the pixel address via
+    /// the slli/srli register trick that causes the sepc=0x100 / stval crash.
+    #[inline(never)]
+    fn fill_rect(&self, x: u32, y: u32, rw: u32, rh: u32, b: u8, g: u8, r: u8) {
+        let pixel: u32 = (r as u32) << 16 | (g as u32) << 8 | b as u32;
+        let fb     = FB_PHYS as *mut u32;
+        let stride = self.width as usize;
+        let x1     = (x + rw).min(self.width)  as usize;
+        let y1     = (y + rh).min(self.height) as usize;
+        for row in (y as usize)..y1 {
+            for col in (x as usize)..x1 {
+                unsafe { write_volatile(fb.add(row * stride + col), pixel); }
+            }
+        }
+    }
 }

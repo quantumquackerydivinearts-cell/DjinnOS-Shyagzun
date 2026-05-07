@@ -47,6 +47,7 @@ pub enum Tongue {
     Hook           = 35,
     Fang           = 36,
     Circle         = 37,
+    Ledger         = 38,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

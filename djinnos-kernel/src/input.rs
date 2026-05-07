@@ -8,4 +8,9 @@ pub enum Key {
     Char(u8),
     Enter,
     Backspace,
+    Up,
+    Down,
+    Left,
+    Right,
+    Escape,
 }

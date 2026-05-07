@@ -1373,6 +1373,52 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 1355,10101001011,Circle,Ron,Recognition / Mind- — unconscious recognition of unity by ritual / Circle known at Mind-
 1356,10101001100,Circle,Run,Recognition / Time- — retrospective recognition of unity by ritual / Circle known at Time-
 1357,10101001101,Circle,Rin,Recognition / Space+ — expanding recognition of unity by ritual / Circle known at Space+
+1358,10101001110,Ledger,hng,Corporeal existence without systemic registration — the person who is real and unrecorded / the body without a file / existence preceding all institutional notice
+1359,10101001111,Ledger,hael,Systemic existence without corporeal existence — the file without a body / the record that outlives or precedes the person it claims / administrative ghost
+1360,10101010000,Ledger,hell,Jurisdiction gap — the space no authority claims / the case that belongs to no office / the person between systems
+1361,10101010001,Ledger,halai,Irrevocable misclassification — the permanent wrong box / the category error processed too far to undo / what you are in the system despite what you are
+1362,10101010010,Ledger,ngwa,Recursive deferral — completion requires completion / the process whose prerequisite is itself / the loop with no entry point
+1363,10101010011,Ledger,ngwoh,The self-defeating document — the proof that disproves the claim it must support / the form that makes the case impossible by existing
+1364,10101010100,Ledger,Ury,Provisional notice — the system has seen you / the first registration of presence / the lightest touch of institutional recognition
+1365,10101010101,Ledger,Uoth,Application received — acknowledged pending / entry into the queue / the moment the system accepts your request to be considered
+1366,10101010110,Ledger,Ule,Registered — you exist in the database / the assignment of a number / formal systemic presence
+1367,10101010111,Ledger,Ugi,Classified — you have been sorted into a category / the assignment of a type / identity by institutional designation
+1368,10101011000,Ledger,Ufe,Credentialed — the system has given you its mark / institutional identity issued / you carry the system seal
+1369,10101011001,Ledger,Uky,Fully enrolled — complete systemic incorporation / the system has you entirely / all fields populated
+1370,10101011010,Ledger,Ualz,Sovereign acquisition — maximum institutional possession / the person wholly constituted by systemic classification / to be entirely what the institution says you are
+1371,10101011011,Ledger,Ura,Suspension — provisional removal / still present but held / the lightest withdrawal of systemic recognition
+1372,10101011100,Ledger,Utho,Probation — conditional continued existence in the system / diminished standing pending further procedure / watched
+1373,10101011101,Ledger,Ulu,Credential revoked — the seal removed / institutional identity partially withdrawn / you carry the mark no longer
+1374,10101011110,Ledger,Uge,Declassified — the category removed / no longer typed / identity by institutional designation withdrawn
+1375,10101011111,Ledger,Ufo,Deregistered — removed from the database / the number retired / formal systemic presence ended
+1376,10101100000,Ledger,Ukw,Declared null — the system says you are not there / administrative non-existence asserted / present but institutionally void
+1377,10101100001,Ledger,Udr,Erased — complete institutional removal / no record remaining / the processing out of a person entirely
+1378,10101100010,Ledger,Apeilo,The administrative segments that constitute legal identity — the boxes on the form / the fields that together define institutional selfhood / identity as division
+1379,10101100011,Ledger,Apeiyei,The integrating function — how the segments of administrative identity assemble into a coherent file / the mechanism that makes the boxes into a person
+1380,10101100100,Ledger,Apeiol,The administrative void — the uncovered space between jurisdictions / what no system claims / the gap that is not a gap to anyone administering it
+1381,10101100101,Ledger,Apeix,Cross-agency interlock — the point where two systems must agree before either can proceed / the joint that requires mutual recognition / interdependence of institutions
+1382,10101100110,Ledger,Apeiyx,The pivotal requirement — the one document everything hinges on / the crux that all process flows through / the fulcrum of a case
+1383,10101100111,Ledger,Apeigo,The hold — the blocking requirement / the condition that stops all downstream process / the plug in the pipe
+1384,10101101000,Ledger,Apeifoa,Graduated recognition — levels of partial status / the degree-space of institutional existence / how much of a person the system is currently willing to see
+1385,10101101001,Ledger,Apeioy,Buried record — prior classifications still active beneath the current ones / the depth of administrative history / what remains layered below the surface file
+1386,10101101010,Ledger,Apeiw,The unclassified interval — the freefall before a category catches you / the socket space waiting to be filled / existence between institutional assignments
+1387,10101101011,Ledger,Apeith,The mark of belonging — the cuff that binds you to a category / the indentation that holds you in place / what brands you to an institutional type
+1388,10101101100,Ledger,Apeikael,Bundle of co-emergent designations — statuses that arrive together / the cluster of classifications that come as a set / administrative fruit — one thing that produces many
+1389,10101101101,Ledger,Apeiro,The checkpoint — the controlled point of passage between administrative states / the gate / the receptor that must recognize you before you may proceed
+1390,10101101110,Ledger,Apeigl,Jurisdictional border — the membrane between administrative spaces / the barrier that is also a muscle / where one system ends and another begins
+1391,10101101111,Ledger,Apeito,The structural law — the scaffold that holds the system architecture / the framework within which all classification occurs / what administrative reality is built upon
+1392,10101110000,Ledger,Apeima,The interchange — where systems meet and transfer custody / the web point of administrative intersection / the moment of handoff between institutions
+1393,10101110001,Ledger,Apeine,The system as entity — the full administrative body regarded as a thing in itself / the network that classifies treated as a classifiable thing / institution as ontological object
+1394,10101110010,Ledger,Apeiym,Emanating authority — power spreading outward from a central mandate / the radial space of institutional reach / jurisdiction as radiation
+1395,10101110011,Ledger,Apeinz,Status switch — the circuit actuator that activates or deactivates a classification / what flips you from one administrative state to another / the mechanism of systemic change
+1396,10101110100,Ledger,Apeisho,The bottleneck — the valve that controls process flow / the fluid actuator of bureaucratic movement / where the speed of procedure is determined
+1397,10101110101,Ledger,Apeihi,The mechanism of change — the lever that actually moves the system / the radial actuator of administrative motion / what causes a case to advance
+1398,10101110110,Ledger,Apeimh,The administrative tie — the bond of legal or institutional obligation between entities / what binds two parties in systemic relation / the formal linkage
+1399,10101110111,Ledger,Apeizhi,The active case — the vortex that pulls all related records inward / the eye of the administrative storm / a case in motion drawing in more classification
+1400,10101111000,Ledger,Apeivr,The cross-cutting classification — the tensor that applies simultaneously across domains / the designation that does not respect jurisdictional borders / status that cuts through everything
+1401,10101111001,Ledger,Apeist,The presented record — administrative existence as surface only / what the file says regardless of what is true / the surface that the institution reads
+1402,10101111010,Ledger,Apeifn,The defined route — the official pathway through process / the passage that the system designates / the only recognized way through
+1403,10101111011,Ledger,Apein,The originating document — the seed from which all subsequent records grow / the sheet that becomes a file / the fiber running through the entire administrative life of a case
 """
 
 def _parse_rows(csv_text: str) -> tuple[ShygazunByteEntry, ...]:

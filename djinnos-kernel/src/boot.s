@@ -74,11 +74,13 @@ _start:
     li    t0, 0xfdff
     csrw  medeleg, t0
 
-    # ── Set mstatus: MPP=01 (S-mode), SUM=0 ─────────────────────
-    # Clear MPP field then set MPP=S-mode (01 → bit 11 only)
-    li    t0, (3 << 11)
+    # ── Set mstatus: MPP=S-mode, FS=Initial ─────────────────────
+    # FS [14:13] must be non-zero before any FP instruction runs in S-mode.
+    # Setting FS=01 (Initial) here means sstatus.FS is already live when
+    # kernel_main executes its first f32 operation.
+    li    t0, (3 << 11) | (3 << 13)   # clear MPP and FS fields
     csrc  mstatus, t0
-    li    t0, (1 << 11)
+    li    t0, (1 << 11) | (1 << 13)   # MPP=S (01), FS=Initial (01)
     csrs  mstatus, t0
 
     # ── Jump to S-mode ───────────────────────────────────────────

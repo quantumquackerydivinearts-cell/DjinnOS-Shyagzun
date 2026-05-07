@@ -19,6 +19,12 @@ mod shell;
 mod trap;
 mod uart;
 mod vfs;
+mod crypto;
+mod net_stack;
+mod rhezh;
+mod rhokve;
+mod renderer_bridge;
+mod world;
 
 #[cfg(target_arch = "riscv64")]
 mod elf;
@@ -98,6 +104,8 @@ pub extern "C" fn kernel_main() -> ! {
     uart::putu(byte_table::symbol_count() as u64);
     uart::puts("\r\n");
 
+    renderer_bridge::verify_and_log();
+
     uart::puts("GPU: scanning...\r\n");
     let gpu_base = virtio::find_gpu().expect("GPU not found");
     uart::puts("GPU: found\r\n");
@@ -140,12 +148,10 @@ pub extern "C" fn kernel_main() -> ! {
 
     uart::puts("NET: scanning...\r\n");
     if net::init() {
-        uart::puts("NET: 10.0.2.15/24  HTTP port 80\r\n");
-        uart::puts("     host: curl http://localhost:8080/\r\n");
+        uart::puts("NET: 10.0.2.15/24  gw 10.0.2.2\r\n");
     } else {
-        uart::puts("NET: no virtio-net device (add -device virtio-net-device)\r\n");
+        uart::puts("NET: no virtio-net device\r\n");
     }
-
     let mut sh = shell::Shell::new(rule_y);
     sh.boot_banner();
     sh.render(&gpu as &dyn gpu::GpuSurface);
@@ -153,24 +159,45 @@ pub extern "C" fn kernel_main() -> ! {
 
     process::spawn(19, ko_idle, 0);
 
-    let mut frame: u64 = 0;
+    let mut frame: u64     = 0;
+    let mut game_mode: bool = false;
+    // 60 fps cap: 10 MHz CLINT / 60 ≈ 166_666 ticks ≈ 16.7 ms per frame.
+    let mut next_flush: u64 = arch::read_mtime();
+
     loop {
+        if world::consume_launch() {
+            game_mode = true;
+        }
+
         if let Some(ref mut k) = kbd {
             while let Some(key) = k.poll() {
                 use virtio::input::Key;
-                let consumed = match key {
-                    Key::Char(b)   => kbd::push(b),
-                    Key::Enter     => kbd::push(b'\n'),
-                    Key::Backspace => kbd::push(0x7F),
-                };
-                // Shell no longer needs blk/vol — VFS holds them statically.
-                if !consumed {
+                if game_mode {
+                    match key {
+                        Key::Escape => {
+                            game_mode = false;
+                            world::world().exit();
+                            // Redraw shell on next frame
+                            sh.set_frame(frame);
+                        }
+                        _ => { world::world().handle_key(key); }
+                    }
+                } else {
+                    // Feed stdin buffer for user-mode processes (sys_read).
+                    // Ignore the return value — whether a process was unblocked
+                    // has no bearing on shell input; the shell always gets the key.
+                    match key {
+                        Key::Char(b)   => { kbd::push(b); }
+                        Key::Enter     => { kbd::push(b'\n'); }
+                        Key::Backspace => { kbd::push(0x7F); }
+                        _ => {}
+                    }
                     sh.handle_key(key);
                 }
             }
         }
 
-        {
+        if !game_mode {
             let mut line = [0u8; 80];
             let mut n = 0usize;
             while let Some(b) = kbd::stdout_pop() {
@@ -183,12 +210,24 @@ pub extern "C" fn kernel_main() -> ! {
             if n > 0 { sh.push_user_line(&line[..n]); }
         }
 
-        net::poll();   // drive smoltcp + HTTP server
+        net::poll();
 
-        sh.set_frame(frame);
-        sh.render(&gpu as &dyn gpu::GpuSurface);
-        gpu.flush();
-        frame = frame.wrapping_add(1);
+        // Gate rendering and GPU flush to ~60 fps.  QEMU's VirtIO GPU SDL
+        // display path cannot keep up with thousands of flush calls per second;
+        // poll() would spin forever waiting for a used-ring write that never
+        // comes.  net::poll() and input still run at full loop speed.
+        let now = arch::read_mtime();
+        if now >= next_flush {
+            next_flush = now + 166_666;
+            if game_mode {
+                world::world().render(&gpu as &dyn gpu::GpuSurface);
+            } else {
+                sh.set_frame(frame);
+                sh.render(&gpu as &dyn gpu::GpuSurface);
+            }
+            gpu.flush();
+            frame = frame.wrapping_add(1);
+        }
 
         process::yield_now();
     }

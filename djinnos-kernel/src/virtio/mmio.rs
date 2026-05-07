@@ -57,7 +57,14 @@ pub struct VirtioMmio {
 }
 
 impl VirtioMmio {
-    pub fn new(base: u64) -> Self { Self { base } }
+    #[inline(never)]
+    pub fn new(base: u64) -> Self {
+        let mut s = Self { base };
+        // Volatile write forces base into the struct's memory rather than
+        // keeping it only in a register under -Oz/LTO.
+        unsafe { core::ptr::write_volatile(&mut s.base, base); }
+        s
+    }
 
     #[inline]
     pub fn read(&self, offset: usize) -> u32 {

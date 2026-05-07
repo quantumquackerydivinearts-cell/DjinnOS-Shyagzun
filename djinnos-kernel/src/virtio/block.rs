@@ -69,11 +69,12 @@ impl BlockDriver {
         dev.write(REG_STATUS, dev.read(REG_STATUS) | STATUS_DRIVER_OK);
 
         let queue = unsafe {
-            let b    = BLK_QUEUE_MEM.0.as_mut_ptr();
-            let desc  = &mut *(b.add(BLK_DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE]);
-            let avail = &mut *(b.add(BLK_AVAIL_OFF) as *mut AvailRing);
-            let used  = &    *(b.add(BLK_USED_OFF)  as *const UsedRing);
-            VirtQueue { desc, avail, used, free_head: 0, last_used: 0 }
+            let b     = BLK_QUEUE_MEM.0.as_mut_ptr();
+            VirtQueue::new(
+                b.add(BLK_DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE],
+                b.add(BLK_AVAIL_OFF) as *mut AvailRing,
+                b.add(BLK_USED_OFF)  as *const UsedRing,
+            )
         };
 
         // Capacity is at device config offset 0 — two 32-bit words (lo, hi)

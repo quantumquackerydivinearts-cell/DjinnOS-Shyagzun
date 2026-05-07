@@ -13,11 +13,12 @@
 use super::mmio::{VirtioMmio, *};
 use super::queue::{VirtQueue, Descriptor, AvailRing, UsedRing, QUEUE_SIZE, DESC_F_WRITE};
 use core::sync::atomic::{fence, Ordering};
+use core::ptr::{read_volatile, write_volatile};
 use alloc::vec::Vec;
 
 pub const DEVICE_NET: u32 = 1;
 
-const NET_HDR_LEN: usize = 12;          // virtio_net_hdr is always 12 bytes
+const NET_HDR_LEN: usize = 10;          // virtio_net_hdr without VIRTIO_NET_F_MRG_RXBUF = 10 bytes
 const MAX_FRAME:   usize = 1514;        // max Ethernet payload
 const BUF_SIZE:    usize = NET_HDR_LEN + MAX_FRAME;
 const N_RX:        usize = 8;           // pre-filled RX slots
@@ -40,7 +41,7 @@ const USED_OFF:  usize = 4096;
 // ── RX half ───────────────────────────────────────────────────────────────────
 
 pub struct RxHalf {
-    q:        VirtQueue,
+    pub q:    VirtQueue,
     dev_base: u64,
     // which slots are currently awaiting re-offer after the receive path
     used_slots: [bool; N_RX],
@@ -72,12 +73,14 @@ impl RxHalf {
     /// as a heap-allocated Vec, so TxHalf can be borrowed simultaneously.
     pub fn try_recv(&mut self) -> Option<Vec<u8>> {
         fence(Ordering::SeqCst);
-        if self.q.used.idx == self.q.last_used { return None; }
-
-        let used_idx = (self.q.last_used as usize) % QUEUE_SIZE;
-        let entry    = &self.q.used.ring[used_idx];
-        let desc_id  = entry.id as usize % N_RX;
-        let full_len = entry.len as usize;
+        let (used_idx, desc_id, full_len) = unsafe {
+            if core::ptr::read_volatile(&(*self.q.used).idx) == self.q.last_used { return None; }
+            let ui  = (self.q.last_used as usize) % QUEUE_SIZE;
+            let id  = core::ptr::read_volatile(&(*self.q.used).ring[ui].id);
+            let len = core::ptr::read_volatile(&(*self.q.used).ring[ui].len);
+            (ui, id as usize % N_RX, len as usize)
+        };
+        let _ = used_idx;
         self.q.last_used = self.q.last_used.wrapping_add(1);
 
         let data_len = full_len.saturating_sub(NET_HDR_LEN).min(MAX_FRAME);
@@ -94,7 +97,7 @@ impl RxHalf {
 // ── TX half ───────────────────────────────────────────────────────────────────
 
 pub struct TxHalf {
-    q:        VirtQueue,
+    pub q:    VirtQueue,
     dev_base: u64,
 }
 
@@ -106,26 +109,25 @@ impl TxHalf {
             TX_BUF[..NET_HDR_LEN].fill(0);   // zero virtio_net_hdr
             TX_BUF[NET_HDR_LEN..NET_HDR_LEN + len].copy_from_slice(&data[..len]);
             let phys = TX_BUF.as_ptr() as u64;
-            // Single device-readable descriptor (no response needed for TX).
             let i = self.q.free_head as usize;
-            self.q.desc[i] = Descriptor {
+            write_volatile(&mut (*self.q.desc)[i], Descriptor {
                 addr:  phys,
                 len:   (NET_HDR_LEN + len) as u32,
                 flags: 0,
                 next:  0,
-            };
+            });
             self.q.free_head = ((i + 1) % QUEUE_SIZE) as u16;
-            let avail_idx = (self.q.avail.idx as usize) % QUEUE_SIZE;
-            self.q.avail.ring[avail_idx] = i as u16;
+            let cur_idx = read_volatile(&(*self.q.avail).idx);
+            let avail_idx = (cur_idx as usize) % QUEUE_SIZE;
+            write_volatile(&mut (*self.q.avail).ring[avail_idx], i as u16);
             fence(Ordering::SeqCst);
-            self.q.avail.idx = self.q.avail.idx.wrapping_add(1);
+            write_volatile(&mut (*self.q.avail).idx, cur_idx.wrapping_add(1));
             fence(Ordering::SeqCst);
         }
         let dev = VirtioMmio::new(self.dev_base);
         dev.write(REG_QUEUE_NOTIFY, 1);
-        // Drain the used ring so we don't run out of descriptor slots.
         fence(Ordering::SeqCst);
-        while self.q.used.idx != self.q.last_used {
+        while unsafe { core::ptr::read_volatile(&(*self.q.used).idx) } != self.q.last_used {
             self.q.last_used = self.q.last_used.wrapping_add(1);
             fence(Ordering::SeqCst);
         }
@@ -186,22 +188,18 @@ impl NetDriver {
         ];
 
         let (rx_q, tx_q) = unsafe {
-            let rb = RX_QMEM.0.as_mut_ptr();
-            let rx_q = VirtQueue {
-                desc:      &mut *(rb.add(DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE]),
-                avail:     &mut *(rb.add(AVAIL_OFF) as *mut AvailRing),
-                used:      &    *(rb.add(USED_OFF)  as *const UsedRing),
-                free_head: 0,
-                last_used: 0,
-            };
-            let tb = TX_QMEM.0.as_mut_ptr();
-            let tx_q = VirtQueue {
-                desc:      &mut *(tb.add(DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE]),
-                avail:     &mut *(tb.add(AVAIL_OFF) as *mut AvailRing),
-                used:      &    *(tb.add(USED_OFF)  as *const UsedRing),
-                free_head: 0,
-                last_used: 0,
-            };
+            let rb   = RX_QMEM.0.as_mut_ptr();
+            let rx_q = VirtQueue::new(
+                rb.add(DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE],
+                rb.add(AVAIL_OFF) as *mut AvailRing,
+                rb.add(USED_OFF)  as *const UsedRing,
+            );
+            let tb   = TX_QMEM.0.as_mut_ptr();
+            let tx_q = VirtQueue::new(
+                tb.add(DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE],
+                tb.add(AVAIL_OFF) as *mut AvailRing,
+                tb.add(USED_OFF)  as *const UsedRing,
+            );
             (rx_q, tx_q)
         };
 

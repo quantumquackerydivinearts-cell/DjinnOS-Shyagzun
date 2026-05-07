@@ -75,11 +75,11 @@ impl InputDriver {
         dev.write(REG_STATUS, dev.read(REG_STATUS) | STATUS_DRIVER_OK);
 
         let mut queue = unsafe {
-            let b    = KBD_QUEUE_MEM.0.as_mut_ptr();
-            let desc  = &mut *(b.add(KBD_DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE]);
-            let avail = &mut *(b.add(KBD_AVAIL_OFF) as *mut AvailRing);
-            let used  = &    *(b.add(KBD_USED_OFF)  as *const UsedRing);
-            VirtQueue { desc, avail, used, free_head: 0, last_used: 0 }
+            let b     = KBD_QUEUE_MEM.0.as_mut_ptr();
+            let desc  = b.add(KBD_DESC_OFF)  as *mut [Descriptor; QUEUE_SIZE];
+            let avail = b.add(KBD_AVAIL_OFF) as *mut AvailRing;
+            let used  = b.add(KBD_USED_OFF)  as *const UsedRing;
+            VirtQueue::new(desc, avail, used)
         };
 
         // Pre-fill all event slots so the device has buffers to write into
@@ -129,9 +129,14 @@ impl InputDriver {
         if ev_value != KEY_PRESS && ev_value != KEY_REPEAT { return None; }
 
         match ev_code {
-            28 => Some(Key::Enter),
-            14 => Some(Key::Backspace),
-            _  => keycode_to_char(ev_code, self.shift_held).map(Key::Char),
+            1   => Some(Key::Escape),
+            14  => Some(Key::Backspace),
+            28  => Some(Key::Enter),
+            103 => Some(Key::Up),       // KEY_UP
+            108 => Some(Key::Down),     // KEY_DOWN
+            105 => Some(Key::Left),     // KEY_LEFT
+            106 => Some(Key::Right),    // KEY_RIGHT
+            _   => keycode_to_char(ev_code, self.shift_held).map(Key::Char),
         }
     }
 }

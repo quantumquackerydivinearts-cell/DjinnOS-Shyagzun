@@ -86,6 +86,7 @@ impl Shell {
                 if self.input_len > 0 { self.input_len -= 1; self.dirty = true; }
             }
             Key::Enter => self.commit_and_execute_rv(),
+            _          => {}   // Up/Down/Left/Right/Escape handled by main loop
         }
     }
 
@@ -105,6 +106,7 @@ impl Shell {
                 if self.input_len > 0 { self.input_len -= 1; self.dirty = true; }
             }
             Key::Enter => self.commit_and_execute_x86(),
+            _          => {}
         }
     }
 
@@ -123,11 +125,7 @@ impl Shell {
         let w = gpu.width();
         let h = gpu.height();
 
-        for py in floor_top..h {
-            for px in 0..w {
-                gpu.set_pixel(px, py, BG_B, BG_G, BG_R);
-            }
-        }
+        gpu.fill_rect(0, floor_top, w, h.saturating_sub(floor_top), BG_B, BG_G, BG_R);
 
         let mut y = floor_top + MARGIN_Y;
         for i in 0..(self.next_line.min(ROWS as usize)) {
@@ -145,11 +143,7 @@ impl Shell {
         let input_str = core::str::from_utf8(&self.input[..self.input_len]).unwrap_or("");
         let cx = font::draw_str(gpu, prompt_x, y, input_str, SCALE, R_IN, G_IN, B_IN);
 
-        for dy in 0..CHAR_H {
-            for dx in 0..CHAR_W {
-                gpu.set_pixel(cx + dx, y + dy, B_IN, G_IN, R_IN);
-            }
-        }
+        gpu.fill_rect(cx, y, CHAR_W, CHAR_H, B_IN, G_IN, R_IN);
 
         let mut fc_buf = [0u8; 12];
         let fc_len = write_u32(&mut fc_buf, (self._frame & 0xFFFFFFFF) as u32);
@@ -234,6 +228,7 @@ impl Shell {
                 self.push_line(b"  Myrun <path>       GET 10.0.2.2:9000/<path>", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Myrun :<port>/<p>  GET 10.0.2.2:<port>/<p>", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Ko                 eigenstate summary", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  klgs [zone_id]     launch Ko's Labyrinth world view", [R_DIM, G_DIM, B_DIM]);
             }
 
             b"info" => self.cmd_info(),
@@ -279,6 +274,32 @@ impl Shell {
 
             // ── Ko = byte 19 — Experience / intuition: eigenstate display ──────
             b"Ko" | b"eigenstate" => self.cmd_eigenstate_rv(),
+
+            // ── klgs — launch Ko's Labyrinth world view ───────────────────────
+            b"klgs" => {
+                let zone = if rest.is_empty() {
+                    crate::world::default_zone()
+                } else {
+                    rest
+                };
+                self.push_line(b"Launching Ko's Labyrinth...", [R_IN, G_IN, B_IN]);
+                let mut zn = [0u8; 48];
+                let n = zone.len().min(47);
+                zn[..n].copy_from_slice(&zone[..n]);
+                {
+                    let mut b2 = [0u8; 80];
+                    let pre = b"zone: ";
+                    b2[..pre.len()].copy_from_slice(pre);
+                    b2[pre.len()..pre.len() + n].copy_from_slice(&zn[..n]);
+                    self.push_line(&b2[..pre.len() + n], [R_DIM, G_DIM, B_DIM]);
+                }
+                crate::world::request_launch(&zn[..n]);
+                if crate::world::world().playing {
+                    self.push_line(b"Zone loaded. Entering world...", [R_PR, G_PR, B_PR]);
+                } else {
+                    self.push_line(b"klgs: failed (is Atelier API running on :9000?)", [0xa0, 0x40, 0x40]);
+                }
+            }
 
             b"" => {}
             _ => self.unknown_cmd(cmd),

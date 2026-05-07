@@ -519,11 +519,44 @@ def _auth_token_claims_dep(authorization: Optional[str] = Header(default=None)) 
     return _auth_token_claims(authorization, load_settings())
 
 
+def _auth_token_claims_lenient(authorization: Optional[str] = Header(default=None)) -> Optional[AuthTokenClaims]:
+    """Like _auth_token_claims_dep but treats expired/invalid tokens as 'no token' in mixed mode."""
+    settings = load_settings()
+    if (settings.auth_mode or "mixed").strip().lower() == "token_required":
+        return _auth_token_claims(authorization, settings)
+    auth_value = (authorization or "").strip()
+    if not auth_value or not auth_value.startswith("Bearer "):
+        return None
+    try:
+        return decode_auth_token(token=auth_value[len("Bearer "):].strip(), secret=settings.auth_token_secret)
+    except ValueError:
+        return None
+
+
 def _capability_context(
     claims: Optional[AuthTokenClaims] = Depends(_auth_token_claims_dep),
     x_atelier_capabilities: Optional[str] = Header(default=None),
     x_atelier_actor: Optional[str] = Header(default=None),
 ) -> CapabilityContext:
+    if claims is not None:
+        return CapabilityContext(actor_id=claims.actor_id, capabilities=frozenset(claims.capabilities))
+    settings = load_settings()
+    auth_mode = (settings.auth_mode or "mixed").strip().lower()
+    if auth_mode == "token_required":
+        raise HTTPException(status_code=401, detail="missing_bearer_token")
+    if x_atelier_actor is None or not x_atelier_actor.strip():
+        raise HTTPException(status_code=401, detail="missing_actor")
+    if x_atelier_capabilities is None:
+        raise HTTPException(status_code=403, detail="missing_capabilities")
+    return CapabilityContext(actor_id=x_atelier_actor, capabilities=parse_capabilities(x_atelier_capabilities))
+
+
+def _capability_context_lenient(
+    claims: Optional[AuthTokenClaims] = Depends(_auth_token_claims_lenient),
+    x_atelier_capabilities: Optional[str] = Header(default=None),
+    x_atelier_actor: Optional[str] = Header(default=None),
+) -> CapabilityContext:
+    """Capability context that treats expired tokens as 'no token' — for bootstrap/access endpoints."""
     if claims is not None:
         return CapabilityContext(actor_id=claims.actor_id, capabilities=frozenset(claims.capabilities))
     settings = load_settings()
@@ -593,10 +626,51 @@ def _workshop_context(
     )
 
 
+def _workshop_context_lenient(
+    claims: Optional[AuthTokenClaims] = Depends(_auth_token_claims_lenient),
+    x_artisan_id: Optional[str] = Header(default=None),
+    x_workshop_id: Optional[str] = Header(default=None),
+    x_workshop_scopes: Optional[str] = Header(default=None),
+) -> WorkshopContext:
+    """Like _workshop_context but treats expired tokens as 'no token'."""
+    if claims is not None:
+        resolved_artisan_id = claims.actor_id
+        if x_artisan_id and x_artisan_id.strip() and x_artisan_id.strip() != resolved_artisan_id:
+            raise HTTPException(status_code=403, detail="artisan_id_token_mismatch")
+    elif x_artisan_id and x_artisan_id.strip():
+        resolved_artisan_id = x_artisan_id.strip()
+    else:
+        raise HTTPException(status_code=401, detail="missing_artisan_id")
+
+    if x_workshop_id is None or not x_workshop_id.strip():
+        raise HTTPException(status_code=401, detail="missing_workshop_id")
+    if x_workshop_scopes is None:
+        raise HTTPException(status_code=403, detail="missing_workshop_scopes")
+    return WorkshopContext(
+        identity=ArtisanIdentity(artisan_id=resolved_artisan_id, workshop_id=x_workshop_id),
+        scope=WorkshopScope(scopes=parse_scopes(x_workshop_scopes)),
+    )
+
+
 def _role_context(
     claims: Optional[AuthTokenClaims] = Depends(_auth_token_claims_dep),
     x_artisan_role: Optional[str] = Header(default=None),
 ) -> RoleContext:
+    if x_artisan_role is None or not x_artisan_role.strip():
+        if claims is not None and claims.role is not None:
+            return RoleContext(role=claims.role)
+        settings = load_settings()
+        if (settings.auth_mode or "mixed").strip().lower() == "token_required":
+            raise HTTPException(status_code=401, detail="missing_role_claim")
+        raise HTTPException(status_code=401, detail="missing_artisan_role")
+    return RoleContext(role=x_artisan_role.strip().lower())
+
+
+def _role_context_lenient(
+    claims: Optional[AuthTokenClaims] = Depends(_auth_token_claims_lenient),
+    x_artisan_role: Optional[str] = Header(default=None),
+) -> RoleContext:
+    """Like _role_context but treats expired tokens as 'no token'."""
     if x_artisan_role is None or not x_artisan_role.strip():
         if claims is not None and claims.role is not None:
             return RoleContext(role=claims.role)
@@ -1412,9 +1486,9 @@ def privacy_manifest() -> Dict[str, Any]:
 @app.post("/v1/access/artisan-id/issue")
 def artisan_id_issue(
     payload: ArtisanAccessIssueInput,
-    _: CapabilityContext = Depends(_capability_context),
-    workshop: WorkshopContext = Depends(_workshop_context),
-    role: RoleContext = Depends(_role_context),
+    _: CapabilityContext = Depends(_capability_context_lenient),
+    workshop: WorkshopContext = Depends(_workshop_context_lenient),
+    role: RoleContext = Depends(_role_context_lenient),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ArtisanAccessIssueOut:
     return svc.issue_artisan_access_code(
@@ -1428,9 +1502,9 @@ def artisan_id_issue(
 @app.post("/v1/access/artisan-id/verify")
 def artisan_id_verify(
     payload: ArtisanAccessVerifyInput,
-    _: CapabilityContext = Depends(_capability_context),
-    workshop: WorkshopContext = Depends(_workshop_context),
-    role: RoleContext = Depends(_role_context),
+    _: CapabilityContext = Depends(_capability_context_lenient),
+    workshop: WorkshopContext = Depends(_workshop_context_lenient),
+    role: RoleContext = Depends(_role_context_lenient),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ArtisanAccessStatusOut:
     return svc.verify_artisan_access_code(
@@ -1443,9 +1517,9 @@ def artisan_id_verify(
 
 @app.get("/v1/access/artisan-id/status")
 def artisan_id_status(
-    _: CapabilityContext = Depends(_capability_context),
-    workshop: WorkshopContext = Depends(_workshop_context),
-    role: RoleContext = Depends(_role_context),
+    _: CapabilityContext = Depends(_capability_context_lenient),
+    workshop: WorkshopContext = Depends(_workshop_context_lenient),
+    role: RoleContext = Depends(_role_context_lenient),
     svc: AtelierService = Depends(_atelier_service),
 ) -> ArtisanAccessStatusOut:
     return svc.artisan_access_status(
@@ -4480,6 +4554,91 @@ def get_hypatia_state(
     """
     _enforce(ctx, "game.read")
     return svc.get_hypatia_state(workspace_id=workspace_id, actor_id=actor_id)
+
+
+# ── 7_KLGS: Zone tile map endpoint  (DjinnOS thin client) ────────────────────
+#
+# Returns the ASCII tile grid for a named zone so the DjinnOS kernel can
+# render it directly without a Python runtime.
+#
+# Format (plain text, UTF-8):
+#   "W{width} H{height} @{spawn_x},{spawn_y}\n"
+#   "{row_0}\n"
+#   "{row_1}\n"
+#   ...
+#
+# Tile chars: # WALL  W WALL_FACE  . FLOOR  + DOOR  , GRASS  = ROAD  T TREE
+#             D DIRT  S STONE  ~ WATER  ^ STAIRS_UP  v STAIRS_DOWN  (space) VOID
+#             M MARBLE  Y YELLOW_BRICK  C CERAMIC  L SLATE  X SILICA
+#             @ player-spawn (rendered as FLOOR)  N NPC spawn (rendered as FLOOR)
+
+def _build_tiles_response(zone_id: str) -> str:
+    try:
+        import sys as _sys
+        _engine = "C:/AmbroflowEngine"
+        if _engine not in _sys.path:
+            _sys.path.insert(0, _engine)
+        from ambroflow.world.zones import build_game7_world
+        from ambroflow.world.map import WorldTileKind
+    except ImportError as exc:
+        raise HTTPException(503, f"AmbroflowEngine not found at C:/AmbroflowEngine: {exc}")
+
+    _KIND_CHAR: dict = {
+        WorldTileKind.VOID:             " ",
+        WorldTileKind.WALL:             "#",
+        WorldTileKind.WALL_FACE:        "W",
+        WorldTileKind.FLOOR:            ".",
+        WorldTileKind.DOOR:             "+",
+        WorldTileKind.GRASS:            ",",
+        WorldTileKind.ROAD:             "=",
+        WorldTileKind.DIRT:             "D",
+        WorldTileKind.STONE:            "S",
+        WorldTileKind.WATER:            "~",
+        WorldTileKind.BRIDGE:           "/",
+        WorldTileKind.STAIRS_UP:        "^",
+        WorldTileKind.STAIRS_DOWN:      "v",
+        WorldTileKind.PORTAL:           "P",
+        WorldTileKind.DUNGEON_ENTRANCE: "E",
+        WorldTileKind.TREE:             "T",
+        WorldTileKind.MARBLE:           "M",
+        WorldTileKind.YELLOW_BRICK:     "Y",
+        WorldTileKind.CERAMIC:          "C",
+        WorldTileKind.SLATE:            "L",
+        WorldTileKind.SILICA:           "X",
+    }
+
+    world = build_game7_world()
+    zone  = world.zones.get(zone_id)
+    if zone is None:
+        raise HTTPException(404, f"Zone '{zone_id}' not found")
+
+    w, h       = zone.width, zone.height
+    sx, sy     = zone.player_spawn
+    npc_pos    = {(n.x, n.y) for n in zone.npc_spawns}
+
+    lines = [f"W{w} H{h} @{sx},{sy}"]
+    for y in range(h):
+        row = ""
+        for x in range(w):
+            if (x, y) in npc_pos:
+                row += "N"
+            elif (x, y) == (sx, sy):
+                row += "@"
+            else:
+                row += _KIND_CHAR.get(zone.tile_at(x, y), " ")
+        lines.append(row)
+    return "\n".join(lines)
+
+
+@app.get("/v1/game7/zone/{zone_id}/tiles")
+def get_zone_tiles(zone_id: str) -> Response:
+    """
+    Return the ASCII tile grid for a 7_KLGS zone.
+    Consumed by the DjinnOS kernel tile renderer.
+    No auth required — zone geometry is public world data.
+    """
+    text = _build_tiles_response(zone_id)
+    return Response(content=text, media_type="text/plain; charset=utf-8")
 
 
 @app.get("/v1/assets/manifests")

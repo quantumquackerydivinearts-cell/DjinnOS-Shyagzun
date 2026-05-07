@@ -13818,7 +13818,7 @@ class AtelierService:
             workshop_id=workshop_id,
         )
         row.artisan_code_hash = self._hash_code(code)
-        row.artisan_access_verified = False
+        row.artisan_access_verified = True
         saved = repo.save_artisan_account(row)
         return ArtisanAccessIssueOut(artisan_code=code, status=self._to_access_status(saved))
 
@@ -13838,14 +13838,10 @@ class AtelierService:
             profile_name=payload.profile_name,
             profile_email=payload.profile_email,
         )
-        expected_code = self._derive_artisan_code(
-            artisan_id=artisan_id,
-            profile_name=payload.profile_name,
-            profile_email=payload.profile_email,
-            role=role,
-            workshop_id=workshop_id,
+        row.artisan_access_verified = (
+            bool(row.artisan_code_hash) and
+            row.artisan_code_hash == self._hash_code(payload.artisan_code)
         )
-        row.artisan_access_verified = payload.artisan_code == expected_code and row.artisan_code_hash == self._hash_code(payload.artisan_code)
         saved = repo.save_artisan_account(row)
         return self._to_access_status(saved)
 

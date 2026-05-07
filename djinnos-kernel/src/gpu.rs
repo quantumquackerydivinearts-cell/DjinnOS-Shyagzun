@@ -14,4 +14,17 @@ pub trait GpuSurface {
     fn set_pixel(&self, x: u32, y: u32, b: u8, g: u8, r: u8);
     fn fill(&self, b: u8, g: u8, r: u8);
     fn flush(&mut self);
+
+    /// Fill a rectangle (x, y, w, h) with a solid colour.
+    /// Provided by each backend with volatile writes so LTO/−Oz cannot
+    /// miscompile the pixel-address computation into Shell::render's frame.
+    fn fill_rect(&self, x: u32, y: u32, w: u32, h: u32, b: u8, g: u8, r: u8) {
+        let x1 = x + w;
+        let y1 = y + h;
+        for row in y..y1 {
+            for col in x..x1 {
+                self.set_pixel(col, row, b, g, r);
+            }
+        }
+    }
 }
