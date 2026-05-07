@@ -990,3 +990,37 @@ class SeqArtCharacter(Base):
     notes: Mapped[str]                  = mapped_column(Text,        nullable=False, default="")
     created_at: Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# ── Quack Framework ───────────────────────────────────────────────────────────
+
+class TongueProposal(Base):
+    """A tongue extension proposed by an artisan — the work in progress before minting."""
+    __tablename__ = "tongue_proposals"
+
+    id:             Mapped[str]        = mapped_column(String(36),  primary_key=True, default=_uuid)
+    artisan_id:     Mapped[str]        = mapped_column(String(100), nullable=False)
+    tongue_number:  Mapped[int]        = mapped_column(Integer,     nullable=False)
+    tongue_name:    Mapped[str]        = mapped_column(String(200), nullable=False)
+    entries_json:   Mapped[str]        = mapped_column(Text,        nullable=False, default="[]")
+    breath_start:   Mapped[str | None] = mapped_column(Text,        nullable=True)
+    notes:          Mapped[str]        = mapped_column(Text,        nullable=False, default="")
+    status:         Mapped[str]        = mapped_column(String(40),  nullable=False, default="proposed")
+    proposed_at:    Mapped[datetime]   = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class QuackToken(Base):
+    """A minted Quack — a named tongue bound to its BreathOfKo differential and attestation."""
+    __tablename__ = "quack_tokens"
+
+    id:               Mapped[str]        = mapped_column(String(36),  primary_key=True, default=_uuid)
+    tongue_number:    Mapped[int]        = mapped_column(Integer,     unique=True, nullable=False)
+    tongue_name:      Mapped[str]        = mapped_column(String(200), nullable=False)
+    holder_artisan_id: Mapped[str]       = mapped_column(String(100), nullable=False)
+    entry_count:      Mapped[int]        = mapped_column(Integer,     nullable=False, default=0)
+    entries_json:     Mapped[str]        = mapped_column(Text,        nullable=False, default="[]")
+    breath_start:     Mapped[str | None] = mapped_column(Text,        nullable=True)
+    breath_end:       Mapped[str | None] = mapped_column(Text,        nullable=True)
+    breath_diff:      Mapped[str | None] = mapped_column(Text,        nullable=True)
+    proposal_id:      Mapped[str | None] = mapped_column(String(36),  nullable=True)
+    minted_at:        Mapped[datetime]   = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)

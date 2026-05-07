@@ -32,6 +32,7 @@ from .routers.distribution import router as distribution_router
 from .routers.seq_art import router as seq_art_router
 from .shygazun_router import router as shygazun_router
 from .shygazun_reasoning import router as shygazun_reasoning_router
+from .quack_router import router as quack_router
 
 
 from .business_schemas import (
@@ -1226,6 +1227,7 @@ app.include_router(distribution_router)
 app.include_router(seq_art_router)
 app.include_router(shygazun_router, prefix="/shygazun", tags=["shygazun"])
 app.include_router(shygazun_reasoning_router, prefix="/v1/shygazun", tags=["shygazun-reasoning"])
+app.include_router(quack_router, prefix="/v1/quack", tags=["quack"])
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)
@@ -4628,6 +4630,92 @@ def _build_tiles_response(zone_id: str) -> str:
                 row += _KIND_CHAR.get(zone.tile_at(x, y), " ")
         lines.append(row)
     return "\n".join(lines)
+
+
+class KlgsInteractInput(BaseModel):
+    zone: str
+    kind: str   # "N" NPC | "F" furniture | "?" trigger
+    x: int
+    y: int
+    player_id: str = "0000_0451"
+
+
+@app.post("/v1/klgs/interact")
+def klgs_interact(payload: KlgsInteractInput) -> Response:
+    """
+    DjinnOS kernel interact endpoint.  Called when the player presses E
+    near an entity in the raycaster world.  Returns plain text — the
+    kernel renders it directly as a dialogue overlay.
+
+    No auth required — interaction data is in-world public.
+    """
+    try:
+        import sys as _sys
+        _engine = "C:/AmbroflowEngine"
+        if _engine not in _sys.path:
+            _sys.path.insert(0, _engine)
+        from ambroflow.world.zones import build_game7_world
+    except ImportError as exc:
+        return Response(content=f"[world unavailable: {exc}]",
+                        media_type="text/plain; charset=utf-8")
+
+    import sys as _sys2
+    _sanctum = "C:/DjinnOS/DjinnOS_Shyagzun"
+    if _sanctum not in _sys2.path:
+        _sys2.path.insert(0, _sanctum)
+    try:
+        from shygazun.sanctum.kos_labyrinth import CHARACTER_BY_ID
+    except ImportError:
+        CHARACTER_BY_ID = {}
+
+    world = build_game7_world()
+    zone  = world.zones.get(payload.zone)
+    if zone is None:
+        return Response(content=f"[unknown zone: {payload.zone}]",
+                        media_type="text/plain; charset=utf-8")
+
+    text = "[nothing here]"
+
+    if payload.kind == "N":
+        # Find NPC at this tile position.
+        npc = next(
+            (n for n in zone.npc_spawns if n.x == payload.x and n.y == payload.y),
+            None,
+        )
+        if npc is not None:
+            entry = CHARACTER_BY_ID.get(npc.character_id)
+            if entry:
+                text = f"{entry.name} ({entry.faction})\n{entry.notes}"
+            else:
+                text = f"[{npc.character_id}]"
+        else:
+            text = "[no NPC at this position]"
+
+    elif payload.kind == "F":
+        # Zone-specific furniture catalogue keyed by (zone_id, x, y).
+        _FURNITURE: dict[tuple, tuple[str, str]] = {
+            # lapidus_wiltoll_home
+            ("lapidus_wiltoll_home", 14,  3): ("Alchemy Workbench",
+                "Your bench. Mortar, retort, burner — everything to reduce the raw to the essential.\n[0008_KLST: Bunsen for Hire]"),
+            ("lapidus_wiltoll_home", 21,  3): ("Anvil",
+                "Cold iron, waiting. You haven't touched it today."),
+            ("lapidus_wiltoll_home",  4,  4): ("Bed",
+                "Your bed. The city is still outside. You could rest."),
+            ("lapidus_wiltoll_home", 33,  4): ("Meditation Mat",
+                "Flat, worn smooth. The silence here is a different kind of silence."),
+            ("lapidus_wiltoll_home", 19,  9): ("Shop Counter",
+                "Your counter. Nothing on it yet. That's the whole problem."),
+            ("lapidus_wiltoll_home",  3, 10): ("Chest",
+                "A small chest near the door. Fifty coins. Enough for a week, if you're careful."),
+        }
+        key = (payload.zone, payload.x, payload.y)
+        name, desc = _FURNITURE.get(key, ("Unknown Object", "[no description]"))
+        text = f"{name}\n{desc}"
+
+    elif payload.kind == "?":
+        text = "[trigger — no event yet]"
+
+    return Response(content=text, media_type="text/plain; charset=utf-8")
 
 
 @app.get("/v1/game7/zone/{zone_id}/tiles")

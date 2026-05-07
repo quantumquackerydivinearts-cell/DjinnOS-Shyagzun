@@ -41,6 +41,22 @@ const ATELIER_IP:   [u8; 4] = [10, 0, 2, 2];
 const ATELIER_PORT: u16     = 9000;
 const DEFAULT_ZONE: &[u8]   = b"lapidus_wiltoll_home";
 
+// ── Entity list ───────────────────────────────────────────────────────────────
+
+const MAX_ENTITIES: usize = 32;
+const INTERACT_RANGE_SQ: f32 = 2.25; // 1.5 tiles²
+
+#[derive(Clone, Copy)]
+struct Entity {
+    kind: u8,   // ASCII: N=NPC  F=Furniture  ?=trigger
+    tx:   u8,
+    ty:   u8,
+}
+
+impl Entity {
+    const fn zero() -> Self { Entity { kind: 0, tx: 0, ty: 0 } }
+}
+
 // ── WorldClient ───────────────────────────────────────────────────────────────
 
 // Rotation step constants (precomputed so we need no trig at runtime).
@@ -63,10 +79,17 @@ pub struct WorldClient {
     // Raycaster state — floating-point position, direction, camera plane
     pos_x: f32,
     pos_y: f32,
-    dir_x: f32,   // unit direction vector
+    dir_x: f32,
     dir_y: f32,
-    cam_x: f32,   // camera plane, perpendicular to dir, length = tan(FOV/2)
+    cam_x: f32,
     cam_y: f32,
+    // Entity list — populated from zone tiles on load
+    entities:      [Entity; MAX_ENTITIES],
+    entity_count:  usize,
+    // Dialogue overlay
+    dialogue:      [u8; 256],
+    dialogue_len:  usize,
+    dialogue_vis:  bool,
 }
 
 impl WorldClient {
@@ -82,8 +105,13 @@ impl WorldClient {
             zone_name_len: 0,
             dirty:         false,
             pos_x: 0.5, pos_y: 0.5,
-            dir_x: 1.0, dir_y: 0.0,  // facing east by default
-            cam_x: 0.0, cam_y: 0.66, // ~66° FOV camera plane
+            dir_x: 1.0, dir_y: 0.0,
+            cam_x: 0.0, cam_y: 0.66,
+            entities:     [Entity::zero(); MAX_ENTITIES],
+            entity_count: 0,
+            dialogue:     [0u8; 256],
+            dialogue_len: 0,
+            dialogue_vis: false,
         }
     }
 
@@ -194,6 +222,25 @@ impl WorldClient {
             pos = (end + 1).min(body.len());
         }
 
+        // Extract entity markers — replace with floor so the raycaster ignores them.
+        self.entity_count = 0;
+        for row in 0..h {
+            for col in 0..w {
+                let ch = self.rows[row][col];
+                if matches!(ch, b'N' | b'F' | b'?') {
+                    if self.entity_count < MAX_ENTITIES {
+                        self.entities[self.entity_count] = Entity {
+                            kind: ch, tx: col as u8, ty: row as u8,
+                        };
+                        self.entity_count += 1;
+                    }
+                    self.rows[row][col] = b'.';
+                }
+            }
+        }
+
+        self.dialogue_vis = false;
+        self.dialogue_len = 0;
         self.pos_x = sx as f32 + 0.5;
         self.pos_y = sy as f32 + 0.5;
         self.dir_x = 1.0; self.dir_y = 0.0;
@@ -235,6 +282,28 @@ impl WorldClient {
                 self.dir_y = odx * ROT_SIN + self.dir_y * ROT_COS;
                 self.cam_x = ocx * ROT_COS - self.cam_y * ROT_SIN;
                 self.cam_y = ocx * ROT_SIN + self.cam_y * ROT_COS;
+            }
+            Key::Char(b'e') | Key::Char(b'E') => {
+                if self.dialogue_vis {
+                    self.dialogue_vis = false;
+                    self.dirty = true;
+                    return;
+                }
+                // Find nearest entity within interact range.
+                let mut best = usize::MAX;
+                let mut best_d = INTERACT_RANGE_SQ;
+                for i in 0..self.entity_count {
+                    let ex = self.entities[i].tx as f32 + 0.5;
+                    let ey = self.entities[i].ty as f32 + 0.5;
+                    let d = (ex - self.pos_x) * (ex - self.pos_x)
+                          + (ey - self.pos_y) * (ey - self.pos_y);
+                    if d < best_d { best_d = d; best = i; }
+                }
+                if best != usize::MAX {
+                    let e = self.entities[best];
+                    self.send_interact(e.kind, e.tx, e.ty);
+                }
+                return;
             }
             _ => return,
         }
@@ -346,11 +415,90 @@ impl WorldClient {
         if pdx < sw && pdy < sh {
             gpu.fill_rect(pdx, pdy, 2, 2, 0xFF, 0xFF, 0xFF);
         }
+
+        // ── Dialogue overlay ──────────────────────────────────────────────────
+        if self.dialogue_vis && self.dialogue_len > 0 {
+            let dh  = 52u32;
+            let dy  = sh - hud - dh - 2;
+            gpu.fill_rect(2, dy, sw - 4, dh, 0x0C, 0x08, 0x18);
+            gpu.fill_rect(2, dy, sw - 4, 1,  0x40, 0x30, 0x60);
+            gpu.fill_rect(2, dy + dh - 1, sw - 4, 1, 0x40, 0x30, 0x60);
+            let text = core::str::from_utf8(&self.dialogue[..self.dialogue_len])
+                .unwrap_or("...");
+            font::draw_str(gpu, 8, dy + 8,  text, 1, 0xE0, 0xD0, 0xFF);
+            font::draw_str(gpu, 8, dy + dh - 12, "[E] dismiss", 1, 0x50, 0x40, 0x70);
+        }
     }
 
     pub fn exit(&mut self) {
         self.playing = false;
         self.dirty   = false;
+    }
+
+    // ── Interact — POST /v1/klgs/interact, show plain-text response ───────────
+
+    fn send_interact(&mut self, kind: u8, tx: u8, ty: u8) {
+        // Build JSON body.
+        let mut body = [0u8; 160];
+        let mut bn = 0usize;
+        let bpush = |buf: &mut [u8], n: &mut usize, s: &[u8]| {
+            let len = s.len().min(buf.len() - *n);
+            buf[*n..*n + len].copy_from_slice(&s[..len]);
+            *n += len;
+        };
+        bpush(&mut body, &mut bn, b"{\"zone\":\"");
+        bpush(&mut body, &mut bn, &self.zone_name[..self.zone_name_len]);
+        bpush(&mut body, &mut bn, b"\",\"kind\":\"");
+        if bn < body.len() { body[bn] = kind; bn += 1; }
+        bpush(&mut body, &mut bn, b"\",\"x\":");
+        bn += fmt_u32(&mut body[bn..], tx as u32);
+        bpush(&mut body, &mut bn, b",\"y\":");
+        bn += fmt_u32(&mut body[bn..], ty as u32);
+        bpush(&mut body, &mut bn, b"}");
+
+        let fd = crate::net::tcp_socket(0);
+        if fd == u64::MAX { return; }
+        if crate::net::tcp_connect(fd, ATELIER_IP, ATELIER_PORT) == 0 {
+            crate::net::tcp_close(fd); return;
+        }
+        let mut ready = false;
+        for _ in 0..100_000 {
+            crate::net::poll();
+            if crate::net::tcp_ready(fd) { ready = true; break; }
+        }
+        if !ready { crate::net::tcp_close(fd); return; }
+
+        let mut req = [0u8; 512];
+        let req_len = http_post(&mut req, b"/v1/klgs/interact",
+                                ATELIER_IP, ATELIER_PORT, &body[..bn]);
+        crate::net::tcp_send(fd, &req[..req_len]);
+        crate::net::poll();
+
+        static mut IBUF: [u8; 4096] = [0u8; 4096];
+        let mut total = 0usize;
+        let mut idle  = 0usize;
+        loop {
+            crate::net::poll();
+            let chunk = unsafe { &mut IBUF[total..] };
+            let got = crate::net::tcp_recv(fd, chunk);
+            total += got;
+            if got == 0 { idle += 1; } else { idle = 0; }
+            if total + 1 >= unsafe { IBUF.len() } || idle > 4000 { break; }
+        }
+        crate::net::tcp_close(fd);
+        if total == 0 { return; }
+
+        let resp = unsafe { &IBUF[..total] };
+        let body_start = resp.windows(4)
+            .position(|w| w == b"\r\n\r\n")
+            .map(|i| i + 4)
+            .unwrap_or(0);
+        let text = &resp[body_start..total];
+        let dlen = text.len().min(255);
+        self.dialogue[..dlen].copy_from_slice(&text[..dlen]);
+        self.dialogue_len = dlen;
+        self.dialogue_vis = true;
+        self.dirty = true;
     }
 }
 
@@ -458,5 +606,35 @@ fn http_get(buf: &mut [u8], path: &[u8], ip: [u8; 4], port: u16) -> usize {
     let plen = fmt_u32(&mut pn, port as u32);
     push(buf, &mut n, &pn[..plen]);
     push(buf, &mut n, b"\r\nConnection: close\r\n\r\n");
+    n
+}
+
+fn http_post(buf: &mut [u8], path: &[u8], ip: [u8; 4], port: u16, body: &[u8]) -> usize {
+    let mut n = 0usize;
+    let push = |buf: &mut [u8], n: &mut usize, s: &[u8]| {
+        let len = s.len().min(buf.len() - *n);
+        buf[*n..*n + len].copy_from_slice(&s[..len]);
+        *n += len;
+    };
+    push(buf, &mut n, b"POST ");
+    push(buf, &mut n, path);
+    push(buf, &mut n, b" HTTP/1.0\r\nHost: ");
+    let mut tmp = [0u8; 16];
+    let mut tn = 0usize;
+    for (k, &o) in ip.iter().enumerate() {
+        if k > 0 { tmp[tn] = b'.'; tn += 1; }
+        tn += fmt_u32(&mut tmp[tn..], o as u32);
+    }
+    push(buf, &mut n, &tmp[..tn]);
+    push(buf, &mut n, b":");
+    let mut pn = [0u8; 6];
+    let plen = fmt_u32(&mut pn, port as u32);
+    push(buf, &mut n, &pn[..plen]);
+    push(buf, &mut n, b"\r\nContent-Type: application/json\r\nContent-Length: ");
+    let mut cl = [0u8; 10];
+    let clen = fmt_u32(&mut cl, body.len() as u32);
+    push(buf, &mut n, &cl[..clen]);
+    push(buf, &mut n, b"\r\nConnection: close\r\n\r\n");
+    push(buf, &mut n, body);
     n
 }

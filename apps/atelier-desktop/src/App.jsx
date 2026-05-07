@@ -103,6 +103,7 @@ const NAV_ITEMS = [
   "Workshop",
   "Temple and Gardens",
   "Guild Hall",
+  "Quack Ledger",
   "Guild Profiles",
   "Messages",
   "Studio Hub",
@@ -14255,6 +14256,15 @@ function extractPythonSavedPath(outputText) {
   const [seqCharDesc, setSeqCharDesc]         = useState("");
   const [seqCharRef, setSeqCharRef]           = useState("");
 
+  // ── Quack Ledger ────────────────────────────────────────────────────────────
+  const [quackLedger,        setQuackLedger]        = useState([]);
+  const [quackSelected,      setQuackSelected]      = useState(null);
+  const [quackProposals,     setQuackProposals]     = useState([]);
+  const [quackProposeNum,    setQuackProposeNum]    = useState("");
+  const [quackProposeName,   setQuackProposeName]   = useState("");
+  const [quackProposeText,   setQuackProposeText]   = useState("");
+  const [quackProposeNotes,  setQuackProposeNotes]  = useState("");
+
   const handleExportGlb = () => {
     if (rendererMotionVoxels.length === 0) return;
     const glb = voxelsToGlb(rendererMotionVoxels, {
@@ -15278,6 +15288,56 @@ function extractPythonSavedPath(outputText) {
     });
     setNotice(`atlas_material_set_applied:${atlasId}`);
   };
+
+  // ── Quack functions ──────────────────────────────────────────────────────────
+
+  async function loadQuackLedger() {
+    await runAction("quack_ledger", async () => {
+      const data = await apiCall("/v1/quack/ledger", "GET", null);
+      setQuackLedger(Array.isArray(data) ? data : []);
+      return data;
+    });
+  }
+
+  async function loadQuackProposals() {
+    await runAction("quack_proposals", async () => {
+      const data = await apiCall("/v1/quack/proposals", "GET", null);
+      setQuackProposals(Array.isArray(data) ? data : []);
+      return data;
+    });
+  }
+
+  async function submitQuackProposal() {
+    const entries = quackProposeText
+      .split("\n")
+      .map(l => l.trim())
+      .filter(Boolean)
+      .map(l => {
+        const ci = l.indexOf(":");
+        return ci === -1
+          ? { symbol: l.trim(), meaning: "" }
+          : { symbol: l.slice(0, ci).trim(), meaning: l.slice(ci + 1).trim() };
+      });
+    await runAction("quack_propose", async () => {
+      const data = await apiCall("/v1/quack/propose", "POST", {
+        tongue_number: parseInt(quackProposeNum) || 0,
+        tongue_name:   quackProposeName.trim(),
+        entries,
+        notes:         quackProposeNotes,
+      });
+      setQuackProposals(prev => [data, ...prev]);
+      return data;
+    });
+  }
+
+  async function mintQuackProposal(proposalId) {
+    await runAction("quack_mint", async () => {
+      const data = await apiCall(`/v1/quack/mint/${proposalId}`, "POST", {});
+      await loadQuackLedger();
+      await loadQuackProposals();
+      return data;
+    });
+  }
 
   function renderSectionTools() {
     const restrictedSections = new Set(["Workshop", "Temple and Gardens", "Guild Hall"]);
@@ -19684,6 +19744,107 @@ function extractPythonSavedPath(outputText) {
     if (section === "Lotus") {
       return <LotusPanel />;
     }
+
+    if (section === "Quack Ledger") {
+      const selectedEntries = quackSelected
+        ? (quackLedger.find(q => q.tongue_number === quackSelected) || {}).entries || []
+        : [];
+      return (
+        <>
+          <section className="panel">
+            <h2>Quack Ledger</h2>
+            <p>Each Quack is a named tongue — earned by performing Wunashako until the Breath of Ko transforms, then proposing a fully enumerated extension of the byte table. Non-fungible. Permanent. The byte table is the common ledger.</p>
+            <div className="row">
+              <button className="action" onClick={loadQuackLedger}>Refresh Ledger</button>
+              <span className="badge">{`${quackLedger.length} Quacks minted`}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "0.5rem" }}>
+              <div>
+                {quackLedger.map(q => (
+                  <div
+                    key={q.tongue_number}
+                    onClick={() => setQuackSelected(q.tongue_number === quackSelected ? null : q.tongue_number)}
+                    style={{ padding: "0.3rem 0.5rem", cursor: "pointer", borderBottom: "1px solid #333", background: q.tongue_number === quackSelected ? "#1a1030" : "transparent" }}
+                  >
+                    <span className="badge">{q.tongue_number}</span>
+                    {" "}
+                    <strong>{q.tongue_name}</strong>
+                    <span style={{ marginLeft: "0.5rem", opacity: 0.6, fontSize: "0.85em" }}>{`${q.entry_count} entries · ${q.holder_artisan_id}`}</span>
+                  </div>
+                ))}
+                {quackLedger.length === 0 && <p style={{ opacity: 0.5 }}>No Quacks loaded. Click Refresh.</p>}
+              </div>
+              <div>
+                {quackSelected && (
+                  <>
+                    <strong>{(quackLedger.find(q => q.tongue_number === quackSelected) || {}).tongue_name || ""}</strong>
+                    <div style={{ marginTop: "0.5rem", maxHeight: "320px", overflowY: "auto", fontSize: "0.8em" }}>
+                      {selectedEntries.map((e, i) => (
+                        <div key={i} style={{ padding: "0.15rem 0", borderBottom: "1px solid #222" }}>
+                          <strong>{e.symbol}</strong>
+                          <span style={{ marginLeft: "0.5rem", opacity: 0.7 }}>{e.meaning}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {!quackSelected && <p style={{ opacity: 0.4 }}>Select a tongue to inspect its entries.</p>}
+              </div>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h2>Propose a Tongue</h2>
+            <p>Entries: one per line as <code>Symbol: Meaning</code></p>
+            <div className="row">
+              <input value={quackProposeNum} onChange={e => setQuackProposeNum(e.target.value)} placeholder="tongue number (e.g. 39)" style={{ width: "120px" }} />
+              <input value={quackProposeName} onChange={e => setQuackProposeName(e.target.value)} placeholder="tongue name" style={{ flex: 1 }} />
+            </div>
+            <textarea
+              value={quackProposeText}
+              onChange={e => setQuackProposeText(e.target.value)}
+              placeholder={"hng: Corporeal existence without systemic registration\nhael: Systemic existence without corporeal existence\n..."}
+              rows={10}
+              style={{ width: "100%", fontFamily: "monospace", fontSize: "0.85em" }}
+            />
+            <textarea
+              value={quackProposeNotes}
+              onChange={e => setQuackProposeNotes(e.target.value)}
+              placeholder="notes on the phonemic logic, factorization, design decisions..."
+              rows={3}
+              style={{ width: "100%", marginTop: "0.4rem" }}
+            />
+            <div className="row" style={{ marginTop: "0.4rem" }}>
+              <button className="action" onClick={submitQuackProposal}>Submit Proposal</button>
+              <span style={{ opacity: 0.5, fontSize: "0.85em" }}>
+                {quackProposeText.split("\n").filter(l => l.trim()).length} entries
+              </span>
+            </div>
+          </section>
+
+          <section className="panel">
+            <h2>Your Proposals</h2>
+            <div className="row">
+              <button className="action" onClick={loadQuackProposals}>Refresh</button>
+            </div>
+            {quackProposals.length === 0 && <p style={{ opacity: 0.5 }}>No proposals yet.</p>}
+            {quackProposals.map(p => (
+              <div key={p.id} style={{ padding: "0.5rem", borderBottom: "1px solid #333", display: "flex", alignItems: "center", gap: "1rem" }}>
+                <span className="badge">{p.tongue_number}</span>
+                <strong>{p.tongue_name}</strong>
+                <span style={{ opacity: 0.6, fontSize: "0.85em" }}>{`${p.entry_count} entries`}</span>
+                <span className={`badge ${p.status === "minted" ? "badge-ok" : ""}`}>{p.status}</span>
+                {p.status === "proposed" && (
+                  <button className="action" onClick={() => mintQuackProposal(p.id)}>Mint</button>
+                )}
+                <span style={{ opacity: 0.4, fontSize: "0.75em", marginLeft: "auto" }}>{p.proposed_at?.slice(0, 10)}</span>
+              </div>
+            ))}
+          </section>
+        </>
+      );
+    }
+
     if (section === "Alchemy Lab") {
       return <AlchemySubjectPanel apiBase={API_BASE} />;
     }
