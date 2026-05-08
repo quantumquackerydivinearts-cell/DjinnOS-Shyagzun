@@ -41,6 +41,14 @@ const ATELIER_IP:   [u8; 4] = [10, 0, 2, 2];
 const ATELIER_PORT: u16     = 9000;
 const DEFAULT_ZONE: &[u8]   = b"lapidus_wiltoll_home";
 
+// Raycaster z-buffer — one entry per screen column, stores wall perp-dist.
+const MAX_COLS: usize = 1280;
+static mut ZBUF: [f32; MAX_COLS] = [0.0f32; MAX_COLS];
+
+// Isometric tile dimensions (2:1 ratio, 64 wide × 32 tall).
+const ISO_TW: i32 = 64;
+const ISO_TH: i32 = 32;
+
 // ── Entity list ───────────────────────────────────────────────────────────────
 
 const MAX_ENTITIES: usize = 32;
@@ -90,6 +98,11 @@ pub struct WorldClient {
     dialogue:      [u8; 256],
     dialogue_len:  usize,
     dialogue_vis:  bool,
+    // Pending interact command stripped from CMD: prefix lines
+    pending_cmd:     [u8; 48],
+    pending_cmd_len: usize,
+    // Render mode: b'R' = raycaster (interiors), b'I' = isometric (exteriors)
+    render_mode: u8,
 }
 
 impl WorldClient {
@@ -112,6 +125,9 @@ impl WorldClient {
             dialogue:     [0u8; 256],
             dialogue_len: 0,
             dialogue_vis: false,
+            pending_cmd:     [0u8; 48],
+            pending_cmd_len: 0,
+            render_mode: b'R',
         }
     }
 
@@ -191,7 +207,7 @@ impl WorldClient {
         // Line 0: "W{w} H{h} @{sx},{sy}"
         let lf0 = body.iter().position(|&b| b == b'\n').unwrap_or(body.len());
         let header = strip_cr(&body[..lf0]);
-        let (w, h, sx, sy) = match parse_header(header) {
+        let (w, h, sx, sy, mode) = match parse_header(header) {
             Some(v) => v,
             None    => return false,
         };
@@ -239,8 +255,10 @@ impl WorldClient {
             }
         }
 
-        self.dialogue_vis = false;
-        self.dialogue_len = 0;
+        self.dialogue_vis    = false;
+        self.dialogue_len    = 0;
+        self.pending_cmd_len = 0;
+        self.render_mode     = mode;
         self.pos_x = sx as f32 + 0.5;
         self.pos_y = sy as f32 + 0.5;
         self.dir_x = 1.0; self.dir_y = 0.0;
@@ -256,32 +274,50 @@ impl WorldClient {
         if !self.playing { return; }
         match key {
             Key::Up | Key::Char(b'w') => {
-                let nx = self.pos_x + self.dir_x * MOVE_SPEED;
-                let ny = self.pos_y + self.dir_y * MOVE_SPEED;
-                if self.passable_f(nx, self.pos_y) { self.pos_x = nx; }
-                if self.passable_f(self.pos_x, ny) { self.pos_y = ny; }
+                if self.render_mode == b'I' {
+                    let ny = self.pos_y - MOVE_SPEED;
+                    if self.passable_f(self.pos_x, ny) { self.pos_y = ny; }
+                } else {
+                    let nx = self.pos_x + self.dir_x * MOVE_SPEED;
+                    let ny = self.pos_y + self.dir_y * MOVE_SPEED;
+                    if self.passable_f(nx, self.pos_y) { self.pos_x = nx; }
+                    if self.passable_f(self.pos_x, ny) { self.pos_y = ny; }
+                }
             }
             Key::Down | Key::Char(b's') => {
-                let nx = self.pos_x - self.dir_x * MOVE_SPEED;
-                let ny = self.pos_y - self.dir_y * MOVE_SPEED;
-                if self.passable_f(nx, self.pos_y) { self.pos_x = nx; }
-                if self.passable_f(self.pos_x, ny) { self.pos_y = ny; }
+                if self.render_mode == b'I' {
+                    let ny = self.pos_y + MOVE_SPEED;
+                    if self.passable_f(self.pos_x, ny) { self.pos_y = ny; }
+                } else {
+                    let nx = self.pos_x - self.dir_x * MOVE_SPEED;
+                    let ny = self.pos_y - self.dir_y * MOVE_SPEED;
+                    if self.passable_f(nx, self.pos_y) { self.pos_x = nx; }
+                    if self.passable_f(self.pos_x, ny) { self.pos_y = ny; }
+                }
             }
             Key::Left | Key::Char(b'a') => {
-                // Y-down tile space: left = clockwise = negative math angle
-                let (odx, ocx) = (self.dir_x, self.cam_x);
-                self.dir_x =  odx * ROT_COS + self.dir_y * ROT_SIN;
-                self.dir_y = -odx * ROT_SIN + self.dir_y * ROT_COS;
-                self.cam_x =  ocx * ROT_COS + self.cam_y * ROT_SIN;
-                self.cam_y = -ocx * ROT_SIN + self.cam_y * ROT_COS;
+                if self.render_mode == b'I' {
+                    let nx = self.pos_x - MOVE_SPEED;
+                    if self.passable_f(nx, self.pos_y) { self.pos_x = nx; }
+                } else {
+                    let (odx, ocx) = (self.dir_x, self.cam_x);
+                    self.dir_x =  odx * ROT_COS + self.dir_y * ROT_SIN;
+                    self.dir_y = -odx * ROT_SIN + self.dir_y * ROT_COS;
+                    self.cam_x =  ocx * ROT_COS + self.cam_y * ROT_SIN;
+                    self.cam_y = -ocx * ROT_SIN + self.cam_y * ROT_COS;
+                }
             }
             Key::Right | Key::Char(b'd') => {
-                // Y-down tile space: right = counter-clockwise = positive math angle
-                let (odx, ocx) = (self.dir_x, self.cam_x);
-                self.dir_x = odx * ROT_COS - self.dir_y * ROT_SIN;
-                self.dir_y = odx * ROT_SIN + self.dir_y * ROT_COS;
-                self.cam_x = ocx * ROT_COS - self.cam_y * ROT_SIN;
-                self.cam_y = ocx * ROT_SIN + self.cam_y * ROT_COS;
+                if self.render_mode == b'I' {
+                    let nx = self.pos_x + MOVE_SPEED;
+                    if self.passable_f(nx, self.pos_y) { self.pos_x = nx; }
+                } else {
+                    let (odx, ocx) = (self.dir_x, self.cam_x);
+                    self.dir_x = odx * ROT_COS - self.dir_y * ROT_SIN;
+                    self.dir_y = odx * ROT_SIN + self.dir_y * ROT_COS;
+                    self.cam_x = ocx * ROT_COS - self.cam_y * ROT_SIN;
+                    self.cam_y = ocx * ROT_SIN + self.cam_y * ROT_COS;
+                }
             }
             Key::Char(b'e') | Key::Char(b'E') => {
                 if self.dialogue_vis {
@@ -321,6 +357,11 @@ impl WorldClient {
     pub fn render(&mut self, gpu: &dyn GpuSurface) {
         if !self.playing || !self.dirty { return; }
         self.dirty = false;
+
+        if self.render_mode == b'I' {
+            self.render_iso(gpu);
+            return;
+        }
 
         let sw   = gpu.width()  as u32;
         let sh   = gpu.height() as u32;
@@ -390,13 +431,22 @@ impl WorldClient {
             };
 
             gpu.fill_rect(col, top, 1, wall_h, b, g, r);
+            unsafe { ZBUF[col as usize] = perp; }
         }
+
+        // ── Billboard pass (entities) ─────────────────────────────────────────
+        self.draw_billboards(gpu, sw, view, hud);
 
         // ── HUD bar ───────────────────────────────────────────────────────────
         gpu.fill_rect(0, sh - hud, sw, hud, 0x08, 0x06, 0x10);
         font::draw_str(gpu, 4, sh - hud + 6,
             core::str::from_utf8(&self.zone_name[..self.zone_name_len]).unwrap_or(""),
             1, 0x60, 0x90, 0xC0);
+        if self.pending_cmd_len > 0 {
+            font::draw_str(gpu, sw - 160, sh - hud + 6,
+                core::str::from_utf8(&self.pending_cmd[..self.pending_cmd_len]).unwrap_or(""),
+                1, 0xA0, 0xFF, 0xA0);
+        }
 
         // ── Minimap (top-right, 1 px per tile) ───────────────────────────────
         let mm_x = sw.saturating_sub(self.zone_width as u32 + 2);
@@ -420,6 +470,178 @@ impl WorldClient {
         if self.dialogue_vis && self.dialogue_len > 0 {
             let dh  = 52u32;
             let dy  = sh - hud - dh - 2;
+            gpu.fill_rect(2, dy, sw - 4, dh, 0x0C, 0x08, 0x18);
+            gpu.fill_rect(2, dy, sw - 4, 1,  0x40, 0x30, 0x60);
+            gpu.fill_rect(2, dy + dh - 1, sw - 4, 1, 0x40, 0x30, 0x60);
+            let text = core::str::from_utf8(&self.dialogue[..self.dialogue_len])
+                .unwrap_or("...");
+            font::draw_str(gpu, 8, dy + 8,  text, 1, 0xE0, 0xD0, 0xFF);
+            font::draw_str(gpu, 8, dy + dh - 12, "[E] dismiss", 1, 0x50, 0x40, 0x70);
+        }
+    }
+
+    // ── Billboard pass — entities as depth-tested color sprites ──────────────
+    fn draw_billboards(&self, gpu: &dyn GpuSurface, sw: u32, view: u32, _hud: u32) {
+        let px = self.pos_x;
+        let py = self.pos_y;
+        let sw_i = sw as i32;
+        let view_i = view as i32;
+
+        // Sort indices farthest-first (simple insertion sort — ≤32 entities).
+        let mut order = [0usize; MAX_ENTITIES];
+        let n = self.entity_count;
+        for i in 0..n { order[i] = i; }
+        for i in 1..n {
+            let mut j = i;
+            while j > 0 {
+                let da = self.entity_dist_sq(order[j-1]);
+                let db = self.entity_dist_sq(order[j]);
+                if da >= db { break; }
+                order.swap(j-1, j);
+                j -= 1;
+            }
+        }
+
+        for &idx in &order[..n] {
+            let ex = self.entities[idx].tx as f32 + 0.5;
+            let ey = self.entities[idx].ty as f32 + 0.5;
+            let dx = ex - px;
+            let dy = ey - py;
+
+            // Camera-space transform (inverse of [[dir_x,cam_x],[dir_y,cam_y]]).
+            let inv = 1.0 / (self.cam_x * self.dir_y - self.dir_x * self.cam_y);
+            let t_depth = inv * ( self.dir_y * dx - self.dir_x * dy);
+            let t_x     = inv * (-self.cam_y * dx + self.cam_x * dy);
+            if t_depth <= 0.0 { continue; }
+
+            let spr_sx  = ((sw_i / 2) as f32 * (1.0 + t_x / t_depth)) as i32;
+            let spr_h   = ((view_i as f32 / t_depth).abs() as i32).min(view_i);
+            let spr_w   = spr_h;
+
+            let x0 = (spr_sx - spr_w / 2).max(0);
+            let x1 = (spr_sx + spr_w / 2).min(sw_i - 1);
+            let y0 = (view_i / 2 - spr_h / 2).max(0) as u32;
+            let y1 = (view_i / 2 + spr_h / 2).min(view_i - 1) as u32;
+            if x0 > x1 || y1 <= y0 { continue; }
+
+            let (cb, cg, cr) = entity_color(self.entities[idx].kind);
+            for col in x0..=x1 {
+                if col >= sw_i { break; }
+                if t_depth < unsafe { ZBUF[col as usize] } {
+                    gpu.fill_rect(col as u32, y0, 1, y1 - y0, cb, cg, cr);
+                }
+            }
+        }
+    }
+
+    fn entity_dist_sq(&self, i: usize) -> f32 {
+        let dx = self.entities[i].tx as f32 + 0.5 - self.pos_x;
+        let dy = self.entities[i].ty as f32 + 0.5 - self.pos_y;
+        dx * dx + dy * dy
+    }
+
+    // ── Isometric renderer — exterior/overworld zones ────────────────────────
+    fn render_iso(&mut self, gpu: &dyn GpuSurface) {
+        let sw   = gpu.width()  as u32;
+        let sh   = gpu.height() as u32;
+        let hud  = 20u32;
+        let view = sh - hud;
+        let sw_i = sw as i32;
+        let view_i = view as i32;
+
+        // Sky strip and ground base.
+        gpu.fill_rect(0, 0,      sw, view / 3,      0x24, 0x30, 0x48);
+        gpu.fill_rect(0, view/3, sw, view - view/3,  0x18, 0x14, 0x10);
+
+        let cx   = sw_i / 2;
+        let cy   = view_i / 2;
+        let px   = self.pos_x;
+        let py   = self.pos_y;
+
+        // Draw tiles back-to-front (ascending tx+ty).
+        for ty_t in 0..self.zone_height {
+            for tx_t in 0..self.zone_width {
+                let ch = self.rows[ty_t][tx_t];
+                let dx = tx_t as f32 + 0.5 - px;
+                let dy = ty_t as f32 + 0.5 - py;
+
+                // Isometric screen position (top vertex of diamond).
+                let sx = cx + ((dx - dy) * (ISO_TW as f32 * 0.5)) as i32;
+                let sy = cy + ((dx + dy) * (ISO_TH as f32 * 0.5)) as i32 - ISO_TH / 2;
+
+                // Cull tiles fully outside the view.
+                if sx + ISO_TW < 0 || sx - ISO_TW > sw_i { continue; }
+                if sy + ISO_TH < 0 || sy > view_i        { continue; }
+
+                let (fill, _) = rb::tile_colors(ch);
+
+                // Draw diamond scanlines.
+                for row in 0..ISO_TH {
+                    let half_w = ((row + 1).min(ISO_TH - row)) * (ISO_TW / ISO_TH);
+                    let rx = sx - half_w;
+                    let ry = sy + row;
+                    if ry < 0 || ry >= view_i { continue; }
+                    let x0 = rx.max(0) as u32;
+                    let x1 = (rx + half_w * 2).min(sw_i) as u32;
+                    if x1 > x0 {
+                        // Darken east-facing half for cheap shading.
+                        let (b, g, r) = if row > ISO_TH / 2 {
+                            (fill.0 >> 1, fill.1 >> 1, fill.2 >> 1)
+                        } else { fill };
+                        gpu.fill_rect(x0, ry as u32, x1 - x0, 1, b, g, r);
+                    }
+                }
+            }
+        }
+
+        // Entity markers in isometric space (small colored diamonds).
+        for i in 0..self.entity_count {
+            let ex  = self.entities[i].tx as f32 + 0.5;
+            let ey  = self.entities[i].ty as f32 + 0.5;
+            let dx  = ex - px;
+            let dy  = ey - py;
+            let sx  = cx + ((dx - dy) * (ISO_TW as f32 * 0.5)) as i32;
+            let sy  = cy + ((dx + dy) * (ISO_TH as f32 * 0.5)) as i32 - ISO_TH / 2;
+            let (cb, cg, cr) = entity_color(self.entities[i].kind);
+            // 8×4 mini-diamond centered on tile.
+            for row in 0..4i32 {
+                let hw = (row + 1).min(4 - row);
+                let ry = sy + ISO_TH / 2 - 2 + row;
+                if ry < 0 || ry >= view_i { continue; }
+                let x0 = (sx - hw).max(0) as u32;
+                let x1 = (sx + hw).min(sw_i) as u32;
+                if x1 > x0 { gpu.fill_rect(x0, ry as u32, x1 - x0, 1, cb, cg, cr); }
+            }
+        }
+
+        // HUD.
+        gpu.fill_rect(0, sh - hud, sw, hud, 0x08, 0x06, 0x10);
+        font::draw_str(gpu, 4, sh - hud + 6,
+            core::str::from_utf8(&self.zone_name[..self.zone_name_len]).unwrap_or(""),
+            1, 0x60, 0x90, 0xC0);
+        if self.pending_cmd_len > 0 {
+            font::draw_str(gpu, sw - 160, sh - hud + 6,
+                core::str::from_utf8(&self.pending_cmd[..self.pending_cmd_len]).unwrap_or(""),
+                1, 0xA0, 0xFF, 0xA0);
+        }
+
+        // Minimap.
+        let mm_x = sw.saturating_sub(self.zone_width as u32 + 2);
+        for ty_t in 0..self.zone_height {
+            for tx_t in 0..self.zone_width {
+                let ch = self.rows[ty_t][tx_t];
+                let (fill, _) = rb::tile_colors(ch);
+                gpu.fill_rect(mm_x + tx_t as u32, 2 + ty_t as u32, 1, 1,
+                              fill.0, fill.1, fill.2);
+            }
+        }
+        let pdx = mm_x + self.pos_x as u32;
+        if pdx < sw { gpu.fill_rect(pdx, 2 + self.pos_y as u32, 2, 2, 0xFF, 0xFF, 0xFF); }
+
+        // Dialogue overlay.
+        if self.dialogue_vis && self.dialogue_len > 0 {
+            let dh = 52u32;
+            let dy = sh - hud - dh - 2;
             gpu.fill_rect(2, dy, sw - 4, dh, 0x0C, 0x08, 0x18);
             gpu.fill_rect(2, dy, sw - 4, 1,  0x40, 0x30, 0x60);
             gpu.fill_rect(2, dy + dh - 1, sw - 4, 1, 0x40, 0x30, 0x60);
@@ -494,11 +716,38 @@ impl WorldClient {
             .map(|i| i + 4)
             .unwrap_or(0);
         let text = &resp[body_start..total];
-        let dlen = text.len().min(255);
-        self.dialogue[..dlen].copy_from_slice(&text[..dlen]);
+
+        // Strip leading CMD:{command}\n lines — store command, show clean text.
+        let (display, cmd) = if text.starts_with(b"CMD:") {
+            let nl = text.iter().position(|&b| b == b'\n').unwrap_or(text.len());
+            let c  = &text[4..nl];
+            let d  = if nl + 1 < text.len() { &text[nl + 1..] } else { b"" };
+            (d, c)
+        } else {
+            (text, b"" as &[u8])
+        };
+
+        let dlen = display.len().min(255);
+        self.dialogue[..dlen].copy_from_slice(&display[..dlen]);
         self.dialogue_len = dlen;
+
+        let clen = cmd.len().min(47);
+        self.pending_cmd[..clen].copy_from_slice(&cmd[..clen]);
+        self.pending_cmd_len = clen;
+
         self.dialogue_vis = true;
         self.dirty = true;
+    }
+}
+
+// ── Entity color palette ──────────────────────────────────────────────────────
+// Placeholder colors until Mercury Department delivers sprites.
+fn entity_color(kind: u8) -> (u8, u8, u8) {
+    match kind {
+        b'N' => (0x50, 0xC0, 0x60),   // NPC: green
+        b'F' => (0xC0, 0x88, 0x40),   // furniture: warm wood
+        b'?' => (0xFF, 0xFF, 0x40),   // trigger: yellow
+        _    => (0x80, 0x80, 0x80),
     }
 }
 
@@ -553,7 +802,7 @@ fn parse_prefixed(line: &[u8], prefix: u8) -> Option<u32> {
     parse_u32(&line[pos + 1..])
 }
 
-fn parse_header(line: &[u8]) -> Option<(usize, usize, usize, usize)> {
+fn parse_header(line: &[u8]) -> Option<(usize, usize, usize, usize, u8)> {
     let w  = parse_prefixed(line, b'W')? as usize;
     let h  = parse_prefixed(line, b'H')? as usize;
     let at = line.iter().position(|&b| b == b'@')?;
@@ -561,7 +810,11 @@ fn parse_header(line: &[u8]) -> Option<(usize, usize, usize, usize)> {
     let comma = after.iter().position(|&b| b == b',')?;
     let sx = parse_u32(&after[..comma])? as usize;
     let sy = parse_u32(&after[comma + 1..])? as usize;
-    Some((w, h, sx, sy))
+    // Optional M{mode}: R=raycaster I=isometric; defaults to R.
+    let mode = line.iter().position(|&b| b == b'M')
+        .and_then(|p| line.get(p + 1).copied())
+        .unwrap_or(b'R');
+    Some((w, h, sx, sy, mode))
 }
 
 fn fmt_u32(buf: &mut [u8], mut v: u32) -> usize {

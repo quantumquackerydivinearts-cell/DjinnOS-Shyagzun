@@ -4635,7 +4635,12 @@ def _build_tiles_response(zone_id: str) -> str:
     sx, sy     = zone.player_spawn
     npc_pos    = {(n.x, n.y) for n in zone.npc_spawns}
 
-    lines = [f"W{w} H{h} @{sx},{sy}"]
+    # Render mode: isometric for outdoor zones, raycaster for interiors.
+    _exterior_keywords = ("lane", "thoroughfare", "avenue", "street", "market",
+                          "approach", "trail", "elaene", "exterior", "outdoor")
+    mode = "I" if any(kw in zone_id.lower() for kw in _exterior_keywords) else "R"
+
+    lines = [f"W{w} H{h} @{sx},{sy} M{mode}"]
     for y in range(h):
         row = ""
         for x in range(w):
@@ -4710,24 +4715,37 @@ def klgs_interact(payload: KlgsInteractInput) -> Response:
 
     elif payload.kind == "F":
         # Zone-specific furniture catalogue keyed by (zone_id, x, y).
-        _FURNITURE: dict[tuple, tuple[str, str]] = {
+        # (name, description, cmd) — cmd becomes CMD:{cmd}\n prefix in response.
+        _FURNITURE: dict[tuple, tuple[str, str, str]] = {
             # lapidus_wiltoll_home
-            ("lapidus_wiltoll_home", 14,  3): ("Alchemy Workbench",
-                "Your bench. Mortar, retort, burner — everything to reduce the raw to the essential.\n[0008_KLST: Bunsen for Hire]"),
-            ("lapidus_wiltoll_home", 21,  3): ("Anvil",
-                "Cold iron, waiting. You haven't touched it today."),
-            ("lapidus_wiltoll_home",  4,  4): ("Bed",
-                "Your bed. The city is still outside. You could rest."),
-            ("lapidus_wiltoll_home", 33,  4): ("Meditation Mat",
-                "Flat, worn smooth. The silence here is a different kind of silence."),
-            ("lapidus_wiltoll_home", 19,  9): ("Shop Counter",
-                "Your counter. Nothing on it yet. That's the whole problem."),
-            ("lapidus_wiltoll_home",  3, 10): ("Chest",
-                "A small chest near the door. Fifty coins. Enough for a week, if you're careful."),
+            ("lapidus_wiltoll_home", 14,  3): (
+                "Alchemy Workbench",
+                "Your bench. Mortar, retort, burner — everything to reduce the raw to the essential.",
+                "QUEST:0008_KLST"),
+            ("lapidus_wiltoll_home", 21,  3): (
+                "Anvil",
+                "Cold iron, waiting. You haven't touched it today.",
+                "OPEN:SMITH"),
+            ("lapidus_wiltoll_home",  4,  4): (
+                "Bed",
+                "Your bed. The city is still outside. You could rest.",
+                "OPEN:REST"),
+            ("lapidus_wiltoll_home", 33,  4): (
+                "Meditation Mat",
+                "Flat, worn smooth. The silence here is a different kind of silence.",
+                "OPEN:MEDITATE"),
+            ("lapidus_wiltoll_home", 19,  9): (
+                "Shop Counter",
+                "Your counter. Nothing on it yet. That's the whole problem.",
+                "OPEN:SHOP"),
+            ("lapidus_wiltoll_home",  3, 10): (
+                "Chest",
+                "A small chest near the door. Fifty coins. Enough for a week, if you're careful.",
+                "OPEN:INVENTORY"),
         }
         key = (payload.zone, payload.x, payload.y)
-        name, desc = _FURNITURE.get(key, ("Unknown Object", "[no description]"))
-        text = f"{name}\n{desc}"
+        name, desc, cmd = _FURNITURE.get(key, ("Unknown Object", "[no description]", ""))
+        text = f"CMD:{cmd}\n{name}\n{desc}" if cmd else f"{name}\n{desc}"
 
     elif payload.kind == "?":
         text = "[trigger — no event yet]"
