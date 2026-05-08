@@ -17,7 +17,13 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 settings = load_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+
+def _normalize_db_url(url: str) -> str:
+    if url.startswith("postgresql://") or url.startswith("postgres://"):
+        return url.replace("://", "+psycopg://", 1)
+    return url
+
+config.set_main_option("sqlalchemy.url", _normalize_db_url(settings.database_url))
 
 target_metadata = Base.metadata
 
