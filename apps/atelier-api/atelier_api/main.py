@@ -3566,20 +3566,21 @@ def create_contact(
     return svc.create_contact(payload.model_copy(update={"workspace_id": workspace_id}))
 
 
-@app.delete("/v1/crm/contacts/{contact_id}", status_code=204)
+@app.delete("/v1/crm/contacts/{contact_id}")
 def delete_contact(
     contact_id: str,
     ctx: CapabilityContext = Depends(_capability_context),
     workspace_id: str = Depends(_workspace_id_dep),
     role: RoleContext = Depends(_role_context),
     svc: AtelierService = Depends(_atelier_service),
-) -> None:
+) -> Response:
     _enforce(ctx, "crm.contacts.write")
     _enforce_role(role, "crm.contacts.write")
     try:
         svc.delete_contact(contact_id=contact_id, workspace_id=workspace_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="contact_not_found")
+    return Response(status_code=204)
 
 
 @app.get("/v1/booking")
