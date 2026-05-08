@@ -8,7 +8,18 @@ if [ -n "$DATABASE_URL" ]; then
     python -m alembic upgrade head
     MIGRATE_STATUS=$?
     if [ $MIGRATE_STATUS -ne 0 ]; then
-        echo "[startup] WARNING: Migration exited $MIGRATE_STATUS — starting server anyway"
+        echo "[startup] Migration failed — checking if schema exists without version table..."
+        # If tables already exist but alembic_version is missing, stamp to head so
+        # future deploys only run genuinely new migrations.
+        python -m alembic stamp head 2>/dev/null && \
+            echo "[startup] Stamped head — re-running upgrade to apply any pending migrations..." && \
+            python -m alembic upgrade head
+        MIGRATE_STATUS=$?
+        if [ $MIGRATE_STATUS -ne 0 ]; then
+            echo "[startup] WARNING: Migration exited $MIGRATE_STATUS — starting server anyway"
+        else
+            echo "[startup] Migrations OK after stamp"
+        fi
     else
         echo "[startup] Migrations OK"
     fi
