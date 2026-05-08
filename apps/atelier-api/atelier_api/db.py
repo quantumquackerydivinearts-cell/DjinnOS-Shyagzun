@@ -13,7 +13,14 @@ class Base(DeclarativeBase):
 
 
 _settings = load_settings()
-engine = create_engine(_settings.database_url, pool_pre_ping=True)
+
+def _normalize_db_url(url: str) -> str:
+    # Render provides postgresql:// — SQLAlchemy needs postgresql+psycopg:// for psycopg3.
+    if url.startswith("postgresql://") or url.startswith("postgres://"):
+        return url.replace("://", "+psycopg://", 1)
+    return url
+
+engine = create_engine(_normalize_db_url(_settings.database_url), pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False, class_=Session)
 
 
