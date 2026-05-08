@@ -4676,8 +4676,8 @@ def klgs_interact(payload: KlgsInteractInput) -> Response:
         return Response(content=f"[world unavailable: {exc}]",
                         media_type="text/plain; charset=utf-8")
 
-    import sys as _sys2
-    _sanctum = "C:/DjinnOS/DjinnOS_Shyagzun"
+    import sys as _sys2, pathlib as _pl2
+    _sanctum = str(_pl2.Path(__file__).parent.parent.parent.parent / "DjinnOS_Shyagzun")
     if _sanctum not in _sys2.path:
         _sys2.path.insert(0, _sanctum)
     try:

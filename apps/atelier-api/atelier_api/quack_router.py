@@ -271,7 +271,9 @@ def seed_genesis(
         raise HTTPException(403, "invalid_admin_gate")
 
     # Load byte table from the DjinnOS Shygazun kernel.
-    _sanctum = "C:/DjinnOS/DjinnOS_Shyagzun"
+    # Resolve relative to this file so the path works on any host.
+    import pathlib as _pl
+    _sanctum = str(_pl.Path(__file__).parent.parent.parent.parent / "DjinnOS_Shyagzun")
     if _sanctum not in sys.path:
         sys.path.insert(0, _sanctum)
     try:
