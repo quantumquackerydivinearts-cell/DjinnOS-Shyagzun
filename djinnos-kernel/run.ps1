@@ -1,9 +1,7 @@
-# DjinnOS — launch script
-# Builds and boots DjinnOS in QEMU, with the Atelier proxy running alongside.
-#
-# The proxy forwards plain-HTTP :9000 to the hosted Render API over HTTPS,
-# so the kernel reaches production without a local Atelier API process.
-# If port 9000 is already occupied (local API running), the proxy skips itself.
+# DjinnOS launch script
+# Starts the Atelier proxy (HTTP->HTTPS bridge on :9000) then boots QEMU.
+# The proxy lets the kernel reach the hosted Render API without a local stack.
+# If port 9000 is already in use the proxy step is skipped gracefully.
 
 Set-Location $PSScriptRoot
 
@@ -11,30 +9,27 @@ $env:PATH += ";$env:USERPROFILE\.cargo\bin"
 
 Write-Host "DjinnOS" -ForegroundColor Magenta
 
-# ── Start Atelier proxy ──────────────────────────────────────────────────────
+# --- Atelier proxy -----------------------------------------------------------
 $proxyScript = Join-Path $PSScriptRoot "atelier_proxy.py"
-$proxyJob    = $null
+$proxyProc   = $null
 
 if (Test-Path $proxyScript) {
-    Write-Host "Starting Atelier proxy..." -ForegroundColor Cyan
-    $proxyJob = Start-Job -ScriptBlock {
-        param($script)
-        python $script
-    } -ArgumentList $proxyScript
+    Write-Host "Starting Atelier proxy on :9000..." -ForegroundColor Cyan
+    $proxyProc = Start-Process python -ArgumentList $proxyScript `
+                     -PassThru -WindowStyle Hidden
+    Start-Sleep -Milliseconds 800
 
-    # Give it a moment to bind the port or fail.
-    Start-Sleep -Milliseconds 600
-    if ($proxyJob.State -eq "Failed") {
-        Write-Host "Proxy failed to start (port 9000 busy? local API running?)" -ForegroundColor Yellow
-        $proxyJob = $null
+    if ($proxyProc.HasExited) {
+        Write-Host "Proxy exited immediately (port 9000 busy? local API running?)" -ForegroundColor Yellow
+        $proxyProc = $null
     } else {
-        Write-Host "Atelier proxy live on :9000" -ForegroundColor Green
+        Write-Host "Atelier proxy running (PID $($proxyProc.Id))" -ForegroundColor Green
     }
 } else {
-    Write-Host "atelier_proxy.py not found — skipping proxy" -ForegroundColor Yellow
+    Write-Host "atelier_proxy.py not found -- skipping proxy" -ForegroundColor Yellow
 }
 
-# ── Build and boot ───────────────────────────────────────────────────────────
+# --- Build and boot ----------------------------------------------------------
 Write-Host "Building and booting..." -ForegroundColor Cyan
 cargo run --release
 
@@ -42,10 +37,9 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "QEMU exited with code $LASTEXITCODE" -ForegroundColor Yellow
 }
 
-# ── Tear down proxy ──────────────────────────────────────────────────────────
-if ($null -ne $proxyJob) {
-    Stop-Job  $proxyJob
-    Remove-Job $proxyJob
+# --- Tear down proxy ---------------------------------------------------------
+if ($null -ne $proxyProc -and -not $proxyProc.HasExited) {
+    $proxyProc.Kill()
     Write-Host "Atelier proxy stopped." -ForegroundColor DarkGray
 }
 
