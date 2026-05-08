@@ -9,6 +9,7 @@ API process running — it connects to 10.0.2.2:9000 exactly as before.
 No external packages — stdlib only.
 """
 import http.server
+import socketserver
 import urllib.request
 import urllib.error
 import sys
@@ -72,13 +73,15 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     try:
-        server = http.server.HTTPServer(("", PORT), ProxyHandler)
+        class ThreadedProxy(socketserver.ThreadingMixIn, http.server.HTTPServer):
+            daemon_threads = True
+        server = ThreadedProxy(("", PORT), ProxyHandler)
     except OSError as exc:
         print(f"[atelier-proxy] port {PORT} in use — is the local API running? ({exc})",
               flush=True)
         sys.exit(1)
 
-    print(f"[atelier-proxy] :{PORT} → {UPSTREAM}", flush=True)
+    print(f"[atelier-proxy] :{PORT} -> {UPSTREAM}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
