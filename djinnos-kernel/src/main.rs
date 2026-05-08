@@ -562,12 +562,10 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64) -> ! {
     sh.render(&fbdrv as &dyn gpu::GpuSurface);
     fbdrv.flush();
 
-    // Timer and PS/2 init skipped on UEFI path:
-    //   enable_timer() — 8259/APIC interaction faults on HP Envy after STI;
-    //                    shell is fully polled so no timer needed.
-    //   ps2::init()    — UEFI already enables the i8042; re-sending the init
-    //                    sequence hangs the HP Envy's emulated PS/2 controller.
-    // x86net::init()   — needs xHCI BIOS handoff + DHCP; deferred.
+    // PS/2 init skipped — UEFI already enables the i8042.
+    // x86net::init() — needs xHCI BIOS handoff + DHCP; deferred.
+    // enable_timer() — LAPIC timer ISR not yet confirmed firing on this
+    //                  hardware; deferred until root cause is found.
 
     acpi::init(rsdp_hint);
     pci::init();
@@ -576,37 +574,41 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64) -> ! {
     process::advance_cannabis(193);
 
     let mut frame: u64 = 0;
-    let mut dirty = true;   // render once on first iteration
+    // Render only on meaningful key events and new output — not on every
+    // PS/2 byte.  The HP Envy's i8042 emits noise bytes; treating them as
+    // render triggers floods the uncached framebuffer and hides real input.
+    let mut dirty = true;  // initial render
     loop {
-        let mut activity = false;
-
         if let Some(key) = ps2::poll() {
             use input::Key;
-            let consumed = match key {
-                Key::Char(b)   => kbd::push(b),
-                Key::Enter     => kbd::push(b'\n'),
-                Key::Backspace => kbd::push(0x7F),
-                _              => false,
-            };
-            if !consumed { sh.handle_key(key); }
-            activity = true;
+            match key {
+                Key::Char(b) => {
+                    sh.handle_key(key); kbd::push(b); dirty = true;
+                }
+                Key::Enter => {
+                    sh.handle_key(key); kbd::push(b'\n'); dirty = true;
+                }
+                Key::Backspace => {
+                    sh.handle_key(key); kbd::push(0x7F); dirty = true;
+                }
+                _ => { sh.handle_key(key); }  // nav/noise: no redraw
+            }
         }
         {
             let mut line = [0u8; 80];
             let mut n = 0usize;
             while let Some(b) = kbd::stdout_pop() {
                 if b == b'\n' || b == b'\r' {
-                    if n > 0 { sh.push_user_line(&line[..n]); n = 0; }
+                    if n > 0 { sh.push_user_line(&line[..n]); n = 0; dirty = true; }
                 } else if b >= 0x20 && n < 79 {
                     line[n] = b; n += 1;
                 }
-                activity = true;
             }
-            if n > 0 { sh.push_user_line(&line[..n]); }
+            if n > 0 { sh.push_user_line(&line[..n]); dirty = true; }
         }
         x86net::poll();
 
-        if dirty || activity {
+        if dirty {
             dirty = false;
             sh.set_frame(frame);
             sh.render(&fbdrv as &dyn gpu::GpuSurface);

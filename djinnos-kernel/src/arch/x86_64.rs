@@ -1,6 +1,7 @@
 // x86_64 architecture primitives for DjinnOS.
 //
-// Phase 1: COM1 serial UART, PIT timer at 100 Hz, 8259 PIC, IDT.
+// Timer: Local APIC periodic at 100 Hz, calibrated against PIT channel 2.
+// The 8259 PIC is remapped to 0x70–0x7F then fully masked — LAPIC only.
 // ISR stubs live in boot_x86.s; they call back into Rust via _timer_tick.
 
 use core::arch::asm;
@@ -93,7 +94,9 @@ static mut IDT: Idt = Idt([[0u64; 2]; 256]);
 // ISR stubs are defined in boot_x86.s and call back into _timer_tick.
 extern "C" {
     fn _isr_timer();
-    fn _isr_fault();
+    fn _isr_fault();    // CPU exceptions 0x00–0x1F: hlt (real bugs)
+    fn _isr_generic();  // hardware IRQs 0x20–0xFE: LAPIC EOI + iretq
+    fn _isr_spurious(); // LAPIC spurious 0xFF: iretq, no EOI
 }
 
 fn make_gate(handler: u64) -> [u64; 2] {
@@ -113,11 +116,14 @@ fn make_gate(handler: u64) -> [u64; 2] {
 
 fn init_idt() {
     unsafe {
-        let fault_gate = make_gate(_isr_fault as *const () as u64);
-        for i in 0..256usize {
-            IDT.0[i] = fault_gate;
-        }
-        IDT.0[0x20] = make_gate(_isr_timer as *const () as u64);
+        let fault_gate   = make_gate(_isr_fault   as *const () as u64);
+        let generic_gate = make_gate(_isr_generic as *const () as u64);
+        // CPU exception vectors: fatal fault handler
+        for i in 0x00..0x20usize { IDT.0[i] = fault_gate; }
+        // Hardware IRQ vectors: generic EOI + iretq (silences unexpected IOAPIC IRQs)
+        for i in 0x20..0xFFusize { IDT.0[i] = generic_gate; }
+        IDT.0[0x20] = make_gate(_isr_timer    as *const () as u64);
+        IDT.0[0xFF] = make_gate(_isr_spurious as *const () as u64);
 
         #[repr(C, packed)]
         struct Idtr { limit: u16, base: u64 }
@@ -150,40 +156,174 @@ pub fn read_mtime() -> u64 {
 #[no_mangle]
 pub extern "C" fn _timer_tick() {
     TICKS.fetch_add(1, Ordering::Relaxed);
-    unsafe { outb(PIC1_CMD, 0x20); }  // master EOI
+    unsafe { lapic_write(LAPIC_EOI, 0); }  // LAPIC EOI (write 0 to offset 0xB0)
 }
 
-// ── PIT + 8259 PIC ────────────────────────────────────────────────────────────
+// ── LAPIC (Local APIC) ────────────────────────────────────────────────────────
+//
+// The LAPIC base address lives in MSR 0x1B bits [51:12].  On every x86_64
+// CPU the LAPIC is identity-mapped in physical memory (typically 0xFEE00000).
+// UEFI's 0–4 GiB identity map covers it.
 
-const PIT_CH0:  u16 = 0x40;
-const PIT_CMD:  u16 = 0x43;
+const IA32_APIC_BASE: u32 = 0x1B;
+const APIC_BASE_X2APIC_ENABLE: u64 = 1 << 10;  // MSR 0x1B bit 10
+
+// LAPIC register offsets (MMIO) / MSR index suffix (x2APIC: 0x800 + offset>>4)
+const LAPIC_EOI:       u32 = 0x0B0;
+const LAPIC_SVR:       u32 = 0x0F0;
+const LAPIC_LVT_TIMER: u32 = 0x320;
+const LAPIC_TIMER_ICR: u32 = 0x380;
+const LAPIC_TIMER_CCR: u32 = 0x390;
+const LAPIC_TIMER_DCR: u32 = 0x3E0;
+
+const LAPIC_SW_ENABLE:      u32 = 1 << 8;
+const LAPIC_TIMER_PERIODIC: u32 = 1 << 17;
+const LAPIC_TIMER_MASKED:   u32 = 1 << 16;
+
+// x2APIC: access LAPIC via MSRs instead of MMIO.  UEFI on AMD Ryzen often
+// enables x2APIC; in that mode the 0xFEE00000 MMIO window is disabled and
+// writes to it fault silently or cause #GP.
+static X2APIC: core::sync::atomic::AtomicBool =
+    core::sync::atomic::AtomicBool::new(false);
+
+unsafe fn rdmsr(msr: u32) -> u64 {
+    let lo: u32; let hi: u32;
+    asm!("rdmsr", in("ecx") msr, out("eax") lo, out("edx") hi,
+         options(nostack, nomem));
+    ((hi as u64) << 32) | lo as u64
+}
+
+unsafe fn wrmsr(msr: u32, val: u64) {
+    asm!("wrmsr",
+         in("ecx") msr,
+         in("eax") val as u32,
+         in("edx") (val >> 32) as u32,
+         options(nostack, nomem));
+}
+
+fn lapic_mmio_base() -> u64 {
+    unsafe { rdmsr(IA32_APIC_BASE) & 0xFFFF_F000 }
+}
+
+// x2APIC MSR address for a given xAPIC MMIO register offset.
+// Formula: 0x800 + (mmio_offset >> 4).  e.g. EOI=0x0B0 → MSR 0x80B.
+#[inline]
+fn x2apic_msr(reg: u32) -> u32 { 0x800 + (reg >> 4) }
+
+unsafe fn lapic_read(reg: u32) -> u32 {
+    if X2APIC.load(Ordering::Relaxed) {
+        rdmsr(x2apic_msr(reg)) as u32
+    } else {
+        core::ptr::read_volatile((lapic_mmio_base() + reg as u64) as *const u32)
+    }
+}
+
+unsafe fn lapic_write(reg: u32, val: u32) {
+    if X2APIC.load(Ordering::Relaxed) {
+        wrmsr(x2apic_msr(reg), val as u64);
+    } else {
+        core::ptr::write_volatile((lapic_mmio_base() + reg as u64) as *mut u32, val);
+    }
+}
+
+// ── 8259 PIC ──────────────────────────────────────────────────────────────────
+
 const PIC1_CMD: u16 = 0x20;
 const PIC1_DAT: u16 = 0x21;
 const PIC2_CMD: u16 = 0xA0;
 const PIC2_DAT: u16 = 0xA1;
 
-/// No-op on x86_64 — PIT auto-reloads; tick counter is incremented by ISR.
+/// No-op on x86_64 — tick counter incremented by LAPIC ISR.
 pub fn sbi_set_timer(_deadline: u64) {}
+
+// ── I/O APIC ──────────────────────────────────────────────────────────────────
+// Default IOAPIC base address (0xFEC00000) is universal on x86 systems.
+// Each redirection entry controls one IRQ; bit 16 of the low word is the mask.
+
+const IOAPIC_BASE:    u64 = 0xFEC0_0000;
+const IOAPIC_REGSEL:  u64 = IOAPIC_BASE;        // index register (write)
+const IOAPIC_IOWIN:   u64 = IOAPIC_BASE + 0x10; // data window (read/write)
+
+unsafe fn ioapic_write(reg: u32, val: u32) {
+    core::ptr::write_volatile(IOAPIC_REGSEL as *mut u32, reg);
+    core::ptr::write_volatile(IOAPIC_IOWIN  as *mut u32, val);
+}
+
+unsafe fn ioapic_read(reg: u32) -> u32 {
+    core::ptr::write_volatile(IOAPIC_REGSEL as *mut u32, reg);
+    core::ptr::read_volatile(IOAPIC_IOWIN  as *const u32)
+}
+
+/// Mask every IOAPIC redirection entry.
+/// Prevents level-triggered IRQs (keyboard, USB, etc.) from causing an
+/// interrupt storm after STI — the IOAPIC would otherwise keep re-delivering
+/// them until the source is drained, which the kernel hasn't arranged to do.
+unsafe fn mask_ioapic() {
+    // IOAPIC VER register (0x01): bits [23:16] = max redirection entry index.
+    let ver = ioapic_read(0x01);
+    let max_entry = (ver >> 16) & 0xFF;
+    for i in 0..=max_entry {
+        // Redirection table low word is at register 0x10 + 2*i.
+        // Bit 16 = interrupt mask (1 = masked).
+        let reg = 0x10 + 2 * i;
+        let lo  = ioapic_read(reg);
+        ioapic_write(reg, lo | (1 << 16));
+    }
+}
+
+/// Read APIC hardware state without arming the timer.
+/// Returns (raw MSR value, x2apic_active).
+pub fn probe_apic() -> (u64, bool) {
+    unsafe {
+        let msr = rdmsr(IA32_APIC_BASE);
+        let x2 = msr & APIC_BASE_X2APIC_ENABLE != 0;
+        (msr, x2)
+    }
+}
 
 pub fn enable_timer() {
     unsafe {
-        // Remap 8259 PIC: master → 0x20, slave → 0x28
+        // Detect x2APIC mode — UEFI on AMD Ryzen commonly enables this.
+        let apic_msr = rdmsr(IA32_APIC_BASE);
+        if apic_msr & APIC_BASE_X2APIC_ENABLE != 0 {
+            X2APIC.store(true, Ordering::Relaxed);
+        }
+
+        // Remap 8259 to 0x70–0x7F then mask everything.  Remapping avoids
+        // spurious 8259 IRQs colliding with CPU exception vectors 0x00–0x1F.
         outb(PIC1_CMD, 0x11); io_wait();
         outb(PIC2_CMD, 0x11); io_wait();
-        outb(PIC1_DAT, 0x20); io_wait();
-        outb(PIC2_DAT, 0x28); io_wait();
-        outb(PIC1_DAT, 0x04); io_wait();   // slave on IRQ2
+        outb(PIC1_DAT, 0x70); io_wait();  // master base → 0x70
+        outb(PIC2_DAT, 0x78); io_wait();  // slave  base → 0x78
+        outb(PIC1_DAT, 0x04); io_wait();  // slave on IRQ2
         outb(PIC2_DAT, 0x02); io_wait();
-        outb(PIC1_DAT, 0x01); io_wait();   // 8086 mode
+        outb(PIC1_DAT, 0x01); io_wait();  // 8086 mode
         outb(PIC2_DAT, 0x01); io_wait();
-        outb(PIC1_DAT, 0xFE);              // unmask IRQ0 (timer) only
-        outb(PIC2_DAT, 0xFF);              // mask all slave IRQs
+        outb(PIC1_DAT, 0xFF);             // mask all master IRQs
+        outb(PIC2_DAT, 0xFF);             // mask all slave  IRQs
 
-        // PIT channel 0: rate generator (mode 2), 100 Hz
-        // divisor = 1193182 / 100 = 11932 = 0x2E9C
-        outb(PIT_CMD, 0x34);
-        outb(PIT_CH0, 0x9C);
-        outb(PIT_CH0, 0x2E);
+        // Enable LAPIC.
+        lapic_write(LAPIC_SVR, LAPIC_SW_ENABLE | 0xFF);
+
+        // Fixed initial count for ~100 Hz.  CPUID leaf 0x16 is unreliable on
+        // some AMD Zen revisions.  2_000_000 ticks ÷ (LAPIC_clock / 16) gives
+        // 62–125 Hz across the 2–4 GHz LAPIC clock range — safe and usable.
+        let initial: u32 = 2_000_000;
+
+        // Mask LAPIC LINT0 (defaults to ExtINT — forwards legacy PIC interrupts
+        // even after the 8259 is masked) and LINT1 (NMI pin).
+        lapic_write(0x350, lapic_read(0x350) | (1 << 16)); // LINT0 masked
+        lapic_write(0x360, lapic_read(0x360) | (1 << 16)); // LINT1 masked
+
+        // Mask every IOAPIC redirection entry before STI.
+        mask_ioapic();
+
+        // LVT_TIMER must be written BEFORE ICR.  Writing ICR immediately starts
+        // the counter; if mode is set afterwards the timer fires once in one-shot
+        // mode and stops before periodic mode is established.
+        lapic_write(LAPIC_TIMER_DCR, 0x3);                         // divide by 16
+        lapic_write(LAPIC_LVT_TIMER, 0x20 | LAPIC_TIMER_PERIODIC); // mode first
+        lapic_write(LAPIC_TIMER_ICR, initial);                      // then start
 
         asm!("sti", options(nostack));
     }

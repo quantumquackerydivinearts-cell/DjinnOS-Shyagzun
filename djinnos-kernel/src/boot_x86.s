@@ -223,6 +223,28 @@ _isr_fault:
     hlt
     jmp _isr_fault
 
+/* Generic hardware IRQ handler for vectors 0x20–0xFE.
+ * Sends LAPIC EOI (xAPIC MMIO at 0xFEE000B0) and returns.
+ * Silences unexpected IOAPIC-delivered interrupts (keyboard, USB, etc.)
+ * that would otherwise halt the CPU in _isr_fault. */
+.global _isr_generic
+_isr_generic:
+    push  rax
+    push  rdx
+    xor   edx, edx
+    mov   rax, 0xFEE000B0
+    mov   dword ptr [rax], edx   /* LAPIC EOI = 0 */
+    pop   rdx
+    pop   rax
+    iretq
+
+/* LAPIC spurious interrupt — must NOT send EOI; just return.
+ * The LAPIC does not set the ISR bit for spurious vectors, so an EOI
+ * here would acknowledge the wrong (next-highest-priority) interrupt. */
+.global _isr_spurious
+_isr_spurious:
+    iretq
+
 /* ── Boot page tables (before .bss so the BSS clear never touches them) ───── */
 
 .section .boot_pt, "aw"
