@@ -131,6 +131,7 @@ impl InputDriver {
         match ev_code {
             1   => Some(Key::Escape),
             14  => Some(Key::Backspace),
+            15  => Some(Key::Char(b'\t')),
             28  => Some(Key::Enter),
             103 => Some(Key::Up),       // KEY_UP
             108 => Some(Key::Down),     // KEY_DOWN

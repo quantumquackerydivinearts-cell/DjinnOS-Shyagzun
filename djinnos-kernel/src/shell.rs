@@ -229,6 +229,7 @@ impl Shell {
                 self.push_line(b"  Myrun :<port>/<p>  GET 10.0.2.2:<port>/<p>", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Ko                 eigenstate summary", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  klgs [zone_id]     launch Ko's Labyrinth world view", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  www <url>          open Faerie Browser", [R_DIM, G_DIM, B_DIM]);
             }
 
             b"info" => self.cmd_info(),
@@ -298,6 +299,16 @@ impl Shell {
                     self.push_line(b"Zone loaded. Entering world...", [R_PR, G_PR, B_PR]);
                 } else {
                     self.push_line(b"klgs: failed (is Atelier API running on :9000?)", [0xa0, 0x40, 0x40]);
+                }
+            }
+
+            // ── www — Faerie Browser ─────────────────────────────────────────
+            b"www" => {
+                if rest.is_empty() {
+                    self.push_line(b"www: usage: www http://example.com/", [0xa0, 0x40, 0x40]);
+                } else {
+                    self.push_line(b"Launching Faerie Browser...", [R_IN, G_IN, B_IN]);
+                    crate::browser::request_launch(rest);
                 }
             }
 

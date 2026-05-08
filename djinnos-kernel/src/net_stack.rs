@@ -10,7 +10,14 @@
 // Designed for QEMU SLIRP: reliable, in-order, no retransmission required.
 
 use alloc::vec::Vec;
+
+// Type-alias the NIC driver so the rest of this file compiles unchanged on
+// both architectures.  E1000Net exposes identical field names and method
+// signatures to VirtIO NetDriver.
+#[cfg(target_arch = "riscv64")]
 use crate::virtio::NetDriver;
+#[cfg(not(target_arch = "riscv64"))]
+use crate::e1000::E1000Net as NetDriver;
 
 pub const OUR_IP:     [u8; 4] = [10,  0,  2, 15];
 pub const GATEWAY_IP: [u8; 4] = [10,  0,  2,  2];
@@ -366,6 +373,7 @@ impl TcpStack {
         self.conns[slot].is_some()
     }
 
+    #[cfg(target_arch = "riscv64")]
     pub fn print_queue_addrs(&self) {
         use crate::uart;
         uart::puts("rx_avail="); uart::putx(self.net.rx.q.avail as u64); uart::puts("\r\n");

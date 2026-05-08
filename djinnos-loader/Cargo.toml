@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name    = "djinnos-loader"
 version = "0.1.0"
 edition = "2021"
@@ -7,10 +7,7 @@ edition = "2021"
 name = "djinnos-loader"
 path = "src/main.rs"
 
-[dependencies]
-uefi = { version = "0.26" }
-
 [profile.release]
-opt-level = "z"
+opt-level = "s"
 lto       = true
-strip     = "symbols"
+panic     = "abort"

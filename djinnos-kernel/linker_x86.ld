@@ -14,11 +14,11 @@
 ENTRY(_start)
 
 MEMORY {
-    RAM : ORIGIN = 0x100000, LENGTH = 64M
+    RAM : ORIGIN = 0x1000000, LENGTH = 64M
 }
 
 SECTIONS {
-    . = 0x100000;
+    . = 0x1000000;
 
     .note.Xen : {
         KEEP(*(.note.Xen))
@@ -31,6 +31,11 @@ SECTIONS {
 
     .rodata : {
         *(.rodata .rodata.*)
+    } > RAM
+
+    /* UEFI entry pointer — 8 bytes read by djinnos-loader at section ".uefi_hdr". */
+    .uefi_hdr : {
+        KEEP(*(.uefi_hdr))
     } > RAM
 
     .data : {

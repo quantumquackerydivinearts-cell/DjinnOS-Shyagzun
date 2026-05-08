@@ -1,7 +1,8 @@
 # DjinnOS launch script
-# Starts the Atelier proxy (HTTP->HTTPS bridge on :9000) then boots QEMU.
-# The proxy lets the kernel reach the hosted Render API without a local stack.
-# If port 9000 is already in use the proxy step is skipped gracefully.
+# Starts two proxies then boots QEMU:
+#   :9000 -- Atelier proxy (HTTP->HTTPS to Render API)
+#   :8080 -- Faerie Browser proxy (HTTP forward proxy for the kernel browser)
+# If a port is already in use, that proxy step is skipped gracefully.
 
 Set-Location $PSScriptRoot
 
@@ -9,24 +10,44 @@ $env:PATH += ";$env:USERPROFILE\.cargo\bin"
 
 Write-Host "DjinnOS" -ForegroundColor Magenta
 
-# --- Atelier proxy -----------------------------------------------------------
-$proxyScript = Join-Path $PSScriptRoot "atelier_proxy.py"
-$proxyProc   = $null
+# --- Atelier proxy (:9000) ---------------------------------------------------
+$atelierScript = Join-Path $PSScriptRoot "atelier_proxy.py"
+$atelierProc   = $null
 
-if (Test-Path $proxyScript) {
+if (Test-Path $atelierScript) {
     Write-Host "Starting Atelier proxy on :9000..." -ForegroundColor Cyan
-    $proxyProc = Start-Process python -ArgumentList $proxyScript `
-                     -PassThru -WindowStyle Hidden
-    Start-Sleep -Milliseconds 800
+    $atelierProc = Start-Process python -ArgumentList $atelierScript `
+                       -PassThru -WindowStyle Hidden
+    Start-Sleep -Milliseconds 600
 
-    if ($proxyProc.HasExited) {
-        Write-Host "Proxy exited immediately (port 9000 busy? local API running?)" -ForegroundColor Yellow
-        $proxyProc = $null
+    if ($atelierProc.HasExited) {
+        Write-Host "Atelier proxy exited immediately (port 9000 busy?)" -ForegroundColor Yellow
+        $atelierProc = $null
     } else {
-        Write-Host "Atelier proxy running (PID $($proxyProc.Id))" -ForegroundColor Green
+        Write-Host "Atelier proxy running (PID $($atelierProc.Id))" -ForegroundColor Green
     }
 } else {
-    Write-Host "atelier_proxy.py not found -- skipping proxy" -ForegroundColor Yellow
+    Write-Host "atelier_proxy.py not found -- skipping" -ForegroundColor Yellow
+}
+
+# --- Faerie Browser proxy (:8080) --------------------------------------------
+$browserScript = Join-Path $PSScriptRoot "browser_proxy.py"
+$browserProc   = $null
+
+if (Test-Path $browserScript) {
+    Write-Host "Starting Faerie Browser proxy on :8888..." -ForegroundColor Cyan
+    $browserProc = Start-Process python -ArgumentList $browserScript `
+                       -PassThru -WindowStyle Hidden
+    Start-Sleep -Milliseconds 600
+
+    if ($browserProc.HasExited) {
+        Write-Host "Browser proxy exited immediately (port 8888 busy?)" -ForegroundColor Yellow
+        $browserProc = $null
+    } else {
+        Write-Host "Faerie Browser proxy running (PID $($browserProc.Id))" -ForegroundColor Green
+    }
+} else {
+    Write-Host "browser_proxy.py not found -- skipping" -ForegroundColor Yellow
 }
 
 # --- Build and boot ----------------------------------------------------------
@@ -37,10 +58,14 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "QEMU exited with code $LASTEXITCODE" -ForegroundColor Yellow
 }
 
-# --- Tear down proxy ---------------------------------------------------------
-if ($null -ne $proxyProc -and -not $proxyProc.HasExited) {
-    $proxyProc.Kill()
+# --- Tear down proxies -------------------------------------------------------
+if ($null -ne $atelierProc -and -not $atelierProc.HasExited) {
+    $atelierProc.Kill()
     Write-Host "Atelier proxy stopped." -ForegroundColor DarkGray
+}
+if ($null -ne $browserProc -and -not $browserProc.HasExited) {
+    $browserProc.Kill()
+    Write-Host "Faerie Browser proxy stopped." -ForegroundColor DarkGray
 }
 
 Write-Host "DjinnOS session ended." -ForegroundColor DarkGray

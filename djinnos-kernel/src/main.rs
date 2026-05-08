@@ -25,6 +25,21 @@ mod rhezh;
 mod rhokve;
 mod renderer_bridge;
 mod world;
+mod browser;
+
+#[cfg(not(target_arch = "riscv64"))]
+mod e1000;
+#[cfg(not(target_arch = "riscv64"))]
+mod xhci;
+#[cfg(not(target_arch = "riscv64"))]
+mod usb;
+#[cfg(not(target_arch = "riscv64"))]
+mod usb_net;
+#[cfg(not(target_arch = "riscv64"))]
+mod x86net;
+// Expose crate::net on x86_64 with the same API as the RISC-V net.rs.
+#[cfg(not(target_arch = "riscv64"))]
+mod net { pub use crate::x86net::*; }
 
 #[cfg(target_arch = "riscv64")]
 mod elf;
@@ -159,14 +174,20 @@ pub extern "C" fn kernel_main() -> ! {
 
     process::spawn(19, ko_idle, 0);
 
-    let mut frame: u64     = 0;
-    let mut game_mode: bool = false;
+    let mut frame: u64       = 0;
+    let mut game_mode: bool   = false;
+    let mut browser_mode: bool = false;
     // 60 fps cap: 10 MHz CLINT / 60 ≈ 166_666 ticks ≈ 16.7 ms per frame.
     let mut next_flush: u64 = arch::read_mtime();
 
     loop {
         if world::consume_launch() {
-            game_mode = true;
+            game_mode    = true;
+            browser_mode = false;
+        }
+        if browser::consume_launch() {
+            browser_mode = true;
+            game_mode    = false;
         }
 
         if let Some(ref mut k) = kbd {
@@ -177,15 +198,20 @@ pub extern "C" fn kernel_main() -> ! {
                         Key::Escape => {
                             game_mode = false;
                             world::world().exit();
-                            // Redraw shell on next frame
                             sh.set_frame(frame);
                         }
                         _ => { world::world().handle_key(key); }
                     }
+                } else if browser_mode {
+                    match key {
+                        Key::Escape => {
+                            browser_mode = false;
+                            browser::browser().exit();
+                            sh.set_frame(frame);
+                        }
+                        _ => { browser::browser().handle_key(key); }
+                    }
                 } else {
-                    // Feed stdin buffer for user-mode processes (sys_read).
-                    // Ignore the return value — whether a process was unblocked
-                    // has no bearing on shell input; the shell always gets the key.
                     match key {
                         Key::Char(b)   => { kbd::push(b); }
                         Key::Enter     => { kbd::push(b'\n'); }
@@ -197,7 +223,7 @@ pub extern "C" fn kernel_main() -> ! {
             }
         }
 
-        if !game_mode {
+        if !game_mode && !browser_mode {
             let mut line = [0u8; 80];
             let mut n = 0usize;
             while let Some(b) = kbd::stdout_pop() {
@@ -221,6 +247,8 @@ pub extern "C" fn kernel_main() -> ! {
             next_flush = now + 166_666;
             if game_mode {
                 world::world().render(&gpu as &dyn gpu::GpuSurface);
+            } else if browser_mode {
+                browser::browser().render(&gpu as &dyn gpu::GpuSurface);
             } else {
                 sh.set_frame(frame);
                 sh.render(&gpu as &dyn gpu::GpuSurface);
@@ -271,6 +299,13 @@ pub extern "C" fn kernel_main(mb2_info: u64) -> ! {
     ps2::init();
     uart::puts("ps2: keyboard init\r\n");
 
+    uart::puts("NET: scanning for e1000...\r\n");
+    if x86net::init() {
+        uart::puts("NET: e1000 online  10.0.2.15/24  gw 10.0.2.2\r\n");
+    } else {
+        uart::puts("NET: no e1000 NIC found\r\n");
+    }
+
     process::advance_cannabis(193);
     process::spawn(19, ko_idle, 0);
 
@@ -295,13 +330,12 @@ pub extern "C" fn kernel_main(mb2_info: u64) -> ! {
             let mut frame: u64 = 0;
             loop {
                 if let Some(key) = ps2::poll() {
-                    // Route key to stdin ring if a user process is waiting,
-                    // otherwise give to shell.
                     use input::Key;
                     let consumed = match key {
                         Key::Char(b)   => kbd::push(b),
                         Key::Enter     => kbd::push(b'\n'),
                         Key::Backspace => kbd::push(0x7F),
+                        _              => false,
                     };
                     if !consumed { sh.handle_key(key); }
                 }
@@ -319,6 +353,7 @@ pub extern "C" fn kernel_main(mb2_info: u64) -> ! {
                     if n > 0 { sh.push_user_line(&line[..n]); }
                 }
 
+                x86net::poll();
                 sh.set_frame(frame);
                 sh.render(&fbdrv);
                 fbdrv.flush();
@@ -384,6 +419,7 @@ pub extern "C" fn kernel_main(mb2_info: u64) -> ! {
                             if len < 127 { line[len] = c; len += 1; uart::putc(c); }
                             sh.handle_key(key);
                         }
+                        _ => {}
                     }
                 }
                 process::yield_now();
@@ -452,29 +488,57 @@ fn ko_idle(_: u64) -> ! {
 #[used]
 static _KEEP_UEFI: unsafe extern "sysv64" fn(*const fb::UefiBootInfo) -> ! = kernel_uefi_entry;
 
+// UEFI header section — djinnos-loader scans ELF section headers for ".uefi_hdr"
+// and reads the 8-byte function pointer it contains to find the entry point.
+// This survives stripping (section headers are kept; only .symtab is stripped).
+#[cfg(target_arch = "x86_64")]
+#[used]
+#[link_section = ".uefi_hdr"]
+static UEFI_ENTRY_PTR: unsafe extern "sysv64" fn(*const fb::UefiBootInfo) -> ! =
+    kernel_uefi_entry;
+
+// Minimal trampoline — the only job of this function is to atomically:
+//   1. cli   — block timer IRQs before UEFI's IDT handlers disappear
+//   2. switch RSP to the kernel stack
+//   3. reload our own GDT
+//   4. JMP (not CALL) to kernel_uefi_body
+//
+// Using JMP means no return address is pushed; kernel_uefi_body gets a fresh
+// prologue on the kernel stack with no UEFI frame mixed in.  RDI (= info) is
+// preserved by the asm block and received as the first argument of the body.
 #[cfg(target_arch = "x86_64")]
 #[no_mangle]
 pub unsafe extern "sysv64" fn kernel_uefi_entry(info: *const fb::UefiBootInfo) -> ! {
     extern "C" {
         static _stack_top: u8;
         static _gdt_ptr:   u8;
-        static _bss_start: u8;
-        static _bss_end:   u8;
     }
-    // Switch to the kernel stack (UEFI's may be in reclaimed memory).
-    let ksp = core::ptr::addr_of!(_stack_top) as u64;
-    core::arch::asm!("mov rsp, {s}", s = in(reg) ksp, options(nostack, nomem));
+    core::arch::asm!(
+        "cli",
+        "mov rsp, {ksp}",
+        "lgdt [{gdt}]",
+        // Far-return to reload CS=0x08 from our new GDT before enabling
+        // interrupts.  After lgdt the CS shadow register still holds UEFI's
+        // selector (typically 0x38 or higher).  Our GDT has only three entries
+        // (null/0x08/0x10), so IRET from any interrupt would try to restore
+        // UEFI's CS, find it beyond our GDT limit, #GP → _isr_fault → hlt.
+        // lretq atomically sets CS=0x08 and jumps to kernel_uefi_body.
+        // RDI (= info) is preserved through the push/lretq sequence.
+        "lea rax, [{body}]",  // rax = kernel_uefi_body address (RIP-relative)
+        "push 8",             // new CS = 0x08 (code64 in our GDT)
+        "push rax",           // new RIP = kernel_uefi_body
+        ".byte 0x48, 0xcb",   // REX.W + CB = 64-bit far return (lretq)
+        ksp  = in(reg) core::ptr::addr_of!(_stack_top) as u64,
+        gdt  = in(reg) core::ptr::addr_of!(_gdt_ptr) as u64,
+        body = sym kernel_uefi_body,
+        options(noreturn),
+    );
+}
 
-    // Reload our GDT — UEFI's descriptor table may be in reclaimed memory.
-    let gp = core::ptr::addr_of!(_gdt_ptr) as u64;
-    core::arch::asm!("lgdt [{g}]", g = in(reg) gp, options(nostack, nomem));
-
-    // Zero BSS (ELF loader zeroed per-segment; kernel statics need it clean).
-    let bss_s  = core::ptr::addr_of!(_bss_start) as *mut u64;
-    let bss_e  = core::ptr::addr_of!(_bss_end) as usize;
-    let qwords = (bss_e - bss_s as usize) / 8;
-    for i in 0..qwords { bss_s.add(i).write_volatile(0); }
-
+// Called via far-return from kernel_uefi_entry.  Runs on the kernel stack
+// with interrupts disabled and CS=0x08.  RDI = info (sysv64 first arg).
+#[cfg(target_arch = "x86_64")]
+unsafe extern "sysv64" fn kernel_uefi_body(info: *const fb::UefiBootInfo) -> ! {
     let rsdp  = (*info).rsdp_addr;
     let fbdrv = fb::FbDriver::from_uefi(&*info);
     uefi_boot_continue(fbdrv, rsdp)
@@ -488,58 +552,44 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64) -> ! {
     uart::puts("\r\nDjinnOS kernel [x86_64 UEFI]\r\n");
 
     trap::init();
-    uart::puts("trap: online\r\n");
-
     mm::init();
-    let (free, _) = mm::ALLOCATOR.stats();
-    uart::puts("heap: online  ");
-    uart::putu(free as u64 / 1024);
-    uart::puts(" KiB free\r\n");
-
-    uart::puts("fb: GOP framebuffer online  ");
-    uart::putu(fbdrv.width() as u64);
-    uart::puts("x");
-    uart::putu(fbdrv.height() as u64);
-    uart::puts("\r\n");
-
     process::init();
-    uart::puts("process subsystem: online\r\n");
-
-    arch::enable_timer();
-    uart::puts("timer: online  10ms tick\r\n");
-
-    uart::puts("byte table entries: ");
-    uart::putu(byte_table::BYTE_TABLE.len() as u64);
-    uart::puts("  candidates: ");
-    uart::putu(byte_table::symbol_count() as u64);
-    uart::puts("\r\n");
-
-    ps2::init();
-    acpi::init(rsdp_hint);
-    pci::init();
-    hda::init();
-
-    process::advance_cannabis(193);
-    process::spawn(19, ko_idle, 0);
 
     let rule_y = fbdrv.height() * 55 / 100;
     x86_splash(&fbdrv, rule_y);
-
     let mut sh = shell::Shell::new(rule_y);
     sh.boot_banner();
     sh.render(&fbdrv as &dyn gpu::GpuSurface);
     fbdrv.flush();
 
+    // Timer and PS/2 init skipped on UEFI path:
+    //   enable_timer() — 8259/APIC interaction faults on HP Envy after STI;
+    //                    shell is fully polled so no timer needed.
+    //   ps2::init()    — UEFI already enables the i8042; re-sending the init
+    //                    sequence hangs the HP Envy's emulated PS/2 controller.
+    // x86net::init()   — needs xHCI BIOS handoff + DHCP; deferred.
+
+    acpi::init(rsdp_hint);
+    pci::init();
+    hda::init();
+
+    process::advance_cannabis(193);
+
     let mut frame: u64 = 0;
+    let mut dirty = true;   // render once on first iteration
     loop {
+        let mut activity = false;
+
         if let Some(key) = ps2::poll() {
             use input::Key;
             let consumed = match key {
                 Key::Char(b)   => kbd::push(b),
                 Key::Enter     => kbd::push(b'\n'),
                 Key::Backspace => kbd::push(0x7F),
+                _              => false,
             };
             if !consumed { sh.handle_key(key); }
+            activity = true;
         }
         {
             let mut line = [0u8; 80];
@@ -550,13 +600,19 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64) -> ! {
                 } else if b >= 0x20 && n < 79 {
                     line[n] = b; n += 1;
                 }
+                activity = true;
             }
             if n > 0 { sh.push_user_line(&line[..n]); }
         }
-        sh.set_frame(frame);
-        sh.render(&fbdrv as &dyn gpu::GpuSurface);
-        fbdrv.flush();
-        frame = frame.wrapping_add(1);
+        x86net::poll();
+
+        if dirty || activity {
+            dirty = false;
+            sh.set_frame(frame);
+            sh.render(&fbdrv as &dyn gpu::GpuSurface);
+            fbdrv.flush();
+            frame = frame.wrapping_add(1);
+        }
         process::yield_now();
     }
 }
