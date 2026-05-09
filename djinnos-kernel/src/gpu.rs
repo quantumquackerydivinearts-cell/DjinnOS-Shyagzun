@@ -15,16 +15,49 @@ pub trait GpuSurface {
     fn fill(&self, b: u8, g: u8, r: u8);
     fn flush(&mut self);
 
-    /// Fill a rectangle (x, y, w, h) with a solid colour.
-    /// Provided by each backend with volatile writes so LTO/−Oz cannot
-    /// miscompile the pixel-address computation into Shell::render's frame.
+    /// Fill a horizontal span [x0, x1) on row y with a solid colour.
+    /// This is the inner loop of every span-based rasterizer (isometric
+    /// faces, triangles, texture rows).  Backends override this with a
+    /// tight contiguous-write loop; the default falls back to set_pixel.
+    fn fill_span(&self, x0: u32, x1: u32, y: u32, b: u8, g: u8, r: u8) {
+        for x in x0..x1.min(self.width()) {
+            self.set_pixel(x, y, b, g, r);
+        }
+    }
+
+    /// Fill a rectangle by calling fill_span once per row.
     fn fill_rect(&self, x: u32, y: u32, w: u32, h: u32, b: u8, g: u8, r: u8) {
-        let x1 = x + w;
-        let y1 = y + h;
-        for row in y..y1 {
-            for col in x..x1 {
-                self.set_pixel(col, row, b, g, r);
+        for row in y..( y + h).min(self.height()) {
+            self.fill_span(x, x + w, row, b, g, r);
+        }
+    }
+
+    /// Copy a row of BGR pixels from `src` onto row y starting at x0.
+    fn blit_row(&self, src: &[(u8, u8, u8)], x0: u32, y: u32) {
+        let w = self.width();
+        for (i, &(b, g, r)) in src.iter().enumerate() {
+            let x = x0 + i as u32;
+            if x < w { self.set_pixel(x, y, b, g, r); }
+        }
+    }
+
+    /// Bresenham line from (x0,y0) to (x1,y1).
+    fn draw_line(&self, mut x0: i32, mut y0: i32, x1: i32, y1: i32,
+                 b: u8, g: u8, r: u8) {
+        let dx =  (x1 - x0).abs();
+        let dy = -(y1 - y0).abs();
+        let sx = if x0 < x1 { 1i32 } else { -1 };
+        let sy = if y0 < y1 { 1i32 } else { -1 };
+        let mut err = dx + dy;
+        let (w, h) = (self.width() as i32, self.height() as i32);
+        loop {
+            if x0 >= 0 && y0 >= 0 && x0 < w && y0 < h {
+                self.set_pixel(x0 as u32, y0 as u32, b, g, r);
             }
+            if x0 == x1 && y0 == y1 { break; }
+            let e2 = 2 * err;
+            if e2 >= dy { err += dy; x0 += sx; }
+            if e2 <= dx { err += dx; y0 += sy; }
         }
     }
 }

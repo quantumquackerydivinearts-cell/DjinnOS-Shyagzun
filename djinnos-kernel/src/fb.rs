@@ -131,6 +131,33 @@ impl GpuSurface for FbDriver {
         unsafe { write_volatile(self.addr.add(idx), self.pack(b, g, r)); }
     }
 
+    /// Contiguous row write — one pass through a single cache line run.
+    /// The compiler can vectorise this loop; individual set_pixel calls
+    /// cannot be combined because each is marked write_volatile.
+    fn fill_span(&self, x0: u32, x1: u32, y: u32, b: u8, g: u8, r: u8) {
+        if y >= self._height { return; }
+        let x0 = x0.min(self._width);
+        let x1 = x1.min(self._width);
+        if x0 >= x1 { return; }
+        let pixel    = self.pack(b, g, r);
+        let row_base = (y * self.pitch_px) as usize;
+        for x in x0 as usize..x1 as usize {
+            unsafe { write_volatile(self.addr.add(row_base + x), pixel); }
+        }
+    }
+
+    /// Blit a row of BGR triples — packs and writes each pixel in one pass.
+    fn blit_row(&self, src: &[(u8, u8, u8)], x0: u32, y: u32) {
+        if y >= self._height { return; }
+        let row_base = (y * self.pitch_px) as usize;
+        for (i, &(b, g, r)) in src.iter().enumerate() {
+            let x = x0 as usize + i;
+            if x < self._width as usize {
+                unsafe { write_volatile(self.addr.add(row_base + x), self.pack(b, g, r)); }
+            }
+        }
+    }
+
     fn fill(&self, b: u8, g: u8, r: u8) {
         let pixel = self.pack(b, g, r);
         let total = (self._height * self.pitch_px) as usize;
