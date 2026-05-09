@@ -2,8 +2,10 @@
 name    = "kobra-vm"
 version = "0.1.0"
 edition = "2021"
-build   = "build.rs"
 
 [[bin]]
 name = "kobra-vm"
 path = "src/main.rs"
+
+[dependencies]
+kobra-core = { path = "../../crates/kobra-core" }

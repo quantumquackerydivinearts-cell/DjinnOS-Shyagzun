@@ -1,3 +1,11 @@
+[workspace]
+members = [
+    ".",
+    "crates/kobra-core",
+    "tools/kobra-vm",
+]
+resolver = "2"
+
 [package]
 name    = "djinnos-kernel"
 version = "0.1.0"
@@ -6,6 +14,9 @@ edition = "2021"
 [[bin]]
 name              = "djinnos-kernel"
 path              = "src/main.rs"
+
+[dependencies]
+kobra-core = { path = "crates/kobra-core" }
 
 [profile.dev]
 panic         = "abort"

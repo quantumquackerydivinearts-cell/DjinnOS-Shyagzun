@@ -1,13 +1,11 @@
 #![no_std]
 #![no_main]
 
-mod ast;
-mod eval;
-mod parser;
-mod sublayer;
 mod syscall;
-mod token;
-mod tongue;
+
+use kobra_core::ast::Pool;
+use kobra_core::eval::{eval, Output};
+use kobra_core::parser::{parse, ParseResult};
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 
@@ -45,6 +43,16 @@ mod alloc_impl {
     static A: Bump = Bump;
 }
 
+// ── SBI output bridge ─────────────────────────────────────────────────────────
+
+struct SyscallOutput;
+
+impl Output for SyscallOutput {
+    fn write(&mut self, s: &[u8]) {
+        syscall::write(1, s);
+    }
+}
+
 // ── Entry ─────────────────────────────────────────────────────────────────────
 
 #[no_mangle]
@@ -62,7 +70,7 @@ fn run() {
     syscall::println(b"Type a Kobra expression. 'quit' to exit.");
     syscall::println(b"");
 
-    let mut pool = ast::Pool::empty();
+    let mut pool = Pool::empty();
     let mut line = [0u8; 256];
 
     loop {
@@ -79,13 +87,14 @@ fn run() {
         }
 
         pool.reset();
-        match parser::parse(input, &mut pool) {
-            parser::ParseResult::Ok(root) => {
+        match parse(input, &mut pool) {
+            ParseResult::Ok(root) => {
                 syscall::print(b"  ");
-                eval::eval(&pool, root);
+                let mut out = SyscallOutput;
+                eval(&pool, root, &mut out);
             }
-            parser::ParseResult::Empty => {}
-            parser::ParseResult::Err => {
+            ParseResult::Empty => {}
+            ParseResult::Err => {
                 // Operative-ambiguity model: echo unresolved input as live object
                 syscall::print(b"  echo: ");
                 syscall::println(input);
@@ -109,7 +118,7 @@ fn read_line(buf: &mut [u8]) -> usize {
         } else if b >= 0x20 && n < buf.len() - 1 {
             buf[n] = b;
             n += 1;
-            syscall::write(1, &buf[n-1..n]); // echo
+            syscall::write(1, &buf[n-1..n]);
         }
     }
     n

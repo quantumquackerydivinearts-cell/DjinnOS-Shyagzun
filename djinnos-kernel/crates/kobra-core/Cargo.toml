@@ -1,0 +1,9 @@
+[package]
+name    = "kobra-core"
+version = "0.1.0"
+edition = "2021"
+build   = "build.rs"
+
+[lib]
+name = "kobra_core"
+path = "src/lib.rs"
