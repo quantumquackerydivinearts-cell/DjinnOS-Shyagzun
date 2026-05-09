@@ -212,34 +212,41 @@ fn queue_audio(_sa_addr: u32) {
 //
 // Coil conditions are tonal only -- they tune selection, they do not gate.
 
+// ── Sample pools — gates left as placeholders ─────────────────────────────────
+//
+// quest_req, quest_state, and flag_req values are placeholders (0 / empty).
+// The actual narrative exposure chain for each character is authored in the
+// Atelier by the game team.  These samples demonstrate the selector machinery
+// and establish the scripted text; conditions are filled in during authoring.
+//
+// Tonal conditions (byte addresses in the conditions field) reflect the
+// character's register and are stable -- they do not change with narrative design.
+
 pub static ALFIR_LINES: &[DialogueLine] = &[
-    // First meeting -- no quest, no flags required.
     DialogueLine {
         line_id: 0x00060001, entity_id: b"0006_WTCH",
-        quest_req: 0, quest_state: QS_ANY, flag_req: &[],
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD in Atelier
         interaction: InteractionKind::Dialogue, coil_layer: 4,
-        conditions: &[9, 15], // Ta (presence) + Sha (intellect of spirit)
+        conditions: &[9, 15], // Ta + Sha
         text: b"Come in. I do not turn visitors away -- \
                 only those who arrive without a question.",
         audio_ref: 0,
     },
-    // Second meeting / general -- no quest required, returns visitor.
     DialogueLine {
         line_id: 0x00060002, entity_id: b"0006_WTCH",
-        quest_req: 0, quest_state: QS_ANY, flag_req: &[0x0002], // VISITED_ALFIR flag
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD
         interaction: InteractionKind::Dialogue, coil_layer: 4,
-        conditions: &[14, 15], // Shi (related/clear) + Sha (intellect)
+        conditions: &[14, 15], // Shi + Sha
         text: b"I spent thirty years as a priest before I understood \
                 that the gods do not listen for worship. \
                 They listen for precision.",
         audio_ref: 0,
     },
-    // Demons and Diamonds offered or in progress -- teach.
     DialogueLine {
         line_id: 0x00060003, entity_id: b"0006_WTCH",
-        quest_req: 0x0009, quest_state: QS_IN_PROGRESS, flag_req: &[],
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD
         interaction: InteractionKind::TeachSkill, coil_layer: 6,
-        conditions: &[193, 256], // Soa + Dragon T9 first entry
+        conditions: &[193, 256], // Soa + Dragon T9
         text: b"You have learned Soa. The act of making something \
                 persist consciously. The old men of my grandfather's line \
                 practiced this without a name for it -- only the act, \
@@ -247,10 +254,9 @@ pub static ALFIR_LINES: &[DialogueLine] = &[
                 Now I will show you what it remembers on your behalf.",
         audio_ref: 0,
     },
-    // Infernal Meditation -- quest in progress, first Dragon tongue entry active.
     DialogueLine {
         line_id: 0x00060004, entity_id: b"0006_WTCH",
-        quest_req: 0x0009, quest_state: QS_IN_PROGRESS, flag_req: &[0x0009_A], // WARRENS_REACHED
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD
         interaction: InteractionKind::MeditationGuide, coil_layer: 6,
         conditions: &[193, 256, 261], // Soa + Rhivesh + Rhasha-vok
         text: b"Infernal Meditation is not summoning. The old texts \
@@ -259,12 +265,11 @@ pub static ALFIR_LINES: &[DialogueLine] = &[
                 the difference between a door and a throat.",
         audio_ref: 0,
     },
-    // Dragon lore -- quest complete, for returning scholars.
     DialogueLine {
         line_id: 0x00060005, entity_id: b"0006_WTCH",
-        quest_req: 0x0009, quest_state: QS_COMPLETE, flag_req: &[],
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD
         interaction: InteractionKind::LoreAccess, coil_layer: 6,
-        conditions: &[261], // Rhasha-vok -- Homo sapiens, mental void 6
+        conditions: &[261], // Rhasha-vok
         text: b"Entry six. The creature whose cognition is constituted \
                 by suppressing its own correction. \
                 I have studied it for forty years. \
@@ -274,41 +279,37 @@ pub static ALFIR_LINES: &[DialogueLine] = &[
 ];
 
 pub static KO_LINES: &[DialogueLine] = &[
-    // Always available -- no quest, no flags.
     DialogueLine {
         line_id: 0x20210001, entity_id: b"2021_GODS",
-        quest_req: 0, quest_state: QS_ANY, flag_req: &[],
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD
         interaction: InteractionKind::Dialogue, coil_layer: 1,
-        conditions: &[], // neutral -- Ko matches any tonal state
+        conditions: &[],
         text: b"I have been watching you since before you knew \
                 there was something to watch.",
         audio_ref: 0,
     },
-    // Early in the game -- before the labyrinth is reached.
     DialogueLine {
         line_id: 0x20210002, entity_id: b"2021_GODS",
-        quest_req: 0x0004, quest_state: QS_IN_PROGRESS, flag_req: &[],
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD
         interaction: InteractionKind::Dialogue, coil_layer: 1,
-        conditions: &[19], // Ko byte -- experience/intuition active
+        conditions: &[19],
         text: b"The labyrinth does not have a center. It has a question.",
         audio_ref: 0,
     },
-    // After conscious persistence is demonstrated in play.
     DialogueLine {
         line_id: 0x20210003, entity_id: b"2021_GODS",
-        quest_req: 0, quest_state: QS_ANY, flag_req: &[0x0193_A], // SOA_DEMONSTRATED
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD
         interaction: InteractionKind::Dialogue, coil_layer: 6,
-        conditions: &[193], // Soa
+        conditions: &[193],
         text: b"You made something persist. Most do not. Most let it fade \
                 and call that wisdom. It is not wisdom.",
         audio_ref: 0,
     },
-    // Late game -- Djinn register accessed (Drovitth met).
     DialogueLine {
         line_id: 0x20210004, entity_id: b"2021_GODS",
-        quest_req: 0, quest_state: QS_ANY, flag_req: &[0x1018_A], // MET_DROVITTH
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD
         interaction: InteractionKind::LoreAccess, coil_layer: 12,
-        conditions: &[45, 193], // Wu + Soa
+        conditions: &[45, 193],
         text: b"You spoke with the one who built the Orrery. \
                 Good. He knew what he was making. \
                 Most architects do not.",
@@ -317,10 +318,9 @@ pub static KO_LINES: &[DialogueLine] = &[
 ];
 
 pub static NEGAYA_LINES: &[DialogueLine] = &[
-    // Genocide path -- flag required.
     DialogueLine {
         line_id: 0x20030001, entity_id: b"2003_VDWR",
-        quest_req: 0, quest_state: QS_ANY, flag_req: &[0xFF01], // GENOCIDE_FLAG
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD (genocide path)
         interaction: InteractionKind::Dialogue, coil_layer: 11,
         conditions: &[],
         text: b"You killed them. I know their bodies. I know what you did \
@@ -328,12 +328,11 @@ pub static NEGAYA_LINES: &[DialogueLine] = &[
                 you would prefer I forget.",
         audio_ref: 0,
     },
-    // Genocide path -- deeper in.
     DialogueLine {
         line_id: 0x20030002, entity_id: b"2003_VDWR",
-        quest_req: 0, quest_state: QS_ANY, flag_req: &[0xFF01, 0xFF02], // GENOCIDE + MEDITATE_ATTEMPTED
+        quest_req: 0, quest_state: QS_ANY, flag_req: &[], // gate: TBD (genocide + meditation)
         interaction: InteractionKind::MeditationGuide, coil_layer: 11,
-        conditions: &[276, 277, 278], // Dragon temporal void
+        conditions: &[276, 277, 278],
         text: b"You want absolution through stillness. \
                 I am the wrong void wraith to ask. \
                 Haldoro judges minds. Vios judges souls. \
