@@ -611,7 +611,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     let mut tilr  = tiler::Tiler::new(rule_y);
 
     #[derive(PartialEq)]
-    enum AppMode { Shell, Repl, Editor, Tiler }
+    enum AppMode { Shell, Repl, Editor, Tiler, Browser }
     let mut mode  = AppMode::Shell;
 
     let mut frame: u64 = 0;
@@ -634,6 +634,10 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
         if tiler::consume_request() {
             tilr.reset();
             mode  = AppMode::Tiler;
+            dirty = true;
+        }
+        if browser::consume_launch() {
+            mode  = AppMode::Browser;
             dirty = true;
         }
 
@@ -662,6 +666,17 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     tilr.handle_key(key);
                     if !was_exited && tilr.exited() {
                         mode = AppMode::Shell;
+                    }
+                    dirty = true;
+                }
+                AppMode::Browser => {
+                    use input::Key;
+                    match key {
+                        Key::Escape => {
+                            browser::browser().exit();
+                            mode  = AppMode::Shell;
+                        }
+                        _ => { browser::browser().handle_key(key); }
                     }
                     dirty = true;
                 }
@@ -705,7 +720,8 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                 }
                 AppMode::Repl   => { repl.render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::Editor => { ed.render(&fbdrv as &dyn gpu::GpuSurface); }
-                AppMode::Tiler => { tilr.render(&fbdrv as &dyn gpu::GpuSurface); }
+                AppMode::Tiler   => { tilr.render(&fbdrv as &dyn gpu::GpuSurface); }
+                AppMode::Browser => { browser::browser().render(&fbdrv as &dyn gpu::GpuSurface); }
             }
             fbdrv.flush();
             frame = frame.wrapping_add(1);

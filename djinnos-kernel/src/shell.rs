@@ -573,6 +573,16 @@ impl Shell {
                 self.push_line(&b[..n], [R_IN, G_IN, B_IN]);
             }
 
+            // ── www — Faerie Browser ──────────────────────────────────────────
+            b"www" => {
+                if rest.is_empty() {
+                    self.push_line(b"www: usage: www http://example.com/", [0xa0, 0x40, 0x40]);
+                } else {
+                    self.push_line(b"Launching Faerie Browser...", [R_IN, G_IN, B_IN]);
+                    crate::browser::request_launch(rest);
+                }
+            }
+
             // ── tiler — byte table structural map ────────────────────────────
             b"tiler" => {
                 crate::tiler::request();

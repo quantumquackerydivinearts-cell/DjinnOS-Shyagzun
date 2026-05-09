@@ -45,7 +45,7 @@ const PROXY_IP:   [u8; 4] = [10, 0, 2, 2];
 const PROXY_PORT: u16     = 8888;
 
 // Sizes
-const LINE_W:  usize = 74;   // chars per rendered line (2× scale @ 1280px)
+const LINE_W:  usize = 104;  // chars per rendered line (2× scale @ 1920px)
 const MAX_L:   usize = 512;  // max rendered lines per page
 const MAX_LNK: usize = 64;   // max links per page
 const LNK_W:   usize = 200;  // max link URL length
@@ -312,13 +312,12 @@ impl BrowserClient {
         if !self.dirty { return; }
         let w = gpu.width();
         let h = gpu.height();
-        let floor_y = h * 55 / 100 + 4;
 
-        // Background
-        gpu.fill_rect(0, floor_y, w, h - floor_y, BG_B, BG_G, BG_R);
+        // Full-frame background — browser owns the whole window when active.
+        gpu.fill_rect(0, 0, w, h, BG_B, BG_G, BG_R);
 
-        // URL bar
-        let ub_y = floor_y + 2;
+        // URL bar at the top
+        let ub_y = 2;
         let ub_h = CHAR_H + 8;
         gpu.fill_rect(0, ub_y, w, ub_h, UB_B, UB_G, UB_R);
         let ty = ub_y + 4;
@@ -379,6 +378,23 @@ impl BrowserClient {
 
             let text = core::str::from_utf8(&self.lines[li][..len]).unwrap_or("");
             font::draw_str(gpu, MAR, y, text, SCALE, b, g, r);
+            // Heading underline
+            if kind == KIND_HEADING && len > 0 {
+                let line_w = (len as u32 * CHAR_W).min(w.saturating_sub(MAR * 2));
+                gpu.draw_line(
+                    MAR as i32, (y + CHAR_H + 1) as i32,
+                    (MAR + line_w) as i32, (y + CHAR_H + 1) as i32,
+                    HD_B, HD_G, HD_R,
+                );
+            }
+            // Focused link highlight bar on left margin
+            if kind == KIND_LINK && lnk != 0xFF && lnk == self.focused {
+                gpu.draw_line(
+                    (MAR - 6) as i32, y as i32,
+                    (MAR - 6) as i32, (y + CHAR_H - 1) as i32,
+                    LF_B, LF_G, LF_R,
+                );
+            }
             y += CHAR_H;
         }
 
@@ -388,9 +404,10 @@ impl BrowserClient {
         font::draw_str(gpu, 4, bot + 3, ss, SCALE, SB_B, SB_G, SB_R);
     }
 
-    // ── Fetch and parse (RISC-V only) ─────────────────────────────────────────
+    // ── Fetch and parse ───────────────────────────────────────────────────────
+    // crate::net resolves to virtio-net on RISC-V and x86net (e1000/xHCI)
+    // on x86_64.  No cfg gate needed.
 
-    #[cfg(target_arch = "riscv64")]
     fn fetch_and_parse(&mut self, url: &[u8]) {
         let fd = crate::net::tcp_socket(0);
         if fd == u64::MAX {
@@ -427,11 +444,6 @@ impl BrowserClient {
 
         let resp = unsafe { &RBUF[..total] };
         self.parse_response(resp);
-    }
-
-    #[cfg(not(target_arch = "riscv64"))]
-    fn fetch_and_parse(&mut self, _url: &[u8]) {
-        self.push_line(b"[Faerie: network available on RISC-V only]", KIND_NORMAL, 0xFF);
     }
 
     // ── HTTP response parser ──────────────────────────────────────────────────
@@ -967,7 +979,6 @@ fn build_proxy_get(buf: &mut [u8; 512], url: &[u8]) -> usize {
     n
 }
 
-#[cfg(target_arch = "riscv64")]
 fn recv_all(fd: u64) -> usize {
     let mut total = 0usize;
     let mut idle  = 0usize;
