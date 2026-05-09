@@ -440,12 +440,11 @@ impl Shell {
             // ── Ko = byte 19 — Experience → eigenstate display ───────────────
             b"Ko" | b"eigenstate" => self.cmd_eigenstate_x86(),
 
-            // ── Seth = byte 159 — Platter / directory → ramdisk listing ──────
+            // ── Seth = byte 159 — Platter / directory → ramdisk + Sa listing ─
             b"Seth" | b"ls" => {
                 let n = crate::ramdisk::file_count();
-                if n == 0 {
-                    self.push_line(b"ramdisk: empty (put files in USB root)", [R_DIM, G_DIM, B_DIM]);
-                } else {
+                if n > 0 {
+                    self.push_line(b"[ramdisk]", [R_DIM, G_DIM, B_DIM]);
                     for i in 0..n {
                         if let Some(f) = crate::ramdisk::get(i) {
                             let nm = f.name;
@@ -454,13 +453,49 @@ impl Shell {
                             buf[..nl].copy_from_slice(&nm[..nl]);
                             let mut sz_buf = [0u8; 12];
                             let sz_len = write_u32(&mut sz_buf, f.data.len() as u32);
-                            let sz_str = &sz_buf[..sz_len];
                             let offset = 42;
                             let sl = sz_len.min(60 - offset);
-                            buf[offset..offset+sl].copy_from_slice(&sz_str[..sl]);
+                            buf[offset..offset+sl].copy_from_slice(&sz_buf[..sl]);
                             self.push_line(&buf[..offset+sl], [R_DIM, G_DIM, B_DIM]);
                         }
                     }
+                }
+                let sa_n = crate::sa::file_count();
+                if sa_n > 0 {
+                    self.push_line(b"[Sa volume]", [R_IN, G_IN, B_IN]);
+                    crate::sa::for_each(|name, len| {
+                        let mut buf = [b' '; 60];
+                        let nl = name.len().min(40);
+                        buf[..nl].copy_from_slice(&name[..nl]);
+                        let mut sz_buf = [0u8; 12];
+                        let sz_len = write_u32(&mut sz_buf, len);
+                        let offset = 42;
+                        let sl = sz_len.min(60 - offset);
+                        buf[offset..offset+sl].copy_from_slice(&sz_buf[..sl]);
+                        // push_line not accessible here — handled via result collect
+                        let _ = (buf, sl);
+                    });
+                    // Re-iterate to push (closure can't borrow self)
+                    let mut lines: [[u8; 60]; 32] = [[0; 60]; 32];
+                    let mut lens  = [0usize; 32];
+                    let mut cnt   = 0usize;
+                    crate::sa::for_each(|name, len| {
+                        if cnt >= 32 { return; }
+                        let nl = name.len().min(40);
+                        lines[cnt][..nl].copy_from_slice(&name[..nl]);
+                        let mut sz_buf = [0u8; 12];
+                        let sz_len = write_u32(&mut sz_buf, len);
+                        let offset = 42;
+                        let sl = sz_len.min(60 - offset);
+                        lines[cnt][offset..offset+sl].copy_from_slice(&sz_buf[..sl]);
+                        lens[cnt] = offset + sl;
+                        cnt += 1;
+                    });
+                    for i in 0..cnt {
+                        self.push_line(&lines[i][..lens[i]], [R_IN, G_IN, B_IN]);
+                    }
+                } else if n == 0 {
+                    self.push_line(b"empty (ramdisk and Sa volume both empty)", [R_DIM, G_DIM, B_DIM]);
                 }
             }
 
@@ -520,6 +555,22 @@ impl Shell {
                         }
                     }
                 }
+            }
+
+            // ── Sa volume commands ────────────────────────────────────────────
+            b"Sastat" | b"sastat" => {
+                let fc   = crate::sa::file_count();
+                let used = crate::sa::bytes_used();
+                let free = crate::sa::bytes_free();
+                let mut b = [0u8; 80]; let mut n = 0;
+                let lbl = b"Sa volume: "; b[..lbl.len()].copy_from_slice(lbl); n = lbl.len();
+                n += write_u32(&mut b[n..], fc);
+                let m = b" files  "; b[n..n+m.len()].copy_from_slice(m); n += m.len();
+                n += write_u32(&mut b[n..], used / 1024);
+                let k = b"K used  "; b[n..n+k.len()].copy_from_slice(k); n += k.len();
+                n += write_u32(&mut b[n..], free / 1024);
+                let f = b"K free"; b[n..n+f.len()].copy_from_slice(f); n += f.len();
+                self.push_line(&b[..n], [R_IN, G_IN, B_IN]);
             }
 
             // ── tiler — byte table structural map ────────────────────────────

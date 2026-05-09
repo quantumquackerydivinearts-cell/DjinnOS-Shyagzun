@@ -8,6 +8,7 @@ extern crate alloc;
 mod agent;
 mod dialogue;
 mod kos_characters;
+mod sa;
 mod arch;
 mod byte_table;
 mod editor;
@@ -580,6 +581,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     mm::init();
     process::init();
     kos_characters::init();
+    sa::init_empty(b"DjinnOS");
     ramdisk::init(rdaddr, rdcnt);
 
     let rule_y = fbdrv.height() * 55 / 100;
