@@ -37,15 +37,18 @@ unsafe impl Sync for FbDriver {}
 /// MUST stay in sync with the struct in djinnos-loader/src/main.rs.
 #[repr(C)]
 pub struct UefiBootInfo {
-    pub fb_addr:   u64,
-    pub fb_width:  u32,
-    pub fb_height: u32,
-    pub fb_pitch:  u32,
-    pub r_pos:     u8,
-    pub g_pos:     u8,
-    pub b_pos:     u8,
-    pub _pad:      u8,
-    pub rsdp_addr: u64,   // ACPI RSDP physical address (0 if unavailable)
+    pub fb_addr:       u64,
+    pub fb_width:      u32,
+    pub fb_height:     u32,
+    pub fb_pitch:      u32,
+    pub r_pos:         u8,
+    pub g_pos:         u8,
+    pub b_pos:         u8,
+    pub _pad:          u8,
+    pub rsdp_addr:     u64,  // ACPI RSDP physical address (0 if unavailable)
+    pub ramdisk_addr:  u64,  // pointer to RamFile table (0 if empty)
+    pub ramdisk_count: u32,  // number of entries in the table
+    pub _rd_pad:       u32,
 }
 
 impl FbDriver {

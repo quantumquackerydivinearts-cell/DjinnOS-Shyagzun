@@ -342,6 +342,8 @@ impl Shell {
                 self.push_line(b"  Mel / battery            battery status",[R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kael                     heap stats",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Ko / eigenstate          eigenstate",    [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Seth / ls                list files",    [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Sao <file> / cat <file>  read file",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  ec [NN]                  EC register",   [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  dsdt                     DSDT bytes",    [R_DIM, G_DIM, B_DIM]);
             }
@@ -381,6 +383,59 @@ impl Shell {
 
             // ── Ko = byte 19 — Experience → eigenstate display ───────────────
             b"Ko" | b"eigenstate" => self.cmd_eigenstate_x86(),
+
+            // ── Seth = byte 159 — Platter / directory → ramdisk listing ──────
+            b"Seth" | b"ls" => {
+                let n = crate::ramdisk::file_count();
+                if n == 0 {
+                    self.push_line(b"ramdisk: empty (put files in USB root)", [R_DIM, G_DIM, B_DIM]);
+                } else {
+                    for i in 0..n {
+                        if let Some(f) = crate::ramdisk::get(i) {
+                            let nm = f.name;
+                            let mut buf = [b' '; 60];
+                            let nl = nm.len().min(40);
+                            buf[..nl].copy_from_slice(&nm[..nl]);
+                            let mut sz_buf = [0u8; 12];
+                            let sz_len = write_u32(&mut sz_buf, f.data.len() as u32);
+                            let sz_str = &sz_buf[..sz_len];
+                            let offset = 42;
+                            let sl = sz_len.min(60 - offset);
+                            buf[offset..offset+sl].copy_from_slice(&sz_str[..sl]);
+                            self.push_line(&buf[..offset+sl], [R_DIM, G_DIM, B_DIM]);
+                        }
+                    }
+                }
+            }
+
+            // ── Sao = byte 157 — Cup / persistent object → read ramdisk file ─
+            b"Sao" | b"cat" => {
+                if rest.is_empty() {
+                    self.push_line(b"Sao: need filename", [0xa0, 0x40, 0x40]);
+                } else {
+                    match crate::ramdisk::find(rest) {
+                        None => {
+                            let mut b = [0u8; 80];
+                            let pfx = b"Sao: not found: ";
+                            b[..pfx.len()].copy_from_slice(pfx);
+                            let n = rest.len().min(80 - pfx.len());
+                            b[pfx.len()..pfx.len()+n].copy_from_slice(&rest[..n]);
+                            self.push_line(&b[..pfx.len()+n], [0xa0, 0x40, 0x40]);
+                        }
+                        Some(data) => {
+                            let mut start = 0;
+                            while start < data.len() {
+                                let end = data[start..].iter()
+                                    .position(|&b| b == b'\n')
+                                    .map(|p| start + p)
+                                    .unwrap_or(data.len());
+                                self.push_line(&data[start..end.min(start+79)], [R_IN, G_IN, B_IN]);
+                                start = if end < data.len() { end + 1 } else { data.len() };
+                            }
+                        }
+                    }
+                }
+            }
 
             // ── Legacy diagnostic commands (kept unglyph'd) ───────────────────
             _ if verb == b"ec" => self.cmd_ec(cmd),

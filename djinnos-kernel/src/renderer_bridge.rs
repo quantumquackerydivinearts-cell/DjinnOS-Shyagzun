@@ -144,7 +144,7 @@ impl CannabisMode {
 
 pub fn verify_and_log() {
     let ko: &[u8] = include_bytes!(
-        "../../DjinnOS_Shyagzun/shygazun/sanctum/renderer_bridge.ko"
+        "../../DjinnOS_Shyagzun/shygazun/sanctum/rndrbdge.ko"
     );
     match parse_cannabis_modes_noalloc(ko) {
         Some((a, i, y)) => {

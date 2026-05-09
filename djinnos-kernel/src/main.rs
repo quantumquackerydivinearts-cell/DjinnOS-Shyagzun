@@ -53,6 +53,8 @@ mod virtio;
 #[cfg(target_arch = "x86_64")]
 mod acpi;
 #[cfg(target_arch = "x86_64")]
+mod ramdisk;
+#[cfg(target_arch = "x86_64")]
 mod battery;
 #[cfg(target_arch = "x86_64")]
 mod ec;
@@ -539,13 +541,15 @@ pub unsafe extern "sysv64" fn kernel_uefi_entry(info: *const fb::UefiBootInfo) -
 // with interrupts disabled and CS=0x08.  RDI = info (sysv64 first arg).
 #[cfg(target_arch = "x86_64")]
 unsafe extern "sysv64" fn kernel_uefi_body(info: *const fb::UefiBootInfo) -> ! {
-    let rsdp  = (*info).rsdp_addr;
-    let fbdrv = fb::FbDriver::from_uefi(&*info);
-    uefi_boot_continue(fbdrv, rsdp)
+    let rsdp   = (*info).rsdp_addr;
+    let rdaddr = (*info).ramdisk_addr;
+    let rdcnt  = (*info).ramdisk_count;
+    let fbdrv  = fb::FbDriver::from_uefi(&*info);
+    uefi_boot_continue(fbdrv, rsdp, rdaddr, rdcnt)
 }
 
 #[cfg(target_arch = "x86_64")]
-fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64) -> ! {
+fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcnt: u32) -> ! {
     use crate::gpu::GpuSurface;
 
     arch::uart_init();
@@ -554,6 +558,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64) -> ! {
     trap::init();
     mm::init();
     process::init();
+    ramdisk::init(rdaddr, rdcnt);
 
     let rule_y = fbdrv.height() * 55 / 100;
     x86_splash(&fbdrv, rule_y);

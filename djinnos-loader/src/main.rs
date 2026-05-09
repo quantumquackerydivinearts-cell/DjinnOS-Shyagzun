@@ -19,21 +19,34 @@ use core::ptr;
 
 #[repr(C)]
 struct UefiBootInfo {
-    fb_addr:   u64,
-    fb_width:  u32,
-    fb_height: u32,
-    fb_pitch:  u32,   // bytes per row
-    r_pos:     u8,
-    g_pos:     u8,
-    b_pos:     u8,
-    _pad:      u8,
-    rsdp_addr: u64,
+    fb_addr:       u64,
+    fb_width:      u32,
+    fb_height:     u32,
+    fb_pitch:      u32,
+    r_pos:         u8,
+    g_pos:         u8,
+    b_pos:         u8,
+    _pad:          u8,
+    rsdp_addr:     u64,
+    ramdisk_addr:  u64,
+    ramdisk_count: u32,
+    _rd_pad:       u32,
 }
 
 static mut BOOT_INFO: UefiBootInfo = UefiBootInfo {
     fb_addr: 0, fb_width: 0, fb_height: 0, fb_pitch: 0,
     r_pos: 0, g_pos: 8, b_pos: 16, _pad: 0, rsdp_addr: 0,
+    ramdisk_addr: 0, ramdisk_count: 0, _rd_pad: 0,
 };
+
+// RAM disk file table — populated before ExitBootServices.
+// Each entry is 48 bytes: name[32] + data_ptr[8] + size[4] + pad[4].
+// After ExitBootServices this memory is still mapped (it was allocated
+// with alloc_pool / LOADER_DATA and stays valid for the kernel).
+const MAX_RD_FILES:  usize = 32;
+const RD_ENTRY_SIZE: usize = 48;
+static mut RD_TABLE: [u8; MAX_RD_FILES * RD_ENTRY_SIZE] = [0u8; MAX_RD_FILES * RD_ENTRY_SIZE];
+static mut RD_COUNT: u32 = 0;
 
 // ── EFI types ─────────────────────────────────────────────────────────────────
 
@@ -474,28 +487,128 @@ unsafe fn main_inner(image: EfiHandle, st: *const SystemTable) -> EfiStatus {
         let fat_start  = reserved;
         let data_start = reserved + num_fats * fat32_sz;
 
-        // Read root directory (one sector of first cluster)
-        let root_lba = data_start + (root_clust - 2) * spc;
-        if ((*bio).read_blocks)(bio, mid, root_lba, 4096,
-                                 DIR_BUF.as_mut_ptr()) != SUCCESS { continue; }
+        // Print BPB layout so we can verify the root directory address.
+        say(st, b"spc=");       say_hex(st, spc);
+        say(st, b"root=");      say_hex(st, root_clust);
+        say(st, b"data_lba=");  say_hex(st, data_start);
+        // Print FAT entry for root cluster to see if it chains
+        {
+            let fat_b = root_clust * 4;
+            let fat_l = fat_start + fat_b / 512;
+            let fat_o = (fat_b % 512) as usize;
+            if ((*bio).read_blocks)(bio, mid, fat_l, 512, FAT_BUF.as_mut_ptr()) == SUCCESS {
+                let nxt = u32::from_le_bytes([FAT_BUF[fat_o], FAT_BUF[fat_o+1],
+                                               FAT_BUF[fat_o+2], FAT_BUF[fat_o+3]])
+                          & 0x0FFF_FFFF;
+                say(st, b"root_fat="); say_hex(st, nxt as u64);
+            }
+        }
 
-        // Find KERNEL.ELF directory entry
+        // Scan the root directory following its full FAT cluster chain.
+        // A fixed 4096-byte read misses entries in later clusters (when the
+        // cluster size is large or Windows extended the directory).
+        let cluster_bytes = (spc * 512) as usize;
+        let read_sz = cluster_bytes.min(4096); // DIR_BUF is 4096 bytes
+
         let mut first_cluster: u32 = 0;
         let mut file_size: u32 = 0;
-        let mut j = 0;
-        while j + 32 <= 4096 {
-            let e = &DIR_BUF[j..j+32];
-            if e[0] == 0 { break; }
-            if e[0] == 0xE5 || e[11] & 0x0F == 0x0F { j += 32; continue; }
+        let mut dir_clust = root_clust as u32;
+        let mut dir_iter  = 0u32;  // safety: max 256 clusters
+
+        'dir_chain: while dir_clust < 0x0FFF_FFF8 && dir_iter < 256 {
+            dir_iter += 1;
+            let dir_lba = data_start + (dir_clust as u64 - 2) * spc;
+            if ((*bio).read_blocks)(bio, mid, dir_lba, read_sz,
+                                     DIR_BUF.as_mut_ptr()) != SUCCESS { break; }
+
+            let mut j = 0;
+            while j + 32 <= read_sz {
+                let e = &DIR_BUF[j..j+32];
+                if e[0] == 0 { j += 32; continue; } // free slot — keep scanning
+            // skip deleted, LFN, volume-label, and directory entries
+            if e[0] == 0xE5
+                || e[11] & 0x0F == 0x0F
+                || e[11] & 0x08 != 0
+                || e[11] & 0x10 != 0 { j += 32; continue; }
+
+            let hi = u16::from_le_bytes([e[20], e[21]]) as u32;
+            let lo = u16::from_le_bytes([e[26], e[27]]) as u32;
+            let fc = (hi << 16) | lo;
+            let fs = u32::from_le_bytes([e[28], e[29], e[30], e[31]]);
+
             if &e[0..8] == b"KERNEL  " && &e[8..11] == b"ELF" {
-                let hi = u16::from_le_bytes([e[20], e[21]]) as u32;
-                let lo = u16::from_le_bytes([e[26], e[27]]) as u32;
-                first_cluster = (hi << 16) | lo;
-                file_size = u32::from_le_bytes([e[28], e[29], e[30], e[31]]);
-                break;
+                first_cluster = fc;
+                file_size = fs;
+            } else if fc != 0 && fs > 0 && fs < 8 * 1024 * 1024
+                      && (RD_COUNT as usize) < MAX_RD_FILES {
+                // Load this file into a pool buffer for the ramdisk.
+                let mut fbuf: *mut u8 = ptr::null_mut();
+                if ((*bs).alloc_pool)(EFI_LOADER_DATA, fs as usize, &mut fbuf) == SUCCESS
+                    && !fbuf.is_null()
+                {
+                    let mut off: usize = 0;
+                    let mut cur = fc;
+                    while off < fs as usize && cur < 0x0FFF_FFF8 {
+                        let clba = data_start + (cur as u64 - 2) * spc;
+                        for si in 0..spc {
+                            if off >= fs as usize { break; }
+                            if ((*bio).read_blocks)(bio, mid, clba + si, 512,
+                                                    SECTOR_BUF.as_mut_ptr()) != SUCCESS { break; }
+                            let n = 512usize.min(fs as usize - off);
+                            ptr::copy_nonoverlapping(SECTOR_BUF.as_ptr(), fbuf.add(off), n);
+                            off += n;
+                        }
+                        let fat_b = (cur as u64) * 4;
+                        let fat_l = fat_start + fat_b / 512;
+                        let fat_o = (fat_b % 512) as usize;
+                        if ((*bio).read_blocks)(bio, mid, fat_l, 512,
+                                                FAT_BUF.as_mut_ptr()) != SUCCESS { break; }
+                        cur = u32::from_le_bytes([FAT_BUF[fat_o], FAT_BUF[fat_o+1],
+                                                   FAT_BUF[fat_o+2], FAT_BUF[fat_o+3]])
+                              & 0x0FFF_FFFF;
+                    }
+
+                    // Build lowercase 8.3 name (e.g. "README  TXT" → "readme.txt")
+                    let mut name = [0u8; 32];
+                    let mut np = 0usize;
+                    for k in 0..8usize {
+                        if e[k] == b' ' { break; }
+                        name[np] = if e[k] >= b'A' && e[k] <= b'Z' { e[k]+32 } else { e[k] };
+                        np += 1;
+                    }
+                    let has_ext = e[8] != b' ' || e[9] != b' ' || e[10] != b' ';
+                    if has_ext {
+                        name[np] = b'.'; np += 1;
+                        for k in 0..3usize {
+                            if e[8+k] == b' ' { break; }
+                            name[np] = if e[8+k] >= b'A' && e[8+k] <= b'Z' { e[8+k]+32 } else { e[8+k] };
+                            np += 1;
+                        }
+                    }
+
+                    // Write entry into RD_TABLE: name[32] | ptr[8] | size[4] | pad[4]
+                    let base = RD_TABLE.as_mut_ptr().add((RD_COUNT as usize) * RD_ENTRY_SIZE);
+                    ptr::copy_nonoverlapping(name.as_ptr(), base, 32);
+                    let pv = (fbuf as u64).to_le_bytes();
+                    ptr::copy_nonoverlapping(pv.as_ptr(), base.add(32), 8);
+                    let sv = fs.to_le_bytes();
+                    ptr::copy_nonoverlapping(sv.as_ptr(), base.add(40), 4);
+                    RD_COUNT += 1;
+                }
             }
             j += 32;
-        }
+        } // end inner entry scan
+
+        // Advance to next cluster in the root directory chain.
+        let fat_b = (dir_clust as u64) * 4;
+        let fat_l = fat_start + fat_b / 512;
+        let fat_o = (fat_b % 512) as usize;
+        if ((*bio).read_blocks)(bio, mid, fat_l, 512,
+                                 FAT_BUF.as_mut_ptr()) != SUCCESS { break 'dir_chain; }
+        dir_clust = u32::from_le_bytes([FAT_BUF[fat_o], FAT_BUF[fat_o+1],
+                                         FAT_BUF[fat_o+2], FAT_BUF[fat_o+3]])
+                    & 0x0FFF_FFFF;
+        } // end 'dir_chain
 
         if first_cluster == 0 {
             say(st, b"kernel.elf not in dir\r\n"); continue;
@@ -610,6 +723,11 @@ unsafe fn main_inner(image: EfiHandle, st: *const SystemTable) -> EfiStatus {
     say(st, b"fb_h=");    say_hex(st, BOOT_INFO.fb_height as u64);
 
     ((*bs).free_pool)(kbuf);
+
+    // Publish ramdisk in boot info.
+    BOOT_INFO.ramdisk_addr  = RD_TABLE.as_ptr() as u64;
+    BOOT_INFO.ramdisk_count = RD_COUNT;
+    say(st, b"ramdisk files="); say_hex(st, RD_COUNT as u64);
 
     // ExitBootServices retry loop — the memory map key can go stale between
     // GetMemoryMap and ExitBootServices if a UEFI timer callback fires.

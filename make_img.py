@@ -256,7 +256,7 @@ class Fat32Builder:
 
 # ---- main -------------------------------------------------------------------
 
-def build(loader_path: str, kernel_path: str, out_path: str):
+def build(loader_path: str, kernel_path: str, out_path: str, extra_files=None):
     print(f"Reading loader:  {loader_path}")
     loader = Path(loader_path).read_bytes()
     print(f"  {len(loader):,} bytes")
@@ -269,6 +269,17 @@ def build(loader_path: str, kernel_path: str, out_path: str):
     fat = Fat32Builder()
     fat.add_file('EFI/BOOT/BOOTX64.EFI', loader)
     fat.add_file('kernel.elf', kernel)          # 8.3: KERNEL.ELF
+
+    # Bundle extra files into the root directory (must be 8.3-compatible names).
+    for src, dst in (extra_files or []):
+        p = Path(src)
+        if p.exists():
+            data = p.read_bytes()
+            fat.add_file(dst, data)
+            print(f"  bundled: {dst}  ({len(data):,} bytes)")
+        else:
+            print(f"  skip (not found): {src}")
+
     part_img = fat.build()
 
     print(f"Building GPT disk image (64 MiB)...")
@@ -296,7 +307,12 @@ def build(loader_path: str, kernel_path: str, out_path: str):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 4:
+    if len(sys.argv) < 4:
         print('Usage: python make_img.py <loader.efi> <kernel-elf> <output.img>')
         sys.exit(1)
-    build(sys.argv[1], sys.argv[2], sys.argv[3])
+    # Standard Ko files bundled into every image.
+    ko_files = [
+        ('DjinnOS_Shyagzun/shygazun/sanctum/charters/Self-spec.ko', 'selfspec.ko'),
+        ('DjinnOS_Shyagzun/shygazun/sanctum/kos_labyrinth.ko',      'klgs.ko'),
+    ]
+    build(sys.argv[1], sys.argv[2], sys.argv[3], extra_files=ko_files)
