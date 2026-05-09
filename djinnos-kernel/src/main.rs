@@ -591,6 +591,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     hda::init();
 
     process::advance_cannabis(193);
+    process::spawn(19, ko_idle, 0);
 
     let mut frame: u64 = 0;
     // Render only on meaningful key events and new output — not on every
