@@ -8,6 +8,7 @@ extern crate alloc;
 mod arch;
 mod byte_table;
 mod eigenstate;
+mod kobra;
 mod font;
 mod gpu;
 mod input;
@@ -541,6 +542,18 @@ pub unsafe extern "sysv64" fn kernel_uefi_entry(info: *const fb::UefiBootInfo) -
 // with interrupts disabled and CS=0x08.  RDI = info (sysv64 first arg).
 #[cfg(target_arch = "x86_64")]
 unsafe extern "sysv64" fn kernel_uefi_body(info: *const fb::UefiBootInfo) -> ! {
+    // Reload SS, DS, ES with our GDT data64 descriptor (0x10).
+    // lretq set CS=0x08 but left SS holding UEFI's selector (often 0x18–0x38).
+    // When IRET restores the saved SS after any interrupt, if that selector
+    // isn't in our 3-entry GDT the CPU throws #GP → _isr_fault → hlt.
+    core::arch::asm!(
+        "mov ax, 0x10",
+        "mov ss, ax",
+        "mov ds, ax",
+        "mov es, ax",
+        out("ax") _,
+        options(nostack, preserves_flags),
+    );
     let rsdp   = (*info).rsdp_addr;
     let rdaddr = (*info).ramdisk_addr;
     let rdcnt  = (*info).ramdisk_count;
@@ -569,8 +582,9 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
 
     // PS/2 init skipped — UEFI already enables the i8042.
     // x86net::init() — needs xHCI BIOS handoff + DHCP; deferred.
-    // enable_timer() — LAPIC timer ISR not yet confirmed firing on this
-    //                  hardware; deferred until root cause is found.
+
+    arch::enable_timer();
+    arch::start_timer();
 
     acpi::init(rsdp_hint);
     pci::init();

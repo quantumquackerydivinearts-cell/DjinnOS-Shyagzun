@@ -41,6 +41,8 @@ pub use x86_64::{
     read_mtime,
     sbi_set_timer,
     enable_timer,
+    start_timer,
+    probe_timer,
     TICK_INTERVAL,
     uart_init,
     uart_putc,

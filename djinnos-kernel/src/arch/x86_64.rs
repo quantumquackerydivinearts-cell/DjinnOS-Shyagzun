@@ -324,8 +324,30 @@ pub fn enable_timer() {
         lapic_write(LAPIC_TIMER_DCR, 0x3);                         // divide by 16
         lapic_write(LAPIC_LVT_TIMER, 0x20 | LAPIC_TIMER_PERIODIC); // mode first
         lapic_write(LAPIC_TIMER_ICR, initial);                      // then start
+        // NOTE: STI is NOT called here.  Call arch::start_timer() to enable
+        // interrupts after confirming the counter is running via probe_timer().
+    }
+}
 
-        asm!("sti", options(nostack));
+/// Enable interrupts — call only after enable_timer() and probe_timer()
+/// confirm the LAPIC counter is actually counting down.
+pub fn start_timer() {
+    unsafe { asm!("sti", options(nostack)); }
+}
+
+/// Verify the LAPIC timer is counting.  Returns (ccr_before, ccr_after, lvt).
+/// If ccr_before > ccr_after > 0 the timer is running correctly.
+/// Called with interrupts still disabled (no STI yet).
+pub fn probe_timer() -> (u32, u32, u32) {
+    unsafe {
+        let ccr1 = lapic_read(LAPIC_TIMER_CCR);
+        // Spin ~3 ms at 3 GHz to give the counter time to decrease.
+        for _ in 0..10_000_000u32 {
+            core::arch::asm!("pause", options(nostack, nomem));
+        }
+        let ccr2 = lapic_read(LAPIC_TIMER_CCR);
+        let lvt  = lapic_read(LAPIC_LVT_TIMER);
+        (ccr1, ccr2, lvt)
     }
 }
 
