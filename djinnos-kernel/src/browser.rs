@@ -24,15 +24,19 @@ const CHAR_W: u32 = font::GLYPH_W * SCALE;
 const CHAR_H: u32 = font::GLYPH_H * SCALE;
 const MAR:    u32 = 32;
 
-// BGR colors — VirtIO pixel layout
-const BG_B: u8 = 0x10; const BG_G: u8 = 0x0c; const BG_R: u8 = 0x10;
-const TX_B: u8 = 0xa0; const TX_G: u8 = 0x90; const TX_R: u8 = 0x70;
-const HD_B: u8 = 0x4b; const HD_G: u8 = 0x96; const HD_R: u8 = 0xc8;
-const LK_B: u8 = 0xe0; const LK_G: u8 = 0xb0; const LK_R: u8 = 0x40;
-const LF_B: u8 = 0xff; const LF_G: u8 = 0xe0; const LF_R: u8 = 0x80;
-const SB_B: u8 = 0x60; const SB_G: u8 = 0x60; const SB_R: u8 = 0x80;
-const UB_B: u8 = 0x20; const UB_G: u8 = 0x18; const UB_R: u8 = 0x24;
-const HR_B: u8 = 0x50; const HR_G: u8 = 0x40; const HR_R: u8 = 0x50;
+// Faerie Browser palette — absinthe green × sugarfloss pink.
+// All values are BGR (Blue, Green, Red) to match the BGRX framebuffer layout.
+//
+// Absinthe green: the chartreuse-emerald of the spirit, slightly yellow-warm.
+// Sugarfloss pink: soft spun-sugar pink, not hot, not pastel — mid-saturated.
+const BG_B: u8 = 0x08; const BG_G: u8 = 0x0e; const BG_R: u8 = 0x08; // near-black green
+const UB_B: u8 = 0x0c; const UB_G: u8 = 0x16; const UB_R: u8 = 0x0c; // bar background
+const TX_B: u8 = 0x14; const TX_G: u8 = 0xa0; const TX_R: u8 = 0x32; // absinthe body text
+const HD_B: u8 = 0x28; const HD_G: u8 = 0xd2; const HD_R: u8 = 0x50; // bright absinthe headings
+const LK_B: u8 = 0xc3; const LK_G: u8 = 0x9b; const LK_R: u8 = 0xe8; // sugarfloss links
+const LF_B: u8 = 0xdc; const LF_G: u8 = 0xaa; const LF_R: u8 = 0xff; // focused sugarfloss
+const SB_B: u8 = 0x30; const SB_G: u8 = 0x60; const SB_R: u8 = 0x30; // muted absinthe status
+const HR_B: u8 = 0x19; const HR_G: u8 = 0x3c; const HR_R: u8 = 0x1e; // dark absinthe rule
 
 // Line kind constants
 const KIND_NORMAL:  u8 = 0;
@@ -40,9 +44,18 @@ const KIND_HEADING: u8 = 1;
 const KIND_LINK:    u8 = 2;
 const KIND_HR:      u8 = 3;
 
-// Proxy address
-const PROXY_IP:   [u8; 4] = [10, 0, 2, 2];
-const PROXY_PORT: u16     = 8888;
+// Proxy address — configurable at runtime via set_proxy() / `proxy` shell cmd.
+// Default: 10.0.2.2:8888 (QEMU SLIRP gateway).
+// On real hardware set to the IP of the machine running browser_proxy.py.
+static mut PROXY_IP:   [u8; 4] = [10, 0, 2, 2];
+static mut PROXY_PORT: u16     = 8888;
+
+pub fn set_proxy(ip: [u8; 4], port: u16) {
+    unsafe { PROXY_IP = ip; PROXY_PORT = port; }
+}
+
+pub fn proxy_ip()   -> [u8; 4] { unsafe { PROXY_IP } }
+pub fn proxy_port() -> u16     { unsafe { PROXY_PORT } }
 
 // Sizes
 const LINE_W:  usize = 104;  // chars per rendered line (2× scale @ 1920px)
@@ -313,41 +326,80 @@ impl BrowserClient {
         let w = gpu.width();
         let h = gpu.height();
 
-        // Full-frame background — browser owns the whole window when active.
+        // ── Full-frame background ─────────────────────────────────────────────
         gpu.fill_rect(0, 0, w, h, BG_B, BG_G, BG_R);
 
-        // URL bar at the top
-        let ub_y = 2;
+        // ── Title bar ─────────────────────────────────────────────────────────
+        //  "◈ Faerie"   [proxy address right-aligned]
+        let tb_h = CHAR_H + 10;
+        gpu.fill_rect(0, 0, w, tb_h, UB_B, UB_G, UB_R);
+        // Left: wordmark
+        let tx = font::draw_str(gpu, 10, 5, "Faerie", SCALE, HD_B, HD_G, HD_R);
+        // Loading indicator dot when in motion
+        if self.status_n > 0 && &self.status[..7.min(self.status_n)] == b"Loading" {
+            font::draw_str(gpu, tx + 6, 5, "...", SCALE, LK_B, LK_G, LK_R);
+        }
+        // Right: proxy address
+        {
+            let pip = proxy_ip();
+            let ppt = proxy_port();
+            let mut pb = [0u8; 32]; let mut pn = 0;
+            for (k, &o) in pip.iter().enumerate() {
+                if k > 0 { pb[pn] = b'.'; pn += 1; }
+                pn += write_u32(&mut pb[pn..], o as u32);
+            }
+            pb[pn] = b':'; pn += 1;
+            pn += write_u32(&mut pb[pn..], ppt as u32);
+            if let Ok(ps) = core::str::from_utf8(&pb[..pn]) {
+                let pw = pn as u32 * CHAR_W;
+                font::draw_str(gpu, w.saturating_sub(pw + 10), 5, ps, SCALE, SB_B, SB_G, SB_R);
+            }
+        }
+        // Separator line under title bar
+        gpu.draw_line(0, tb_h as i32, w as i32, tb_h as i32, HR_B, HR_G, HR_R);
+
+        // ── URL bar ───────────────────────────────────────────────────────────
+        let ub_y = tb_h + 1;
         let ub_h = CHAR_H + 8;
         gpu.fill_rect(0, ub_y, w, ub_h, UB_B, UB_G, UB_R);
         let ty = ub_y + 4;
-        let label: &str = if self.mode == 1 { "  Go: " } else { " URL: " };
-        let lx = font::draw_str(gpu, 0, ty, label, SCALE, SB_B, SB_G, SB_R);
+        let label = if self.mode == 1 { " Go: " } else { "    " };
+        let lx = font::draw_str(gpu, 6, ty, label, SCALE, SB_B, SB_G, SB_R);
         let (disp, dlen) = if self.mode == 1 {
             (&self.input, self.input_len)
         } else {
             (&self.url, self.url_len)
         };
+        let url_col = if self.mode == 1 { (LF_B, LF_G, LF_R) } else { (TX_B, TX_G, TX_R) };
         let dstr = core::str::from_utf8(&disp[..dlen]).unwrap_or("?");
-        let cx = font::draw_str(gpu, lx, ty, dstr, SCALE, LF_B, LF_G, LF_R);
+        // Truncate URL display to fit available width
+        let max_url_chars = ((w.saturating_sub(lx + 60)) / CHAR_W) as usize;
+        let dstr_show = if dstr.len() > max_url_chars && max_url_chars > 3 {
+            &dstr[dstr.len() - max_url_chars..]
+        } else { dstr };
+        let cx = font::draw_str(gpu, lx, ty, dstr_show, SCALE, url_col.0, url_col.1, url_col.2);
         if self.mode == 1 {
             gpu.fill_rect(cx, ty, CHAR_W, CHAR_H, LF_B, LF_G, LF_R);
         }
-        // Page title right-aligned
+        // Page title right-aligned in URL bar (browse mode)
         if self.mode == 0 && self.title_len > 0 {
             let ts = core::str::from_utf8(&self.title[..self.title_len]).unwrap_or("");
             let tw = ts.len() as u32 * CHAR_W;
-            if tw + MAR * 2 < w {
-                font::draw_str(gpu, w - tw - MAR, ty, ts, SCALE, TX_B, TX_G, TX_R);
+            let tx2 = w.saturating_sub(tw + 12);
+            if tx2 > cx + CHAR_W * 4 {
+                font::draw_str(gpu, tx2, ty, ts, SCALE, SB_B, SB_G, SB_R);
             }
         }
+        gpu.draw_line(0, (ub_y + ub_h) as i32, w as i32, (ub_y + ub_h) as i32, HR_B, HR_G, HR_R);
 
-        // Content area
-        let cy  = ub_y + ub_h + 4;
-        let sh  = CHAR_H + 6;
-        let bot = h.saturating_sub(sh);
+        // ── Content area ──────────────────────────────────────────────────────
+        let cy    = ub_y + ub_h + 2;
+        let sb_h  = CHAR_H + 6;   // status bar height
+        let scr_w = 8u32;         // scrollbar width
+        let bot   = h.saturating_sub(sb_h);
         let avail = bot.saturating_sub(cy);
         let vrows = (avail / CHAR_H) as usize;
+        let cw    = w.saturating_sub(MAR + scr_w + 4); // content width excl. scrollbar
 
         let mut y = cy;
         for vi in 0..vrows {
@@ -359,49 +411,57 @@ impl BrowserClient {
 
             if kind == KIND_HR {
                 let mid = y + CHAR_H / 2;
-                gpu.fill_rect(MAR, mid, w.saturating_sub(MAR * 2), 1, HR_B, HR_G, HR_R);
+                gpu.draw_line(MAR as i32, mid as i32, (w - scr_w - 4) as i32, mid as i32, HR_B, HR_G, HR_R);
                 y += CHAR_H;
                 continue;
             }
 
             let (b, g, r) = match kind {
                 KIND_HEADING => (HD_B, HD_G, HD_R),
-                KIND_LINK => {
-                    if lnk != 0xFF && lnk == self.focused {
-                        (LF_B, LF_G, LF_R)
-                    } else {
-                        (LK_B, LK_G, LK_R)
-                    }
-                }
-                _ => (TX_B, TX_G, TX_R),
+                KIND_LINK if lnk != 0xFF && lnk == self.focused => (LF_B, LF_G, LF_R),
+                KIND_LINK    => (LK_B, LK_G, LK_R),
+                _            => (TX_B, TX_G, TX_R),
             };
 
             let text = core::str::from_utf8(&self.lines[li][..len]).unwrap_or("");
             font::draw_str(gpu, MAR, y, text, SCALE, b, g, r);
-            // Heading underline
+
             if kind == KIND_HEADING && len > 0 {
-                let line_w = (len as u32 * CHAR_W).min(w.saturating_sub(MAR * 2));
-                gpu.draw_line(
-                    MAR as i32, (y + CHAR_H + 1) as i32,
-                    (MAR + line_w) as i32, (y + CHAR_H + 1) as i32,
-                    HD_B, HD_G, HD_R,
-                );
+                let lw = (len as u32 * CHAR_W).min(cw.saturating_sub(MAR));
+                gpu.draw_line(MAR as i32, (y + CHAR_H + 1) as i32,
+                              (MAR + lw) as i32, (y + CHAR_H + 1) as i32,
+                              HD_B, HD_G, HD_R);
             }
-            // Focused link highlight bar on left margin
             if kind == KIND_LINK && lnk != 0xFF && lnk == self.focused {
-                gpu.draw_line(
-                    (MAR - 6) as i32, y as i32,
-                    (MAR - 6) as i32, (y + CHAR_H - 1) as i32,
-                    LF_B, LF_G, LF_R,
-                );
+                gpu.draw_line((MAR - 6) as i32, y as i32,
+                              (MAR - 6) as i32, (y + CHAR_H - 1) as i32,
+                              LF_B, LF_G, LF_R);
             }
             y += CHAR_H;
         }
 
-        // Status bar
-        gpu.fill_rect(0, bot, w, sh, UB_B, UB_G, UB_R);
+        // ── Scrollbar ─────────────────────────────────────────────────────────
+        let track_h = avail;
+        let track_x = w - scr_w - 2;
+        gpu.fill_rect(track_x, cy, scr_w, track_h, UB_B, UB_G, UB_R);
+        if self.n_lines > vrows {
+            let thumb_h = ((vrows as u32 * track_h) / self.n_lines as u32).max(4);
+            let thumb_y = cy + (self.scroll as u32 * track_h) / self.n_lines as u32;
+            gpu.fill_rect(track_x + 1, thumb_y, scr_w - 2, thumb_h, SB_B, SB_G, SB_R);
+        }
+
+        // ── Status bar ────────────────────────────────────────────────────────
+        gpu.fill_rect(0, bot, w, sb_h, UB_B, UB_G, UB_R);
+        gpu.draw_line(0, bot as i32, w as i32, bot as i32, HR_B, HR_G, HR_R);
         let ss = core::str::from_utf8(&self.status[..self.status_n]).unwrap_or("");
-        font::draw_str(gpu, 4, bot + 3, ss, SCALE, SB_B, SB_G, SB_R);
+        font::draw_str(gpu, 8, bot + 4, ss, SCALE, SB_B, SB_G, SB_R);
+        // Hint text right-aligned
+        let hint = "↑↓ scroll   Tab link   Enter follow   G url   Bksp back   Esc exit";
+        let hw = hint.len() as u32 * CHAR_W;
+        if hw + 16 < w {
+            font::draw_str(gpu, w - hw - 8, bot + 4, hint, SCALE,
+                           UB_B.saturating_add(0x20), UB_G.saturating_add(0x20), UB_R.saturating_add(0x20));
+        }
     }
 
     // ── Fetch and parse ───────────────────────────────────────────────────────
@@ -414,7 +474,7 @@ impl BrowserClient {
             self.setstatus(b"no network");
             return;
         }
-        if crate::net::tcp_connect(fd, PROXY_IP, PROXY_PORT) == 0 {
+        if crate::net::tcp_connect(fd, proxy_ip(), proxy_port()) == 0 {
             self.setstatus(b"proxy connect failed (browser_proxy.py not running?)");
             crate::net::tcp_close(fd);
             return;

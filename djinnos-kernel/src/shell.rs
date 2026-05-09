@@ -573,6 +573,53 @@ impl Shell {
                 self.push_line(&b[..n], [R_IN, G_IN, B_IN]);
             }
 
+            // ── proxy — configure Faerie Browser proxy ────────────────────────
+            b"proxy" => {
+                if rest.is_empty() {
+                    // Show current proxy
+                    let ip   = crate::browser::proxy_ip();
+                    let port = crate::browser::proxy_port();
+                    let mut buf = [0u8; 80]; let mut n = 0;
+                    let pfx = b"proxy: "; buf[..pfx.len()].copy_from_slice(pfx); n = pfx.len();
+                    for (k, &o) in ip.iter().enumerate() {
+                        if k > 0 { buf[n] = b'.'; n += 1; }
+                        n += write_u32(&mut buf[n..], o as u32);
+                    }
+                    buf[n] = b':'; n += 1;
+                    n += write_u32(&mut buf[n..], port as u32);
+                    self.push_line(&buf[..n], [R_IN, G_IN, B_IN]);
+                } else {
+                    // Parse ip:port from rest
+                    if let Some(col) = rest.iter().position(|&b| b == b':') {
+                        let ip_part   = &rest[..col];
+                        let port_part = &rest[col+1..];
+                        let mut ip = [0u8; 4]; let mut ii = 0;
+                        let mut oct = 0u32;
+                        for &b in ip_part {
+                            if b == b'.' { if ii < 4 { ip[ii] = oct as u8; ii += 1; oct = 0; } }
+                            else if b >= b'0' && b <= b'9' { oct = oct * 10 + (b - b'0') as u32; }
+                        }
+                        if ii == 3 { ip[3] = oct as u8; ii += 1; }
+                        if ii == 4 {
+                            let port = parse_u32(port_part).unwrap_or(8888) as u16;
+                            crate::browser::set_proxy(ip, port);
+                            let mut buf = [0u8; 80]; let mut n = 0;
+                            let pfx = b"proxy set: ";
+                            buf[..pfx.len()].copy_from_slice(pfx); n = pfx.len();
+                            n += rest.len().min(80 - n);
+                            buf[pfx.len()..pfx.len() + rest.len().min(80-pfx.len())]
+                                .copy_from_slice(&rest[..rest.len().min(80-pfx.len())]);
+                            n = pfx.len() + rest.len().min(80 - pfx.len());
+                            self.push_line(&buf[..n], [R_PR, G_PR, B_PR]);
+                        } else {
+                            self.push_line(b"proxy: usage: proxy <ip>:<port>", [0xa0, 0x40, 0x40]);
+                        }
+                    } else {
+                        self.push_line(b"proxy: usage: proxy <ip>:<port>", [0xa0, 0x40, 0x40]);
+                    }
+                }
+            }
+
             // ── www — Faerie Browser ──────────────────────────────────────────
             b"www" => {
                 if rest.is_empty() {
