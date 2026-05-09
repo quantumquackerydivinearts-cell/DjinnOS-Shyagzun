@@ -265,12 +265,11 @@ impl Editor {
 
     fn save(&mut self) {
         if !self.modified { return; }
-        unsafe {
-            crate::ramdisk::write_edit(
-                &self.name[..self.name_n],
-                &ED_BUF[..ED_LEN],
-            );
-        }
+        let name = &self.name[..self.name_n];
+        let data = unsafe { &ED_BUF[..ED_LEN] };
+        // Write to Sa volume (session-persistent) and volatile ramdisk slot.
+        crate::sa::write_file(name, data);
+        crate::ramdisk::write_edit(name, data);
         self.modified = false;
     }
 
