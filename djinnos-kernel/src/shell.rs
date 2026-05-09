@@ -29,30 +29,34 @@ const PROMPT: &[u8] = b"Ko > ";
 
 // ── Shell state ───────────────────────────────────────────────────────────────
 
+const BUF_LINES: usize = 256;
+
 pub struct Shell {
-    lines:      [[u8; 80]; 22],
-    line_color: [[u8; 3]; 22],
-    line_len:   [u8; 22],
-    next_line:  usize,
-    input:      [u8; 80],
-    input_len:  usize,
-    rule_y:     u32,
-    dirty:      bool,
-    _frame:     u64,
+    lines:       [[u8; 80]; BUF_LINES],
+    line_color:  [[u8; 3]; BUF_LINES],
+    line_len:    [u8; BUF_LINES],
+    next_line:   usize,
+    view_offset: usize,   // lines scrolled up from bottom; 0 = follow tail
+    input:       [u8; 80],
+    input_len:   usize,
+    rule_y:      u32,
+    dirty:       bool,
+    _frame:      u64,
 }
 
 impl Shell {
     pub fn new(rule_y: u32) -> Self {
         Shell {
-            lines:      [[0u8; 80]; 22],
-            line_color: [[R_DIM, G_DIM, B_DIM]; 22],
-            line_len:   [0u8; 22],
-            next_line:  0,
-            input:      [0u8; 80],
-            input_len:  0,
+            lines:       [[0u8; 80]; BUF_LINES],
+            line_color:  [[R_DIM, G_DIM, B_DIM]; BUF_LINES],
+            line_len:    [0u8; BUF_LINES],
+            next_line:   0,
+            view_offset: 0,
+            input:       [0u8; 80],
+            input_len:   0,
             rule_y,
-            dirty:      true,
-            _frame:     0,
+            dirty:       true,
+            _frame:      0,
         }
     }
 
@@ -106,6 +110,14 @@ impl Shell {
                 if self.input_len > 0 { self.input_len -= 1; self.dirty = true; }
             }
             Key::Enter => self.commit_and_execute_x86(),
+            Key::Up    => {
+                self.view_offset = (self.view_offset + 1).min(self.next_line.saturating_sub(1));
+                self.dirty = true;
+            }
+            Key::Down  => {
+                self.view_offset = self.view_offset.saturating_sub(1);
+                self.dirty = true;
+            }
             _          => {}
         }
     }
@@ -127,8 +139,20 @@ impl Shell {
 
         gpu.fill_rect(0, floor_top, w, h.saturating_sub(floor_top), BG_B, BG_G, BG_R);
 
+        // Compute the visible window into the line buffer.
+        // view_offset=0 → show the most recent ROWS lines.
+        let rows    = ROWS as usize;
+        let end     = self.next_line.saturating_sub(self.view_offset);
+        let start   = end.saturating_sub(rows);
+
+        // Scroll indicator: dim "^" when there is history above.
+        if start > 0 {
+            font::draw_str(gpu, MARGIN_X, floor_top + 2, "^", SCALE,
+                           0x40, 0x40, 0x50);
+        }
+
         let mut y = floor_top + MARGIN_Y;
-        for i in 0..(self.next_line.min(ROWS as usize)) {
+        for i in start..end {
             let len = self.line_len[i] as usize;
             let [r, g, b] = self.line_color[i];
             font::draw_str(
@@ -159,14 +183,23 @@ impl Shell {
     // ── Internal ──────────────────────────────────────────────────────────────
 
     fn push_line(&mut self, text: &[u8], color: [u8; 3]) {
-        if self.next_line < self.lines.len() {
-            let len = text.len().min(80);
-            self.lines[self.next_line][..len].copy_from_slice(&text[..len]);
-            self.line_len[self.next_line]   = len as u8;
-            self.line_color[self.next_line] = color;
-            self.next_line += 1;
-            self.dirty = true;
+        if self.next_line >= BUF_LINES {
+            // Shift buffer up by one, dropping the oldest line.
+            for i in 0..BUF_LINES - 1 {
+                self.lines[i]      = self.lines[i + 1];
+                self.line_len[i]   = self.line_len[i + 1];
+                self.line_color[i] = self.line_color[i + 1];
+            }
+            self.next_line = BUF_LINES - 1;
         }
+        let len = text.len().min(80);
+        self.lines[self.next_line][..len].copy_from_slice(&text[..len]);
+        self.line_len[self.next_line]   = len as u8;
+        self.line_color[self.next_line] = color;
+        self.next_line += 1;
+        // New content arrives → jump to tail unless the user pinned scroll.
+        if self.view_offset > 0 { self.view_offset = self.view_offset.saturating_sub(1); }
+        self.dirty = true;
     }
 
     #[cfg(target_arch = "riscv64")]
@@ -238,7 +271,8 @@ impl Shell {
             // ── Ze = byte 20 — There / far: reach toward void → clear ─────────
             b"Ze" | b"clear" => {
                 for i in 0..self.lines.len() { self.line_len[i] = 0; }
-                self.next_line = 0;
+                self.next_line   = 0;
+                self.view_offset = 0;
             }
 
             // ── Seth = byte 159 — Platter / directory / bundle ───────────────
@@ -374,7 +408,8 @@ impl Shell {
             // ── Ze = byte 20 — There / far → clear ──────────────────────────
             b"Ze" | b"clear" => {
                 for i in 0..self.lines.len() { self.line_len[i] = 0; }
-                self.next_line = 0;
+                self.next_line   = 0;
+                self.view_offset = 0;
             }
 
             // ── Ro = byte 83 — Ion-channel / Gate / Receptor → PCI ───────────
