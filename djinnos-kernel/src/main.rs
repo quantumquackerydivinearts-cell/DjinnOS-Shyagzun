@@ -7,6 +7,7 @@ extern crate alloc;
 
 mod agent;
 mod dialogue;
+mod voxel;
 mod kos_characters;
 mod sa;
 mod arch;
