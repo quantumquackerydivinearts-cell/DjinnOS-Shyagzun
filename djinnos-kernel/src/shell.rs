@@ -395,6 +395,8 @@ impl Shell {
                 self.push_line(b"  Ko / eigenstate          eigenstate",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Seth / ls                list files",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Sao <file> / cat <file>  read file (.ko evaluated)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  www <url>                open Faerie Browser",     [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Kyom [ip:port]           show/set browser Kyom",   [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  tiler                    byte table structural map", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  edit <file> / Yew        open file editor", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kobra                    open Kobra REPL", [R_DIM, G_DIM, B_DIM]);
@@ -573,14 +575,17 @@ impl Shell {
                 self.push_line(&b[..n], [R_IN, G_IN, B_IN]);
             }
 
-            // ── proxy — configure Faerie Browser proxy ────────────────────────
-            b"proxy" => {
+            // ── Kyom (byte 182) — Replica / proxy / masked follower ──────────
+            // The Faerie Browser reaches the internet through a Kyom:
+            // a machine running browser_proxy.py that handles TLS and
+            // returns plain HTML to the kernel.
+            b"Kyom" | b"proxy" => {
                 if rest.is_empty() {
-                    // Show current proxy
+                    // Show current Kyom address
                     let ip   = crate::browser::proxy_ip();
                     let port = crate::browser::proxy_port();
                     let mut buf = [0u8; 80]; let mut n = 0;
-                    let pfx = b"proxy: "; buf[..pfx.len()].copy_from_slice(pfx); n = pfx.len();
+                    let pfx = b"Kyom: "; buf[..pfx.len()].copy_from_slice(pfx); n = pfx.len();
                     for (k, &o) in ip.iter().enumerate() {
                         if k > 0 { buf[n] = b'.'; n += 1; }
                         n += write_u32(&mut buf[n..], o as u32);
@@ -589,7 +594,7 @@ impl Shell {
                     n += write_u32(&mut buf[n..], port as u32);
                     self.push_line(&buf[..n], [R_IN, G_IN, B_IN]);
                 } else {
-                    // Parse ip:port from rest
+                    // Parse ip:port
                     if let Some(col) = rest.iter().position(|&b| b == b':') {
                         let ip_part   = &rest[..col];
                         let port_part = &rest[col+1..];
@@ -602,20 +607,18 @@ impl Shell {
                         if ii == 3 { ip[3] = oct as u8; ii += 1; }
                         if ii == 4 {
                             let port = parse_u32(port_part).unwrap_or(8888) as u16;
-                            crate::browser::set_proxy(ip, port);
+                            crate::browser::set_kyom(ip, port);
                             let mut buf = [0u8; 80]; let mut n = 0;
-                            let pfx = b"proxy set: ";
+                            let pfx = b"Kyom set: ";
                             buf[..pfx.len()].copy_from_slice(pfx); n = pfx.len();
-                            n += rest.len().min(80 - n);
-                            buf[pfx.len()..pfx.len() + rest.len().min(80-pfx.len())]
-                                .copy_from_slice(&rest[..rest.len().min(80-pfx.len())]);
-                            n = pfx.len() + rest.len().min(80 - pfx.len());
+                            let rl = rest.len().min(80 - n);
+                            buf[n..n+rl].copy_from_slice(&rest[..rl]); n += rl;
                             self.push_line(&buf[..n], [R_PR, G_PR, B_PR]);
                         } else {
-                            self.push_line(b"proxy: usage: proxy <ip>:<port>", [0xa0, 0x40, 0x40]);
+                            self.push_line(b"Kyom: usage: Kyom <ip>:<port>", [0xa0, 0x40, 0x40]);
                         }
                     } else {
-                        self.push_line(b"proxy: usage: proxy <ip>:<port>", [0xa0, 0x40, 0x40]);
+                        self.push_line(b"Kyom: usage: Kyom <ip>:<port>", [0xa0, 0x40, 0x40]);
                     }
                 }
             }

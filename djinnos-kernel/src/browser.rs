@@ -44,18 +44,23 @@ const KIND_HEADING: u8 = 1;
 const KIND_LINK:    u8 = 2;
 const KIND_HR:      u8 = 3;
 
-// Proxy address — configurable at runtime via set_proxy() / `proxy` shell cmd.
+// Kyom (byte 182, Grapevine T7) — Replica / proxy / masked follower.
+// The browser reaches the internet through a Kyom: a machine running
+// browser_proxy.py that speaks HTTPS to the internet and returns plain
+// HTTP to the kernel (which has no TLS stack).
+//
 // Default: 10.0.2.2:8888 (QEMU SLIRP gateway).
-// On real hardware set to the IP of the machine running browser_proxy.py.
-static mut PROXY_IP:   [u8; 4] = [10, 0, 2, 2];
-static mut PROXY_PORT: u16     = 8888;
+// On real hardware: the IP of the machine running browser_proxy.py,
+// set with `Kyom <ip>:<port>` at the Ko shell.
+static mut KYOM_IP:   [u8; 4] = [10, 0, 2, 2];
+static mut KYOM_PORT: u16     = 8888;
 
-pub fn set_proxy(ip: [u8; 4], port: u16) {
-    unsafe { PROXY_IP = ip; PROXY_PORT = port; }
+pub fn set_kyom(ip: [u8; 4], port: u16) {
+    unsafe { KYOM_IP = ip; KYOM_PORT = port; }
 }
 
-pub fn proxy_ip()   -> [u8; 4] { unsafe { PROXY_IP } }
-pub fn proxy_port() -> u16     { unsafe { PROXY_PORT } }
+pub fn proxy_ip()   -> [u8; 4] { unsafe { KYOM_IP } }
+pub fn proxy_port() -> u16     { unsafe { KYOM_PORT } }
 
 // Sizes
 const LINE_W:  usize = 104;  // chars per rendered line (2× scale @ 1920px)
@@ -339,11 +344,13 @@ impl BrowserClient {
         if self.status_n > 0 && &self.status[..7.min(self.status_n)] == b"Loading" {
             font::draw_str(gpu, tx + 6, 5, "...", SCALE, LK_B, LK_G, LK_R);
         }
-        // Right: proxy address
+        // Right: Kyom address (byte 182 — Replica / proxy / masked follower)
         {
             let pip = proxy_ip();
             let ppt = proxy_port();
-            let mut pb = [0u8; 32]; let mut pn = 0;
+            let mut pb = [0u8; 40]; let mut pn = 0;
+            let lbl = b"Kyom: ";
+            pb[..lbl.len()].copy_from_slice(lbl); pn += lbl.len();
             for (k, &o) in pip.iter().enumerate() {
                 if k > 0 { pb[pn] = b'.'; pn += 1; }
                 pn += write_u32(&mut pb[pn..], o as u32);
@@ -475,7 +482,7 @@ impl BrowserClient {
             return;
         }
         if crate::net::tcp_connect(fd, proxy_ip(), proxy_port()) == 0 {
-            self.setstatus(b"proxy connect failed (browser_proxy.py not running?)");
+            self.setstatus(b"Kyom unreachable (browser_proxy.py not running?)");
             crate::net::tcp_close(fd);
             return;
         }
