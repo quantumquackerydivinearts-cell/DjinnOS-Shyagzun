@@ -6,6 +6,7 @@
 extern crate alloc;
 
 mod agent;
+mod dialogue;
 mod kos_characters;
 mod arch;
 mod byte_table;
