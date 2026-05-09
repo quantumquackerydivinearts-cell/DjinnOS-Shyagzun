@@ -220,7 +220,8 @@ impl Shell {
                 self.push_line(b"  info               system + eigenstate", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Ze                 clear terminal", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Seth / ls          directory listing", [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  Sao <file>  / cat  read file", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Sao <file>  / cat  read file (.ko files are evaluated)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Kobra <expr>       evaluate a Kobra expression", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Ty <file>          spawn ELF process", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Zu                 terminate process", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kael               heap stats", [R_DIM, G_DIM, B_DIM]);
@@ -312,6 +313,22 @@ impl Shell {
                 }
             }
 
+            // ── Kobra — inline Shygazun expression evaluator ─────────────────
+            b"Kobra" => {
+                if rest.is_empty() {
+                    self.push_line(b"Kobra: usage: Kobra <expr>  e.g. Kobra [Ko Sha]", [0xa0, 0x40, 0x40]);
+                } else {
+                    let result = crate::kobra::eval_expr(rest);
+                    if result.line_count() == 0 {
+                        self.push_line(b"Kobra: (empty)", [R_DIM, G_DIM, B_DIM]);
+                    } else {
+                        for i in 0..result.line_count() {
+                            self.push_line(result.line(i), [R_DIM, G_DIM, B_DIM]);
+                        }
+                    }
+                }
+            }
+
             b"" => {}
             _ => self.unknown_cmd(cmd),
         }
@@ -343,7 +360,10 @@ impl Shell {
                 self.push_line(b"  Kael                     heap stats",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Ko / eigenstate          eigenstate",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Seth / ls                list files",    [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  Sao <file> / cat <file>  read file",    [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Sao <file> / cat <file>  read file (.ko evaluated)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  edit <file> / Yew        open file editor", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Kobra                    open Kobra REPL", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Kobra <expr>             evaluate Kobra expression", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  ec [NN]                  EC register",   [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  dsdt                     DSDT bytes",    [R_DIM, G_DIM, B_DIM]);
             }
@@ -423,17 +443,61 @@ impl Shell {
                             self.push_line(&b[..pfx.len()+n], [0xa0, 0x40, 0x40]);
                         }
                         Some(data) => {
-                            let mut start = 0;
-                            while start < data.len() {
-                                let end = data[start..].iter()
-                                    .position(|&b| b == b'\n')
-                                    .map(|p| start + p)
-                                    .unwrap_or(data.len());
-                                self.push_line(&data[start..end.min(start+79)], [R_IN, G_IN, B_IN]);
-                                start = if end < data.len() { end + 1 } else { data.len() };
+                            // .ko files are Kobra source — evaluate rather than print.
+                            if rest.ends_with(b".ko") {
+                                let result = crate::kobra::eval_file(data);
+                                if result.line_count() == 0 {
+                                    self.push_line(b"(no output)", [R_DIM, G_DIM, B_DIM]);
+                                } else {
+                                    for i in 0..result.line_count() {
+                                        self.push_line(result.line(i), [R_DIM, G_DIM, B_DIM]);
+                                    }
+                                }
+                            } else {
+                                let mut start = 0;
+                                while start < data.len() {
+                                    let end = data[start..].iter()
+                                        .position(|&b| b == b'\n')
+                                        .map(|p| start + p)
+                                        .unwrap_or(data.len());
+                                    self.push_line(&data[start..end.min(start+79)], [R_IN, G_IN, B_IN]);
+                                    start = if end < data.len() { end + 1 } else { data.len() };
+                                }
                             }
                         }
                     }
+                }
+            }
+
+            // ── Kobra — REPL (no args) or inline eval ────────────────────────
+            b"Kobra" => {
+                if rest.is_empty() {
+                    crate::kobra_repl::request();
+                    self.push_line(b"Entering Kobra REPL...", [R_IN, G_IN, B_IN]);
+                } else {
+                    let result = crate::kobra::eval_expr(rest);
+                    if result.line_count() == 0 {
+                        self.push_line(b"Kobra: (empty)", [R_DIM, G_DIM, B_DIM]);
+                    } else {
+                        for i in 0..result.line_count() {
+                            self.push_line(result.line(i), [R_DIM, G_DIM, B_DIM]);
+                        }
+                    }
+                }
+            }
+
+            // ── edit — file editor ────────────────────────────────────────────
+            b"edit" | b"Yew" => {
+                if rest.is_empty() {
+                    self.push_line(b"edit: usage: edit <filename>", [0xa0, 0x40, 0x40]);
+                } else {
+                    crate::editor::request(rest);
+                    let mut msg = [0u8; 80];
+                    let pfx = b"Opening ";
+                    msg[..pfx.len()].copy_from_slice(pfx);
+                    let n = rest.len().min(80 - pfx.len());
+                    msg[pfx.len()..pfx.len() + n].copy_from_slice(&rest[..n]);
+                    self.push_line(&msg[..pfx.len() + n], [R_IN, G_IN, B_IN]);
                 }
             }
 
@@ -1127,6 +1191,18 @@ impl Shell {
             msg[pfx.len()..pfx.len() + alen].copy_from_slice(&name[..alen]);
             let off = pfx.len() + alen; msg[off] = b')';
             self.push_line(&msg[..off + 1], [R_DIM, G_DIM, B_DIM]);
+            return;
+        }
+        // .ko files are Kobra source — evaluate rather than print raw text.
+        if name.ends_with(b".ko") {
+            let result = crate::kobra::eval_file(data);
+            if result.line_count() == 0 {
+                self.push_line(b"(no output)", [R_DIM, G_DIM, B_DIM]);
+            } else {
+                for i in 0..result.line_count() {
+                    self.push_line(result.line(i), [R_DIM, G_DIM, B_DIM]);
+                }
+            }
             return;
         }
         let n = data.len();

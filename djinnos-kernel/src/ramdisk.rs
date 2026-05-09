@@ -86,6 +86,12 @@ pub fn get(i: usize) -> Option<FileRef> {
 }
 
 pub fn find(name: &[u8]) -> Option<&'static [u8]> {
+    // Volatile edit slot takes priority over embedded/USB copies.
+    unsafe {
+        if EDIT_ACTIVE && &EDIT_NAME[..EDIT_NAME_N] == name {
+            return Some(core::slice::from_raw_parts(EDIT_DATA.as_ptr(), EDIT_DATA_N));
+        }
+    }
     for f in EMBEDDED {
         if f.name == name { return Some(f.data); }
     }
@@ -105,4 +111,27 @@ pub fn find(name: &[u8]) -> Option<&'static [u8]> {
 pub fn name_str(f: &RamFile) -> &[u8] {
     let len = f.name.iter().position(|&b| b == 0).unwrap_or(32);
     &f.name[..len]
+}
+
+// ── Volatile edit slot — written by the in-kernel editor, overrides find() ───
+
+static mut EDIT_ACTIVE: bool    = false;
+static mut EDIT_NAME:   [u8; 32] = [0u8; 32];
+static mut EDIT_NAME_N: usize   = 0;
+static mut EDIT_DATA:   [u8; 8192] = [0u8; 8192];
+static mut EDIT_DATA_N: usize   = 0;
+
+/// Write (or overwrite) the volatile edit slot for `name`.
+/// The editor calls this on save; `find()` returns it in preference to
+/// the embedded/USB copy.
+pub fn write_edit(name: &[u8], data: &[u8]) {
+    unsafe {
+        let nn = name.len().min(31);
+        EDIT_NAME[..nn].copy_from_slice(&name[..nn]);
+        EDIT_NAME_N = nn;
+        let dn = data.len().min(8192);
+        EDIT_DATA[..dn].copy_from_slice(&data[..dn]);
+        EDIT_DATA_N = dn;
+        EDIT_ACTIVE = true;
+    }
 }

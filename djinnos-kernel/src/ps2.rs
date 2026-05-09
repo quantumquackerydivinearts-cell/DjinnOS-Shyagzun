@@ -18,8 +18,9 @@ const PS2_CMD:    u16 = 0x64;
 const OBF:        u8  = 0x01;  // output buffer full
 const IBF:        u8  = 0x02;  // input buffer full (must be clear before write)
 
-static mut SHIFT: bool = false;
-static mut SKIP_E0: bool = false;  // discard byte after 0xE0 prefix
+static mut SHIFT:   bool = false;
+static mut CTRL:    bool = false;
+static mut SKIP_E0: bool = false;  // pending E0-prefixed extended key
 
 /// Initialise the PS/2 controller.
 /// Sends a "set defaults + enable scanning" sequence so keyboards that
@@ -46,33 +47,52 @@ pub fn poll() -> Option<Key> {
         if inb(PS2_STATUS) & OBF == 0 { return None; }
         let sc = inb(PS2_DATA);
 
-        // Extended key prefix — skip the following byte.
+        // Extended key prefix — next byte is an extended make/break code.
         if sc == 0xE0 {
             SKIP_E0 = true;
             return None;
         }
         if SKIP_E0 {
             SKIP_E0 = false;
+            // Only act on make codes; ignore releases (sc & 0x80 != 0).
+            if sc & 0x80 == 0 {
+                return match sc {
+                    0x48 => Some(Key::Up),
+                    0x50 => Some(Key::Down),
+                    0x4B => Some(Key::Left),
+                    0x4D => Some(Key::Right),
+                    _    => None,
+                };
+            }
             return None;
         }
 
-        // Key release: clear shift if applicable.
+        // Key release: clear modifier state.
         if sc & 0x80 != 0 {
             let make = sc & 0x7F;
             if make == 0x2A || make == 0x36 { SHIFT = false; }
+            if make == 0x1D { CTRL  = false; }
             return None;
         }
 
         // Key press.
         match sc {
-            0x2A | 0x36 => { SHIFT = true; None }          // left/right shift
+            0x01        => Some(Key::Escape),
             0x1C        => Some(Key::Enter),
             0x0E        => Some(Key::Backspace),
+            0x1D        => { CTRL  = true; None }           // left Ctrl
+            0x2A | 0x36 => { SHIFT = true; None }           // left/right Shift
             _           => {
                 let table = if SHIFT { &SCAN_SHIFTED } else { &SCAN_NORMAL };
                 let idx = sc as usize;
                 if idx < table.len() && table[idx] != 0 {
-                    Some(Key::Char(table[idx]))
+                    let ch = table[idx];
+                    // Ctrl+letter → control code (e.g. Ctrl+S = 0x13)
+                    if CTRL && ch.is_ascii_alphabetic() {
+                        Some(Key::Char(ch & 0x1F))
+                    } else {
+                        Some(Key::Char(ch))
+                    }
                 } else {
                     None
                 }

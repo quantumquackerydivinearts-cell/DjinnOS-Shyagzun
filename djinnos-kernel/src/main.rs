@@ -7,8 +7,10 @@ extern crate alloc;
 
 mod arch;
 mod byte_table;
+mod editor;
 mod eigenstate;
 mod kobra;
+mod kobra_repl;
 mod font;
 mod gpu;
 mod input;
@@ -593,28 +595,69 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     process::advance_cannabis(193);
     process::spawn(19, ko_idle, 0);
 
+    let mut repl = kobra_repl::KobraRepl::new(rule_y);
+    repl.reset();
+    let mut ed = editor::Editor::new(rule_y);
+
+    #[derive(PartialEq)]
+    enum AppMode { Shell, Repl, Editor }
+    let mut mode  = AppMode::Shell;
+
     let mut frame: u64 = 0;
-    // Render only on meaningful key events and new output — not on every
-    // PS/2 byte.  The HP Envy's i8042 emits noise bytes; treating them as
-    // render triggers floods the uncached framebuffer and hides real input.
+    // Render only on meaningful events.  The HP Envy's i8042 emits noise
+    // bytes; treating every PS/2 byte as a render trigger floods the
+    // uncached framebuffer and hides real input.
     let mut dirty = true;  // initial render
     loop {
+        // ── Mode-switch requests (set by shell commands) ──────────────────
+        if kobra_repl::consume_request() {
+            repl.reset();
+            mode  = AppMode::Repl;
+            dirty = true;
+        }
+        if let Some(name) = editor::consume_request() {
+            ed.load(name);
+            mode  = AppMode::Editor;
+            dirty = true;
+        }
+
+        // ── Key handling ──────────────────────────────────────────────────
         if let Some(key) = ps2::poll() {
             use input::Key;
-            match key {
-                Key::Char(b) => {
-                    sh.handle_key(key); kbd::push(b); dirty = true;
+            match mode {
+                AppMode::Repl => {
+                    let was_exited = repl.exited();
+                    repl.handle_key(key);
+                    if !was_exited && repl.exited() {
+                        mode = AppMode::Shell;
+                    }
+                    dirty = true;
                 }
-                Key::Enter => {
-                    sh.handle_key(key); kbd::push(b'\n'); dirty = true;
+                AppMode::Editor => {
+                    let was_exited = ed.exited();
+                    ed.handle_key(key);
+                    if !was_exited && ed.exited() {
+                        mode = AppMode::Shell;
+                    }
+                    dirty = true;
                 }
-                Key::Backspace => {
-                    sh.handle_key(key); kbd::push(0x7F); dirty = true;
-                }
-                _ => { sh.handle_key(key); }  // nav/noise: no redraw
+                AppMode::Shell => match key {
+                    Key::Char(b) => {
+                        sh.handle_key(key); kbd::push(b); dirty = true;
+                    }
+                    Key::Enter => {
+                        sh.handle_key(key); kbd::push(b'\n'); dirty = true;
+                    }
+                    Key::Backspace => {
+                        sh.handle_key(key); kbd::push(0x7F); dirty = true;
+                    }
+                    _ => { sh.handle_key(key); }
+                },
             }
         }
-        {
+
+        // ── stdout drain (shell mode only) ────────────────────────────────
+        if mode == AppMode::Shell {
             let mut line = [0u8; 80];
             let mut n = 0usize;
             while let Some(b) = kbd::stdout_pop() {
@@ -626,12 +669,19 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
             }
             if n > 0 { sh.push_user_line(&line[..n]); dirty = true; }
         }
+
         x86net::poll();
 
         if dirty {
             dirty = false;
-            sh.set_frame(frame);
-            sh.render(&fbdrv as &dyn gpu::GpuSurface);
+            match mode {
+                AppMode::Shell => {
+                    sh.set_frame(frame);
+                    sh.render(&fbdrv as &dyn gpu::GpuSurface);
+                }
+                AppMode::Repl   => { repl.render(&fbdrv as &dyn gpu::GpuSurface); }
+                AppMode::Editor => { ed.render(&fbdrv as &dyn gpu::GpuSurface); }
+            }
             fbdrv.flush();
             frame = frame.wrapping_add(1);
         }
