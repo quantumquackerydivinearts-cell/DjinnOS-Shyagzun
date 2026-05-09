@@ -116,7 +116,7 @@ static DOM_ALFIR: &[u32] = &[
 ];
 static DEF_ALFIR: AgentDef = AgentDef {
     entity_id: b"0006_WTCH", name: b"Alfir",
-    notes: b"Cosmic Witch, Former priest, Daemonologist (50)",
+    notes: b"Elderly man, Old Earth Persian descent. Cosmic Witch, Former priest, Daemonologist (50)",
     tongue_gate: 4, max_layer: 6, mobius_close: false,
     domain_addrs: DOM_ALFIR,
     kind_affinity: [180,240,100,160,160,80,220,255,40],
