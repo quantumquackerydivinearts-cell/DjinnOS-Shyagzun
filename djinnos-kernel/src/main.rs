@@ -5,9 +5,11 @@
 
 extern crate alloc;
 
+mod agent;
 mod arch;
 mod byte_table;
 mod editor;
+mod kos_labyrnth;
 mod eigenstate;
 mod kobra;
 mod kobra_repl;
