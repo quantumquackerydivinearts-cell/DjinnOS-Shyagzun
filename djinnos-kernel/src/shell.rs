@@ -361,6 +361,7 @@ impl Shell {
                 self.push_line(b"  Ko / eigenstate          eigenstate",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Seth / ls                list files",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Sao <file> / cat <file>  read file (.ko evaluated)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  tiler                    byte table structural map", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  edit <file> / Yew        open file editor", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kobra                    open Kobra REPL", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kobra <expr>             evaluate Kobra expression", [R_DIM, G_DIM, B_DIM]);
@@ -484,6 +485,12 @@ impl Shell {
                         }
                     }
                 }
+            }
+
+            // ── tiler — byte table structural map ────────────────────────────
+            b"tiler" => {
+                crate::tiler::request();
+                self.push_line(b"Opening Shygazun ledger tiler...", [R_IN, G_IN, B_IN]);
             }
 
             // ── edit — file editor ────────────────────────────────────────────

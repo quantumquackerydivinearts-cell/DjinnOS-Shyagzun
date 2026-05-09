@@ -11,6 +11,8 @@ mod editor;
 mod eigenstate;
 mod kobra;
 mod kobra_repl;
+mod palette;
+mod tiler;
 mod font;
 mod gpu;
 mod input;
@@ -595,12 +597,13 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     process::advance_cannabis(193);
     process::spawn(19, ko_idle, 0);
 
-    let mut repl = kobra_repl::KobraRepl::new(rule_y);
+    let mut repl  = kobra_repl::KobraRepl::new(rule_y);
     repl.reset();
-    let mut ed = editor::Editor::new(rule_y);
+    let mut ed    = editor::Editor::new(rule_y);
+    let mut tilr  = tiler::Tiler::new(rule_y);
 
     #[derive(PartialEq)]
-    enum AppMode { Shell, Repl, Editor }
+    enum AppMode { Shell, Repl, Editor, Tiler }
     let mut mode  = AppMode::Shell;
 
     let mut frame: u64 = 0;
@@ -620,6 +623,11 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
             mode  = AppMode::Editor;
             dirty = true;
         }
+        if tiler::consume_request() {
+            tilr.reset();
+            mode  = AppMode::Tiler;
+            dirty = true;
+        }
 
         // ── Key handling ──────────────────────────────────────────────────
         if let Some(key) = ps2::poll() {
@@ -637,6 +645,14 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     let was_exited = ed.exited();
                     ed.handle_key(key);
                     if !was_exited && ed.exited() {
+                        mode = AppMode::Shell;
+                    }
+                    dirty = true;
+                }
+                AppMode::Tiler => {
+                    let was_exited = tilr.exited();
+                    tilr.handle_key(key);
+                    if !was_exited && tilr.exited() {
                         mode = AppMode::Shell;
                     }
                     dirty = true;
@@ -681,6 +697,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                 }
                 AppMode::Repl   => { repl.render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::Editor => { ed.render(&fbdrv as &dyn gpu::GpuSurface); }
+                AppMode::Tiler => { tilr.render(&fbdrv as &dyn gpu::GpuSurface); }
             }
             fbdrv.flush();
             frame = frame.wrapping_add(1);
