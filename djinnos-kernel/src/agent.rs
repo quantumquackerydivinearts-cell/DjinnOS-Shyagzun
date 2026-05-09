@@ -497,6 +497,74 @@ pub fn find_by_name(name: &[u8]) -> Option<&'static AgentDef> {
 
 pub fn agent_count() -> usize { unsafe { REGISTRY_N } }
 
+// ── Attestation log ───────────────────────────────────────────────────────────
+//
+// Every verify_coil() call that passes produces an Attestation — a timestamped
+// record binding the agent identity, the Layer 7 color hash, and the tick
+// counter at verification time.  The Orrery uses these to:
+//   1. Prove the sequence of interactions was legitimate (temporal chaining)
+//   2. Detect out-of-order or replayed states (timestamps must advance)
+//   3. Anchor Quack-count claims to real game time (no instant attestation)
+//
+// The tick counter comes from arch::read_mtime() — the same monotonic counter
+// the LAPIC timer drives.  On x86_64 hardware this is the LAPIC tick count
+// since boot, not wall-clock time, but it advances strictly monotonically and
+// cannot be faked without kernel access.
+
+#[derive(Copy, Clone)]
+pub struct Attestation {
+    pub entity_id_hash: u32,    // FNV-1a hash of entity_id bytes
+    pub quack_count:    u8,     // Quack count at time of verification
+    pub color_hash:     (u8, u8, u8), // Layer 7 spectral fingerprint
+    pub tick:           u64,    // arch::read_mtime() at verification moment
+    pub game_id:        u8,     // game context
+    pub quest_id:       u32,    // quest context
+}
+
+impl Attestation {
+    /// Verify that this attestation immediately precedes `next` in a
+    /// legitimate sequence (tick advances, Quack count does not regress,
+    /// and entity remains the same).
+    pub fn chains_to(&self, next: &Attestation) -> bool {
+        self.entity_id_hash == next.entity_id_hash
+        && next.tick > self.tick
+        && next.quack_count >= self.quack_count
+    }
+}
+
+const MAX_ATTEST: usize = 256;
+static mut ATTEST_LOG:  [Option<Attestation>; MAX_ATTEST] = [const { None }; MAX_ATTEST];
+static mut ATTEST_HEAD: usize = 0;
+
+/// Record an attestation.  Ring-buffer: oldest entry is overwritten when full.
+pub fn record_attestation(a: Attestation) {
+    unsafe {
+        ATTEST_LOG[ATTEST_HEAD % MAX_ATTEST] = Some(a);
+        ATTEST_HEAD = ATTEST_HEAD.wrapping_add(1);
+    }
+}
+
+/// Return the most recent attestation for an entity (by entity_id hash).
+pub fn last_attestation(entity_id_hash: u32) -> Option<Attestation> {
+    unsafe {
+        // Walk backward from head
+        let n = ATTEST_HEAD.min(MAX_ATTEST);
+        for i in (0..n).rev() {
+            let slot = (ATTEST_HEAD.wrapping_sub(1 + i)) % MAX_ATTEST;
+            if let Some(a) = ATTEST_LOG[slot] {
+                if a.entity_id_hash == entity_id_hash { return Some(a); }
+            }
+        }
+        None
+    }
+}
+
+fn fnv1a(data: &[u8]) -> u32 {
+    let mut h: u32 = 2166136261;
+    for &b in data { h = h.wrapping_mul(16777619) ^ b as u32; }
+    h
+}
+
 // ── Anticheat verification ─────────────────────────────────────────────────────
 //
 // The CoilState produced by a legitimate forward pass is a native proof of
@@ -514,23 +582,55 @@ pub fn agent_count() -> usize { unsafe { REGISTRY_N } }
 // fixed-point rounding; large deviation indicates tampered input).
 
 /// Recompute the coil from claimed inputs and compare against a presented state.
+/// On success, records a timestamped Attestation in the log.
 /// Returns true if the coil output matches within the integrity tolerance.
-/// `tolerance` is the maximum allowed L1 deviation per output node (1-15).
+/// `tolerance`: max L1 deviation per node (1–15; tighter = stricter anticheat).
 pub fn verify_coil(
-    coil:      &AgentCoil,
-    input:     &[u8; W01],
-    presented: &CoilState,
-    tolerance: u8,
+    coil:       &AgentCoil,
+    input:      &[u8; W01],
+    presented:  &CoilState,
+    tolerance:  u8,
+    def:        &AgentDef,
+    quack_count: u8,
+    game_id:    u8,
+    quest_id:   u32,
 ) -> bool {
     let fresh = coil.forward(input);
+
     // Check Layer 12 (function output) — the operative result
     for k in 0..W12 {
         if presented.l12[k].abs_diff(fresh.l12[k]) > tolerance { return false; }
     }
-    // Check Layer 7 (color hash) — the geometric fingerprint
+    // Check Layer 7 (color hash) — geometric fingerprint
     for k in 0..W07 {
         if presented.l07[k].abs_diff(fresh.l07[k]) > tolerance { return false; }
     }
+
+    // Verification passed — record a timestamped attestation.
+    let tick = {
+        #[cfg(target_arch = "x86_64")]
+        { crate::arch::read_mtime() }
+        #[cfg(not(target_arch = "x86_64"))]
+        { crate::arch::read_mtime() }
+    };
+
+    // Enforce temporal ordering: reject if tick does not advance beyond
+    // the last attestation for this entity.
+    let id_hash = fnv1a(def.entity_id);
+    if let Some(prev) = last_attestation(id_hash) {
+        if tick <= prev.tick { return false; }
+        if quack_count < prev.quack_count { return false; }
+    }
+
+    record_attestation(Attestation {
+        entity_id_hash: id_hash,
+        quack_count,
+        color_hash: (fresh.l07[0], fresh.l07[1], fresh.l07[2]),
+        tick,
+        game_id,
+        quest_id,
+    });
+
     true
 }
 

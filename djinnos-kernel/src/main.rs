@@ -6,6 +6,7 @@
 extern crate alloc;
 
 mod agent;
+mod kos_characters;
 mod arch;
 mod byte_table;
 mod editor;
@@ -577,6 +578,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     trap::init();
     mm::init();
     process::init();
+    kos_characters::init();
     ramdisk::init(rdaddr, rdcnt);
 
     let rule_y = fbdrv.height() * 55 / 100;
