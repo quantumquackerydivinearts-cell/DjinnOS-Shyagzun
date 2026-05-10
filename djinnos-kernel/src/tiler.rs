@@ -43,55 +43,190 @@ impl PhonemeRoot {
     fn key_str(&self) -> &[u8] { &self.key[..self.key_n] }
 }
 
-/// Extract the initial phoneme cluster from a Shygazun symbol.
-/// Handles: digraph initials (Rh, Sh, Zh, Dv, Kw, Gw, Ny, Ng),
-///          single-consonant, and vowel-initial entries.
-fn phoneme_root(sym: &str) -> ([u8; 4], usize) {
-    let b = sym.as_bytes();
-    if b.is_empty() { return ([b'?', 0, 0, 0], 1); }
-    let c0 = b[0].to_ascii_uppercase();
-    let c1 = if b.len() > 1 { b[1].to_ascii_lowercase() } else { 0 };
-    let digraph = match (c0, c1) {
-        (b'R', b'h') | (b'R', b'H') => true,
-        (b'S', b'h') | (b'S', b'H') => true,
-        (b'Z', b'h') | (b'Z', b'H') => true,
-        (b'D', b'v') | (b'D', b'V') => true,
-        (b'K', b'w') | (b'K', b'W') => true,
-        (b'G', b'w') | (b'G', b'W') => true,
-        (b'N', b'y') | (b'N', b'Y') => true,
-        (b'N', b'g') | (b'N', b'G') => true,
-        _ => false,
-    };
-    if digraph {
-        ([c0, c1, 0, 0], 2)
-    } else {
-        ([c0, 0, 0, 0], 1)
+// ── Shygazun syllabism ────────────────────────────────────────────────────────
+//
+// Syllable structure: (C)(C)V(C*)
+//   onset  = initial consonant(s), max 2 for known digraphs
+//   nucleus = one or more vowels
+//   coda    = trailing consonants only if followed by another consonant or EOS
+//             (if the next character after a consonant is a vowel, that
+//             consonant is the onset of the NEXT syllable, not this coda)
+//
+// Vowels: a e i o u.  Y is consonant-initial (Time+ akinen).
+//
+// Known digraph onsets: Rh Sh Zh Dv Kw Gw Ny Ng Ra'- (prime after root)
+
+fn is_vowel(c: u8) -> bool {
+    matches!(c.to_ascii_lowercase(), b'a' | b'e' | b'i' | b'o' | b'u')
+}
+
+fn is_cons(c: u8) -> bool {
+    c.is_ascii_alphabetic() && !is_vowel(c)
+}
+
+fn is_digraph(c0: u8, c1: u8) -> bool {
+    matches!(
+        (c0.to_ascii_uppercase(), c1.to_ascii_lowercase()),
+        (b'R',b'h') | (b'S',b'h') | (b'Z',b'h') |
+        (b'D',b'v') | (b'K',b'w') | (b'G',b'w') |
+        (b'N',b'y') | (b'N',b'g') | (b'R',b'a')
+    )
+}
+
+/// Extract the first complete syllable from `sym` starting at byte offset `from`.
+/// Returns (syllable_bytes, syllable_len, chars_consumed_from_sym[from..]).
+fn first_syllable_at(b: &[u8], from: usize) -> ([u8; 8], usize, usize) {
+    let b = &b[from..];
+    let len = b.len();
+    if len == 0 { return ([0u8; 8], 0, 0); }
+
+    let mut out = [0u8; 8];
+    let mut oi  = 0usize;
+    let mut ci  = 0usize; // index into b
+
+    // Phase 1: consonant onset (1 or 2 chars for digraph)
+    if ci < len && is_cons(b[ci]) {
+        let take2 = ci + 1 < len && is_digraph(b[ci], b[ci + 1]);
+        out[oi] = b[ci].to_ascii_uppercase(); oi += 1; ci += 1;
+        if take2 && oi < 8 { out[oi] = b[ci].to_ascii_lowercase(); oi += 1; ci += 1; }
     }
+
+    let had_onset = ci > 0;
+
+    // Phase 2: vowel nucleus
+    let nucleus_start = oi;
+    while ci < len && is_vowel(b[ci]) && oi < 8 {
+        out[oi] = b[ci].to_ascii_lowercase(); oi += 1; ci += 1;
+    }
+
+    // If no vowel and had onset: return just the consonant onset
+    if oi == nucleus_start && !had_onset {
+        // vowel-initial with no onset: consume the vowel
+        if ci < len && is_vowel(b[ci]) && oi < 8 {
+            out[oi] = b[ci].to_ascii_lowercase(); oi += 1; ci += 1;
+        }
+    }
+
+    // Phase 3: coda — consonants that are NOT the onset of the next syllable
+    // A consonant is coda if the character AFTER it is another consonant or EOS.
+    while ci < len && is_cons(b[ci]) && oi < 8 {
+        let next = if ci + 1 < len { b[ci + 1] } else { 0 };
+        if next == 0 || is_cons(next) {
+            // coda: absorb
+            out[oi] = b[ci].to_ascii_lowercase(); oi += 1; ci += 1;
+        } else {
+            break; // onset of next syllable
+        }
+    }
+
+    // Skip non-alpha (hyphens, apostrophes)
+    while ci < len && !b[ci].is_ascii_alphabetic() { ci += 1; }
+
+    if oi == 0 { (out, 0, ci.max(1)) } else { (out, oi, ci) }
+}
+
+/// Extract ALL syllables of a symbol (up to 6).
+fn all_syllables(sym: &str) -> ([[u8; 8]; 6], [usize; 6], usize) {
+    let b = sym.as_bytes();
+    let mut syls   = [[0u8; 8]; 6];
+    let mut slens  = [0usize; 6];
+    let mut count  = 0usize;
+    let mut pos    = 0usize;
+    while pos < b.len() && count < 6 {
+        let (syl, slen, consumed) = first_syllable_at(b, pos);
+        if consumed == 0 || slen == 0 { break; }
+        syls[count]  = syl;
+        slens[count] = slen;
+        count += 1;
+        pos += consumed;
+    }
+    (syls, slens, count)
+}
+
+/// Check whether a syllable matches a known standalone glyph in the byte table.
+/// Used for cross-referencing: if "ko" appears as a morpheme in "Yefko",
+/// and "Ko" is in the table, "Yefko" is indexed under the Ko group too.
+fn is_known_glyph(syl: &[u8], slen: usize) -> bool {
+    if slen == 0 { return false; }
+    BYTE_TABLE.iter().any(|e| {
+        if let Some(g) = e.glyph {
+            let gb = g.as_bytes();
+            gb.len() == slen && gb.iter().zip(&syl[..slen]).all(|(a,b)|
+                a.to_ascii_lowercase() == b.to_ascii_lowercase())
+        } else { false }
+    })
+}
+
+/// Add an entry address to a root group, creating the group if needed.
+fn roots_add(roots: &mut [PhonemeRoot; MAX_ROOTS], n: &mut usize,
+             key: [u8; 8], kn: usize, addr: u32, cross_ref: bool)
+{
+    if kn == 0 { return; }
+    // Pack key into the 4-byte field (only first 4 chars used for grouping)
+    let mut k4 = [0u8; 4];
+    k4[..kn.min(4)].copy_from_slice(&key[..kn.min(4)]);
+    let kn4 = kn.min(4);
+
+    let ri = roots[..*n].iter().position(|r| r.key[..r.key_n] == k4[..kn4]);
+    let ri = match ri {
+        Some(i) => i,
+        None => {
+            if *n >= MAX_ROOTS { return; }
+            roots[*n].key   = k4;
+            roots[*n].key_n = kn4;
+            let i = *n; *n += 1; i
+        }
+    };
+    // Avoid duplicate addresses
+    let already = roots[ri].addrs[..roots[ri].count].contains(&addr);
+    if !already && roots[ri].count < MAX_PER_ROOT {
+        roots[ri].addrs[roots[ri].count] = addr;
+        roots[ri].count += 1;
+    }
+    let _ = cross_ref;
 }
 
 /// Build phoneme root groups from the full BYTE_TABLE.
+/// Each entry is indexed under its PRIMARY syllable.
+/// Compound entries (multi-syllable) are ALSO cross-referenced under any
+/// secondary syllables that match a known standalone glyph (e.g. "Yefko"
+/// appears under "Yef" AND under "Ko" because Ko is a known root).
 fn build_phoneme_roots() -> ([PhonemeRoot; MAX_ROOTS], usize) {
     let mut roots = [PhonemeRoot::EMPTY; MAX_ROOTS];
     let mut n = 0usize;
 
     for e in BYTE_TABLE {
         let sym = match e.glyph { Some(g) => g, None => continue };
-        let (key, kn) = phoneme_root(sym);
+        let (syls, slens, scount) = all_syllables(sym);
 
-        // Find or create root slot
-        let ri = roots[..n].iter().position(|r| r.key[..r.key_n] == key[..kn]);
-        let ri = match ri {
-            Some(i) => i,
-            None => {
-                if n >= MAX_ROOTS { continue; }
-                roots[n].key    = key;
-                roots[n].key_n  = kn;
-                let i = n; n += 1; i
+        if scount == 0 { continue; }
+
+        // Primary: first syllable
+        roots_add(&mut roots, &mut n, syls[0], slens[0], e.address.0, false);
+
+        // Cross-reference: secondary syllables that are known standalone glyphs
+        for si in 1..scount {
+            if slens[si] > 0 && is_known_glyph(&syls[si], slens[si]) {
+                roots_add(&mut roots, &mut n, syls[si], slens[si], e.address.0, true);
             }
-        };
-        if roots[ri].count < MAX_PER_ROOT {
-            roots[ri].addrs[roots[ri].count] = e.address.0;
-            roots[ri].count += 1;
+        }
+    }
+
+    // Sort entries within each root by tongue number then address
+    for ri in 0..n {
+        let cnt = roots[ri].count;
+        for i in 1..cnt {
+            let mut j = i;
+            while j > 0 {
+                let ta = tongue_num_of_addr(roots[ri].addrs[j-1]);
+                let tb = tongue_num_of_addr(roots[ri].addrs[j]);
+                if ta > tb || (ta == tb && roots[ri].addrs[j-1] > roots[ri].addrs[j]) {
+                    let tmp = roots[ri].addrs[j-1];
+                    roots[ri].addrs[j-1] = roots[ri].addrs[j];
+                    roots[ri].addrs[j]   = tmp;
+                    j -= 1;
+                } else { break; }
+            }
         }
     }
 
@@ -104,6 +239,35 @@ fn build_phoneme_roots() -> ([PhonemeRoot; MAX_ROOTS], usize) {
     }
 
     (roots, n)
+}
+
+fn tongue_num_of_addr(addr: u32) -> u32 {
+    match byte_table::lookup(addr) {
+        None    => 999,
+        Some(e) => match e.tongue {
+            None    => 999,
+            Some(t) => tongue_to_num(t),
+        }
+    }
+}
+
+fn tongue_to_num(t: Tongue) -> u32 {
+    match t {
+        Tongue::Lotus => 1, Tongue::Rose => 2, Tongue::Sakura => 3,
+        Tongue::Daisy => 4, Tongue::AppleBlossom => 5, Tongue::Aster => 6,
+        Tongue::Grapevine => 7, Tongue::Cannabis => 8,
+        Tongue::Dragon => 9, Tongue::Virus => 10, Tongue::Bacteria => 11,
+        Tongue::Excavata => 12, Tongue::Archaeplastida => 13, Tongue::Myxozoa => 14,
+        Tongue::Archea => 15, Tongue::Protist => 16,
+        Tongue::Immune => 17, Tongue::Neural => 18, Tongue::Serpent => 19,
+        Tongue::Beast => 20, Tongue::Cherub => 21, Tongue::Chimera => 22,
+        Tongue::Faerie => 23, Tongue::Djinn => 24,
+        Tongue::Fold => 25, Tongue::Topology => 26, Tongue::Phase => 27,
+        Tongue::Gradient => 28, Tongue::Curvature => 29, Tongue::Prion => 30,
+        Tongue::Blood => 31, Tongue::Moon => 32,
+        Tongue::Koi => 33, Tongue::Rope => 34, Tongue::Hook => 35,
+        Tongue::Fang => 36, Tongue::Circle => 37, Tongue::Ledger => 38,
+    }
 }
 
 /// Tab selector
@@ -473,8 +637,8 @@ impl Tiler {
                     (0x60, 0x60, 0x70)
                 };
 
-                // Key: "Sh-  (12)" in root color
-                let mut buf = [b' '; 24];
+                // Key: "Yef-  (3 entries)" in root color
+                let mut buf = [b' '; 32];
                 let kn = root.key_n.min(4);
                 buf[..kn].copy_from_slice(&root.key[..kn]);
                 buf[kn]   = b'-';
@@ -517,8 +681,35 @@ impl Tiler {
             }
             line_idx += 1;
 
-            // Entry lines
+            // Entry lines — grouped by tongue with sub-headers on change
+            let mut prev_tongue_num = u32::MAX;
             for ei in 0..root.count {
+                let addr = root.addrs[ei];
+                let cur_tongue_num = tongue_num_of_addr(addr);
+
+                // Insert tongue sub-header on tongue change
+                if cur_tongue_num != prev_tongue_num {
+                    prev_tongue_num = cur_tongue_num;
+                    if line_idx >= self.tree_top {
+                        if screen_row >= vis_lines as u32 { break 'outer; }
+                        let gy = content_y + screen_row * line_h;
+                        // Tongue header: "  T12 Excavata" dimmed
+                        let lbl = if let Some(e) = byte_table::lookup(addr) {
+                            e.tongue.map(tongue_short).unwrap_or(b"---")
+                        } else { b"---" };
+                        let header_col = (0x38u8, 0x40u8, 0x60u8);
+                        font::draw_str(gpu, 20 + CHAR_W * 2, gy + 1,
+                                       "T", SCALE, header_col.0, header_col.1, header_col.2);
+                        if let Ok(s) = core::str::from_utf8(lbl) {
+                            font::draw_str(gpu, 20 + CHAR_W * 4, gy + 1, s,
+                                           SCALE, header_col.0, header_col.1, header_col.2);
+                        }
+                        screen_row += 1;
+                    }
+                    // tongue sub-header is NOT a cursor-navigable line
+                    // (doesn't increment line_idx)
+                }
+
                 if line_idx >= self.tree_top {
                     if screen_row >= vis_lines as u32 { break 'outer; }
                     let gy = content_y + screen_row * line_h;
@@ -528,17 +719,14 @@ impl Tiler {
                         gpu.fill_rect(0, gy, w, line_h, 0x10, 0x10, 0x1c);
                     }
 
-                    let addr = root.addrs[ei];
                     if let Some(e) = byte_table::lookup(addr) {
                         let col = palette::entry_color(e);
                         let dim = palette::dim(col);
-
-                        // Indent + glyph
                         let glyph = e.glyph.unwrap_or("?");
-                        let gx = 20 + CHAR_W * 3;
+                        let gx = 20 + CHAR_W * 5; // further indent under tongue header
+
                         font::draw_str(gpu, gx, gy + 1, glyph, SCALE, col.0, col.1, col.2);
 
-                        // Address (decimal + hex)
                         let glyph_w = (glyph.len() as u32 + 2) * CHAR_W;
                         let mut ab = [b' '; 12]; let mut an = 0;
                         ab[an] = b'['; an += 1;
@@ -549,18 +737,8 @@ impl Tiler {
                                            0x40, 0x40, 0x58);
                         }
 
-                        // Tongue label
-                        let tongue_x = gx + glyph_w + CHAR_W * 8;
-                        if let Some(t) = e.tongue {
-                            let lbl = tongue_short(t);
-                            if let Ok(s) = core::str::from_utf8(lbl) {
-                                font::draw_str(gpu, tongue_x, gy + 1, s, SCALE,
-                                               dim.0, dim.1, dim.2);
-                            }
-                        }
-
-                        // Meaning (truncated) in right panel
-                        let meaning_x = tongue_x + CHAR_W * 6;
+                        // Meaning (truncated)
+                        let meaning_x = gx + glyph_w + CHAR_W * 8;
                         let max_ch = ((w.saturating_sub(meaning_x)) / CHAR_W) as usize;
                         if max_ch > 2 {
                             let meaning = &e.meaning[..e.meaning.len().min(max_ch - 1)];

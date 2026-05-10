@@ -433,7 +433,7 @@ pub static BYTE_TABLE: &[ByteEntry] = &[
     S!(373, Excavata, "Logzhok",     "Orientation error 8 — chirality fixation / mind locking onto handedness as identity"),
     S!(374, Excavata, "Logvekna",    "Orientation error 9 — projection error / integration reading the shadow instead of the surface"),
     S!(375, Excavata, "Logranzhok",  "Orientation error 10 — self-reference loop / instruction set pointing at instruction set which codes the groove / instruction set does not equal self"),
-    S!(376, Excavata, "Yefko",       "Ko state — correct Möbius traversal / moving along the single surface with awareness / the instruction set as parameter not identity"),
+    S!(376, Excavata, "Yefko",       "Ko state — correct Möbius traversal / Yef in Ko mode / moving along the single surface with awareness / the instruction set as parameter not identity"),
     S!(377, Excavata, "Ranku",       "Ku state — arrested rotation / the helix completing and stopping / Möbius traversal terminated"),
 
     // ── Archaeplastida (Tongue 13) — bytes 378–409 ───────────────────────────
