@@ -8,6 +8,7 @@ extern crate alloc;
 mod agent;
 mod atelier;
 mod dialogue;
+mod voxel_lab;
 mod voxel;
 mod kos_characters;
 mod sa;
@@ -611,9 +612,10 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     let mut ed    = editor::Editor::new(rule_y);
     let mut tilr  = tiler::Tiler::new(rule_y);
     let mut atl   = atelier::Atelier::new(rule_y);
+    let mut vlab  = voxel_lab::VoxelLab::new(rule_y);
 
     #[derive(PartialEq)]
-    enum AppMode { Shell, Repl, Editor, Tiler, Browser, Atelier }
+    enum AppMode { Shell, Repl, Editor, Tiler, Browser, Atelier, VoxelLab }
     let mut mode         = AppMode::Shell;
     let mut from_atelier = false;
 
@@ -648,6 +650,10 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
             mode  = AppMode::Atelier;
             dirty = true;
         }
+        if voxel_lab::consume_request() {
+            mode  = AppMode::VoxelLab;
+            dirty = true;
+        }
         // Atelier sub-tool dispatch
         if mode == AppMode::Atelier {
             if let Some(launch) = atl.consume_launch() {
@@ -668,8 +674,8 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                         mode = AppMode::Browser; from_atelier = true;
                     }
                     AtelierLaunch::VoxelLab => {
-                        // Placeholder: return to shell for now (voxel lab authoring TBD)
-                        mode = AppMode::Atelier;
+                        vlab.open(&[]);
+                        mode = AppMode::VoxelLab; from_atelier = true;
                     }
                     AtelierLaunch::Shell => {
                         from_atelier = false; mode = AppMode::Shell;
@@ -726,6 +732,15 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     atl.handle_key(key);
                     dirty = true;
                 }
+                AppMode::VoxelLab => {
+                    let was_exited = vlab.exited();
+                    vlab.handle_key(key);
+                    if !was_exited && vlab.exited() {
+                        mode = if from_atelier { from_atelier = false; AppMode::Atelier }
+                               else { AppMode::Shell };
+                    }
+                    dirty = true;
+                }
                 AppMode::Shell => match key {
                     Key::Char(b) => {
                         sh.handle_key(key); kbd::push(b); dirty = true;
@@ -768,7 +783,8 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                 AppMode::Editor => { ed.render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::Tiler   => { tilr.render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::Browser => { browser::browser().render(&fbdrv as &dyn gpu::GpuSurface); }
-                AppMode::Atelier => { atl.render(&fbdrv as &dyn gpu::GpuSurface); }
+                AppMode::Atelier  => { atl.render(&fbdrv as &dyn gpu::GpuSurface); }
+                AppMode::VoxelLab => { vlab.render(&fbdrv as &dyn gpu::GpuSurface); }
             }
             fbdrv.flush();
             frame = frame.wrapping_add(1);

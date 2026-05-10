@@ -455,6 +455,44 @@ fn blend_col(a: (u8,u8,u8), b: (u8,u8,u8), t: u8) -> (u8,u8,u8) {
     )
 }
 
+/// Draw a single highlighted cursor cell at world position (wx, wy, wz).
+/// Called after render() to guarantee it appears on top.
+pub fn render_cursor(
+    scene:  &VoxelScene,
+    camera: &Camera,
+    gpu:    &dyn GpuSurface,
+    wx: usize, wy: usize, wz: usize,
+) {
+    let sw = gpu.width();
+    let sh = gpu.height();
+    let tw = camera.mode.tile_px();
+    let th = tw / 2;
+    let zs = camera.mode.zscale();
+
+    let cam_wx = camera.wx / 256;
+    let cam_wz = camera.wz / 256;
+    let rx = wx as i32 - cam_wx;
+    let rz = wz as i32 - cam_wz;
+    let ox = camera.sx as i32 + iso_x(rx, rz, tw);
+    let oy = camera.sy as i32 + iso_y(rx, wy as i32, rz, th, zs);
+
+    let node = scene.get(wx as i32, wy as i32, wz as i32);
+    let top_col   = (200u8, 220u8, 80u8);   // bright yellow-green  (B,G,R)
+    let right_col = (100u8, 200u8, 60u8);
+    let left_col  = ( 60u8, 140u8, 40u8);
+
+    // If the cell is air, draw outline using dim ghost colors; otherwise highlight.
+    let (tc, rc, lc) = if node.is_air() {
+        ((60u8, 80u8, 30u8), (40u8, 70u8, 25u8), (25u8, 50u8, 15u8))
+    } else {
+        (top_col, right_col, left_col)
+    };
+
+    draw_face_jy(gpu, ox, oy, tw, th, tc, sw, sh);
+    draw_face_ji(gpu, ox, oy, tw, th, zs, rc, sw, sh);
+    draw_face_je(gpu, ox, oy, tw, th, zs, lc, sw, sh);
+}
+
 // ── Scene building helpers ────────────────────────────────────────────────────
 
 /// Fill a flat ground plane at y=0 with a given material.
