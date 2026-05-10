@@ -78,7 +78,7 @@ struct MenuItem {
 
 const MENU: &[MenuItem] = &[
     MenuItem { label: "Soa",     desc: "Conscious persistence — Kobra REPL",        key: MenuKey::KoStudio },
-    MenuItem { label: "Sao",     desc: "Cup / file / persistent object — editor",   key: MenuKey::Yew },
+    MenuItem { label: "Saoshin",  desc: "Cup / file / persistent object — editor",   key: MenuKey::Yew },
     MenuItem { label: "Samos",   desc: "Banquet hall — byte table structural map",  key: MenuKey::Ledger },
     MenuItem { label: "Faerie",  desc: "Kyompufwun — HTTP reader via Kyom",         key: MenuKey::Faerie },
     MenuItem { label: "To",      desc: "Scaffold / framework — voxel scene editor", key: MenuKey::VoxelLab },
@@ -159,7 +159,7 @@ impl Atelier {
     pub fn render(&self, gpu: &dyn GpuSurface) {
         match self.sub_mode {
             SubMode::Hub            => self.render_hub(gpu),
-            SubMode::PromptFilename => self.render_prompt(gpu, "Sao  >  Filename:", false),
+            SubMode::PromptFilename => self.render_prompt(gpu, "Saoshin  >  Filename:", false),
             SubMode::PromptUrl      => self.render_prompt(gpu, "Faerie  >  URL:", true),
             SubMode::CharWorkshop   => self.render_cw(gpu),
             SubMode::DialogueForge  => self.render_df(gpu),
@@ -436,7 +436,7 @@ impl Atelier {
             "Dialogue is authored in the Atelier API and synced via Myrun.",
             SCALE, DM_R, DM_G, DM_B);
         font::draw_str(gpu, MX, iy + CHAR_H + 4,
-            "Use Sao to edit .ko scripts.  quest_req / flag_req are set in the Atelier.",
+            "Use Saoshin to edit .ko scripts.  quest_req / flag_req are set in the Atelier.",
             SCALE, DM_R, DM_G, DM_B);
 
         // Line count

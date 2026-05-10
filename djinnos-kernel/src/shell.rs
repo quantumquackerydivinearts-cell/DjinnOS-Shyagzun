@@ -397,7 +397,7 @@ impl Shell {
                 self.push_line(b"  Sao <file> / cat <file>  read file (.ko evaluated)", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kaelshunshikeaninsuy     open in-kernel Atelier hub",  [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Soa                      Kobra REPL (conscious persistence)", [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  Sao <file>               file editor (cup/persistent object)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Saoshin <sao>             file editor (Saoshin opens a Sao)", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Samos                    Samos byte table map", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Faerie <url>             Kyompufwun HTTP reader via Kyom", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kyom [ip:port]           show/set Kyom proxy",    [R_DIM, G_DIM, B_DIM]);
@@ -646,10 +646,10 @@ impl Shell {
                 self.push_line(b"Samos...", [R_IN, G_IN, B_IN]);
             }
 
-            // ── Sao — file editor ─────────────────────────────────────────────
-            b"Sao" | b"edit" | b"Yew" => {
+            // ── Saoshin — file editor (opens a Sao) ──────────────────────────
+            b"Saoshin" | b"Sao" | b"edit" | b"Yew" => {
                 if rest.is_empty() {
-                    self.push_line(b"Sao: usage: Sao <filename>", [0xa0, 0x40, 0x40]);
+                    self.push_line(b"Saoshin: usage: Saoshin <sao>", [0xa0, 0x40, 0x40]);
                 } else {
                     crate::editor::request(rest);
                     let mut msg = [0u8; 80];
