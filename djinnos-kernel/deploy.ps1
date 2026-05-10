@@ -1,4 +1,4 @@
-# deploy.ps1 — Non-destructive DjinnOS kernel deploy to existing USB
+# deploy.ps1 - Non-destructive DjinnOS kernel deploy to existing USB
 #
 # Copies the built kernel ELF to a USB drive's FAT partition.
 # Does NOT reformat, repartition, or erase anything.
@@ -18,7 +18,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path $MyInvocation.MyCommand.Path
 
-# ── Build ─────────────────────────────────────────────────────────────────────
+# -- Build ---------------------------------------------------------------------
 
 if (-not $NoBuild) {
     Write-Host "Building x86_64 release kernel..."
@@ -30,19 +30,18 @@ if (-not $NoBuild) {
 
 $KernelELF = Join-Path $ScriptDir "target\x86_64-unknown-none\release\djinnos-kernel"
 if (-not (Test-Path $KernelELF)) {
-    Write-Error "Kernel ELF not found at $KernelELF — run without -NoBuild first"
+    Write-Error "Kernel ELF not found at $KernelELF -- run without -NoBuild first"
     exit 1
 }
 $KernelKiB = [int]((Get-Item $KernelELF).Length / 1024)
-Write-Host "Kernel: $KernelELF  ($KernelKiB KiB)"
+Write-Host "Kernel: $KernelELF ($KernelKiB KiB)"
 
-# ── Find target drive ─────────────────────────────────────────────────────────
+# -- Find target drive ---------------------------------------------------------
 
 if ($Drive -eq "") {
-    # Auto-detect: find FAT/FAT32 volumes on USB-bus disks.
     $usbDisks = Get-Disk | Where-Object { $_.BusType -eq "USB" }
     if (-not $usbDisks) {
-        Write-Error "No USB disk found.  Plug in the drive, or specify -Drive <letter>"
+        Write-Error "No USB disk found. Plug in the drive, or specify -Drive <letter>"
         exit 1
     }
     $candidates = @()
@@ -57,12 +56,12 @@ if ($Drive -eq "") {
         }
     }
     if ($candidates.Count -eq 0) {
-        Write-Error "No FAT/FAT32 volume found on USB disks.  Use -Drive <letter> to specify manually."
+        Write-Error "No FAT/FAT32 volume found on USB disks. Use -Drive <letter> to specify manually."
         exit 1
     }
     if ($candidates.Count -gt 1) {
         Write-Host "Multiple USB FAT volumes found: $($candidates -join ', ')"
-        Write-Error "Ambiguous target — specify -Drive <letter>"
+        Write-Error "Ambiguous target -- specify -Drive <letter>"
         exit 1
     }
     $Drive = $candidates[0]
@@ -75,39 +74,38 @@ if (-not (Test-Path "$Root\")) {
 }
 
 $vol = Get-Volume -DriveLetter $Drive.TrimEnd(':') -ErrorAction SilentlyContinue
-Write-Host "Target: $Root  ($($vol.FileSystem)  '$($vol.FileSystemLabel)'  $([int]($vol.Size/1MB)) MiB)"
+Write-Host "Target: $Root ($($vol.FileSystem) '$($vol.FileSystemLabel)' $([int]($vol.Size/1MB)) MiB)"
 
-# ── Safety: refuse to touch internal disks ────────────────────────────────────
+# -- Safety: refuse to touch internal disks ------------------------------------
 
 $driveLetter = $Drive.TrimEnd(':')
 $partition   = Get-Partition -DriveLetter $driveLetter -ErrorAction SilentlyContinue
 if ($partition) {
     $disk = Get-Disk -Number $partition.DiskNumber
     if ($disk.BusType -ne "USB") {
-        Write-Error "Drive $Root is on a $($disk.BusType) disk, not USB.  Aborting."
+        Write-Error "Drive $Root is on a $($disk.BusType) disk, not USB. Aborting."
         exit 1
     }
 }
 
-# ── Deploy ────────────────────────────────────────────────────────────────────
+# -- Deploy --------------------------------------------------------------------
 
 $DjinnDir = "$Root\djinnos"
 $GrubDir  = "$DjinnDir\grub"
 
 New-Item -Path $DjinnDir -ItemType Directory -Force | Out-Null
 
-# Kernel ELF
 $dest = "$DjinnDir\kernel.elf"
 Copy-Item -Path $KernelELF -Destination $dest -Force
-Write-Host "Copied kernel  ->  $dest"
+Write-Host "Copied kernel -> $dest"
 
-# grub.cfg — write if djinnos\grub exists, or create it if no cfg present yet
-$needCfg = (Test-Path $GrubDir) -or (-not (Test-Path "$DjinnDir\grub\grub.cfg"))
-if (-not (Test-Path $GrubDir)) { New-Item -Path $GrubDir -ItemType Directory -Force | Out-Null }
+if (-not (Test-Path $GrubDir)) {
+    New-Item -Path $GrubDir -ItemType Directory -Force | Out-Null
+}
 
 $cfgPath = "$GrubDir\grub.cfg"
 if (-not (Test-Path $cfgPath)) {
-    @"
+    $cfg = @'
 set timeout=3
 set default=0
 
@@ -119,35 +117,33 @@ menuentry "DjinnOS" {
     multiboot2 /djinnos/kernel.elf
     boot
 }
-"@ | Out-File $cfgPath -Encoding ascii
-    Write-Host "Wrote grub.cfg ->  $cfgPath"
+'@
+    $cfg | Out-File $cfgPath -Encoding ascii
+    Write-Host "Wrote grub.cfg -> $cfgPath"
 } else {
-    Write-Host "grub.cfg exists, left unchanged  ($cfgPath)"
+    Write-Host "grub.cfg exists, left unchanged ($cfgPath)"
 }
 
-# Report whether a bootloader is present
+# -- Bootloader check ----------------------------------------------------------
+
 $efiStub = "$Root\EFI\BOOT\BOOTX64.EFI"
 if (Test-Path $efiStub) {
-    Write-Host "UEFI stub found: $efiStub  -- bootloader already present."
+    Write-Host "UEFI stub found: $efiStub -- bootloader present."
 } else {
     Write-Host ""
-    Write-Host "  NOTE: No BOOTX64.EFI found at $Root\EFI\BOOT\"
+    Write-Host "  NOTE: No BOOTX64.EFI found at $Root\EFI\BOOT"
     Write-Host "  The kernel is deployed but the drive is not yet bootable."
-    Write-Host "  To install GRUB without erasing the drive, run from MSYS2:"
+    Write-Host "  To add GRUB without erasing the drive, run from MSYS2:"
     Write-Host ""
     Write-Host "    pacman -S mingw-w64-x86_64-grub"
-    Write-Host "    grub-install --target=x86_64-efi --efi-directory=$Root \"
-    Write-Host "                 --boot-directory=$Root\djinnos --removable --no-nvram"
+    Write-Host "    grub-install --target=x86_64-efi --efi-directory=$Root --boot-directory=${Root}\djinnos --removable --no-nvram"
     Write-Host ""
     Write-Host "  This adds EFI\BOOT\BOOTX64.EFI without touching anything else on the drive."
 }
 
-# ── Done ─────────────────────────────────────────────────────────────────────
+# -- Done ----------------------------------------------------------------------
 
 Write-Host ""
-Write-Host "Done.  Kernel deployed to $Root\djinnos\kernel.elf"
+Write-Host "Done. Kernel deployed to $Root\djinnos\kernel.elf"
 Write-Host ""
-Write-Host "Boot sequence:"
-Write-Host "  1. Plug USB into Envy"
-Write-Host "  2. F9 at POST (HP boot menu) -> select the USB"
-Write-Host "  3. GRUB loads -> DjinnOS -> Ko"
+Write-Host "Boot: plug USB into Envy, F9 at POST, select the USB, GRUB -> Ko"
