@@ -77,13 +77,13 @@ struct MenuItem {
 }
 
 const MENU: &[MenuItem] = &[
-    MenuItem { label: "Soa",     desc: "Conscious persistence — Kobra REPL",        key: MenuKey::KoStudio },
-    MenuItem { label: "Saoshin",  desc: "Cup / file / persistent object — editor",   key: MenuKey::Yew },
-    MenuItem { label: "Samos",   desc: "Banquet hall — byte table structural map",  key: MenuKey::Ledger },
+    MenuItem { label: "Soa",     desc: "Mind holding both poles — REPL",            key: MenuKey::KoStudio },
+    MenuItem { label: "Saoshin",  desc: "Cup · related · seed — file editor",        key: MenuKey::Yew },
+    MenuItem { label: "Samos",   desc: "Feast of held ease — byte table",           key: MenuKey::Ledger },
     MenuItem { label: "Faerie",  desc: "Kyompufwun — HTTP reader via Kyom",         key: MenuKey::Faerie },
-    MenuItem { label: "To",      desc: "Scaffold / framework — voxel scene editor", key: MenuKey::VoxelLab },
-    MenuItem { label: "Av",      desc: "Relational consciousness — agent registry", key: MenuKey::CharWorkshop },
-    MenuItem { label: "Mekha",   desc: "Herald / gateway — scripted dialogue",      key: MenuKey::DialogueForge },
+    MenuItem { label: "To",      desc: "Scaffold before building — voxel lab",      key: MenuKey::VoxelLab },
+    MenuItem { label: "Av",      desc: "Mind holding space — agent registry",       key: MenuKey::CharWorkshop },
+    MenuItem { label: "Mekha",   desc: "Call held absolute — dialogue",             key: MenuKey::DialogueForge },
     MenuItem { label: "Ko",      desc: "",                                           key: MenuKey::Shell },
 ];
 
