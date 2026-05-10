@@ -22,6 +22,114 @@ const MAX_GRP: usize = 64;
 
 const BG_R: u8 = 0x06; const BG_G: u8 = 0x06; const BG_B: u8 = 0x0a;
 
+// ── Phonetic tree ─────────────────────────────────────────────────────────────
+
+const MAX_ROOTS:    usize = 80;
+const MAX_PER_ROOT: usize = 160;
+
+#[derive(Clone, Copy)]
+struct PhonemeRoot {
+    key:    [u8; 4],   // initial phoneme cluster, e.g. b"Sh\0\0"
+    key_n:  usize,
+    addrs:  [u32; MAX_PER_ROOT],
+    count:  usize,
+}
+
+impl PhonemeRoot {
+    const EMPTY: Self = PhonemeRoot {
+        key: [0u8; 4], key_n: 0,
+        addrs: [0u32; MAX_PER_ROOT], count: 0,
+    };
+    fn key_str(&self) -> &[u8] { &self.key[..self.key_n] }
+}
+
+/// Extract the initial phoneme cluster from a Shygazun symbol.
+/// Handles: digraph initials (Rh, Sh, Zh, Dv, Kw, Gw, Ny, Ng),
+///          single-consonant, and vowel-initial entries.
+fn phoneme_root(sym: &str) -> ([u8; 4], usize) {
+    let b = sym.as_bytes();
+    if b.is_empty() { return ([b'?', 0, 0, 0], 1); }
+    let c0 = b[0].to_ascii_uppercase();
+    let c1 = if b.len() > 1 { b[1].to_ascii_lowercase() } else { 0 };
+    let digraph = match (c0, c1) {
+        (b'R', b'h') | (b'R', b'H') => true,
+        (b'S', b'h') | (b'S', b'H') => true,
+        (b'Z', b'h') | (b'Z', b'H') => true,
+        (b'D', b'v') | (b'D', b'V') => true,
+        (b'K', b'w') | (b'K', b'W') => true,
+        (b'G', b'w') | (b'G', b'W') => true,
+        (b'N', b'y') | (b'N', b'Y') => true,
+        (b'N', b'g') | (b'N', b'G') => true,
+        _ => false,
+    };
+    if digraph {
+        ([c0, c1, 0, 0], 2)
+    } else {
+        ([c0, 0, 0, 0], 1)
+    }
+}
+
+/// Build phoneme root groups from the full BYTE_TABLE.
+fn build_phoneme_roots() -> ([PhonemeRoot; MAX_ROOTS], usize) {
+    let mut roots = [PhonemeRoot::EMPTY; MAX_ROOTS];
+    let mut n = 0usize;
+
+    for e in BYTE_TABLE {
+        let sym = match e.glyph { Some(g) => g, None => continue };
+        let (key, kn) = phoneme_root(sym);
+
+        // Find or create root slot
+        let ri = roots[..n].iter().position(|r| r.key[..r.key_n] == key[..kn]);
+        let ri = match ri {
+            Some(i) => i,
+            None => {
+                if n >= MAX_ROOTS { continue; }
+                roots[n].key    = key;
+                roots[n].key_n  = kn;
+                let i = n; n += 1; i
+            }
+        };
+        if roots[ri].count < MAX_PER_ROOT {
+            roots[ri].addrs[roots[ri].count] = e.address.0;
+            roots[ri].count += 1;
+        }
+    }
+
+    // Sort roots alphabetically by key
+    for i in 1..n {
+        let mut j = i;
+        while j > 0 && roots[j].key[..roots[j].key_n] < roots[j-1].key[..roots[j-1].key_n] {
+            roots.swap(j, j-1); j -= 1;
+        }
+    }
+
+    (roots, n)
+}
+
+/// Tab selector
+#[derive(Clone, Copy, PartialEq)]
+enum TilerTab { Strips, PhoneticTree }
+
+/// Linearised position in the phonetic tree.
+/// Allows Up/Down navigation across roots and entries without collapse.
+fn tree_line_count(roots: &[PhonemeRoot; MAX_ROOTS], rn: usize) -> usize {
+    roots[..rn].iter().map(|r| 1 + r.count).sum()
+}
+
+/// Resolve linear index into (root_idx, entry_idx_within_root_or_None_for_root_header).
+fn tree_resolve(roots: &[PhonemeRoot; MAX_ROOTS], rn: usize, line: usize)
+    -> (usize, Option<usize>)
+{
+    let mut pos = 0usize;
+    for ri in 0..rn {
+        if pos == line { return (ri, None); }
+        pos += 1;
+        if line < pos + roots[ri].count { return (ri, Some(line - pos)); }
+        pos += roots[ri].count;
+    }
+    (rn.saturating_sub(1), None)
+}
+
 // ── Request mechanism ─────────────────────────────────────────────────────────
 
 static mut REQUESTED: bool = false;
@@ -72,25 +180,47 @@ pub struct Tiler {
     top_group: usize,
     rule_y:    u32,
     exited:    bool,
+    tab:       TilerTab,
+    tree_line: usize,   // cursor row in phonetic tree
+    tree_top:  usize,   // scroll offset in phonetic tree
 }
 
 impl Tiler {
     pub fn new(rule_y: u32) -> Self {
-        Tiler { cursor: 0, top_group: 0, rule_y, exited: false }
+        Tiler { cursor: 0, top_group: 0, rule_y, exited: false,
+                tab: TilerTab::Strips, tree_line: 0, tree_top: 0 }
     }
 
     pub fn reset(&mut self) {
         self.cursor    = 0;
         self.top_group = 0;
         self.exited    = false;
+        self.tab       = TilerTab::Strips;
+        self.tree_line = 0;
+        self.tree_top  = 0;
     }
 
     pub fn exited(&self) -> bool { self.exited }
 
     pub fn handle_key(&mut self, key: Key) {
+        // Tab key switches between views
+        if key == Key::Char(b'\t') {
+            self.tab = match self.tab {
+                TilerTab::Strips      => TilerTab::PhoneticTree,
+                TilerTab::PhoneticTree => TilerTab::Strips,
+            };
+            return;
+        }
+
+        match self.tab {
+            TilerTab::Strips      => self.strips_key(key),
+            TilerTab::PhoneticTree => self.tree_key(key),
+        }
+    }
+
+    fn strips_key(&mut self, key: Key) {
         let (gs, gn) = build_groups();
         let gi = group_index(&gs, gn, self.cursor).unwrap_or(0);
-
         match key {
             Key::Escape => { self.exited = true; }
             Key::Right  => {
@@ -117,16 +247,51 @@ impl Tiler {
         }
     }
 
+    fn tree_key(&mut self, key: Key) {
+        let (roots, rn) = build_phoneme_roots();
+        let total = tree_line_count(&roots, rn);
+        match key {
+            Key::Escape => { self.exited = true; }
+            Key::Down   => {
+                if self.tree_line + 1 < total { self.tree_line += 1; }
+                if self.tree_line >= self.tree_top + 20 {
+                    self.tree_top = self.tree_line.saturating_sub(19);
+                }
+            }
+            Key::Up     => {
+                if self.tree_line > 0 { self.tree_line -= 1; }
+                if self.tree_line < self.tree_top { self.tree_top = self.tree_line; }
+            }
+            _ => {}
+        }
+    }
+
     pub fn render(&self, gpu: &dyn GpuSurface) {
         let floor = self.rule_y + 4;
         let w = gpu.width();
         let h = gpu.height();
         gpu.fill_rect(0, floor, w, h.saturating_sub(floor), BG_B, BG_G, BG_R);
 
-        let hdr = b"Shygazun ledger  [Arrows: navigate  Esc: exit]";
-        if let Ok(s) = core::str::from_utf8(hdr) {
-            font::draw_str(gpu, 20, floor + 2, s, SCALE, 0x4b, 0x96, 0xc8);
+        // Tab bar
+        let tab1_col = if self.tab == TilerTab::Strips      { (0xc8u8, 0x96u8, 0x4bu8) } else { (0x40u8, 0x40u8, 0x50u8) };
+        let tab2_col = if self.tab == TilerTab::PhoneticTree { (0xc8u8, 0x96u8, 0x4bu8) } else { (0x40u8, 0x40u8, 0x50u8) };
+        font::draw_str(gpu, 20, floor + 2, "Samos", SCALE, tab1_col.0, tab1_col.1, tab1_col.2);
+        font::draw_str(gpu, 20 + CHAR_W * 8, floor + 2, "Phonetic Tree", SCALE, tab2_col.0, tab2_col.1, tab2_col.2);
+        font::draw_str(gpu, w.saturating_sub(20 + CHAR_W * 14), floor + 2,
+                       "Tab:switch  Esc:exit", SCALE, 0x38, 0x38, 0x48);
+
+        // Underline for active tab
+        let ul_x = if self.tab == TilerTab::Strips { 20 } else { 20 + CHAR_W * 8 };
+        let ul_w = if self.tab == TilerTab::Strips { CHAR_W * 5 } else { CHAR_W * 13 };
+        gpu.fill_rect(ul_x, floor + 2 + CHAR_H + 1, ul_w, 1, 0x4b, 0x96, 0xc8);
+
+        match self.tab {
+            TilerTab::Strips      => self.render_strips(gpu, floor, w, h),
+            TilerTab::PhoneticTree => self.render_phonetic_tree(gpu, floor, w, h),
         }
+    }
+
+    fn render_strips(&self, gpu: &dyn GpuSurface, floor: u32, w: u32, h: u32) {
 
         let gx = 20u32;
         let mut gy = floor + 2 + CHAR_H + 6;
@@ -270,6 +435,169 @@ impl Tiler {
         if gi < self.top_group { self.top_group = gi; }
         if gi >= self.top_group + 14 { self.top_group = gi.saturating_sub(13); }
     }
+
+    // ── Phonetic tree renderer ────────────────────────────────────────────────
+
+    fn render_phonetic_tree(&self, gpu: &dyn GpuSurface, floor: u32, w: u32, h: u32) {
+        let (roots, rn) = build_phoneme_roots();
+        let total = tree_line_count(&roots, rn);
+
+        let content_y = floor + 2 + CHAR_H + 8; // below tab bar
+        let line_h    = CHAR_H + 3;
+        let vis_lines = (h.saturating_sub(content_y + CHAR_H)) / line_h;
+
+        // Right panel breakpoint
+        let panel_x = (w * 3 / 5).max(300).min(w.saturating_sub(20));
+
+        let mut line_idx = 0usize;
+        let mut screen_row = 0u32;
+
+        'outer: for ri in 0..rn {
+            let root = &roots[ri];
+
+            // Root header line
+            if line_idx >= self.tree_top {
+                if screen_row >= vis_lines as u32 { break; }
+                let gy = content_y + screen_row * line_h;
+                let is_cursor = line_idx == self.tree_line;
+
+                // Background highlight for selected root
+                if is_cursor {
+                    gpu.fill_rect(0, gy, panel_x, line_h, 0x18, 0x18, 0x28);
+                }
+
+                // Root color = midpoint of first entry's palette color
+                let root_col = if root.count > 0 {
+                    palette::aki_color(root.addrs[0])
+                } else {
+                    (0x60, 0x60, 0x70)
+                };
+
+                // Key: "Sh-  (12)" in root color
+                let mut buf = [b' '; 24];
+                let kn = root.key_n.min(4);
+                buf[..kn].copy_from_slice(&root.key[..kn]);
+                buf[kn]   = b'-';
+                buf[kn+1] = b' '; buf[kn+2] = b'(';
+                let cn = write_u32(&mut buf[kn+3..], root.count as u32);
+                buf[kn+3+cn] = b')';
+                let total_n = kn + 4 + cn;
+                if let Ok(s) = core::str::from_utf8(&buf[..total_n]) {
+                    font::draw_str(gpu, 20, gy + 1, s, SCALE,
+                                   root_col.0, root_col.1, root_col.2);
+                }
+
+                // Right panel: entry addresses preview (up to 8)
+                if is_cursor && root.count > 0 {
+                    let mut px = panel_x + 8;
+                    let preview = root.count.min(8);
+                    for k in 0..preview {
+                        let a = root.addrs[k];
+                        if let Some(e) = byte_table::lookup(a) {
+                            if let Some(glyph) = e.glyph {
+                                let col = palette::entry_color(e);
+                                if px + glyph.len() as u32 * CHAR_W < w {
+                                    font::draw_str(gpu, px, gy + 1, glyph, SCALE,
+                                                   col.0, col.1, col.2);
+                                    px += (glyph.len() as u32 + 1) * CHAR_W;
+                                }
+                            }
+                        }
+                    }
+                    if root.count > 8 {
+                        let mut nb = [0u8; 8]; nb[0] = b'+';
+                        let nl = 1 + write_u32(&mut nb[1..], (root.count - 8) as u32);
+                        if let Ok(s) = core::str::from_utf8(&nb[..nl]) {
+                            font::draw_str(gpu, px, gy + 1, s, SCALE, 0x40, 0x40, 0x58);
+                        }
+                    }
+                }
+
+                screen_row += 1;
+            }
+            line_idx += 1;
+
+            // Entry lines
+            for ei in 0..root.count {
+                if line_idx >= self.tree_top {
+                    if screen_row >= vis_lines as u32 { break 'outer; }
+                    let gy = content_y + screen_row * line_h;
+                    let is_cursor = line_idx == self.tree_line;
+
+                    if is_cursor {
+                        gpu.fill_rect(0, gy, w, line_h, 0x10, 0x10, 0x1c);
+                    }
+
+                    let addr = root.addrs[ei];
+                    if let Some(e) = byte_table::lookup(addr) {
+                        let col = palette::entry_color(e);
+                        let dim = palette::dim(col);
+
+                        // Indent + glyph
+                        let glyph = e.glyph.unwrap_or("?");
+                        let gx = 20 + CHAR_W * 3;
+                        font::draw_str(gpu, gx, gy + 1, glyph, SCALE, col.0, col.1, col.2);
+
+                        // Address (decimal + hex)
+                        let glyph_w = (glyph.len() as u32 + 2) * CHAR_W;
+                        let mut ab = [b' '; 12]; let mut an = 0;
+                        ab[an] = b'['; an += 1;
+                        an += write_u32(&mut ab[an..], addr);
+                        ab[an] = b']'; an += 1;
+                        if let Ok(s) = core::str::from_utf8(&ab[..an]) {
+                            font::draw_str(gpu, gx + glyph_w, gy + 1, s, SCALE,
+                                           0x40, 0x40, 0x58);
+                        }
+
+                        // Tongue label
+                        let tongue_x = gx + glyph_w + CHAR_W * 8;
+                        if let Some(t) = e.tongue {
+                            let lbl = tongue_short(t);
+                            if let Ok(s) = core::str::from_utf8(lbl) {
+                                font::draw_str(gpu, tongue_x, gy + 1, s, SCALE,
+                                               dim.0, dim.1, dim.2);
+                            }
+                        }
+
+                        // Meaning (truncated) in right panel
+                        let meaning_x = tongue_x + CHAR_W * 6;
+                        let max_ch = ((w.saturating_sub(meaning_x)) / CHAR_W) as usize;
+                        if max_ch > 2 {
+                            let meaning = &e.meaning[..e.meaning.len().min(max_ch - 1)];
+                            if let Ok(s) = core::str::from_utf8(meaning.as_bytes()) {
+                                font::draw_str(gpu, meaning_x, gy + 1, s, SCALE,
+                                               0x70, 0x90, 0x78);
+                            }
+                        }
+                    }
+                    screen_row += 1;
+                }
+                line_idx += 1;
+            }
+        }
+
+        // Scroll indicators
+        if self.tree_top > 0 {
+            font::draw_str(gpu, 20, content_y, "^ more", SCALE, 0x38, 0x38, 0x50);
+        }
+        if line_idx > self.tree_top + vis_lines as usize {
+            font::draw_str(gpu, 20, h.saturating_sub(CHAR_H + 2), "v more",
+                           SCALE, 0x38, 0x38, 0x50);
+        }
+
+        // Stats line at bottom
+        let mut sb = [0u8; 32];
+        let lbl = b"roots: ";
+        sb[..lbl.len()].copy_from_slice(lbl);
+        let n = lbl.len() + write_u32(&mut sb[lbl.len()..], rn as u32);
+        let lbl2 = b"  entries: ";
+        sb[n..n+lbl2.len()].copy_from_slice(lbl2);
+        let n2 = n + lbl2.len() + write_u32(&mut sb[n+lbl2.len()..], total as u32);
+        if let Ok(s) = core::str::from_utf8(&sb[..n2]) {
+            font::draw_str(gpu, w.saturating_sub(n2 as u32 * CHAR_W + 20),
+                           h.saturating_sub(CHAR_H + 2), s, SCALE, 0x38, 0x38, 0x50);
+        }
+    }
 }
 
 // ── Group label ───────────────────────────────────────────────────────────────
@@ -378,3 +706,46 @@ fn write_u32(buf: &mut [u8], mut n: u32) -> usize {
 
 fn hex_hi(v: u8) -> u8 { let n=v>>4;  if n<10 { b'0'+n } else { b'a'+n-10 } }
 fn hex_lo(v: u8) -> u8 { let n=v&0xf; if n<10 { b'0'+n } else { b'a'+n-10 } }
+
+fn tongue_short(t: Tongue) -> &'static [u8] {
+    match t {
+        Tongue::Lotus          => b"T01",
+        Tongue::Rose           => b"T02",
+        Tongue::Sakura         => b"T03",
+        Tongue::Daisy          => b"T04",
+        Tongue::AppleBlossom   => b"T05",
+        Tongue::Aster          => b"T06",
+        Tongue::Grapevine      => b"T07",
+        Tongue::Cannabis       => b"T08",
+        Tongue::Dragon         => b"T09",
+        Tongue::Virus          => b"T10",
+        Tongue::Bacteria       => b"T11",
+        Tongue::Excavata       => b"T12",
+        Tongue::Archaeplastida => b"T13",
+        Tongue::Myxozoa        => b"T14",
+        Tongue::Archea         => b"T15",
+        Tongue::Protist        => b"T16",
+        Tongue::Immune         => b"T17",
+        Tongue::Neural         => b"T18",
+        Tongue::Serpent        => b"T19",
+        Tongue::Beast          => b"T20",
+        Tongue::Cherub         => b"T21",
+        Tongue::Chimera        => b"T22",
+        Tongue::Faerie         => b"T23",
+        Tongue::Djinn          => b"T24",
+        Tongue::Fold           => b"T25",
+        Tongue::Topology       => b"T26",
+        Tongue::Phase          => b"T27",
+        Tongue::Gradient       => b"T28",
+        Tongue::Curvature      => b"T29",
+        Tongue::Prion          => b"T30",
+        Tongue::Blood          => b"T31",
+        Tongue::Moon           => b"T32",
+        Tongue::Koi            => b"T33",
+        Tongue::Rope           => b"T34",
+        Tongue::Hook           => b"T35",
+        Tongue::Fang           => b"T36",
+        Tongue::Circle         => b"T37",
+        Tongue::Ledger         => b"T38",
+    }
+}
