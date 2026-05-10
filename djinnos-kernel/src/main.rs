@@ -12,9 +12,11 @@ mod voxel_lab;
 #[cfg(target_arch = "x86_64")]
 mod amdgpu;
 mod compositor;
+mod background;
 mod dhcp;
 mod login;
 mod mesh;
+mod ne_bar;
 mod profile;
 mod render2d;
 mod style;
@@ -872,7 +874,21 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
             dirty = false;
             compositor::get().mark_dirty(compositor::LayerKind::Content);
             let fb_ref = &fbdrv as &dyn gpu::GpuSurface;
-            compositor::get().render(fb_ref, |gpu| {
+            let mode_name = match mode {
+                AppMode::Login    => "DjinnOS",
+                AppMode::Shell    => "Ko",
+                AppMode::Repl     => "Soa",
+                AppMode::Editor   => "Saoshin",
+                AppMode::Tiler    => "Samos",
+                AppMode::Browser  => "Faerie",
+                AppMode::Atelier  => "Kaelshunshikeaninsuy",
+                AppMode::VoxelLab => "To",
+                AppMode::Vrsei    => "Vrsei",
+            };
+            let profile_name = profile::active()
+                .map(|p| core::str::from_utf8(p.name_str()).unwrap_or(""))
+                .unwrap_or("");
+            compositor::get().render(fb_ref, mode_name, profile_name, frame, |gpu| {
                 match mode {
                     AppMode::Shell => {
                         sh.set_frame(frame);

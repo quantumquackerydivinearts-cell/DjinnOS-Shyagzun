@@ -150,21 +150,22 @@ impl Compositor {
 
     /// Render all dirty visible layers in order, then flush.
     /// `render_content` is called for layer 1 (AppMode render).
+    /// `mode_name` and `profile_name` are passed to the Ne Bar.
     pub fn render(
         &mut self,
         gpu:            &dyn crate::gpu::GpuSurface,
+        mode_name:      &str,
+        profile_name:   &str,
+        frame:          u64,
         render_content: impl FnOnce(&dyn crate::gpu::GpuSurface),
     ) {
-        use crate::render2d::It;
         use crate::style;
+
+        let content_h = crate::ne_bar::content_h(gpu);
 
         // Layer 0: Background (only when dirty)
         if self.layers[0].dirty && self.layers[0].visible {
-            let it = It::new(gpu);
-            let w  = gpu.width();
-            let h  = gpu.height();
-            let t  = style::get();
-            it.grad_v(0, 0, w, h, t.bg, style::mix(t.bg, t.surface, 80));
+            crate::background::render(gpu, frame, content_h);
             self.layers[0].dirty = false;
         }
 
@@ -179,6 +180,10 @@ impl Compositor {
             self.render_overlay(gpu);
             self.layers[2].dirty = false;
         }
+
+        // Ne Bar: always rendered (persistent chrome, not dirty-tracked)
+        #[cfg(target_arch = "x86_64")]
+        crate::ne_bar::render(gpu, mode_name, profile_name, frame);
 
         // Layer 3: Cursor (software fallback only -- hardware path skips this)
         if !self.hw_cursor && self.layers[3].dirty && self.layers[3].visible {
