@@ -15,6 +15,65 @@ pub trait GpuSurface {
     fn fill(&self, b: u8, g: u8, r: u8);
     fn flush(&mut self);
 
+    /// Read a pixel.  Default returns (0,0,0); framebuffer backends override.
+    fn get_pixel(&self, _x: u32, _y: u32) -> (u8, u8, u8) { (0, 0, 0) }
+
+    /// Alpha-blend a solid colour over the existing pixel at (x,y).
+    /// alpha=255 = fully opaque, alpha=0 = no change.
+    fn blend_pixel(&self, x: u32, y: u32, b: u8, g: u8, r: u8, alpha: u8) {
+        let (db, dg, dr) = self.get_pixel(x, y);
+        let a  = alpha as u32;
+        let ia = 255 - a;
+        let nb = ((b as u32 * a + db as u32 * ia) / 255) as u8;
+        let ng = ((g as u32 * a + dg as u32 * ia) / 255) as u8;
+        let nr = ((r as u32 * a + dr as u32 * ia) / 255) as u8;
+        self.set_pixel(x, y, nb, ng, nr);
+    }
+
+    /// Vertical gradient fill: top colour blends to bottom colour.
+    fn fill_grad_v(&self, x: u32, y: u32, w: u32, h: u32,
+                   tb: u8, tg: u8, tr: u8,
+                   bb: u8, bg: u8, br: u8) {
+        for row in 0..h {
+            let py = y + row;
+            if py >= self.height() { break; }
+            let t  = row * 255 / h.max(1);
+            let it = 255 - t;
+            let rb = ((tb as u32 * it + bb as u32 * t) / 255) as u8;
+            let rg = ((tg as u32 * it + bg as u32 * t) / 255) as u8;
+            let rr = ((tr as u32 * it + br as u32 * t) / 255) as u8;
+            self.fill_span(x, x + w, py, rb, rg, rr);
+        }
+    }
+
+    /// Horizontal gradient fill.
+    fn fill_grad_h(&self, x: u32, y: u32, w: u32, h: u32,
+                   lb: u8, lg: u8, lr: u8,
+                   rb: u8, rg: u8, rr: u8) {
+        for row in y..(y + h).min(self.height()) {
+            for col in 0..w {
+                let px = x + col;
+                if px >= self.width() { break; }
+                let t  = col * 255 / w.max(1);
+                let it = 255 - t;
+                let cb = ((lb as u32 * it + rb as u32 * t) / 255) as u8;
+                let cg = ((lg as u32 * it + rg as u32 * t) / 255) as u8;
+                let cr = ((lr as u32 * it + rr as u32 * t) / 255) as u8;
+                self.set_pixel(px, row, cb, cg, cr);
+            }
+        }
+    }
+
+    /// Alpha-blended rectangle over the existing framebuffer content.
+    fn fill_rect_alpha(&self, x: u32, y: u32, w: u32, h: u32,
+                       b: u8, g: u8, r: u8, alpha: u8) {
+        for row in y..(y + h).min(self.height()) {
+            for col in x..(x + w).min(self.width()) {
+                self.blend_pixel(col, row, b, g, r, alpha);
+            }
+        }
+    }
+
     /// Fill a horizontal span [x0, x1) on row y with a solid colour.
     /// This is the inner loop of every span-based rasterizer (isometric
     /// faces, triangles, texture rows).  Backends override this with a

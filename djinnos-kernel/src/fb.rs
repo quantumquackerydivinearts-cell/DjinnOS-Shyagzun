@@ -119,6 +119,13 @@ impl FbDriver {
       | ((g as u32) << self.g_pos)
       | ((b as u32) << self.b_pos)
     }
+
+    fn unpack(&self, packed: u32) -> (u8, u8, u8) {
+        let r = ((packed >> self.r_pos) & 0xFF) as u8;
+        let g = ((packed >> self.g_pos) & 0xFF) as u8;
+        let b = ((packed >> self.b_pos) & 0xFF) as u8;
+        (b, g, r)
+    }
 }
 
 impl GpuSurface for FbDriver {
@@ -129,6 +136,13 @@ impl GpuSurface for FbDriver {
         if x >= self._width || y >= self._height { return; }
         let idx = (y * self.pitch_px + x) as usize;
         unsafe { write_volatile(self.addr.add(idx), self.pack(b, g, r)); }
+    }
+
+    fn get_pixel(&self, x: u32, y: u32) -> (u8, u8, u8) {
+        if x >= self._width || y >= self._height { return (0, 0, 0); }
+        let idx  = (y * self.pitch_px + x) as usize;
+        let packed = unsafe { core::ptr::read_volatile(self.addr.add(idx)) };
+        self.unpack(packed)
     }
 
     /// Contiguous row write — one pass through a single cache line run.

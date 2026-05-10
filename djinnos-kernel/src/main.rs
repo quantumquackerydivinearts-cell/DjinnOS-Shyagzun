@@ -9,9 +9,14 @@ mod agent;
 mod atelier;
 mod dialogue;
 mod voxel_lab;
+#[cfg(target_arch = "x86_64")]
+mod amdgpu;
+mod compositor;
 mod login;
 mod mesh;
 mod profile;
+mod render2d;
+mod style;
 mod voxel_modeler;
 #[cfg(target_arch = "x86_64")]
 mod cursor;
@@ -604,6 +609,12 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     ps2::init();
     cursor::init(fbdrv.width(), fbdrv.height());
 
+    // Graphics stack init.
+    style::init();
+    #[cfg(target_arch = "x86_64")]
+    amdgpu::init();
+    compositor::init();
+
     arch::enable_timer();
     arch::start_timer();
 
@@ -708,10 +719,16 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
         }
 
         // ── Mouse polling ─────────────────────────────────────────────────
+        #[cfg(target_arch = "x86_64")]
         while let Some(mev) = ps2::poll_mouse() {
             cursor::update(mev, fbdrv.width(), fbdrv.height());
+            let (cx, cy) = cursor::pos();
+            compositor::get().on_cursor_move(cx, cy);
             dirty = true;
         }
+
+        // ── Notification tick ─────────────────────────────────────────────
+        if compositor::get().tick_notifs() { dirty = true; }
 
         // ── Key handling ──────────────────────────────────────────────────
         if let Some(key) = ps2::poll() {
@@ -816,21 +833,24 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
 
         if dirty {
             dirty = false;
-            match mode {
-                AppMode::Shell => {
-                    sh.set_frame(frame);
-                    sh.render(&fbdrv as &dyn gpu::GpuSurface);
+            compositor::get().mark_dirty(compositor::LayerKind::Content);
+            let fb_ref = &fbdrv as &dyn gpu::GpuSurface;
+            compositor::get().render(fb_ref, |gpu| {
+                match mode {
+                    AppMode::Shell => {
+                        sh.set_frame(frame);
+                        sh.render(gpu);
+                    }
+                    AppMode::Repl     => { repl.render(gpu); }
+                    AppMode::Editor   => { ed.render(gpu); }
+                    AppMode::Tiler    => { tilr.render(gpu); }
+                    AppMode::Browser  => { browser::browser().render(gpu); }
+                    AppMode::Atelier  => { atl.render(gpu); }
+                    AppMode::Login    => { login_screen.render(gpu); }
+                    AppMode::VoxelLab => { vlab.render(gpu); }
+                    AppMode::Vrsei    => { vrsei.render(gpu); }
                 }
-                AppMode::Repl   => { repl.render(&fbdrv as &dyn gpu::GpuSurface); }
-                AppMode::Editor => { ed.render(&fbdrv as &dyn gpu::GpuSurface); }
-                AppMode::Tiler   => { tilr.render(&fbdrv as &dyn gpu::GpuSurface); }
-                AppMode::Browser => { browser::browser().render(&fbdrv as &dyn gpu::GpuSurface); }
-                AppMode::Atelier  => { atl.render(&fbdrv as &dyn gpu::GpuSurface); }
-                AppMode::Login    => { login_screen.render(&fbdrv as &dyn gpu::GpuSurface); }
-                AppMode::VoxelLab => { vlab.render(&fbdrv as &dyn gpu::GpuSurface); }
-                AppMode::Vrsei    => { vrsei.render(&fbdrv as &dyn gpu::GpuSurface); }
-            }
-            cursor::render(&fbdrv as &dyn gpu::GpuSurface);
+            });
             fbdrv.flush();
             frame = frame.wrapping_add(1);
         }
