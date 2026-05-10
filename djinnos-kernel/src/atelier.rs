@@ -65,6 +65,7 @@ enum MenuKey {
     Ledger,
     Faerie,
     VoxelLab,
+    Vrsei,
     CharWorkshop,
     DialogueForge,
     Shell,
@@ -82,6 +83,7 @@ const MENU: &[MenuItem] = &[
     MenuItem { label: "Samos",   desc: "Feast of held ease — byte table",           key: MenuKey::Ledger },
     MenuItem { label: "Faerie",  desc: "Kyompufwun — HTTP reader via Kyom",         key: MenuKey::Faerie },
     MenuItem { label: "To",      desc: "Scaffold before building — voxel lab",      key: MenuKey::VoxelLab },
+    MenuItem { label: "Vrsei",   desc: "Rotor shaping space — voxel model sculptor", key: MenuKey::Vrsei },
     MenuItem { label: "Av",      desc: "Mind holding space — agent registry",       key: MenuKey::CharWorkshop },
     MenuItem { label: "Mekha",   desc: "Call held absolute — dialogue",             key: MenuKey::DialogueForge },
     MenuItem { label: "Ko",      desc: "",                                           key: MenuKey::Shell },
@@ -98,6 +100,7 @@ pub enum AtelierLaunch {
     Ledger,
     Faerie,    // URL in launch_input()
     VoxelLab,
+    Vrsei,
     Shell,
 }
 
@@ -178,6 +181,7 @@ impl Atelier {
                 MenuKey::Ledger       => { self.launch = Some(AtelierLaunch::Ledger); }
                 MenuKey::Faerie       => { unsafe { ATL_INPUT_N = 0; } self.sub_mode = SubMode::PromptUrl; }
                 MenuKey::VoxelLab     => { self.launch = Some(AtelierLaunch::VoxelLab); }
+                MenuKey::Vrsei        => { self.launch = Some(AtelierLaunch::Vrsei); }
                 MenuKey::CharWorkshop => { self.cw_top = 0; self.cw_sel = 0; self.sub_mode = SubMode::CharWorkshop; }
                 MenuKey::DialogueForge => { self.df_top = 0; self.sub_mode = SubMode::DialogueForge; }
                 MenuKey::Shell        => { self.launch = Some(AtelierLaunch::Shell); }

@@ -224,12 +224,12 @@ impl Camera {
 // The result is relative to camera.sx/sy.
 
 #[inline]
-fn iso_x(wx: i32, wz: i32, tile_w: u32) -> i32 {
+pub(crate) fn iso_x(wx: i32, wz: i32, tile_w: u32) -> i32 {
     (wx - wz) * (tile_w as i32) / 2
 }
 
 #[inline]
-fn iso_y(wx: i32, wy: i32, wz: i32, tile_h: u32, zscale: u32) -> i32 {
+pub(crate) fn iso_y(wx: i32, wy: i32, wz: i32, tile_h: u32, zscale: u32) -> i32 {
     (wx + wz) * (tile_h as i32) / 2 - wy * zscale as i32
 }
 
@@ -249,7 +249,7 @@ fn iso_y(wx: i32, wy: i32, wz: i32, tile_h: u32, zscale: u32) -> i32 {
 //   Je (Left):   a parallelogram leaning left, height ZS.
 //                Top-left of Jy → bottom-left, then step left each line.
 
-fn draw_face_jy(
+pub(crate) fn draw_face_jy(
     gpu: &dyn GpuSurface,
     ox: i32, oy: i32,   // iso origin of this voxel's top-left corner on screen
     tw: u32, th: u32,   // tile width, tile height
@@ -276,7 +276,7 @@ fn draw_face_jy(
     }
 }
 
-fn draw_face_ji(
+pub(crate) fn draw_face_ji(
     gpu: &dyn GpuSurface,
     ox: i32, oy: i32,
     tw: u32, th: u32, zs: u32,
@@ -304,7 +304,7 @@ fn draw_face_ji(
     }
 }
 
-fn draw_face_je(
+pub(crate) fn draw_face_je(
     gpu: &dyn GpuSurface,
     ox: i32, oy: i32,
     tw: u32, th: u32, zs: u32,

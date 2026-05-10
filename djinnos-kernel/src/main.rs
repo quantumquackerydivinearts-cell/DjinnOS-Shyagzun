@@ -9,6 +9,7 @@ mod agent;
 mod atelier;
 mod dialogue;
 mod voxel_lab;
+mod voxel_modeler;
 mod voxel;
 mod kos_characters;
 mod sa;
@@ -613,9 +614,10 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     let mut tilr  = tiler::Tiler::new(rule_y);
     let mut atl   = atelier::Atelier::new(rule_y);
     let mut vlab  = voxel_lab::VoxelLab::new(rule_y);
+    let mut vrsei = voxel_modeler::Vrsei::new(rule_y);
 
     #[derive(PartialEq)]
-    enum AppMode { Shell, Repl, Editor, Tiler, Browser, Atelier, VoxelLab }
+    enum AppMode { Shell, Repl, Editor, Tiler, Browser, Atelier, VoxelLab, Vrsei }
     let mut mode         = AppMode::Shell;
     let mut from_atelier = false;
 
@@ -676,6 +678,10 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     AtelierLaunch::VoxelLab => {
                         vlab.open(&[]);
                         mode = AppMode::VoxelLab; from_atelier = true;
+                    }
+                    AtelierLaunch::Vrsei => {
+                        vrsei.open();
+                        mode = AppMode::Vrsei; from_atelier = true;
                     }
                     AtelierLaunch::Shell => {
                         from_atelier = false; mode = AppMode::Shell;
@@ -741,6 +747,15 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     }
                     dirty = true;
                 }
+                AppMode::Vrsei => {
+                    let was_exited = vrsei.exited();
+                    vrsei.handle_key(key);
+                    if !was_exited && vrsei.exited() {
+                        mode = if from_atelier { from_atelier = false; AppMode::Atelier }
+                               else { AppMode::Shell };
+                    }
+                    dirty = true;
+                }
                 AppMode::Shell => match key {
                     Key::Char(b) => {
                         sh.handle_key(key); kbd::push(b); dirty = true;
@@ -785,6 +800,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                 AppMode::Browser => { browser::browser().render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::Atelier  => { atl.render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::VoxelLab => { vlab.render(&fbdrv as &dyn gpu::GpuSurface); }
+                AppMode::Vrsei    => { vrsei.render(&fbdrv as &dyn gpu::GpuSurface); }
             }
             fbdrv.flush();
             frame = frame.wrapping_add(1);
