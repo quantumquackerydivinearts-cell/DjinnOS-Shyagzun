@@ -12,6 +12,7 @@ mod voxel_lab;
 #[cfg(target_arch = "x86_64")]
 mod amdgpu;
 mod compositor;
+mod dhcp;
 mod login;
 mod mesh;
 mod profile;

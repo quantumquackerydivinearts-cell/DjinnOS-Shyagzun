@@ -22,21 +22,30 @@ fn stack() -> Option<&'static mut TcpStack> {
 
 pub fn init() -> bool {
     // Try wired e1000 first (desktop / docked laptop), then USB tethering.
-    if let Some(nic) = crate::e1000::E1000Net::find_and_init() {
+    if let Some(mut nic) = crate::e1000::E1000Net::find_and_init() {
+        // DHCP on wired too — works with QEMU SLIRP and real routers.
+        crate::dhcp::acquire(&mut nic);
         unsafe { core::ptr::write_volatile(&mut STACK, Some(TcpStack::new(nic))); }
-        crate::uart::puts("NET: e1000 (wired)\r\n");
+        crate::uart::puts("NET: e1000 ready\r\n");
         return true;
     }
 
     crate::uart::puts("NET: no e1000 — scanning USB for tethered phone...\r\n");
     if let Some(mut xhci) = crate::xhci::XhciController::find_and_init() {
         if let Some(dev) = crate::usb::enumerate(&mut xhci) {
-            if let Some(usb_nic) = crate::usb_net::UsbNet::new(xhci, dev) {
-                unsafe {
-                    USB_NET = Some(usb_nic);
-                    USB_NET_ACTIVE = true;
+            if let Some(mut usb_nic) = crate::usb_net::UsbNet::new(xhci, dev) {
+                // Run DHCP — the phone assigns an IP from its tethering subnet.
+                let got_ip = crate::dhcp::acquire(&mut usb_nic);
+                if !got_ip {
+                    // Static fallback: Android default tethering range.
+                    crate::net_stack::set_addrs(
+                        [192, 168, 42, 2],
+                        [192, 168, 42, 129],
+                    );
+                    crate::uart::puts("NET: USB — using static 192.168.42.2\r\n");
                 }
-                crate::uart::puts("NET: USB tethering active\r\n");
+                unsafe { core::ptr::write_volatile(&mut STACK, Some(TcpStack::new(usb_nic))); }
+                crate::uart::puts("NET: USB tethering ready\r\n");
                 return true;
             }
         }
@@ -44,8 +53,6 @@ pub fn init() -> bool {
     false
 }
 
-static mut USB_NET: Option<crate::usb_net::UsbNet> = None;
-static mut USB_NET_ACTIVE: bool = false;
 
 pub fn poll() {
     if let Some(s) = stack() { s.poll(); }
@@ -54,8 +61,8 @@ pub fn poll() {
 pub fn info() -> Option<NetInfo> {
     let s = stack()?;
     Some(NetInfo {
-        mac:       s.net.mac,
-        ip:        crate::net_stack::OUR_IP,
+        mac:       s.net.mac(),
+        ip:        crate::net_stack::our_ip(),
         http_port: 0,
         active:    true,
     })

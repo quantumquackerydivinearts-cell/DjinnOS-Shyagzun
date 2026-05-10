@@ -217,6 +217,19 @@ impl NetDriver {
     }
 }
 
+impl crate::net_stack::NetworkDevice for NetDriver {
+    fn mac(&self) -> [u8; 6] { self.mac }
+    fn send_frame(&mut self, frame: &[u8]) { self.tx.send(frame); }
+    fn recv_frame(&mut self) -> Option<alloc::vec::Vec<u8>> {
+        let v = self.rx.try_recv()?;
+        self.rx.reclaim_consumed();
+        Some(v)
+    }
+}
+
+// SAFETY: NetDriver is only accessed from the single-threaded cooperative loop.
+unsafe impl Send for NetDriver {}
+
 /// Scan the VirtIO bus for the first network device (ID 1).
 pub fn find_net() -> Option<u64> {
     for slot in 0..VIRTIO_SLOTS {

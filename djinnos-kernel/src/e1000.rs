@@ -201,6 +201,12 @@ pub struct E1000Net {
     pub tx:  E1000Tx,
 }
 
+impl crate::net_stack::NetworkDevice for E1000Net {
+    fn mac(&self) -> [u8; 6] { self.mac }
+    fn send_frame(&mut self, frame: &[u8]) { self.tx.send(frame); }
+    fn recv_frame(&mut self) -> Option<alloc::vec::Vec<u8>> { self.rx.try_recv() }
+}
+
 // PCI IDs: Intel vendor + known PRO/1000 / e1000e / I2xx device IDs.
 pub const VENDOR: u16 = 0x8086;
 const DEVICE_IDS: &[u16] = &[

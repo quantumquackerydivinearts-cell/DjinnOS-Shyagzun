@@ -171,6 +171,16 @@ impl UsbNet {
     }
 }
 
+impl crate::net_stack::NetworkDevice for UsbNet {
+    fn mac(&self) -> [u8; 6] { self.mac }
+    fn send_frame(&mut self, frame: &[u8]) { self.send(frame); }
+    fn recv_frame(&mut self) -> Option<alloc::vec::Vec<u8>> { self.poll_rx() }
+}
+
+// SAFETY: UsbNet owns its xHCI controller and is only accessed from the
+// single-threaded DjinnOS cooperative kernel loop.
+unsafe impl Send for UsbNet {}
+
 // ── RNDIS initialisation ──────────────────────────────────────────────────────
 
 fn rndis_init(xhci: &mut XhciController, dev: &UsbDevice) -> Option<[u8; 6]> {

@@ -50,8 +50,8 @@ pub fn poll() {
 pub fn info() -> Option<NetInfo> {
     let s = stack()?;
     Some(NetInfo {
-        mac:       s.net.mac,
-        ip:        crate::net_stack::OUR_IP,
+        mac:       s.net.mac(),
+        ip:        crate::net_stack::our_ip(),
         http_port: 0,
         active:    true,
     })

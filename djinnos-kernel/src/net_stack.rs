@@ -10,17 +10,33 @@
 // Designed for QEMU SLIRP: reliable, in-order, no retransmission required.
 
 use alloc::vec::Vec;
+use alloc::boxed::Box;
 
-// Type-alias the NIC driver so the rest of this file compiles unchanged on
-// both architectures.  E1000Net exposes identical field names and method
-// signatures to VirtIO NetDriver.
-#[cfg(target_arch = "riscv64")]
-use crate::virtio::NetDriver;
-#[cfg(not(target_arch = "riscv64"))]
-use crate::e1000::E1000Net as NetDriver;
+// ── NetworkDevice trait ───────────────────────────────────────────────────────
+//
+// Abstracts over E1000, VirtIO NET, and USB tethering NICs.
+// TcpStack holds a Box<dyn NetworkDevice> so the static STACK works
+// regardless of which NIC was detected at boot.
 
-pub const OUR_IP:     [u8; 4] = [10,  0,  2, 15];
-pub const GATEWAY_IP: [u8; 4] = [10,  0,  2,  2];
+pub trait NetworkDevice: Send {
+    fn mac(&self) -> [u8; 6];
+    fn send_frame(&mut self, frame: &[u8]);
+    fn recv_frame(&mut self) -> Option<Vec<u8>>;
+}
+
+// Implementations live in the respective driver files.
+// E1000Net: e1000.rs   UsbNet: usb_net.rs   VirtIO: virtio.rs (riscv64)
+
+// ── Dynamic IP config (set by DHCP or static fallback) ───────────────────────
+
+pub static mut OUR_IP:     [u8; 4] = [10,  0,  2, 15];
+pub static mut GATEWAY_IP: [u8; 4] = [10,  0,  2,  2];
+
+pub fn our_ip()     -> [u8; 4] { unsafe { OUR_IP } }
+pub fn gateway_ip() -> [u8; 4] { unsafe { GATEWAY_IP } }
+pub fn set_addrs(ip: [u8;4], gw: [u8;4]) {
+    unsafe { OUR_IP = ip; GATEWAY_IP = gw; }
+}
 
 const ETH_ARP:  u16 = 0x0806;
 const ETH_IPV4: u16 = 0x0800;
@@ -54,7 +70,7 @@ fn tcp_checksum(src_ip: &[u8;4], dst_ip: &[u8;4], tcp_seg: &[u8]) -> u16 {
 
 // ── Frame builder — Ethernet + IPv4 + TCP in one stack buffer ─────────────────
 
-fn send_tcp_seg(net: &mut NetDriver, v: &Varshan, flags: u8, payload: &[u8]) {
+fn send_tcp_seg(net: &mut dyn NetworkDevice, v: &Varshan, flags: u8, payload: &[u8]) {
     let tcp_len  = 20 + payload.len();
     let ip_len   = 20 + tcp_len;
     let frame_len = 14 + ip_len;
@@ -62,7 +78,7 @@ fn send_tcp_seg(net: &mut NetDriver, v: &Varshan, flags: u8, payload: &[u8]) {
 
     // Ethernet header
     buf[0..6].copy_from_slice(&v.dst_mac);
-    buf[6..12].copy_from_slice(&net.mac);
+    buf[6..12].copy_from_slice(&net.mac());
     buf[12..14].copy_from_slice(&ETH_IPV4.to_be_bytes());
 
     // IPv4 header
@@ -72,7 +88,7 @@ fn send_tcp_seg(net: &mut NetDriver, v: &Varshan, flags: u8, payload: &[u8]) {
     ip[6..8].copy_from_slice(&0x4000u16.to_be_bytes()); // DF flag
     ip[8] = 64;  // TTL
     ip[9] = IP_TCP;
-    ip[12..16].copy_from_slice(&OUR_IP);
+    ip[12..16].copy_from_slice(&our_ip());
     ip[16..20].copy_from_slice(&v.dst_ip);
     let ip_cs = ones_complement_sum(&buf[14..34]);
     buf[14+10..14+12].copy_from_slice(&ip_cs.to_be_bytes());
@@ -88,30 +104,30 @@ fn send_tcp_seg(net: &mut NetDriver, v: &Varshan, flags: u8, payload: &[u8]) {
     tcp[14..16].copy_from_slice(&8192u16.to_be_bytes()); // window
     // checksum at tcp[16..18] — computed below
     tcp[20..tcp_len].copy_from_slice(payload);
-    let tcp_cs = tcp_checksum(&OUR_IP, &v.dst_ip, &buf[34..34+tcp_len]);
+    let tcp_cs = tcp_checksum(&our_ip(), &v.dst_ip, &buf[34..34+tcp_len]);
     buf[34+16..34+18].copy_from_slice(&tcp_cs.to_be_bytes());
 
-    net.tx.send(&buf[..frame_len]);
+    net.send_frame(&buf[..frame_len]);
 }
 
 // ── ARP ───────────────────────────────────────────────────────────────────────
 
-fn arp_send_request(net: &mut NetDriver, target_ip: [u8;4]) {
+fn arp_send_request(net: &mut dyn NetworkDevice, target_ip: [u8;4]) {
     let broadcast = [0xffu8; 6];
     let mut buf = [0u8; 14+28];
     buf[0..6].copy_from_slice(&broadcast);
-    buf[6..12].copy_from_slice(&net.mac);
+    buf[6..12].copy_from_slice(&net.mac());
     buf[12..14].copy_from_slice(&ETH_ARP.to_be_bytes());
     let a = &mut buf[14..];
     a[0..2].copy_from_slice(&1u16.to_be_bytes()); // Ethernet
     a[2..4].copy_from_slice(&0x0800u16.to_be_bytes()); // IPv4
     a[4] = 6; a[5] = 4;
     a[6..8].copy_from_slice(&1u16.to_be_bytes()); // request
-    a[8..14].copy_from_slice(&net.mac);
-    a[14..18].copy_from_slice(&OUR_IP);
+    a[8..14].copy_from_slice(&net.mac());
+    a[14..18].copy_from_slice(&our_ip());
     // target MAC = 0 (unknown)
     a[24..28].copy_from_slice(&target_ip);
-    net.tx.send(&buf);
+    net.send_frame(&buf);
 }
 
 fn arp_reply_mac(frame: &[u8], wanted_ip: [u8;4]) -> Option<[u8;6]> {
@@ -126,13 +142,12 @@ fn arp_reply_mac(frame: &[u8], wanted_ip: [u8;4]) -> Option<[u8;6]> {
 }
 
 /// Resolve target_ip → MAC via ARP.  Spins until reply (QEMU SLIRP is fast).
-pub fn arp_resolve(net: &mut NetDriver, target_ip: [u8;4]) -> [u8;6] {
+pub fn arp_resolve(net: &mut dyn NetworkDevice, target_ip: [u8;4]) -> [u8;6] {
     for _ in 0..20 {
         arp_send_request(net, target_ip);
         for _ in 0..50000 {
-            if let Some(frame) = net.rx.try_recv() {
+            if let Some(frame) = net.recv_frame() {
                 let result = arp_reply_mac(&frame, target_ip);
-                net.rx.reclaim_consumed();
                 if let Some(mac) = result { return mac; }
             }
         }
@@ -204,15 +219,15 @@ fn parse_tcp_frame(frame: &[u8]) -> Option<TcpSeg<'_>> {
 // ── TcpStack ──────────────────────────────────────────────────────────────────
 
 pub struct TcpStack {
-    pub net:   NetDriver,
+    pub net:   Box<dyn NetworkDevice>,
     conns:     [Option<Varshan>; 8],
     port_ctr:  u16,
 }
 
 impl TcpStack {
-    pub fn new(net: NetDriver) -> Self {
+    pub fn new(net: impl NetworkDevice + 'static) -> Self {
         Self {
-            net,
+            net: Box::new(net),
             conns: [None,None,None,None,None,None,None,None],
             port_ctr: 49152,
         }
@@ -236,7 +251,7 @@ impl TcpStack {
     /// Initiate a TCP connection (sends SYN, returns immediately).
     /// Call poll() repeatedly then check ready() before sending data.
     pub fn connect(&mut self, slot: usize, dst_ip: [u8;4], dst_port: u16) -> bool {
-        let dst_mac = arp_resolve(&mut self.net, dst_ip);
+        let dst_mac = arp_resolve(self.net.as_mut(), dst_ip);
         let src_port = self.next_port();
         let isn = crate::arch::read_mtime() as u32 ^ 0xdeadbeef;
 
@@ -247,7 +262,7 @@ impl TcpStack {
             state: VarshanState::FyVarshan,
         };
         // Send SYN
-        send_tcp_seg(&mut self.net, &v, 0x02, &[]);
+        send_tcp_seg(self.net.as_mut(), &v, 0x02, &[]);
         let mut v = v;
         v.seq = isn.wrapping_add(1);
 
@@ -258,8 +273,7 @@ impl TcpStack {
     /// Drive the receive path — call every main loop iteration.
     pub fn poll(&mut self) {
         loop {
-            // Use try_recv, process frame, reclaim
-            let frame = match self.net.rx.try_recv() {
+            let frame = match self.net.recv_frame() {
                 Some(f) => f,
                 None    => break,
             };
@@ -267,7 +281,6 @@ impl TcpStack {
             if let Some(s) = seg {
                 self.dispatch(s.src_port, s.dst_port, s.seq, s.flags, s.payload);
             }
-            self.net.rx.reclaim_consumed();
         }
     }
 
@@ -292,7 +305,7 @@ impl TcpStack {
                 if flags & 0x12 == 0x12 {  // SYN+ACK
                     v.ack = seq.wrapping_add(1);
                     v.state = VarshanState::SakuraVarshan;
-                    send_tcp_seg(&mut self.net, v, 0x10, &[]);  // ACK
+                    send_tcp_seg(self.net.as_mut(), v, 0x10, &[]);  // ACK
                 } else if flags & 0x04 != 0 {  // RST
                     v.state = VarshanState::ZoVarshan;
                     return false;
@@ -304,12 +317,12 @@ impl TcpStack {
                 if !payload.is_empty() {
                     v.rx_buf.extend_from_slice(payload);
                     v.ack = seq.wrapping_add(payload.len() as u32);
-                    send_tcp_seg(&mut self.net, v, 0x10, &[]);  // ACK
+                    send_tcp_seg(self.net.as_mut(), v, 0x10, &[]);  // ACK
                 }
                 if flags & 0x01 != 0 {  // FIN
                     v.ack = v.ack.wrapping_add(1);
                     v.state = VarshanState::ZuVarshan;
-                    send_tcp_seg(&mut self.net, v, 0x10, &[]);  // ACK the FIN
+                    send_tcp_seg(self.net.as_mut(), v, 0x10, &[]);  // ACK the FIN
                 }
                 if flags & 0x04 != 0 {  // RST
                     v.state = VarshanState::ZoVarshan;
@@ -331,7 +344,7 @@ impl TcpStack {
             Some(v) if v.state == VarshanState::SakuraVarshan => v,
             other => { self.conns[slot] = other; return 0; }
         };
-        send_tcp_seg(&mut self.net, &v, 0x18, data);  // PSH+ACK
+        send_tcp_seg(self.net.as_mut(), &v, 0x18, data);  // PSH+ACK
         v.seq = v.seq.wrapping_add(data.len() as u32);
         self.conns[slot] = Some(v);
         data.len()
@@ -362,7 +375,7 @@ impl TcpStack {
     pub fn close(&mut self, slot: usize) {
         if let Some(mut v) = self.conns[slot].take() {
             if v.state == VarshanState::SakuraVarshan {
-                send_tcp_seg(&mut self.net, &v, 0x11, &[]);  // FIN+ACK
+                send_tcp_seg(self.net.as_mut(), &v, 0x11, &[]);  // FIN+ACK
                 v.seq = v.seq.wrapping_add(1);
             }
             // Drop v — ZoVarshan.
@@ -373,12 +386,4 @@ impl TcpStack {
         self.conns[slot].is_some()
     }
 
-    #[cfg(target_arch = "riscv64")]
-    pub fn print_queue_addrs(&self) {
-        use crate::uart;
-        uart::puts("rx_avail="); uart::putx(self.net.rx.q.avail as u64); uart::puts("\r\n");
-        uart::puts("rx_used ="); uart::putx(self.net.rx.q.used  as u64); uart::puts("\r\n");
-        uart::puts("tx_avail="); uart::putx(self.net.tx.q.avail as u64); uart::puts("\r\n");
-        uart::puts("tx_used ="); uart::putx(self.net.tx.q.used  as u64); uart::puts("\r\n");
-    }
 }
