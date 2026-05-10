@@ -14,3 +14,12 @@ pub enum Key {
     Right,
     Escape,
 }
+
+/// Mouse movement and button event from PS/2 or USB HID.
+/// dy is already screen-oriented (positive = down), matching screen coords.
+#[derive(Clone, Copy)]
+pub struct MouseEvent {
+    pub dx:      i8,
+    pub dy:      i8,
+    pub buttons: u8,  // bit 0 = left, bit 1 = right, bit 2 = middle
+}

@@ -9,8 +9,12 @@ mod agent;
 mod atelier;
 mod dialogue;
 mod voxel_lab;
+mod login;
 mod mesh;
+mod profile;
 mod voxel_modeler;
+#[cfg(target_arch = "x86_64")]
+mod cursor;
 mod voxel;
 mod kos_characters;
 mod sa;
@@ -596,8 +600,9 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     sh.render(&fbdrv as &dyn gpu::GpuSurface);
     fbdrv.flush();
 
-    // PS/2 init skipped — UEFI already enables the i8042.
-    // x86net::init() — needs xHCI BIOS handoff + DHCP; deferred.
+    // PS/2: UEFI enables i8042; we extend init to enable the aux (mouse) port.
+    ps2::init();
+    cursor::init(fbdrv.width(), fbdrv.height());
 
     arch::enable_timer();
     arch::start_timer();
@@ -609,6 +614,9 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     process::advance_cannabis(193);
     process::spawn(19, ko_idle, 0);
 
+    profile::load_or_init();
+    let mut login_screen = login::LoginScreen::new(rule_y);
+
     let mut repl  = kobra_repl::KobraRepl::new(rule_y);
     repl.reset();
     let mut ed    = editor::Editor::new(rule_y);
@@ -618,8 +626,8 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     let mut vrsei = voxel_modeler::Vrsei::new(rule_y);
 
     #[derive(PartialEq)]
-    enum AppMode { Shell, Repl, Editor, Tiler, Browser, Atelier, VoxelLab, Vrsei }
-    let mut mode         = AppMode::Shell;
+    enum AppMode { Login, Shell, Repl, Editor, Tiler, Browser, Atelier, VoxelLab, Vrsei }
+    let mut mode         = AppMode::Login;
     let mut from_atelier = false;
 
     let mut frame: u64 = 0;
@@ -628,6 +636,13 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     // uncached framebuffer and hides real input.
     let mut dirty = true;  // initial render
     loop {
+        // ── Logout check ──────────────────────────────────────────────────────
+        if profile::consume_logout() {
+            login_screen = login::LoginScreen::new(rule_y);
+            mode  = AppMode::Login;
+            dirty = true;
+        }
+
         // ── Mode-switch requests (set by shell commands or Atelier) ──────────
         if kobra_repl::consume_request() {
             repl.reset();
@@ -692,10 +707,21 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
             }
         }
 
+        // ── Mouse polling ─────────────────────────────────────────────────
+        while let Some(mev) = ps2::poll_mouse() {
+            cursor::update(mev, fbdrv.width(), fbdrv.height());
+            dirty = true;
+        }
+
         // ── Key handling ──────────────────────────────────────────────────
         if let Some(key) = ps2::poll() {
             use input::Key;
             match mode {
+                AppMode::Login => {
+                    login_screen.handle_key(key);
+                    if login_screen.done { mode = AppMode::Shell; }
+                    dirty = true;
+                }
                 AppMode::Repl => {
                     let was_exited = repl.exited();
                     repl.handle_key(key);
@@ -800,9 +826,11 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                 AppMode::Tiler   => { tilr.render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::Browser => { browser::browser().render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::Atelier  => { atl.render(&fbdrv as &dyn gpu::GpuSurface); }
+                AppMode::Login    => { login_screen.render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::VoxelLab => { vlab.render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::Vrsei    => { vrsei.render(&fbdrv as &dyn gpu::GpuSurface); }
             }
+            cursor::render(&fbdrv as &dyn gpu::GpuSurface);
             fbdrv.flush();
             frame = frame.wrapping_add(1);
         }

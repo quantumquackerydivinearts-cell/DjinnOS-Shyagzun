@@ -37,12 +37,43 @@ const CDC_SUBTYPE_ECM: u8 = 0x0F;
 const CDC_SUBTYPE_UNION: u8 = 0x06;
 
 // Interface classes
-const CLASS_CDC:     u8 = 0x02;
-const CLASS_CDC_DATA:u8 = 0x0A;
-const CLASS_MISC:    u8 = 0xEF; // RNDIS sometimes uses this
-const SUBCLASS_ECM:  u8 = 0x06;
-const SUBCLASS_RNDIS:u8 = 0x04; // misc subclass for RNDIS
-const PROTO_RNDIS:   u8 = 0x01;
+const CLASS_CDC:      u8 = 0x02;
+const CLASS_CDC_DATA: u8 = 0x0A;
+const CLASS_MISC:     u8 = 0xEF;
+const SUBCLASS_ECM:   u8 = 0x06;
+const SUBCLASS_RNDIS: u8 = 0x04;
+const PROTO_RNDIS:    u8 = 0x01;
+
+pub const CLASS_HID:      u8 = 0x03;
+pub const SUBCLASS_BOOT:  u8 = 0x01;
+pub const PROTO_MOUSE:    u8 = 0x02;
+
+/// SET_PROTOCOL request — sets HID boot protocol (0) or report protocol (1).
+pub fn setup_hid_set_protocol(iface: u8, protocol: u8) -> [u8; 8] {
+    [0x21, 0x0B, protocol, 0, iface, 0, 0, 0]
+}
+
+/// A USB HID boot-protocol mouse device enumerated on xHCI.
+#[derive(Default, Clone, Copy)]
+pub struct HidMouseDevice {
+    pub slot:      u8,
+    pub intr_epid: u8,  // xHCI endpoint context index for interrupt IN
+    pub iface:     u8,
+    pub valid:     bool,
+}
+
+impl HidMouseDevice {
+    /// Attempt to read a 3-byte boot-protocol mouse report.
+    /// Returns None if xHCI interrupt transfers are not yet wired
+    /// (stub — returns None until interrupt_in is implemented in xhci.rs).
+    pub fn poll(&self, _xhci: &mut crate::xhci::XhciController)
+        -> Option<crate::input::MouseEvent>
+    {
+        // TODO: wire xhci::interrupt_in when the interrupt transfer path lands.
+        // Boot protocol report: [buttons, dx as i8, dy as i8]
+        None
+    }
+}
 
 // ── Parsed device info ────────────────────────────────────────────────────────
 

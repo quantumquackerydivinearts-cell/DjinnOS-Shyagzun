@@ -406,6 +406,46 @@ impl Shell {
                 self.push_line(b"  dsdt                     DSDT bytes",    [R_DIM, G_DIM, B_DIM]);
             }
 
+            b"whoami" => {
+                if let Some(p) = crate::profile::active() {
+                    let mut buf = [b' '; 48];
+                    let nn = p.name_n.min(16);
+                    buf[..nn].copy_from_slice(&p.name[..nn]);
+                    buf[nn] = b' '; buf[nn+1] = b'[';
+                    let mut fi = nn + 2;
+                    if p.can_shell()   { buf[fi] = b's'; fi += 1; }
+                    if p.can_atelier() { buf[fi] = b'a'; fi += 1; }
+                    if p.can_edit()    { buf[fi] = b'e'; fi += 1; }
+                    if p.is_admin()    { buf[fi] = b'*'; fi += 1; }
+                    buf[fi] = b']'; fi += 1;
+                    self.push_line(&buf[..fi], [R_IN, G_IN, B_IN]);
+                } else {
+                    self.push_line(b"not logged in", [R_DIM, G_DIM, B_DIM]);
+                }
+            }
+            b"profiles" => {
+                if crate::profile::active().map_or(false, |p| p.is_admin()) {
+                    for i in 0..crate::profile::count() {
+                        if let Some(p) = crate::profile::get(i) {
+                            let mut buf = [b' '; 32];
+                            let nn = p.name_n.min(16);
+                            buf[..nn].copy_from_slice(&p.name[..nn]);
+                            buf[nn] = b' ';
+                            let tag = if p.is_admin() { b"admin" as &[u8] }
+                                      else { b"user" };
+                            let tn = tag.len().min(32 - nn - 1);
+                            buf[nn+1..nn+1+tn].copy_from_slice(&tag[..tn]);
+                            self.push_line(&buf[..nn+1+tn], [R_IN, G_IN, B_IN]);
+                        }
+                    }
+                } else {
+                    self.push_line(b"profiles: admin only", [0xa0, 0x40, 0x40]);
+                }
+            }
+            b"logout" => {
+                self.push_line(b"Logging out...", [R_DIM, G_DIM, B_DIM]);
+                crate::profile::request_logout();
+            }
             b"info" => self.cmd_info_bare(),
 
             // ── Ze = byte 20 — There / far → clear ──────────────────────────
