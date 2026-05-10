@@ -197,7 +197,7 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 179,10110011,Grapevine,Kyra,Control token / semaphore
 180,10110100,Grapevine,Kyvos,Ring topology
 181,10110101,Grapevine,Kysha,Consensus choir
-182,10110110,Grapevine,Kyom,Replica / masked follower
+182,10110110,Grapevine,Kyom,Replica/ proxy / masked follower
 183,10110111,Grapevine,Kysael,Authoritative commit
 184,10111000,Cannabis,At,Grounded awareness / consciousness of material presence (Lotus seen through Mind — the felt sense of being here, embodied, in a specific moment of earth)
 185,10111001,Cannabis,Ar,Chromatic perception / awareness of energetic quality (Rose through Mind — the direct experience of frequency, color as felt rather than measured)
