@@ -395,12 +395,12 @@ impl Shell {
                 self.push_line(b"  Ko / eigenstate          eigenstate",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Seth / ls                list files",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Sao <file> / cat <file>  read file (.ko evaluated)", [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  Atelier                  open in-kernel Atelier",  [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  www <url>                open Faerie Browser",     [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  Kyom [ip:port]           show/set browser Kyom",   [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  tiler                    byte table structural map", [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  edit <file> / Yew        open file editor", [R_DIM, G_DIM, B_DIM]);
-                self.push_line(b"  Kobra                    open Kobra REPL", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Kaelshunshikeaninsuy     open in-kernel Atelier hub",  [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Soa                      Kobra REPL (conscious persistence)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Sao <file>               file editor (cup/persistent object)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Samos                    Samos byte table map", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Faerie <url>             Kyompufwun HTTP reader via Kyom", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Kyom [ip:port]           show/set Kyom proxy",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kobra <expr>             evaluate Kobra expression", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  ec [NN]                  EC register",   [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  dsdt                     DSDT bytes",    [R_DIM, G_DIM, B_DIM]);
@@ -543,11 +543,11 @@ impl Shell {
                 }
             }
 
-            // ── Kobra — REPL (no args) or inline eval ────────────────────────
-            b"Kobra" => {
+            // ── Soa — REPL (no args) or inline eval ──────────────────────────
+            b"Soa" | b"Kobra" => {
                 if rest.is_empty() {
                     crate::kobra_repl::request();
-                    self.push_line(b"Entering Kobra REPL...", [R_IN, G_IN, B_IN]);
+                    self.push_line(b"Soa...", [R_IN, G_IN, B_IN]);
                 } else {
                     let result = crate::kobra::eval_expr(rest);
                     if result.line_count() == 0 {
@@ -624,32 +624,32 @@ impl Shell {
                 }
             }
 
-            // ── www — Faerie Browser ──────────────────────────────────────────
-            b"www" => {
+            // ── Faerie — Kyompufwun browser ──────────────────────────────────
+            b"Faerie" | b"www" => {
                 if rest.is_empty() {
-                    self.push_line(b"www: usage: www http://example.com/", [0xa0, 0x40, 0x40]);
+                    self.push_line(b"Faerie: usage: Faerie http://example.com/", [0xa0, 0x40, 0x40]);
                 } else {
-                    self.push_line(b"Launching Faerie Browser...", [R_IN, G_IN, B_IN]);
+                    self.push_line(b"Kyompufwun...", [R_IN, G_IN, B_IN]);
                     crate::browser::request_launch(rest);
                 }
             }
 
-            // ── Atelier — in-kernel production hub ───────────────────────────
-            b"Atelier" | b"atelier" => {
+            // ── Kaelshunshikeaninsuy — in-kernel Atelier hub ─────────────────
+            b"Kaelshunshikeaninsuy" | b"Atelier" | b"atelier" => {
                 crate::atelier::request();
-                self.push_line(b"Opening Atelier...", [R_IN, G_IN, B_IN]);
+                self.push_line(b"Kaelshunshikeaninsuy...", [R_IN, G_IN, B_IN]);
             }
 
-            // ── tiler — byte table structural map ────────────────────────────
-            b"tiler" => {
+            // ── Samos — byte table structural map ────────────────────────────
+            b"Samos" | b"tiler" => {
                 crate::tiler::request();
-                self.push_line(b"Opening Shygazun ledger tiler...", [R_IN, G_IN, B_IN]);
+                self.push_line(b"Samos...", [R_IN, G_IN, B_IN]);
             }
 
-            // ── edit — file editor ────────────────────────────────────────────
-            b"edit" | b"Yew" => {
+            // ── Sao — file editor ─────────────────────────────────────────────
+            b"Sao" | b"edit" | b"Yew" => {
                 if rest.is_empty() {
-                    self.push_line(b"edit: usage: edit <filename>", [0xa0, 0x40, 0x40]);
+                    self.push_line(b"Sao: usage: Sao <filename>", [0xa0, 0x40, 0x40]);
                 } else {
                     crate::editor::request(rest);
                     let mut msg = [0u8; 80];

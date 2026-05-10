@@ -77,14 +77,14 @@ struct MenuItem {
 }
 
 const MENU: &[MenuItem] = &[
-    MenuItem { label: "Ko Studio",           desc: "Kobra / Shygazun expression lab",  key: MenuKey::KoStudio },
-    MenuItem { label: "Yew",                 desc: "Open and edit a file",             key: MenuKey::Yew },
-    MenuItem { label: "Shygazun Ledger",     desc: "Byte table structural map",        key: MenuKey::Ledger },
-    MenuItem { label: "Faerie",              desc: "HTTP reader via Kyom proxy",       key: MenuKey::Faerie },
-    MenuItem { label: "Voxel Lab",           desc: "3D scene viewer",                  key: MenuKey::VoxelLab },
-    MenuItem { label: "Character Workshop",  desc: "Registered agents and coil depth", key: MenuKey::CharWorkshop },
-    MenuItem { label: "Dialogue Forge",      desc: "Browse scripted dialogue lines",   key: MenuKey::DialogueForge },
-    MenuItem { label: "Ko Shell",            desc: "",                                 key: MenuKey::Shell },
+    MenuItem { label: "Soa",     desc: "Conscious persistence — Kobra REPL",        key: MenuKey::KoStudio },
+    MenuItem { label: "Sao",     desc: "Cup / file / persistent object — editor",   key: MenuKey::Yew },
+    MenuItem { label: "Samos",   desc: "Banquet hall — byte table structural map",  key: MenuKey::Ledger },
+    MenuItem { label: "Faerie",  desc: "Kyompufwun — HTTP reader via Kyom",         key: MenuKey::Faerie },
+    MenuItem { label: "To",      desc: "Scaffold / framework — voxel scene editor", key: MenuKey::VoxelLab },
+    MenuItem { label: "Av",      desc: "Relational consciousness — agent registry", key: MenuKey::CharWorkshop },
+    MenuItem { label: "Mekha",   desc: "Herald / gateway — scripted dialogue",      key: MenuKey::DialogueForge },
+    MenuItem { label: "Ko",      desc: "",                                           key: MenuKey::Shell },
 ];
 
 const LABEL_COL: u32 = 22; // chars wide for label column
@@ -159,7 +159,7 @@ impl Atelier {
     pub fn render(&self, gpu: &dyn GpuSurface) {
         match self.sub_mode {
             SubMode::Hub            => self.render_hub(gpu),
-            SubMode::PromptFilename => self.render_prompt(gpu, "Yew  >  Filename:", false),
+            SubMode::PromptFilename => self.render_prompt(gpu, "Sao  >  Filename:", false),
             SubMode::PromptUrl      => self.render_prompt(gpu, "Faerie  >  URL:", true),
             SubMode::CharWorkshop   => self.render_cw(gpu),
             SubMode::DialogueForge  => self.render_df(gpu),
@@ -196,7 +196,7 @@ impl Atelier {
         let y0 = floor + MY;
 
         // Header
-        font::draw_str(gpu, MX, y0, "ATELIER", SCALE, HD_R, HD_G, HD_B);
+        font::draw_str(gpu, MX, y0, "Kaelshunshikeaninsuy", SCALE, HD_R, HD_G, HD_B);
         let sub = "Ko's Labyrinth  7_KLGS";
         let sub_x = w.saturating_sub(MX + (sub.len() as u32) * CHAR_W);
         font::draw_str(gpu, sub_x, y0, sub, SCALE, DM_R, DM_G, DM_B);
@@ -276,7 +276,7 @@ impl Atelier {
         gpu.fill_rect(0, floor, w, h.saturating_sub(floor), BG_B, BG_G, BG_R);
 
         let y0 = floor + MY;
-        font::draw_str(gpu, MX, y0, "ATELIER", SCALE, HD_R, HD_G, HD_B);
+        font::draw_str(gpu, MX, y0, "Kaelshunshikeaninsuy", SCALE, HD_R, HD_G, HD_B);
 
         let rule_y = y0 + CHAR_H + 4;
         gpu.fill_rect(MX, rule_y, w.saturating_sub(MX * 2), 1, DM_B, DM_G, DM_R);
@@ -325,7 +325,7 @@ impl Atelier {
         gpu.fill_rect(0, floor, w, h.saturating_sub(floor), BG_B, BG_G, BG_R);
 
         let y0 = floor + MY;
-        font::draw_str(gpu, MX, y0, "ATELIER  >  Character Workshop", SCALE, HD_R, HD_G, HD_B);
+        font::draw_str(gpu, MX, y0, "Kaelshunshikeaninsuy  >  Av", SCALE, HD_R, HD_G, HD_B);
 
         let rule_y = y0 + CHAR_H + 4;
         gpu.fill_rect(MX, rule_y, w.saturating_sub(MX * 2), 1, DM_B, DM_G, DM_R);
@@ -425,7 +425,7 @@ impl Atelier {
         gpu.fill_rect(0, floor, w, h.saturating_sub(floor), BG_B, BG_G, BG_R);
 
         let y0 = floor + MY;
-        font::draw_str(gpu, MX, y0, "ATELIER  >  Dialogue Forge", SCALE, HD_R, HD_G, HD_B);
+        font::draw_str(gpu, MX, y0, "Kaelshunshikeaninsuy  >  Mekha", SCALE, HD_R, HD_G, HD_B);
 
         let rule_y = y0 + CHAR_H + 4;
         gpu.fill_rect(MX, rule_y, w.saturating_sub(MX * 2), 1, DM_B, DM_G, DM_R);
@@ -436,7 +436,7 @@ impl Atelier {
             "Dialogue is authored in the Atelier API and synced via Myrun.",
             SCALE, DM_R, DM_G, DM_B);
         font::draw_str(gpu, MX, iy + CHAR_H + 4,
-            "Use Yew to edit .ko scripts.  quest_req / flag_req are set in the Atelier.",
+            "Use Sao to edit .ko scripts.  quest_req / flag_req are set in the Atelier.",
             SCALE, DM_R, DM_G, DM_B);
 
         // Line count
