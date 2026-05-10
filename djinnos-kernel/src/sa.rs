@@ -163,6 +163,7 @@ pub fn is_init() -> bool { unsafe { SA_INIT } }
 
 /// Read a file into `out`.  Returns bytes read, 0 if not found.
 pub fn read_file(name: &[u8], out: &mut [u8]) -> usize {
+    crate::eigenstate::advance(crate::eigenstate::T_GRAPEVINE);
     let idx = match find_entry_index(name) { Some(i) => i, None => return 0 };
     let e   = read_entry(idx);
     let len = (e.len as usize).min(out.len());
@@ -172,13 +173,13 @@ pub fn read_file(name: &[u8], out: &mut [u8]) -> usize {
     len
 }
 
-/// Write or create a file.  Returns true on success.
 ///
 /// Update strategy:
 ///   - Existing file, data fits in same sector count: update in-place.
 ///   - Existing file, data is larger: append new data, redirect entry.
 ///   - New file: append data, create entry.
 pub fn write_file(name: &[u8], data: &[u8]) -> bool {
+    crate::eigenstate::advance(crate::eigenstate::T_GRAPEVINE);
     if !unsafe { SA_INIT } { return false; }
     let (mut count, mut next_free) = read_header();
 

@@ -665,6 +665,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     process::spawn(19, ko_idle, 0);
 
     profile::load_or_init();
+    eigenstate::load(); // restore session linguistic history from Sa
     let mut login_screen = login::LoginScreen::new(rule_y);
 
     let mut repl  = kobra_repl::KobraRepl::new(rule_y);
@@ -684,8 +685,22 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     // Render only on meaningful events.  The HP Envy's i8042 emits noise
     // bytes; treating every PS/2 byte as a render trigger floods the
     // uncached framebuffer and hides real input.
-    let mut dirty = true;  // initial render
+    let mut dirty    = true;  // initial render
+    let mut mode_name = "DjinnOS"; // kept in sync with mode each iteration
     loop {
+        // Mode name kept current for eigenstate advance and Ne Bar display.
+        mode_name = match mode {
+            AppMode::Login    => "DjinnOS",
+            AppMode::Shell    => "Ko",
+            AppMode::Repl     => "Soa",
+            AppMode::Editor   => "Saoshin",
+            AppMode::Tiler    => "Samos",
+            AppMode::Browser  => "Faerie",
+            AppMode::Atelier  => "Kaelshunshikeaninsuy",
+            AppMode::VoxelLab => "To",
+            AppMode::Vrsei    => "Vrsei",
+        };
+
         // ── Logout check ──────────────────────────────────────────────────────
         if profile::consume_logout() {
             login_screen = login::LoginScreen::new(rule_y);
@@ -763,6 +778,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
             cursor::update(mev, fbdrv.width(), fbdrv.height());
             let (cx, cy) = cursor::pos();
             compositor::get().on_cursor_move(cx, cy);
+            eigenstate::advance(eigenstate::T_SAKURA); // spatial movement
             dirty = true;
         }
 
@@ -771,6 +787,10 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
 
         // ── Key handling ──────────────────────────────────────────────────
         if let Some(key) = ps2::poll() {
+            // Every key press is presence — Lotus advances on input.
+            eigenstate::advance(eigenstate::T_LOTUS);
+            // Mode-specific tongue advances on each keypress in that mode.
+            eigenstate::advance_mode(mode_name);
             use input::Key;
             match mode {
                 AppMode::Login => {
@@ -870,21 +890,13 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
 
         x86net::poll();
 
+        // Persist eigenstate every ~5 s so linguistic history survives reboots.
+        if frame % 300 == 0 && frame > 0 { eigenstate::persist(); }
+
         if dirty {
             dirty = false;
             compositor::get().mark_dirty(compositor::LayerKind::Content);
             let fb_ref = &fbdrv as &dyn gpu::GpuSurface;
-            let mode_name = match mode {
-                AppMode::Login    => "DjinnOS",
-                AppMode::Shell    => "Ko",
-                AppMode::Repl     => "Soa",
-                AppMode::Editor   => "Saoshin",
-                AppMode::Tiler    => "Samos",
-                AppMode::Browser  => "Faerie",
-                AppMode::Atelier  => "Kaelshunshikeaninsuy",
-                AppMode::VoxelLab => "To",
-                AppMode::Vrsei    => "Vrsei",
-            };
             let profile_name = profile::active()
                 .map(|p| core::str::from_utf8(p.name_str()).unwrap_or(""))
                 .unwrap_or("");

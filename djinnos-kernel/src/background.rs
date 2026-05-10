@@ -51,12 +51,22 @@ pub fn render(gpu: &dyn GpuSurface, frame: u64, content_h: u32) {
     // Base fill: bg color
     it.fill(0, 0, w, h, t.bg);
 
-    // Tongue bands as horizontal strips
+    // Tongue bands as horizontal strips — luminance weighted by eigenstate.
+    // Active tongues glow slightly brighter; idle tongues stay near bg.
     let band_h = h / BANDS.len() as u32;
     for (i, band) in BANDS.iter().enumerate() {
+        let tongue_num = (i + 1) as u8; // T1=Lotus through T8=Cannabis
+        let w8 = crate::eigenstate::weight(tongue_num); // 0-255, 128=average
+        // Map weight to luminance: idle=4%, average=8%, hot=16%
+        let lum = if w8 < 128 {
+            BAND_LUMINANCE.saturating_sub(4)
+        } else {
+            let extra = ((w8 as u32 - 128) * 8 / 127).min(8);
+            BAND_LUMINANCE + extra
+        };
         let by = i as u32 * band_h;
         let bh = if i + 1 == BANDS.len() { h - by } else { band_h };
-        let col = style::darken(palette::aki_color(band.mid_byte), 100 - BAND_LUMINANCE);
+        let col = style::darken(palette::aki_color(band.mid_byte), 100 - lum);
         it.fill(0, by, w, bh, col);
     }
 

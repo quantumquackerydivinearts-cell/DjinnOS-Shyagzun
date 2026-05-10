@@ -71,9 +71,25 @@ pub fn render(
     // ── Left: launcher mark ──────────────────────────────────────────────────
 
     let lx = style::M4;
-    // Diamond glyph as launcher mark (ASCII-safe: use "Ko" wordmark)
     it.text(lx, ty, "Ko", style::SCALE, t.accent);
-    let sep_x = lx + cw * 4;
+
+    // Dominant tongue indicator: T0N in its palette ring color.
+    // Shows which Shygazun register the session is currently living in.
+    let dom = crate::eigenstate::dominant();
+    let dom_byte: u32 = match dom {
+        1 => 11, 2 => 35, 3 => 64, 4 => 89,
+        5 => 112, 6 => 141, 7 => 169, 8 => 198,
+        n => (n as u32 * 6).min(213),
+    };
+    let dom_col = crate::palette::dim(crate::palette::aki_color(dom_byte));
+    let mut tb = [b'T', b'0', b'0'];
+    tb[1] = b'0' + (dom / 10);
+    tb[2] = b'0' + (dom % 10);
+    if let Ok(s) = core::str::from_utf8(&tb) {
+        it.text(lx + cw * 3, ty, s, style::SCALE, dom_col);
+    }
+
+    let sep_x = lx + cw * 7;
     it.vline(sep_x, by + style::M2, NE_BAR_H.saturating_sub(style::M2 * 2), t.rule);
 
     // ── Centre: active mode pill ─────────────────────────────────────────────
