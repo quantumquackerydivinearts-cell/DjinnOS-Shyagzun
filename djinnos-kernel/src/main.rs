@@ -457,28 +457,63 @@ pub extern "C" fn kernel_main(mb2_info: u64) -> ! {
 
 // ── Splash ────────────────────────────────────────────────────────────────────
 
-const KO_B: u8 = 0x4b;
-const KO_G: u8 = 0x96;
-const KO_R: u8 = 0xc8;
-
 fn draw_splash(gpu: &dyn gpu::GpuSurface, rule_y: u32) {
-    let w = gpu.width();
-    let h = gpu.height();
-    gpu.fill(0x08, 0x06, 0x08);
-    let rule_x0 = w / 10;
-    let rule_x1 = w * 9 / 10;
-    for x in rule_x0..rule_x1 {
-        gpu.set_pixel(x, rule_y,     KO_B, KO_G, KO_R);
-        gpu.set_pixel(x, rule_y + 1, KO_B / 2, KO_G / 2, KO_R / 2);
-    }
-    let text   = "DjinnOS";
-    let text_w = text.len() as u32 * font::GLYPH_W * 4;
-    let text_x = (w - text_w) / 2;
-    let text_y = rule_y - font::GLYPH_H * 4 - 24;
-    font::draw_str(gpu, text_x, text_y, text, 4, KO_R, KO_G, KO_B);
-    for py in (rule_y + 4)..h {
-        for px in 0..w { gpu.set_pixel(px, py, 0x10, 0x0c, 0x10); }
-    }
+    use crate::render2d::It;
+    use crate::style;
+
+    let it = It::new(gpu);
+    let t  = style::get();
+    let w  = gpu.width();
+    let h  = gpu.height();
+
+    // Full-screen vertical gradient: bg -> slightly lighter at rule_y
+    it.grad_v(0, 0, w, rule_y, t.bg, style::mix(t.bg, t.surface, 120));
+
+    // Lower panel: slightly darker than bg, fills below the rule
+    it.fill(0, rule_y + 2, w, h.saturating_sub(rule_y + 2), style::darken(t.bg, 15));
+
+    // Wordmark -- "DjinnOS" centred above rule, scale 4, with shadow
+    let scale  = 4u32;
+    let ch_w   = font::GLYPH_W * scale;
+    let ch_h   = font::GLYPH_H * scale;
+    let label  = "DjinnOS";
+    let lw     = label.len() as u32 * ch_w;
+    let lx     = (w.saturating_sub(lw)) / 2;
+    let ly     = rule_y.saturating_sub(ch_h + style::M6 + style::M4);
+    // Drop shadow
+    it.text(lx + 3, ly + 3, label, scale, t.shadow);
+    // Gold title
+    it.text(lx, ly, label, scale, t.header);
+
+    // Subtitle: "Ko's Labyrinth — 7_KLGS"
+    let sub  = "Ko's Labyrinth  7_KLGS";
+    let sw   = sub.len() as u32 * font::GLYPH_W * 2;
+    let sx   = (w.saturating_sub(sw)) / 2;
+    let sy   = ly + ch_h + style::M3;
+    it.text(sx, sy, sub, 2, t.text_dim);
+
+    // Horizontal rule: gradient fade from edges, bright at center
+    let rx0 = w / 8;
+    let rx1 = w * 6 / 8;
+    it.grad_h(rx0,        rule_y, rx1 / 2, style::RULE_W, t.shadow, t.rule);
+    it.grad_h(rx0 + rx1/2, rule_y, rx1 / 2, style::RULE_W, t.rule, t.shadow);
+    // Second pixel, dimmer
+    it.grad_h(rx0,        rule_y + 1, rx1 / 2, style::RULE_W, t.bg, t.shadow);
+    it.grad_h(rx0 + rx1/2, rule_y + 1, rx1 / 2, style::RULE_W, t.shadow, t.bg);
+
+    // Accent bar above wordmark — thin horizontal stripe in accent green
+    let bar_y = ly.saturating_sub(style::M4);
+    let bar_w = w * 2 / 5;
+    let bar_x = (w.saturating_sub(bar_w)) / 2;
+    it.grad_h(bar_x, bar_y, bar_w / 2, 2, t.shadow, t.accent);
+    it.grad_h(bar_x + bar_w / 2, bar_y, bar_w / 2, 2, t.accent, t.shadow);
+
+    // Bottom caption: "Kaelshunshikeaninsuy" in dim accent, bottom-center
+    let cap  = "Kaelshunshikeaninsuy";
+    let cw   = cap.len() as u32 * font::GLYPH_W * 2;
+    let cx   = (w.saturating_sub(cw)) / 2;
+    let cy   = h.saturating_sub(font::GLYPH_H * 2 + style::M4 * 2);
+    it.text(cx, cy, cap, 2, style::darken(t.accent, 40));
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -600,6 +635,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     ramdisk::init(rdaddr, rdcnt);
 
     let rule_y = fbdrv.height() * 55 / 100;
+    style::init();
     x86_splash(&fbdrv, rule_y);
     let mut sh = shell::Shell::new(rule_y);
     sh.boot_banner();

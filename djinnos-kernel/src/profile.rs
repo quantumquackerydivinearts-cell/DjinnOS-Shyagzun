@@ -85,7 +85,7 @@ fn add_default(name: &[u8], hash: u32, flags: u8) {
 }
 
 fn write_defaults() {
-    add_default(b"Ko",    0, 0xFF);
+    add_default(b"Alexi", 0, 0xFF);
     add_default(b"guest", 0, 0x03);
     save();
 }

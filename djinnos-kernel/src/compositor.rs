@@ -80,6 +80,13 @@ impl Compositor {
         for l in &mut self.layers {
             if l.kind == kind { l.dirty = true; }
         }
+        // Software cursor must redraw whenever content changes — content
+        // renders paint over the cursor's previous position on the framebuffer.
+        if !self.hw_cursor && kind == LayerKind::Content {
+            for l in &mut self.layers {
+                if l.kind == LayerKind::Cursor { l.dirty = true; }
+            }
+        }
     }
 
     pub fn mark_all_dirty(&mut self) {
