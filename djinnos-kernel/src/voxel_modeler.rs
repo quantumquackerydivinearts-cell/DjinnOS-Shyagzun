@@ -82,6 +82,13 @@ fn vr_set(x: usize, y: usize, z: usize, n: VoxelNode) {
 }
 fn vr_is_air(x: usize, y: usize, z: usize) -> bool { vr_get(x, y, z).is_air() }
 
+// Public accessors for mesh.rs
+pub const MOD_PUB: usize = MOD;
+pub fn vr_is_air_pub(x: usize, y: usize, z: usize) -> bool { vr_is_air(x, y, z) }
+pub fn vr_mat_pub(x: usize, y: usize, z: usize) -> u8 {
+    if vr_is_air(x, y, z) { b' ' } else { vr_get(x, y, z).material }
+}
+
 fn vr_cull(x: usize, y: usize, z: usize) {
     if vr_is_air(x, y, z) { return; }
     let jy = y + 1 >= MOD || vr_is_air(x, y + 1, z);
@@ -222,7 +229,8 @@ enum VrseiState { Browser, NewPrompt, Editor }
 // ── Vrsei ─────────────────────────────────────────────────────────────────────
 
 pub struct Vrsei {
-    state:    VrseiState,
+    state:     VrseiState,
+    exporting: bool,   // true = export format prompt visible
     // -- browser
     br_list:  [[u8; 32]; MAX_MODELS],
     br_n:     usize,
@@ -247,6 +255,7 @@ impl Vrsei {
     pub fn new(rule_y: u32) -> Self {
         Vrsei {
             state: VrseiState::Browser,
+            exporting: false,
             br_list: [[0u8; 32]; MAX_MODELS],
             br_n: 0, br_sel: 0, br_top: 0,
             br_input: [0u8; 32], br_inp_n: 0,
@@ -380,9 +389,26 @@ impl Vrsei {
     // ── Editor keys ───────────────────────────────────────────────────────────
 
     fn editor_key(&mut self, key: Key) {
+        // Export prompt intercepts all keys
+        if self.exporting {
+            match key {
+                Key::Char(b's') | Key::Char(b'S') => {
+                    crate::mesh::export_stl(&self.name[..self.name_n]);
+                    self.exporting = false;
+                }
+                Key::Char(b'o') | Key::Char(b'O') => {
+                    crate::mesh::export_obj(&self.name[..self.name_n]);
+                    self.exporting = false;
+                }
+                Key::Escape => { self.exporting = false; }
+                _ => {}
+            }
+            return;
+        }
         match key {
             Key::Escape    => { self.state = VrseiState::Browser; self.populate_browser(); }
             Key::Char(0x13)=> { if self.modified { vxm_save(&self.name[..self.name_n]); self.modified = false; } }
+            Key::Char(0x05)=> { self.exporting = true; } // Ctrl+E
             Key::Char(b'\t')=> { self.panel = self.panel.next(); }
 
             // Y axis (all panels)
@@ -576,6 +602,16 @@ impl Vrsei {
                 Panel::Front => self.draw_ortho_front(gpu, px, py, pw, ph, active),
                 Panel::Side  => self.draw_ortho_side(gpu, px, py, pw, ph, active),
             }
+        }
+
+        // Export prompt overlay
+        if self.exporting {
+            let ey = h / 2 - CHAR_H * 2;
+            gpu.fill_rect(w / 4, ey.saturating_sub(8), w / 2, CHAR_H * 3 + 16, 0x20, 0x10, 0x06);
+            font::draw_str(gpu, w / 4 + MX, ey, "Export mesh:", SCALE, HD_R, HD_G, HD_B);
+            font::draw_str(gpu, w / 4 + MX, ey + CHAR_H + 4,
+                           "S = binary STL   O = OBJ   Esc = cancel",
+                           SCALE, TX_R, TX_G, TX_B);
         }
 
         // Status bar
@@ -778,7 +814,7 @@ impl Vrsei {
         font::draw_str(gpu, mat_x + CHAR_W * 10, sy, stype, SCALE, DM_R, DM_G, DM_B);
 
         // Hints (right side)
-        let hint = "Tab:panel  Enter:place  Bsp:erase  M:mat  T:type  X:sym  []:Y  ^S:save  Esc:browser";
+        let hint = "Tab:panel  Ent:place  Bsp:erase  M:mat  T:type  X:sym  []:Y  ^S:save  ^E:export  Esc:browser";
         let hx = w.saturating_sub(MX + hint.len() as u32 * CHAR_W);
         font::draw_str(gpu, hx, sy, hint, SCALE, DM_R, DM_G, DM_B);
     }

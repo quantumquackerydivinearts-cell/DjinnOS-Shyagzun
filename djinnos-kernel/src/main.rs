@@ -9,6 +9,7 @@ mod agent;
 mod atelier;
 mod dialogue;
 mod voxel_lab;
+mod mesh;
 mod voxel_modeler;
 mod voxel;
 mod kos_characters;
