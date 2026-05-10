@@ -894,8 +894,9 @@ impl Shell {
 
     fn cmd_heap(&mut self) {
         let (free, blocks) = mm::ALLOCATOR.stats();
-        let mut b = [b' '; 80]; let mut n = 0;
-        let lbl = b"Kael cluster: "; b[..lbl.len()].copy_from_slice(lbl); n = lbl.len();
+        let mut b = [b' '; 80];
+        let lbl = b"Kael cluster: "; b[..lbl.len()].copy_from_slice(lbl);
+        let mut n = lbl.len();
         n += write_u32(&mut b[n..], (free / 1024) as u32);
         let mid = b" KiB free  blocks: "; b[n..n+mid.len()].copy_from_slice(mid); n += mid.len();
         n += write_u32(&mut b[n..], blocks as u32);

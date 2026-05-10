@@ -114,7 +114,7 @@ pub extern "C" fn kernel_main() -> ! {
 
     {
         extern "C" { static _stack_top: u8; }
-        let pa_start = unsafe { core::ptr::addr_of!(_stack_top) as u64 };
+        let pa_start = core::ptr::addr_of!(_stack_top) as u64;
         mm::page_alloc_init(pa_start, 0x8600_0000);
     }
     uart::puts("pmem: page allocator online\r\n");

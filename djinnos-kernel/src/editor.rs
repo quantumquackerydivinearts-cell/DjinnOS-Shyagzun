@@ -94,13 +94,20 @@ impl Editor {
         self.modified = false;
         self.exited   = false;
         unsafe {
-            match crate::ramdisk::find(name) {
-                Some(data) => {
+            let mut loaded = false;
+            // Ramdisk (x86_64 only, takes priority — includes embedded .ko files).
+            #[cfg(target_arch = "x86_64")]
+            {
+                if let Some(data) = crate::ramdisk::find(name) {
                     let n = data.len().min(BUF_CAP);
                     ED_BUF[..n].copy_from_slice(&data[..n]);
                     ED_LEN = n;
+                    loaded = true;
                 }
-                None => { ED_LEN = 0; }
+            }
+            // Sa volume (both arches, fallback).
+            if !loaded {
+                ED_LEN = crate::sa::read_file(name, &mut ED_BUF);
             }
         }
     }
@@ -267,8 +274,10 @@ impl Editor {
         if !self.modified { return; }
         let name = &self.name[..self.name_n];
         let data = unsafe { &ED_BUF[..ED_LEN] };
-        // Write to Sa volume (session-persistent) and volatile ramdisk slot.
+        // Sa volume: available on both arches.
         crate::sa::write_file(name, data);
+        // Ramdisk volatile slot: x86_64 only.
+        #[cfg(target_arch = "x86_64")]
         crate::ramdisk::write_edit(name, data);
         self.modified = false;
     }

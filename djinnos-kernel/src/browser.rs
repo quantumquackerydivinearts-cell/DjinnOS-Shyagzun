@@ -544,9 +544,10 @@ impl BrowserClient {
             self.push_line(b"Faerie Browser is a no-JS reader.", KIND_NORMAL, 0xFF);
         }
         let n = self.n_lines;
-        let mut sb = [0u8; 80]; let mut sn = 0;
+        let mut sb = [0u8; 80];
         let pfx = b"done  lines: ";
-        sb[..pfx.len()].copy_from_slice(pfx); sn = pfx.len();
+        sb[..pfx.len()].copy_from_slice(pfx);
+        let mut sn = pfx.len();
         sn += write_u32(&mut sb[sn..], n as u32);
         self.setstatus(&sb[..sn]);
     }
@@ -585,7 +586,7 @@ impl BrowserClient {
         let mut in_style:  bool = false;
         let mut in_title:  bool = false;
         let mut in_pre:    bool = false;
-        let mut in_href:   bool = false;
+        let mut _in_href:  bool = false;
         let mut in_link:   bool = false;
         let mut in_ent:    bool = false;
         let mut in_tag:    bool = false;
@@ -688,7 +689,7 @@ impl BrowserClient {
                                       &mut line, &mut line_n,
                                       &mut title_buf, &mut title_n,
                                       &mut word, &mut word_n);
-                    tag_n = 0; href_n = 0; in_href = false;
+                    tag_n = 0; href_n = 0; _in_href = false;
                 } else if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
                     // Start scanning attributes (for href)
                     self.scan_attrs(html, &mut i, &mut href, &mut href_n, &tag[..tag_n]);
@@ -705,7 +706,7 @@ impl BrowserClient {
                                       &mut line, &mut line_n,
                                       &mut title_buf, &mut title_n,
                                       &mut word, &mut word_n);
-                    tag_n = 0; href_n = 0; in_href = false;
+                    tag_n = 0; href_n = 0; _in_href = false;
                 } else if tag_n < 31 {
                     // Accumulate tag name (lowercase)
                     tag[tag_n] = to_lower(b); tag_n += 1;
@@ -839,7 +840,7 @@ impl BrowserClient {
         in_script: &mut bool, in_style: &mut bool,
         in_pre: &mut bool, in_title: &mut bool,
         line: &mut [u8; LINE_W], line_n: &mut usize,
-        title_buf: &mut [u8; TTL_W], title_n: &mut usize,
+        _title_buf: &mut [u8; TTL_W], title_n: &mut usize,
         word: &mut [u8; 80], word_n: &mut usize,
     ) {
         macro_rules! fl {
