@@ -395,6 +395,7 @@ impl Shell {
                 self.push_line(b"  Ko / eigenstate          eigenstate",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Seth / ls                list files",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Sao <file> / cat <file>  read file (.ko evaluated)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  Atelier                  open in-kernel Atelier",  [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  www <url>                open Faerie Browser",     [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kyom [ip:port]           show/set browser Kyom",   [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  tiler                    byte table structural map", [R_DIM, G_DIM, B_DIM]);
@@ -631,6 +632,12 @@ impl Shell {
                     self.push_line(b"Launching Faerie Browser...", [R_IN, G_IN, B_IN]);
                     crate::browser::request_launch(rest);
                 }
+            }
+
+            // ── Atelier — in-kernel production hub ───────────────────────────
+            b"Atelier" | b"atelier" => {
+                crate::atelier::request();
+                self.push_line(b"Opening Atelier...", [R_IN, G_IN, B_IN]);
             }
 
             // ── tiler — byte table structural map ────────────────────────────

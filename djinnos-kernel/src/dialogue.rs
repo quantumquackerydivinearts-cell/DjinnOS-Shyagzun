@@ -171,6 +171,10 @@ fn rgb_l1(a: (u8,u8,u8), b: (u8,u8,u8)) -> u32 {
   + (a.2 as i32 - b.2 as i32).unsigned_abs()
 }
 
+pub fn line_count() -> usize {
+    ALFIR_LINES.len() + KO_LINES.len() + NEGAYA_LINES.len()
+}
+
 // ── Line delivery ─────────────────────────────────────────────────────────────
 
 pub fn deliver(

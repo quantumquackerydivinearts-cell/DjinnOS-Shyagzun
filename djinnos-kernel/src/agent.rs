@@ -497,6 +497,12 @@ pub fn find_by_name(name: &[u8]) -> Option<&'static AgentDef> {
 
 pub fn agent_count() -> usize { unsafe { REGISTRY_N } }
 
+pub fn get_by_index(i: usize) -> Option<&'static AgentDef> {
+    unsafe {
+        if i < REGISTRY_N { REGISTRY[i] } else { None }
+    }
+}
+
 // ── Attestation log ───────────────────────────────────────────────────────────
 //
 // Every verify_coil() call that passes produces an Attestation — a timestamped

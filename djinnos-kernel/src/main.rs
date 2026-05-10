@@ -6,6 +6,7 @@
 extern crate alloc;
 
 mod agent;
+mod atelier;
 mod dialogue;
 mod voxel;
 mod kos_characters;
@@ -609,10 +610,12 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     repl.reset();
     let mut ed    = editor::Editor::new(rule_y);
     let mut tilr  = tiler::Tiler::new(rule_y);
+    let mut atl   = atelier::Atelier::new(rule_y);
 
     #[derive(PartialEq)]
-    enum AppMode { Shell, Repl, Editor, Tiler, Browser }
-    let mut mode  = AppMode::Shell;
+    enum AppMode { Shell, Repl, Editor, Tiler, Browser, Atelier }
+    let mut mode         = AppMode::Shell;
+    let mut from_atelier = false;
 
     let mut frame: u64 = 0;
     // Render only on meaningful events.  The HP Envy's i8042 emits noise
@@ -620,7 +623,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     // uncached framebuffer and hides real input.
     let mut dirty = true;  // initial render
     loop {
-        // ── Mode-switch requests (set by shell commands) ──────────────────
+        // ── Mode-switch requests (set by shell commands or Atelier) ──────────
         if kobra_repl::consume_request() {
             repl.reset();
             mode  = AppMode::Repl;
@@ -640,6 +643,41 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
             mode  = AppMode::Browser;
             dirty = true;
         }
+        if atelier::consume_request() {
+            atl.reset();
+            mode  = AppMode::Atelier;
+            dirty = true;
+        }
+        // Atelier sub-tool dispatch
+        if mode == AppMode::Atelier {
+            if let Some(launch) = atl.consume_launch() {
+                use atelier::AtelierLaunch;
+                match launch {
+                    AtelierLaunch::KoStudio => {
+                        repl.reset(); mode = AppMode::Repl; from_atelier = true;
+                    }
+                    AtelierLaunch::Yew => {
+                        ed.load(atelier::launch_input());
+                        mode = AppMode::Editor; from_atelier = true;
+                    }
+                    AtelierLaunch::Ledger => {
+                        tilr.reset(); mode = AppMode::Tiler; from_atelier = true;
+                    }
+                    AtelierLaunch::Faerie => {
+                        crate::browser::request_launch(atelier::launch_input());
+                        mode = AppMode::Browser; from_atelier = true;
+                    }
+                    AtelierLaunch::VoxelLab => {
+                        // Placeholder: return to shell for now (voxel lab authoring TBD)
+                        mode = AppMode::Atelier;
+                    }
+                    AtelierLaunch::Shell => {
+                        from_atelier = false; mode = AppMode::Shell;
+                    }
+                }
+                dirty = true;
+            }
+        }
 
         // ── Key handling ──────────────────────────────────────────────────
         if let Some(key) = ps2::poll() {
@@ -649,7 +687,8 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     let was_exited = repl.exited();
                     repl.handle_key(key);
                     if !was_exited && repl.exited() {
-                        mode = AppMode::Shell;
+                        mode = if from_atelier { from_atelier = false; AppMode::Atelier }
+                               else { AppMode::Shell };
                     }
                     dirty = true;
                 }
@@ -657,7 +696,8 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     let was_exited = ed.exited();
                     ed.handle_key(key);
                     if !was_exited && ed.exited() {
-                        mode = AppMode::Shell;
+                        mode = if from_atelier { from_atelier = false; AppMode::Atelier }
+                               else { AppMode::Shell };
                     }
                     dirty = true;
                 }
@@ -665,7 +705,8 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     let was_exited = tilr.exited();
                     tilr.handle_key(key);
                     if !was_exited && tilr.exited() {
-                        mode = AppMode::Shell;
+                        mode = if from_atelier { from_atelier = false; AppMode::Atelier }
+                               else { AppMode::Shell };
                     }
                     dirty = true;
                 }
@@ -674,10 +715,15 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     match key {
                         Key::Escape => {
                             browser::browser().exit();
-                            mode  = AppMode::Shell;
+                            mode = if from_atelier { from_atelier = false; AppMode::Atelier }
+                                   else { AppMode::Shell };
                         }
                         _ => { browser::browser().handle_key(key); }
                     }
+                    dirty = true;
+                }
+                AppMode::Atelier => {
+                    atl.handle_key(key);
                     dirty = true;
                 }
                 AppMode::Shell => match key {
@@ -722,6 +768,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                 AppMode::Editor => { ed.render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::Tiler   => { tilr.render(&fbdrv as &dyn gpu::GpuSurface); }
                 AppMode::Browser => { browser::browser().render(&fbdrv as &dyn gpu::GpuSurface); }
+                AppMode::Atelier => { atl.render(&fbdrv as &dyn gpu::GpuSurface); }
             }
             fbdrv.flush();
             frame = frame.wrapping_add(1);
