@@ -106,11 +106,16 @@ impl Compositor {
     // ── Cursor management ─────────────────────────────────────────────────────
 
     pub fn init_hw_cursor(&mut self) {
-        #[cfg(target_arch = "x86_64")]
-        if crate::amdgpu::hw_cursor_available() {
-            self.hw_cursor = true;
-            self.layers[3].dirty = false;
-        }
+        // AMD DCN hardware cursor is initialized in amdgpu::init() but
+        // not activated here.  The cursor surface requires GPU-DMA-accessible
+        // memory (proper IOMMU/GTT mapping) which we don't have until the
+        // UEFI memory map is walked and GPU-visible ranges are identified.
+        // Until then, always use the software cursor path.
+        //
+        // To re-enable: set self.hw_cursor = true here after verifying the
+        // cursor bitmap is in a GPU-accessible physical region and the
+        // CURSOR0_CONTROL readback matches the written value.
+        let _ = self; // suppress unused warning
     }
 
     pub fn on_cursor_move(&mut self, x: u32, y: u32) {
