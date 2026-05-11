@@ -44,6 +44,90 @@ const KIND_HEADING: u8 = 1;
 const KIND_LINK:    u8 = 2;
 const KIND_HR:      u8 = 3;
 
+// ── Faerie-redirect pre-scan ──────────────────────────────────────────────────
+//
+// Pages served by JS-rendered sites can include:
+//   <meta name="faerie-redirect" content="/faerie/">
+// Faerie detects this before running the full HTML parser and transparently
+// navigates to the Faerie-safe version without adding the redirect to history.
+//
+// Redirect depth is capped at 1 so a misconfigured site can't loop.
+
+static mut REDIRECT_DEPTH: u8 = 0;
+
+/// Scan raw HTML bytes for <meta name="faerie-redirect" content="...">
+/// and return the resolved URL if found. `base` is the current page URL.
+fn faerie_redirect(html: &[u8], base: &[u8]) -> Option<([u8; URL_W], usize)> {
+    let needle = b"faerie-redirect";
+    let mut i = 0;
+    while i + needle.len() < html.len() {
+        if html[i..].starts_with(needle) {
+            // Found the attribute value — search for content="..." nearby
+            let window_end = (i + 300).min(html.len());
+            let window = &html[i..window_end];
+            // Try both content=" and content='
+            for &q in &[b'"', b'\''] {
+                let mut key = [b'c',b'o',b'n',b't',b'e',b'n',b't',b'=', q, 0];
+                key[8] = q;
+                let klen = 9;
+                if let Some(pos) = find_bytes(window, &key[..klen]) {
+                    let val_start = i + pos + klen;
+                    let mut val_end = val_start;
+                    while val_end < html.len() && html[val_end] != q
+                          && html[val_end] != b'>' { val_end += 1; }
+                    if val_end > val_start {
+                        let val = &html[val_start..val_end];
+                        let (url, n) = resolve_url(base, val);
+                        if n > 0 { return Some((url, n)); }
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack.windows(needle.len()).position(|w| w == needle)
+}
+
+/// Resolve `rel` (the redirect target) against `base` (current URL).
+/// Handles: absolute URLs, absolute paths (/...), relative paths.
+fn resolve_url(base: &[u8], rel: &[u8]) -> ([u8; URL_W], usize) {
+    let mut out = [0u8; URL_W];
+    let n = if rel.starts_with(b"http://") || rel.starts_with(b"https://")
+               || rel.starts_with(b"local://") {
+        // Already absolute
+        let n = rel.len().min(URL_W);
+        out[..n].copy_from_slice(&rel[..n]);
+        n
+    } else if rel.starts_with(b"/") {
+        // Absolute path — find end of scheme+host in base
+        // base looks like "http://host/path" → copy up to third '/'
+        let mut slashes = 0u8;
+        let host_end = base.iter().position(|&b| {
+            if b == b'/' { slashes += 1; if slashes == 3 { return true; } }
+            false
+        }).unwrap_or(base.len());
+        let hn = host_end.min(URL_W);
+        out[..hn].copy_from_slice(&base[..hn]);
+        let rn = rel.len().min(URL_W - hn);
+        out[hn..hn+rn].copy_from_slice(&rel[..rn]);
+        hn + rn
+    } else {
+        // Relative — find last '/' in base
+        let dir_end = base.iter().rposition(|&b| b == b'/')
+            .map(|i| i + 1).unwrap_or(base.len());
+        let dn = dir_end.min(URL_W);
+        out[..dn].copy_from_slice(&base[..dn]);
+        let rn = rel.len().min(URL_W - dn);
+        out[dn..dn+rn].copy_from_slice(&rel[..rn]);
+        dn + rn
+    };
+    (out, n)
+}
+
 // Kyom (byte 182, Grapevine T7) — Replica / proxy / masked follower.
 // The browser reaches the internet through a Kyom: a machine running
 // browser_proxy.py that speaks HTTPS to the internet and returns plain
@@ -630,6 +714,21 @@ impl BrowserClient {
             return;
         }
 
+        // Pre-scan for <meta name="faerie-redirect" content="...">
+        // Transparently navigates to the Faerie-safe version of the page.
+        // Depth-capped at 1 so misconfigured sites can't loop.
+        unsafe {
+            if REDIRECT_DEPTH == 0 {
+                if let Some((redir_url, rn)) = faerie_redirect(body, &self.url[..self.url_len]) {
+                    self.setstatus(b"Faerie-redirect...");
+                    REDIRECT_DEPTH = 1;
+                    self.nav_inner(&redir_url[..rn]);
+                    REDIRECT_DEPTH = 0;
+                    return;
+                }
+            }
+        }
+
         self.parse_html(body);
 
         // If very little content: this is a JS-rendered site.
@@ -1158,7 +1257,7 @@ fn build_proxy_get(buf: &mut [u8; 512], url: &[u8]) -> usize {
     }}; }
     w!(b"GET ");
     w!(url);
-    w!(b" HTTP/1.0\r\nHost: faerie\r\nUser-Agent: DjinnOS/Faerie\r\nAccept: text/html\r\nConnection: close\r\n\r\n");
+    w!(b" HTTP/1.0\r\nHost: faerie\r\nUser-Agent: DjinnOS/Faerie-1.0 (Kyompufwun; no-JS)\r\nAccept: text/html\r\nConnection: close\r\n\r\n");
     n
 }
 
