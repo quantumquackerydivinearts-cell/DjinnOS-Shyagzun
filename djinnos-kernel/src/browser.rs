@@ -31,10 +31,10 @@ const MAR:    u32 = 32;
 // Sugarfloss pink: soft spun-sugar pink, not hot, not pastel — mid-saturated.
 const BG_B: u8 = 0x08; const BG_G: u8 = 0x0e; const BG_R: u8 = 0x08; // near-black green
 const UB_B: u8 = 0x0c; const UB_G: u8 = 0x16; const UB_R: u8 = 0x0c; // bar background
-const TX_B: u8 = 0x14; const TX_G: u8 = 0xa0; const TX_R: u8 = 0x32; // absinthe body text
-const HD_B: u8 = 0x28; const HD_G: u8 = 0xd2; const HD_R: u8 = 0x50; // bright absinthe headings
-const LK_B: u8 = 0xc3; const LK_G: u8 = 0x9b; const LK_R: u8 = 0xe8; // sugarfloss links
-const LF_B: u8 = 0xdc; const LF_G: u8 = 0xaa; const LF_R: u8 = 0xff; // focused sugarfloss
+const TX_B: u8 = 0x20; const TX_G: u8 = 0xd0; const TX_R: u8 = 0x48; // absinthe body text (bright)
+const HD_B: u8 = 0x40; const HD_G: u8 = 0xff; const HD_R: u8 = 0x70; // bright absinthe headings
+const LK_B: u8 = 0xd8; const LK_G: u8 = 0xb0; const LK_R: u8 = 0xff; // sugarfloss links
+const LF_B: u8 = 0xff; const LF_G: u8 = 0xcc; const LF_R: u8 = 0xff; // focused sugarfloss
 const SB_B: u8 = 0x30; const SB_G: u8 = 0x60; const SB_R: u8 = 0x30; // muted absinthe status
 const HR_B: u8 = 0x19; const HR_G: u8 = 0x3c; const HR_R: u8 = 0x1e; // dark absinthe rule
 
@@ -631,11 +631,33 @@ impl BrowserClient {
         }
 
         self.parse_html(body);
-        if self.n_lines == 0 {
-            self.push_line(b"[ no visible content ]", KIND_NORMAL, 0xFF);
-            self.push_line(b"This page may require JavaScript to render.", KIND_NORMAL, 0xFF);
-            self.push_line(b"Faerie Browser is a no-JS reader.", KIND_NORMAL, 0xFF);
+
+        // If very little content: this is a JS-rendered site.
+        if self.n_lines < 4 {
+            self.push_line(b"", KIND_NORMAL, 0xFF);
+            self.push_line(b"[ Page requires JavaScript -- Faerie is a no-JS reader ]", KIND_NORMAL, 0xFF);
+            self.push_line(b"", KIND_NORMAL, 0xFF);
+            self.push_line(b"Try a local page:", KIND_HEADING, 0xFF);
+            let lnk = self.n_lnk as u8;
+            if (lnk as usize) < MAX_LNK {
+                let home = b"local://home.html";
+                let hn = home.len().min(LNK_W);
+                self.lnk_url[lnk as usize][..hn].copy_from_slice(&home[..hn]);
+                self.lnk_len[lnk as usize] = hn as u8;
+                self.n_lnk += 1;
+                self.push_line(b"  QQVA home (local://home.html)", KIND_LINK, lnk);
+            }
+            let lnk2 = self.n_lnk as u8;
+            if (lnk2 as usize) < MAX_LNK {
+                let lab = b"local://labyrinth.html";
+                let ln2 = lab.len().min(LNK_W);
+                self.lnk_url[lnk2 as usize][..ln2].copy_from_slice(&lab[..ln2]);
+                self.lnk_len[lnk2 as usize] = ln2 as u8;
+                self.n_lnk += 1;
+                self.push_line(b"  Ko's Labyrinth (local://labyrinth.html)", KIND_LINK, lnk2);
+            }
         }
+
         let n = self.n_lines;
         let mut sb = [0u8; 80];
         let pfx = b"done  lines: ";
