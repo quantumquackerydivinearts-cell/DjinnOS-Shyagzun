@@ -193,6 +193,38 @@ impl BrowserClient {
 
     // ── Input ─────────────────────────────────────────────────────────────────
 
+    // ── Click handling ────────────────────────────────────────────────────────
+    //
+    // Faerie-safe click model:
+    //   - Click in content area → hit-test rendered lines
+    //   - Line with a link index → navigate(lnk_url[link_idx])
+    //   - URL beginning "local://"  → read from Sa volume
+    //   - URL beginning "ko:"       → evaluate Kobra expression, render result
+    //   - Regular http(s)://        → Kyom proxy fetch
+
+    // Content area starts at: title bar + gap + URL bar + gap
+    // tb_h = CHAR_H + 10, ub_h = CHAR_H + 8 → content_y = 2*CHAR_H + 21
+    const CONTENT_Y: u32 = CHAR_H * 2 + 21;
+
+    pub fn handle_click(&mut self, click_x: u32, click_y: u32) {
+        let _ = click_x; // horizontal position unused (full-width lines)
+        if self.mode == 1 { return; } // in URL input — ignore click
+        if click_y < Self::CONTENT_Y { return; }
+
+        let row    = ((click_y - Self::CONTENT_Y) / CHAR_H) as usize;
+        let li     = self.scroll + row;
+        if li >= self.n_lines { return; }
+
+        let lnk = self.line_link[li];
+        if lnk == 0xFF { return; } // not a link
+
+        let url_n = self.lnk_len[lnk as usize] as usize;
+        let mut tmp = [0u8; LNK_W];
+        tmp[..url_n].copy_from_slice(&self.lnk_url[lnk as usize][..url_n]);
+        self.navigate(&tmp[..url_n]);
+        self.dirty = true;
+    }
+
     pub fn handle_key(&mut self, key: Key) {
         if self.mode == 1 {
             self.key_url(key);
@@ -320,8 +352,69 @@ impl BrowserClient {
         self.focused   = 0xFF;
         self.title_len = 0;
         self.dirty     = true;
-        set_status_inner(&mut self.status, &mut self.status_n, b"Loading...");
-        self.fetch_and_parse(url);
+
+        if url.starts_with(b"local://") {
+            set_status_inner(&mut self.status, &mut self.status_n, b"Loading local...");
+            self.fetch_local(&url[8..]);
+        } else if url.starts_with(b"ko:") {
+            self.eval_ko(&url[3..]);
+        } else {
+            set_status_inner(&mut self.status, &mut self.status_n, b"Loading...");
+            self.fetch_and_parse(url);
+        }
+    }
+
+    // ── local:// — read HTML from Sa volume ──────────────────────────────────
+
+    fn fetch_local(&mut self, filename: &[u8]) {
+        let n = crate::sa::read_file(filename, unsafe { &mut RBUF });
+        if n == 0 {
+            self.push_line(b"local: file not found", KIND_NORMAL, 0xFF);
+            let mut msg = [0u8; 48];
+            let pfx = b"Not found: ";
+            msg[..pfx.len()].copy_from_slice(pfx);
+            let fn_n = filename.len().min(48 - pfx.len());
+            msg[pfx.len()..pfx.len() + fn_n].copy_from_slice(&filename[..fn_n]);
+            self.setstatus(&msg[..pfx.len() + fn_n]);
+            return;
+        }
+        let body = unsafe { &RBUF[..n] };
+        self.parse_html(body);
+        if self.n_lines == 0 {
+            self.push_line(b"[ empty local page ]", KIND_NORMAL, 0xFF);
+        }
+        let mut sb = [0u8; 32];
+        let pfx = b"local  lines: ";
+        sb[..pfx.len()].copy_from_slice(pfx);
+        let sn = pfx.len() + write_u32(&mut sb[pfx.len()..], self.n_lines as u32);
+        self.setstatus(&sb[..sn]);
+    }
+
+    // ── ko: — evaluate Kobra expression, render result ───────────────────────
+
+    fn eval_ko(&mut self, script: &[u8]) {
+        if let Ok(s) = core::str::from_utf8(script) {
+            let result = crate::kobra::eval_expr(s.as_bytes());
+            if result.line_count() == 0 {
+                self.push_line(b"(no output)", KIND_NORMAL, 0xFF);
+            } else {
+                for i in 0..result.line_count() {
+                    let line = result.line(i);
+                    // If result looks like a URL, navigate there
+                    if line.starts_with(b"local://") || line.starts_with(b"http") {
+                        let mut tmp = [0u8; URL_W];
+                        let ln = line.len().min(URL_W);
+                        tmp[..ln].copy_from_slice(&line[..ln]);
+                        self.nav_inner(&tmp[..ln]);
+                        return;
+                    }
+                    self.push_line(line, KIND_NORMAL, 0xFF);
+                }
+            }
+        } else {
+            self.push_line(b"ko: invalid UTF-8", KIND_NORMAL, 0xFF);
+        }
+        self.setstatus(b"ko: evaluated");
     }
 
     // ── Render ────────────────────────────────────────────────────────────────

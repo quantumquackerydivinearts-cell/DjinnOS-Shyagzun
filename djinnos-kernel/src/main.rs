@@ -14,6 +14,7 @@ mod amdgpu;
 mod compositor;
 mod background;
 mod dhcp;
+mod faerie_pages;
 mod login;
 mod mesh;
 mod ne_bar;
@@ -665,7 +666,8 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     process::spawn(19, ko_idle, 0);
 
     profile::load_or_init();
-    eigenstate::load(); // restore session linguistic history from Sa
+    eigenstate::load();
+    faerie_pages::seed(); // write initial local:// pages to Sa if absent // restore session linguistic history from Sa
     let mut login_screen = login::LoginScreen::new(rule_y);
 
     let mut repl  = kobra_repl::KobraRepl::new(rule_y);
@@ -774,12 +776,22 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
 
         // ── Mouse polling ─────────────────────────────────────────────────
         #[cfg(target_arch = "x86_64")]
-        while let Some(mev) = ps2::poll_mouse() {
-            cursor::update(mev, fbdrv.width(), fbdrv.height());
-            let (cx, cy) = cursor::pos();
-            compositor::get().on_cursor_move(cx, cy);
-            eigenstate::advance(eigenstate::T_SAKURA); // spatial movement
-            dirty = true;
+        {
+            while let Some(mev) = ps2::poll_mouse() {
+                cursor::update(mev, fbdrv.width(), fbdrv.height());
+                let (cx, cy) = cursor::pos();
+                compositor::get().on_cursor_move(cx, cy);
+                eigenstate::advance(eigenstate::T_SAKURA);
+                dirty = true;
+            }
+            // Left click dispatch
+            if cursor::left_clicked() {
+                let (cx, cy) = cursor::pos();
+                if mode == AppMode::Browser {
+                    browser::browser().handle_click(cx, cy);
+                    dirty = true;
+                }
+            }
         }
 
         // ── Notification tick ─────────────────────────────────────────────
