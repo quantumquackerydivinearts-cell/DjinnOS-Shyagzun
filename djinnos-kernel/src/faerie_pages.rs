@@ -21,22 +21,65 @@
 
 const HOME: &[u8] = br#"<!DOCTYPE html>
 <html>
-<head><title>Quantum Quackery Virtual Atelier</title></head>
+<head><title>Quantum Quackery Divine Arts</title></head>
 <body>
-<h1>Quantum Quackery Virtual Atelier</h1>
-<p>Studio 42/6. Games, sequential art, constructed language.</p>
+<h1>Quantum Quackery Divine Arts</h1>
+<p>Studio 42/6  Est. 2021  quantumquackery.org</p>
 <hr>
+<p>To carry the flame of diverse human culture in times uncertain.</p>
+<hr>
+<h2>The Atelier</h2>
+<p>Virtual Game Development Studio. A 3D voxel environment for building worlds
+in Ko's Labyrinth and the 31-game anthology. Runs the Djinnflow Kernel,
+the Kobra coding environment, and the deterministic Shygazun translation engine.</p>
+<a href="local://atelier.html">Download the Atelier</a>
 <h2>Ko's Labyrinth</h2>
-<p>A 31-game anthology. You are Hypatia's apprentice.
+<p>Game 7 of 31. Lapidus -- the Overworld. You are Hypatia's apprentice.
 The Royal Lottery has drawn your name.</p>
 <a href="local://labyrinth.html">Enter the Labyrinth</a>
-<hr>
 <h2>Shygazun</h2>
 <p>A constructed natural language. Its byte table is canonical and load-bearing.
-Every word traces back to a Primordial root.</p>
-<a href="local://shygazun.html">Browse the byte table</a>
+Every word traces back to a Primordial root. 38 tongues enumerated.
+Kaelshunshikeaninsuy is the authoring hub of DjinnOS.</p>
+<a href="local://shygazun.html">Explore Shygazun</a>
+<h2>Photonic Synthesis</h2>
+<p>Ontic-Channel Isomorphism. The correspondence between the structure
+of light and the structure of consciousness.</p>
+<a href="local://synthesis.html">Enter Photonic Synthesis</a>
 <hr>
-<p>Faerie Browser -- Kyompufwun -- the changeling that brings you what lives elsewhere.</p>
+<p>Faerie -- Kyompufwun -- the changeling browser running inside DjinnOS.</p>
+</body>
+</html>
+"#;
+
+const ATELIER: &[u8] = br#"<!DOCTYPE html>
+<html>
+<head><title>The Atelier -- Quantum Quackery Divine Arts</title></head>
+<body>
+<h1>The Atelier</h1>
+<p>Quantum Quackery Divine Arts  Virtual Game Development Studio</p>
+<hr>
+<p>A 3D voxel environment for building worlds in Ko's Labyrinth and the
+31-game anthology. Runs the Djinnflow Kernel, the Kobra coding environment,
+and the deterministic Shygazun translation engine -- locally, on your machine.</p>
+<p>v0.1.3  Latest Release</p>
+<hr>
+<h2>Downloads</h2>
+<h3>Windows</h3>
+<a href="https://github.com/quantumquackerydivinearts-cell/DjinnOS-Shyagzun/releases/download/v0.1.3/atelier-desktop-0.1.0-x64.exe">Download for Windows (.exe)</a>
+<h3>Android</h3>
+<a href="https://github.com/quantumquackerydivinearts-cell/DjinnOS-Shyagzun/releases/download/v0.1.3/atelier-android-v0.1.3-debug.apk">Download for Android (.apk sideload)</a>
+<h3>Full Suite</h3>
+<a href="https://github.com/quantumquackerydivinearts-cell/DjinnOS-Shyagzun/releases/download/v0.1.2/atelier-suite-v0.1.2-secure.zip">Full Suite (.zip, all platforms)</a>
+<h3>Web App</h3>
+<a href="https://atelier.quantumquackery.com">Open in Browser (no install)</a>
+<hr>
+<h2>What It Contains</h2>
+<p>3D Voxel Renderer. Kobra Environment. Shygazun Translation Engine.
+Djinnflow Kernel. Guild and Studio System. Sequential Art Tooling.
+Tile Placement Network. Wand Encryption.</p>
+<hr>
+<a href="local://home.html">Back to QQVA</a>
 </body>
 </html>
 "#;
@@ -127,14 +170,45 @@ Not flavor text. The word for the existence of the series itself is Wunashako.</
 </html>
 "#;
 
+const SYNTHESIS: &[u8] = br#"<!DOCTYPE html>
+<html>
+<head><title>Photonic Synthesis -- Quantum Quackery Divine Arts</title></head>
+<body>
+<h1>Photonic Synthesis</h1>
+<p>Ontic-Channel Isomorphism  Quantum Quackery Divine Arts</p>
+<hr>
+<p>The isomorphism between Shygazun language and photonic computation.
+Learning Shygazun and learning photonic computation are the same act
+of identity resonance with the void-ian substrate, approached from
+phenomenological and physical sides simultaneously.</p>
+<hr>
+<h2>The Correspondence</h2>
+<p>Lotus elemental fields: Shak (Fire) = Strong Nuclear. Puf (Air) = Weak Nuclear.
+Mel (Water) = Electromagnetic. Zot (Earth) = Gravitational.</p>
+<p>Rose spectral vectors as direct spectral encoding in photonic medium.</p>
+<p>Daisy photonic circuit architecture: Gates (Ro), membranes (Gl), scaffolds (To),
+networks (Ne), switches (Nz), valves (Sho).</p>
+<p>Aster quantum optical chirality: photon spin angular momentum is genuinely
+asymmetric and cannot be derived from other properties.</p>
+<p>Cannabis: the observer as formal participant in the system. The layer where
+the student becomes the instrument.</p>
+<hr>
+<a href="local://shygazun.html">Shygazun Literary Companion</a>
+<a href="local://home.html">Back to QQVA</a>
+</body>
+</html>
+"#;
+
 // ── Seed function ─────────────────────────────────────────────────────────────
 
 pub fn seed() {
-    write_if_absent(b"home.html",      HOME);
-    write_if_absent(b"labyrinth.html", LABYRINTH);
-    write_if_absent(b"wiltoll.html",   WILTOLL);
-    write_if_absent(b"azonithia.html", AZONITHIA);
-    write_if_absent(b"shygazun.html",  SHYGAZUN);
+    write_if_absent(b"home.html",       HOME);
+    write_if_absent(b"atelier.html",    ATELIER);
+    write_if_absent(b"labyrinth.html",  LABYRINTH);
+    write_if_absent(b"wiltoll.html",    WILTOLL);
+    write_if_absent(b"azonithia.html",  AZONITHIA);
+    write_if_absent(b"shygazun.html",   SHYGAZUN);
+    write_if_absent(b"synthesis.html",  SYNTHESIS);
 }
 
 fn write_if_absent(name: &[u8], content: &[u8]) {
