@@ -12,6 +12,8 @@ pub enum Key {
     Down,
     Left,
     Right,
+    PageUp,
+    PageDown,
     Escape,
 }
 

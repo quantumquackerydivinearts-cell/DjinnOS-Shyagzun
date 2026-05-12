@@ -432,7 +432,7 @@ _QUEST_TABLE: Tuple[Tuple[str, str, str], ...] = (
     ("Master Koga",               "0031_KLST", ""),
     ("Mona Lisa",                 "0032_KLST", ""),
     ("Zoha are",                  "0033_KLST", ""),
-    ("Children? By Atom!",        "0034_KLST", ""),
+    ("Children?! By Atom!",        "0034_KLST", ""),
     ("Choices in Hell",           "0035_KLST", ""),
     ("Consequence",               "0036_KLST", ""),
     ("Witching Hour",             "0037_KLST", ""),

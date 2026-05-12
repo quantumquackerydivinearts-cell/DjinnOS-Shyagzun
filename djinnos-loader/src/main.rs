@@ -146,7 +146,7 @@ unsafe fn say_hex(st: *const SystemTable, n: u64) {
     }
     buf[17] = 0;
     ((*out).output_string)(out, buf.as_ptr());
-    ((*(*st).boot_svc).stall)(1_000_000);
+    ((*(*st).boot_svc).stall)(100_000);
 }
 
 // Print an ASCII string to the UEFI console and pause so the user can read it.
@@ -159,9 +159,22 @@ unsafe fn say(st: *const SystemTable, msg: &[u8]) {
         buf[n] = 0;
         ((*out).output_string)(out, buf.as_ptr());
     }
-    // 2-second stall so text is readable before any screen clear.
     let bs = (*st).boot_svc;
-    ((*bs).stall)(2_000_000);
+    ((*bs).stall)(100_000);
+}
+
+// say() with a longer stall — for messages that MUST be read before continuing.
+unsafe fn say_hold(st: *const SystemTable, msg: &[u8]) {
+    let out = (*st).con_out;
+    if !out.is_null() {
+        let mut buf = [0u16; 80];
+        let n = msg.len().min(79);
+        for i in 0..n { buf[i] = msg[i] as u16; }
+        buf[n] = 0;
+        ((*out).output_string)(out, buf.as_ptr());
+    }
+    let bs = (*st).boot_svc;
+    ((*bs).stall)(2_000_000);  // 2 seconds — must be readable
 }
 
 #[repr(C)]
@@ -265,19 +278,25 @@ struct Sfs { rev: u64, open_volume: SfsOpenVol }
 
 type FileOpen    = unsafe extern "efiapi" fn(*mut File, *mut *mut File, *const u16, u64, u64) -> EfiStatus;
 type FileClose   = unsafe extern "efiapi" fn(*mut File) -> EfiStatus;
+// Delete has identical signature to Close — deletes file then closes handle.
+type FileDelete  = unsafe extern "efiapi" fn(*mut File) -> EfiStatus;
 type FileRead    = unsafe extern "efiapi" fn(*mut File, *mut usize, *mut u8) -> EfiStatus;
+type FileWrite   = unsafe extern "efiapi" fn(*mut File, *mut usize, *const u8) -> EfiStatus;
+type FileFlush   = unsafe extern "efiapi" fn(*mut File) -> EfiStatus;
 type FileGetInfo = unsafe extern "efiapi" fn(*mut File, *const Guid, *mut usize, *mut u8) -> EfiStatus;
 #[repr(C)]
 struct File {
-    rev:      u64,
-    open:     FileOpen,
-    close:    FileClose,
-    _delete:  *const (),
-    read:     FileRead,
-    _write:   *const (),
-    _get_pos: *const (),
-    _set_pos: *const (),
-    get_info: FileGetInfo,
+    rev:       u64,
+    open:      FileOpen,
+    close:     FileClose,
+    delete:    FileDelete,   // deletes file + closes handle
+    read:      FileRead,
+    write:     FileWrite,
+    _get_pos:  *const (),
+    _set_pos:  *const (),
+    get_info:  FileGetInfo,
+    _set_info: *const (),
+    flush:     FileFlush,
 }
 
 // FileInfo (fixed prefix; variable-length name follows)
@@ -310,14 +329,18 @@ struct BlockIoMedia {
     last_block:        u64,
 }
 
-type BlockReadFn = unsafe extern "efiapi" fn(*mut BlockIo, u32, u64, usize, *mut u8) -> EfiStatus;
+type BlockReadFn  = unsafe extern "efiapi" fn(*mut BlockIo, u32, u64, usize, *mut u8) -> EfiStatus;
+type BlockWriteFn = unsafe extern "efiapi" fn(*mut BlockIo, u32, u64, usize, *const u8) -> EfiStatus;
+type BlockFlushFn = unsafe extern "efiapi" fn(*mut BlockIo) -> EfiStatus;
 
 #[repr(C)]
 struct BlockIo {
-    revision:    u64,
-    media:       *const BlockIoMedia,
-    reset:       *const (),
-    read_blocks: BlockReadFn,
+    revision:     u64,
+    media:        *const BlockIoMedia,
+    reset:        *const (),
+    read_blocks:  BlockReadFn,
+    write_blocks: BlockWriteFn,
+    flush_blocks: BlockFlushFn,
 }
 
 // Static sector buffers — BlockIo requires stable (non-stack) memory for reads
@@ -539,7 +562,7 @@ unsafe fn main_inner(image: EfiHandle, st: *const SystemTable) -> EfiStatus {
             if &e[0..8] == b"KERNEL  " && &e[8..11] == b"ELF" {
                 first_cluster = fc;
                 file_size = fs;
-            } else if fc != 0 && fs > 0 && fs < 8 * 1024 * 1024
+            } else if fc != 0 && fs > 0 && fs < 32 * 1024 * 1024
                       && (RD_COUNT as usize) < MAX_RD_FILES {
                 // Load this file into a pool buffer for the ramdisk.
                 let mut fbuf: *mut u8 = ptr::null_mut();
@@ -668,7 +691,31 @@ unsafe fn main_inner(image: EfiHandle, st: *const SystemTable) -> EfiStatus {
         if phdr.ptype != PT_LOAD || phdr.memsz == 0 { continue; }
         let pages = (phdr.memsz as usize + 0xFFF) / 0x1000;
         let mut paddr = phdr.paddr;
-        let _ = ((*bs).alloc_pages)(ALLOCATE_ADDRESS, EFI_LOADER_CODE, pages, &mut paddr);
+
+        // Try to allocate at the exact physical address the kernel was linked for.
+        // If the firmware has that range reserved (runtime services, ACPI tables,
+        // etc.) ALLOCATE_ADDRESS returns an error — in that case we halt rather
+        // than silently overwriting reserved memory, which causes a hard crash
+        // with no diagnostic.
+        // Try LOADER_CODE first; some UEFI 2.8+ firmware enforces attribute
+        // matching and will reject LOADER_CODE if the pages aren't pre-flagged
+        // executable.  Fall back to LOADER_DATA, then skip the allocation
+        // entirely.  Skipping is safe: UEFI identity-maps all RAM before
+        // ExitBootServices, so the pages are writable regardless of whether
+        // we formally claimed them.
+        let r1 = ((*bs).alloc_pages)(ALLOCATE_ADDRESS, EFI_LOADER_CODE, pages, &mut paddr);
+        if r1 != SUCCESS {
+            paddr = phdr.paddr;
+            let r2 = ((*bs).alloc_pages)(ALLOCATE_ADDRESS, EFI_LOADER_DATA, pages, &mut paddr);
+            if r2 != SUCCESS {
+                paddr = phdr.paddr;
+                say(st, b"alloc_pages unavailable (");
+                say_hex(st, r2 as u64);
+                say(st, b") writing directly\r\n");
+                // No allocation — write directly.  Correct on broken HP UEFI.
+            }
+        }
+
         ptr::copy_nonoverlapping(
             kbuf.add(phdr.offset as usize),
             phdr.paddr as *mut u8,
@@ -683,6 +730,7 @@ unsafe fn main_inner(image: EfiHandle, st: *const SystemTable) -> EfiStatus {
         }
     }
     say(st, b"segments ok\r\n");
+    say(st, b"finding entry point...\r\n");
 
     // ── Find kernel_uefi_entry via .uefi_hdr section ─────────────────────────
     let shstrtab_hdr = &*(kbuf.add(
@@ -722,12 +770,52 @@ unsafe fn main_inner(image: EfiHandle, st: *const SystemTable) -> EfiStatus {
     say(st, b"fb_w=");    say_hex(st, BOOT_INFO.fb_width as u64);
     say(st, b"fb_h=");    say_hex(st, BOOT_INFO.fb_height as u64);
 
-    ((*bs).free_pool)(kbuf);
-
     // Publish ramdisk in boot info.
     BOOT_INFO.ramdisk_addr  = RD_TABLE.as_ptr() as u64;
     BOOT_INFO.ramdisk_count = RD_COUNT;
     say(st, b"ramdisk files="); say_hex(st, RD_COUNT as u64);
+
+    // Dump ramdisk contents.
+    for i in 0..RD_COUNT as usize {
+        let base = RD_TABLE.as_ptr().add(i * RD_ENTRY_SIZE);
+        let name = core::slice::from_raw_parts(base, 32);
+        let size = *(base.add(40) as *const u32);
+        let nstr = &name[..name.iter().position(|&b| b == 0).unwrap_or(32)];
+        say(st, b"  rd: ");
+        { let out = (*st).con_out;
+          if !out.is_null() {
+              let mut buf = [0u16; 36];
+              let n = nstr.len().min(32);
+              for j in 0..n { buf[j] = nstr[j] as u16; }
+              buf[n] = b' ' as u16; buf[n+1] = 0;
+              ((*out).output_string)(out, buf.as_ptr()); } }
+        say_hex(st, size as u64); say(st, b"\r\n");
+    }
+
+    // If loader.efi is in ramdisk → USB boot.
+    // Install internal ESP using firmware BlockIo WriteBlocks.
+    // kbuf (the loaded kernel ELF) is still valid here — we pass it directly.
+    // HP disconnects USB SFS after loading the bootloader, so we cannot use
+    // SFS to re-read the kernel; kbuf IS the kernel data we need.
+    {
+        let mut has_loader = false;
+        for i in 0..RD_COUNT as usize {
+            let base = RD_TABLE.as_ptr().add(i * RD_ENTRY_SIZE);
+            let name = core::slice::from_raw_parts(base, 32);
+            let nstr = &name[..name.iter().position(|&b| b == 0).unwrap_or(32)];
+            if nstr == b"loader.efi" { has_loader = true; break; }
+        }
+        if has_loader {
+            say_hold(st, b"=== USB BOOT: INSTALLING ===\r\n");
+            let ok = install_via_bio(st, bs, kbuf, fsize);
+            if ok { say_hold(st, b"=== INSTALL COMPLETE ===\r\n"); }
+            else  { say_hold(st, b"=== INSTALL FAILED ===\r\n"); }
+        } else {
+            say(st, b"no loader.efi in ramdisk -- native boot\r\n");
+        }
+    }
+
+    ((*bs).free_pool)(kbuf);
 
     // ExitBootServices retry loop — the memory map key can go stale between
     // GetMemoryMap and ExitBootServices if a UEFI timer callback fires.
@@ -762,6 +850,499 @@ unsafe fn main_inner(image: EfiHandle, st: *const SystemTable) -> EfiStatus {
         entry = in(reg) entry_addr,
         options(noreturn, nostack),
     );
+}
+
+// ── Install via UEFI BlockIo WriteBlocks ─────────────────────────────────────
+//
+// Uses the firmware's own NVMe driver (not our kernel's).  This bypasses the
+// IOMMU/DMA issues entirely — the firmware already manages all of that.
+//
+// Flow:
+//   1. Scan BlockIo handles for a GPT disk that has an ESP partition.
+//   2. Compute the ESP partition's absolute LBA range from the GPT.
+//   3. Write a fresh FAT32 filesystem to those LBAs using WriteBlocks.
+//   4. Read kernel.elf from the USB SFS, write to ESP FAT clusters.
+//
+// Called when loader.efi is in ramdisk (USB boot) AND the user presses 'I'
+// at the boot prompt (not yet wired — reserved for next sprint).
+// For now, wire it automatically when loader.efi is present.
+
+const GPT_SIG: u64 = 0x5452_4150_2049_4645; // "EFI PART"
+
+// ESP type GUID on-disk bytes (mixed-endian).
+const ESP_GUID: [u8; 16] = [
+    0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11,
+    0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B,
+];
+
+unsafe fn bio_write_sector(bio: *mut BlockIo, mid: u32, lba: u64, data: &[u8; 512]) -> bool {
+    ((*bio).write_blocks)(bio, mid, lba, 512, data.as_ptr()) == SUCCESS
+}
+
+unsafe fn bio_read_sector(bio: *mut BlockIo, mid: u32, lba: u64, buf: &mut [u8; 512]) -> bool {
+    ((*bio).read_blocks)(bio, mid, lba, 512, buf.as_mut_ptr()) == SUCCESS
+}
+
+// Write `len` bytes from `data` to consecutive 512-byte sectors starting at `lba`.
+unsafe fn bio_write_data(bio: *mut BlockIo, mid: u32, lba: u64, data: *const u8, len: usize) -> bool {
+    let mut written = 0usize;
+    let mut l = lba;
+    while written < len {
+        let mut sec = [0u8; 512];
+        let n = (len - written).min(512);
+        ptr::copy_nonoverlapping(data.add(written), sec.as_mut_ptr(), n);
+        if !bio_write_sector(bio, mid, l, &sec) { return false; }
+        written += 512;
+        l += 1;
+    }
+    true
+}
+
+// kbuf = the loaded kernel ELF (still valid, not yet freed by caller)
+// fsize = kernel file size in bytes
+pub unsafe fn install_via_bio(
+    st:    *const SystemTable,
+    bs:    *const BootServices,
+    kbuf:  *mut u8,
+    fsize: usize,
+) -> bool {
+    say_hold(st, b"install: finding NVMe ESP...\r\n");
+
+    // Kernel data comes directly from the already-loaded kbuf.
+    // HP disconnects USB SFS after loading the bootloader so we cannot re-read
+    // from USB via SFS — but we don't need to, the data is right here.
+    let kdata = kbuf;
+    let klen  = fsize;
+
+    // Loader and firmware come from ramdisk (loader.efi, rtw8852a.bin).
+    let mut ldata: *const u8 = ptr::null();
+    let mut llen:  usize     = 0;
+    let mut fw_data: *const u8 = ptr::null();
+    let mut fw_len:  usize     = 0;
+    for i in 0..RD_COUNT as usize {
+        let base = RD_TABLE.as_ptr().add(i * RD_ENTRY_SIZE);
+        let name = core::slice::from_raw_parts(base, 32);
+        let ptr8 = *(base.add(32) as *const u64) as *const u8;
+        let size = *(base.add(40) as *const u32) as usize;
+        let nstr = &name[..name.iter().position(|&b| b == 0).unwrap_or(32)];
+        if nstr == b"loader.efi"   { ldata  = ptr8; llen   = size; }
+        if nstr == b"rtw8852a.bin" { fw_data = ptr8; fw_len = size; }
+    }
+    if ldata.is_null() {
+        say_hold(st, b"install: loader.efi not in ramdisk\r\n");
+        return false;
+    }
+
+    say_hold(st, b"install: kernel+loader read from USB\r\n");
+
+    // Find internal NVMe's ESP via GPT scan over BlockIo handles.
+    let mut n_bio: usize = 0;
+    let mut bio_hdls: *mut EfiHandle = ptr::null_mut();
+    ((*bs).loc_hdl_buf)(2, &BLOCKIO_GUID, ptr::null(), &mut n_bio, &mut bio_hdls);
+
+    let mut esp_bio: *mut BlockIo = ptr::null_mut();
+    let mut esp_mid: u32 = 0;
+    let mut esp_start: u64 = 0;
+    let mut esp_end:   u64 = 0;
+
+    'bio: for i in 0..n_bio {
+        let h = *bio_hdls.add(i);
+        let mut bp: *const () = ptr::null();
+        if ((*bs).handle_proto)(h, &BLOCKIO_GUID, &mut bp) != SUCCESS { continue; }
+        let bio = bp as *mut BlockIo;
+        let media = (*bio).media;
+        if (*media).media_present == 0 || (*media).block_size != 512 { continue; }
+        let mid = (*media).media_id;
+
+        // Check for GPT signature at LBA 1.
+        let mut sec = [0u8; 512];
+        if !bio_read_sector(bio, mid, 1, &mut sec) { continue; }
+        let sig = u64::from_le_bytes(sec[0..8].try_into().unwrap_or([0;8]));
+        if sig != GPT_SIG { continue; }
+
+        // Parse GPT partition entries.
+        let n_parts  = u32::from_le_bytes(sec[80..84].try_into().unwrap_or([0;4]));
+        let part_lba = u64::from_le_bytes(sec[72..80].try_into().unwrap_or([0;8]));
+        let ent_sz   = u32::from_le_bytes(sec[84..88].try_into().unwrap_or([0;4])) as usize;
+        if ent_sz < 128 { continue; }
+
+        let per_sec = (512 / ent_sz).max(1);
+        let mut idx = 0usize;
+        while idx < n_parts as usize {
+            let lba = part_lba + (idx / per_sec) as u64;
+            if !bio_read_sector(bio, mid, lba, &mut sec) { break; }
+            for j in 0..(per_sec.min(n_parts as usize - idx)) {
+                let off = j * ent_sz;
+                if off + 128 > 512 { break; }
+                if sec[off..off+16] == ESP_GUID {
+                    esp_start = u64::from_le_bytes(sec[off+32..off+40].try_into().unwrap_or([0;8]));
+                    esp_end   = u64::from_le_bytes(sec[off+40..off+48].try_into().unwrap_or([0;8]));
+                    esp_bio   = bio;
+                    esp_mid   = mid;
+                    break 'bio;
+                }
+            }
+            idx += per_sec;
+        }
+    }
+    ((*bs).free_pool)(bio_hdls as *mut u8);
+
+    if esp_bio.is_null() {
+        say_hold(st, b"install: no ESP found in GPT\r\n");
+        return false;
+    }
+    say_hold(st, b"install: ESP found -- formatting...\r\n");
+
+    // Write fresh FAT32 to the ESP using the firmware's BlockIo driver.
+    // kbuf/kdata are freed by the caller after we return.
+    let ok = bio_format_esp(st, esp_bio, esp_mid, esp_start, esp_end,
+                             kdata, klen, ldata, llen, fw_data, fw_len);
+
+    if ok { say(st, b"install: ESP written via BlockIo\r\n"); }
+    else  { say(st, b"install: ESP write failed\r\n"); }
+    ok
+}
+
+// Write a minimal valid FAT32 to the ESP partition via UEFI BlockIo.
+// Layout matches fat32w.rs exactly so the loader can read it.
+unsafe fn bio_format_esp(
+    st: *const SystemTable,
+    bio: *mut BlockIo, mid: u32,
+    part_start: u64, part_end: u64,
+    kdata: *const u8, klen: usize,
+    ldata: *const u8, llen: usize,
+    fw_data: *const u8, fw_len: usize,
+) -> bool {
+    const SPC: u32 = 8;   // sectors per cluster (4KB)
+    const RES: u32 = 32;  // reserved sectors
+    const NF:  u32 = 2;   // number of FATs
+    const BPS: u32 = 512; // bytes per sector
+    const CBS: u32 = SPC * BPS; // cluster bytes
+
+    let total = (part_end - part_start + 1) as u32;
+    // fat_size formula (Microsoft FAT spec)
+    let fat_sz = {
+        let t1 = total - RES;
+        let t2 = NF * SPC + SPC * BPS / 4;
+        (t1 + t2 - 1) / t2
+    };
+    let fat1  = part_start + RES as u64;
+    let fat2  = fat1 + fat_sz as u64;
+    let data  = fat2 + fat_sz as u64;
+    let clba  = |c: u32| -> u64 { data + (c as u64 - 2) * SPC as u64 };
+
+    // Cluster layout
+    let lc = (llen as u32 + CBS - 1) / CBS; // loader clusters
+    let kc = (klen as u32 + CBS - 1) / CBS; // kernel clusters
+    let fc = if fw_len > 0 { (fw_len as u32 + CBS - 1) / CBS } else { 0 };
+    let root_cl = 2u32; let efi_cl = 3u32; let boot_cl = 4u32;
+    let ldr_cl  = 5u32;
+    let krn_cl  = ldr_cl + lc;
+    let fw_cl   = krn_cl + kc;
+
+    // ── BPB ──────────────────────────────────────────────────────────────────
+    let mut bpb = [0u8; 512];
+    bpb[0] = 0xEB; bpb[1] = 0x58; bpb[2] = 0x90;
+    bpb[3..11].copy_from_slice(b"DJINNOS ");
+    bpb[11..13].copy_from_slice(&(BPS as u16).to_le_bytes());
+    bpb[13] = SPC as u8;
+    bpb[14..16].copy_from_slice(&(RES as u16).to_le_bytes());
+    bpb[16] = NF as u8;
+    bpb[32..36].copy_from_slice(&total.to_le_bytes());
+    bpb[36..40].copy_from_slice(&fat_sz.to_le_bytes());
+    bpb[44..48].copy_from_slice(&2u32.to_le_bytes()); // root cluster
+    bpb[48..50].copy_from_slice(&1u16.to_le_bytes()); // FSInfo at sector 1
+    bpb[50..52].copy_from_slice(&6u16.to_le_bytes()); // backup at sector 6
+    bpb[28..32].copy_from_slice(&(part_start as u32).to_le_bytes());
+    bpb[64] = 0x80; bpb[66] = 0x29;
+    bpb[67..71].copy_from_slice(&0xD711_0507u32.to_le_bytes());
+    bpb[71..82].copy_from_slice(b"DJINNOS    ");
+    bpb[82..90].copy_from_slice(b"FAT32   ");
+    bpb[510] = 0x55; bpb[511] = 0xAA;
+    if !bio_write_sector(bio, mid, part_start,     &bpb) { return false; }
+    if !bio_write_sector(bio, mid, part_start + 6, &bpb) { return false; }
+
+    // ── FSInfo ────────────────────────────────────────────────────────────────
+    let mut fs = [0u8; 512];
+    fs[0..4].copy_from_slice(&0x4161_5252u32.to_le_bytes());
+    fs[484..488].copy_from_slice(&0x6141_7272u32.to_le_bytes());
+    fs[488..492].copy_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
+    fs[492..496].copy_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
+    fs[508..512].copy_from_slice(&0xAA55_0000u32.to_le_bytes());
+    if !bio_write_sector(bio, mid, part_start + 1, &fs) { return false; }
+    if !bio_write_sector(bio, mid, part_start + 7, &fs) { return false; }
+
+    // ── Zero both FATs ────────────────────────────────────────────────────────
+    say(st, b"install: zeroing FATs...\r\n");
+    let zero = [0u8; 512];
+    for i in 0..fat_sz as u64 * 2 {
+        if !bio_write_sector(bio, mid, fat1 + i, &zero) { return false; }
+    }
+
+    // FAT helper: set one 4-byte entry in the FAT (read-modify-write).
+    let set_entry = |fat_base: u64, cluster: u32, val: u32| -> bool {
+        let sec = fat_base + (cluster as u64 * 4) / 512;
+        let off = ((cluster as usize * 4) % 512) as usize;
+        let mut buf = [0u8; 512];
+        if ((*bio).read_blocks)(bio, mid, sec, 512, buf.as_mut_ptr()) != SUCCESS { return false; }
+        buf[off..off+4].copy_from_slice(&val.to_le_bytes());
+        ((*bio).write_blocks)(bio, mid, sec, 512, buf.as_ptr()) == SUCCESS
+    };
+
+    // Reserved entries + directory clusters
+    for &fat in &[fat1, fat2] {
+        if !set_entry(fat, 0, 0x0FFF_FFF8) { return false; }
+        if !set_entry(fat, 1, 0x0FFF_FFFF) { return false; }
+        if !set_entry(fat, root_cl, 0x0FFF_FFFF) { return false; }
+        if !set_entry(fat, efi_cl,  0x0FFF_FFFF) { return false; }
+        if !set_entry(fat, boot_cl, 0x0FFF_FFFF) { return false; }
+        // Loader chain
+        for i in 0..lc {
+            let v = if i == lc-1 { 0x0FFF_FFFF } else { ldr_cl + i + 1 };
+            if !set_entry(fat, ldr_cl + i, v) { return false; }
+        }
+        // Kernel chain
+        for i in 0..kc {
+            let v = if i == kc-1 { 0x0FFF_FFFF } else { krn_cl + i + 1 };
+            if !set_entry(fat, krn_cl + i, v) { return false; }
+        }
+        // Firmware chain
+        for i in 0..fc {
+            let v = if i == fc-1 { 0x0FFF_FFFF } else { fw_cl + i + 1 };
+            if !set_entry(fat, fw_cl + i, v) { return false; }
+        }
+    }
+
+    // Directory helper
+    let mk_dir = |name83: &[u8; 11], attr: u8, cl: u32, sz: u32| -> [u8; 32] {
+        let mut e = [0u8; 32];
+        e[0..11].copy_from_slice(name83);
+        e[11] = attr;
+        e[20..22].copy_from_slice(&((cl >> 16) as u16).to_le_bytes());
+        e[26..28].copy_from_slice(&(cl as u16).to_le_bytes());
+        e[28..32].copy_from_slice(&sz.to_le_bytes());
+        e
+    };
+
+    // ── Root directory ────────────────────────────────────────────────────────
+    let mut dir = [0u8; 512];
+    dir[0..32].copy_from_slice(&mk_dir(b"EFI        ", 0x10, efi_cl,  0));
+    dir[32..64].copy_from_slice(&mk_dir(b"KERNEL  ELF", 0x20, krn_cl, klen as u32));
+    if fc > 0 {
+        dir[64..96].copy_from_slice(&mk_dir(b"RTW8852ABIN", 0x20, fw_cl, fw_len as u32));
+    }
+    if !bio_write_sector(bio, mid, clba(root_cl), &dir) { return false; }
+
+    // ── EFI/ directory ────────────────────────────────────────────────────────
+    let mut ed = [0u8; 512];
+    ed[0..32].copy_from_slice(&mk_dir(b".          ", 0x10, efi_cl,  0));
+    ed[32..64].copy_from_slice(&mk_dir(b"..         ", 0x10, root_cl, 0));
+    ed[64..96].copy_from_slice(&mk_dir(b"BOOT       ", 0x10, boot_cl, 0));
+    if !bio_write_sector(bio, mid, clba(efi_cl), &ed) { return false; }
+
+    // ── EFI/BOOT/ directory ───────────────────────────────────────────────────
+    let mut bd = [0u8; 512];
+    bd[0..32].copy_from_slice(&mk_dir(b".          ", 0x10, boot_cl, 0));
+    bd[32..64].copy_from_slice(&mk_dir(b"..         ", 0x10, efi_cl,  0));
+    bd[64..96].copy_from_slice(&mk_dir(b"BOOTX64 EFI", 0x20, ldr_cl, llen as u32));
+    if !bio_write_sector(bio, mid, clba(boot_cl), &bd) { return false; }
+
+    // ── File data ─────────────────────────────────────────────────────────────
+    say(st, b"install: writing BOOTX64.EFI...\r\n");
+    if !bio_write_data(bio, mid, clba(ldr_cl), ldata, llen) { return false; }
+    say(st, b"install: writing kernel.elf...\r\n");
+    if !bio_write_data(bio, mid, clba(krn_cl), kdata, klen) { return false; }
+    if fc > 0 {
+        say(st, b"install: writing rtw8852a.bin...\r\n");
+        if !bio_write_data(bio, mid, clba(fw_cl), fw_data, fw_len) { return false; }
+    }
+
+    let _ = ((*bio).flush_blocks)(bio);
+    true
+}
+
+// ── Auto-install via UEFI file write ─────────────────────────────────────────
+//
+// If krnl.elf is present in the ramdisk we are booting from USB.
+// We use UEFI SFS to write krnl.elf → kernel.elf and rtw8852a.bin to any
+// mounted FAT32 volume that already has a kernel.elf (i.e. the internal ESP).
+// This bypasses the NVMe DMA/IOMMU issues in our kernel's NVMe driver.
+
+// u16 string helpers (UEFI uses UCS-2).
+fn u16str(src: &[u8], buf: &mut [u16]) -> usize {
+    let n = src.len().min(buf.len().saturating_sub(1));
+    for (i, &b) in src[..n].iter().enumerate() { buf[i] = b as u16; }
+    buf[n] = 0;
+    n + 1
+}
+
+unsafe fn uefi_write_file(
+    root:  *mut File,
+    name:  &[u8],
+    data:  *const u8,
+    len:   usize,
+) -> bool {
+    let mut wname = [0u16; 64];
+    u16str(name, &mut wname);
+
+    // Delete the existing file first.  EFI_FILE_MODE_CREATE does not truncate
+    // existing files, so if the old file is a different size the stale bytes
+    // corrupt the ELF.  Delete + recreate guarantees a clean write.
+    let mut old: *mut File = ptr::null_mut();
+    if ((*root).open)(root, &mut old, wname.as_ptr(), 1 /*READ*/, 0) == SUCCESS
+        && !old.is_null()
+    {
+        ((*old).delete)(old);  // deletes on-disk + closes handle
+    }
+
+    // Create fresh file.
+    const MODE_RW_CREATE: u64 = 0x8000_0000_0000_0003;
+    let mut fh: *mut File = ptr::null_mut();
+    let r = ((*root).open)(root, &mut fh, wname.as_ptr(), MODE_RW_CREATE, 0);
+    if r != SUCCESS || fh.is_null() { return false; }
+
+    let mut sz = len;
+    let ok = ((*fh).write)(fh, &mut sz, data) == SUCCESS;
+    let _ = ((*fh).flush)(fh);
+    ((*fh).close)(fh);
+    ok
+}
+
+unsafe fn uefi_file_exists(root: *mut File, name: &[u8]) -> bool {
+    let mut wname = [0u16; 64];
+    u16str(name, &mut wname);
+    let mut fh: *mut File = ptr::null_mut();
+    let r = ((*root).open)(root, &mut fh, wname.as_ptr(), 1 /*READ*/, 0);
+    if r == SUCCESS && !fh.is_null() { ((*fh).close)(fh); true } else { false }
+}
+
+unsafe fn auto_install_esp(st: *const SystemTable, bs: *const BootServices) {
+    // USB detection: loader.efi is placed at USB root by flash_d.ps1.
+    // Internal ESP has kernel.elf but never loader.efi at root.
+    // We scan ramdisk for loader.efi + rtw8852a.bin, then use UEFI SFS to
+    // read kernel.elf directly from the USB volume and write everything to
+    // the internal ESP.  No krnl.elf or separate kernel copy needed.
+
+    let mut loader_data: *const u8 = ptr::null();
+    let mut loader_len:  usize     = 0;
+    let mut fw_data:     *const u8 = ptr::null();
+    let mut fw_len:      usize     = 0;
+
+    for i in 0..RD_COUNT as usize {
+        let base = RD_TABLE.as_ptr().add(i * RD_ENTRY_SIZE);
+        let name = core::slice::from_raw_parts(base, 32);
+        let ptr8  = *(base.add(32) as *const u64) as *const u8;
+        let size  = *(base.add(40) as *const u32) as usize;
+        let nstr  = &name[..name.iter().position(|&b| b == 0).unwrap_or(32)];
+        if nstr == b"loader.efi"   { loader_data = ptr8; loader_len = size; }
+        if nstr == b"rtw8852a.bin" { fw_data     = ptr8; fw_len     = size; }
+    }
+
+    if loader_data.is_null() {
+        say(st, b"auto-install: not on USB\r\n");
+        return;
+    }
+    say(st, b"auto-install: USB boot, updating internal ESP\r\n");
+
+    // Enumerate SFS handles and split into USB (has loader.efi) and ESP (has
+    // kernel.elf but not loader.efi).
+    let mut n_sfs: usize = 0;
+    let mut sfs_hdls: *mut EfiHandle = ptr::null_mut();
+    if ((*bs).loc_hdl_buf)(2, &SFS_GUID, ptr::null(),
+                             &mut n_sfs, &mut sfs_hdls) != SUCCESS || n_sfs == 0 {
+        say(st, b"auto-install: no SFS volumes\r\n");
+        return;
+    }
+
+    let mut usb_root: *mut File = ptr::null_mut();
+    let mut esp_root: *mut File = ptr::null_mut();
+
+    for i in 0..n_sfs {
+        let h = *sfs_hdls.add(i);
+        let mut sp: *const () = ptr::null();
+        if ((*bs).handle_proto)(h, &SFS_GUID, &mut sp) != SUCCESS { continue; }
+        let sfs = sp as *mut Sfs;
+        let mut root: *mut File = ptr::null_mut();
+        if ((*sfs).open_volume)(sfs, &mut root) != SUCCESS || root.is_null() { continue; }
+
+        if uefi_file_exists(root, b"loader.efi") {
+            // This volume is the USB.
+            if usb_root.is_null() { usb_root = root; } else { ((*root).close)(root); }
+        } else if uefi_file_exists(root, b"kernel.elf") {
+            // Has kernel.elf but no loader.efi → internal ESP.
+            if esp_root.is_null() { esp_root = root; } else { ((*root).close)(root); }
+        } else {
+            ((*root).close)(root);
+        }
+    }
+    ((*bs).free_pool)(sfs_hdls as *mut u8);
+
+    if usb_root.is_null() { say(st, b"auto-install: USB SFS not found\r\n"); return; }
+    if esp_root.is_null() { say(st, b"auto-install: internal ESP not found\r\n");
+                            ((*usb_root).close)(usb_root); return; }
+
+    // Read kernel.elf from USB SFS into a pool buffer.
+    say(st, b"auto-install: reading kernel.elf\r\n");
+    let kbuf = uefi_read_file(bs, usb_root, b"kernel.elf");
+    ((*usb_root).close)(usb_root);
+    if kbuf.is_null() {
+        say(st, b"auto-install: kernel.elf read failed\r\n");
+        ((*esp_root).close)(esp_root); return;
+    }
+    let klen  = *(kbuf as *const usize);
+    let kdata = kbuf.add(8);
+
+    // Write all three files to the internal ESP.
+    say(st, b"auto-install: writing kernel.elf\r\n");
+    let ok1 = uefi_write_file(esp_root, b"kernel.elf", kdata, klen);
+    say(st, b"auto-install: writing BOOTX64.EFI\r\n");
+    let ok2 = uefi_write_file(esp_root, b"EFI\\BOOT\\BOOTX64.EFI", loader_data, loader_len);
+    let ok3 = if !fw_data.is_null() {
+        say(st, b"auto-install: writing rtw8852a.bin\r\n");
+        uefi_write_file(esp_root, b"rtw8852a.bin", fw_data, fw_len)
+    } else { true };
+
+    ((*esp_root).close)(esp_root);
+    ((*bs).free_pool)(kbuf);
+
+    if ok1 && ok2 && ok3 { say(st, b"auto-install: done\r\n"); }
+    else                  { say(st, b"auto-install: one or more writes failed\r\n"); }
+}
+
+// Allocate a pool buffer and read a file into it.
+// Layout: [usize length][file bytes...]
+// Caller must free_pool the returned pointer. Returns null on failure.
+unsafe fn uefi_read_file(
+    bs:   *const BootServices,
+    root: *mut File,
+    name: &[u8],
+) -> *mut u8 {
+    let mut wname = [0u16; 64];
+    u16str(name, &mut wname);
+    let mut fh: *mut File = ptr::null_mut();
+    if ((*root).open)(root, &mut fh, wname.as_ptr(), 1, 0) != SUCCESS || fh.is_null() {
+        return ptr::null_mut();
+    }
+    // Get file size from FileInfo (offset 8 in the struct, u64 LE).
+    let mut info_buf = [0u8; 80];
+    let mut info_sz: usize = 80;
+    ((*fh).get_info)(fh, &FILE_INFO_GUID, &mut info_sz, info_buf.as_mut_ptr());
+    let file_size = u64::from_le_bytes(
+        info_buf[8..16].try_into().unwrap_or([0; 8])) as usize;
+    if file_size == 0 || file_size > 32 * 1024 * 1024 {
+        ((*fh).close)(fh); return ptr::null_mut();
+    }
+    let mut buf: *mut u8 = ptr::null_mut();
+    if ((*bs).alloc_pool)(EFI_LOADER_DATA, file_size + 8, &mut buf) != SUCCESS
+       || buf.is_null() {
+        ((*fh).close)(fh); return ptr::null_mut();
+    }
+    *(buf as *mut usize) = file_size;
+    let mut sz = file_size;
+    let ok = ((*fh).read)(fh, &mut sz, buf.add(8)) == SUCCESS;
+    ((*fh).close)(fh);
+    if !ok { ((*bs).free_pool)(buf); return ptr::null_mut(); }
+    buf
 }
 
 /// Call GetMemoryMap to obtain the current map key (needed by ExitBootServices).

@@ -6,9 +6,39 @@
 extern crate alloc;
 
 mod agent;
+mod alchemy;
+mod book;
+mod foraging;
+mod perk_screen;
+mod printer;
 mod atelier;
+mod combat;
 mod dialogue;
+mod dialogue_tree;
+mod dungeon;
+mod nvme;
+mod gpt;
+mod fat32w;
+mod installer;
+mod rtw89;
+mod intel;
+mod http_intel;
+mod http_building;
+mod journal;
+mod ko_flags;
+mod meditation;
+mod player_state;
+mod quest_tracker;
+mod shop;
+mod game7;
+mod home;
+mod npc_placements;
+mod truetype;
+mod npc_screen;
+mod skills;
+mod sprite;
 mod voxel_lab;
+mod zone_registry;
 #[cfg(target_arch = "x86_64")]
 mod amdgpu;
 mod compositor;
@@ -94,6 +124,8 @@ mod hda;
 mod pci;
 #[cfg(target_arch = "x86_64")]
 mod ps2;
+#[cfg(target_arch = "x86_64")]
+mod i2c_hid;
 #[cfg(target_arch = "x86_64")]
 mod rtc;
 
@@ -647,6 +679,9 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
 
     // PS/2: UEFI enables i8042; we extend init to enable the aux (mouse) port.
     ps2::init();
+    // I2C HID: probe LPSS controller + trackpad (HP Envy ELAN / Synaptics).
+    // Non-fatal if no I2C controller found (USB mouse / PS/2 still work).
+    i2c_hid::init();
     cursor::init(fbdrv.width(), fbdrv.height());
 
     // Graphics stack init.
@@ -659,15 +694,20 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     arch::start_timer();
 
     acpi::init(rsdp_hint);
+    acpi::disable_iommu();  // must precede any PCIe DMA driver
     pci::init();
     hda::init();
 
     process::advance_cannabis(193);
     process::spawn(19, ko_idle, 0);
 
+    printer::init();
     profile::load_or_init();
     eigenstate::load();
-    faerie_pages::seed(); // write initial local:// pages to Sa if absent // restore session linguistic history from Sa
+    player_state::load();
+    journal::journal().load();
+    foraging::fae().load();
+    faerie_pages::seed(); // write initial local:// pages to Sa if absent
     let mut login_screen = login::LoginScreen::new(rule_y);
 
     let mut repl  = kobra_repl::KobraRepl::new(rule_y);
@@ -679,7 +719,10 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     let mut vrsei = voxel_modeler::Vrsei::new(rule_y);
 
     #[derive(PartialEq)]
-    enum AppMode { Login, Shell, Repl, Editor, Tiler, Browser, Atelier, VoxelLab, Vrsei }
+    enum AppMode {
+        Login, Shell, Repl, Editor, Tiler, Browser, Atelier, VoxelLab, Vrsei,
+        Alchemy, Combat, Shop, Meditation, Journal, Book, Perks, Game7, NpcScreen, Home,
+    }
     let mut mode         = AppMode::Login;
     let mut from_atelier = false;
 
@@ -692,15 +735,25 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     loop {
         // Mode name kept current for eigenstate advance and Ne Bar display.
         mode_name = match mode {
-            AppMode::Login    => "DjinnOS",
-            AppMode::Shell    => "Ko",
-            AppMode::Repl     => "Soa",
-            AppMode::Editor   => "Saoshin",
-            AppMode::Tiler    => "Samos",
-            AppMode::Browser  => "Faerie",
-            AppMode::Atelier  => "Kaelshunshikeaninsuy",
-            AppMode::VoxelLab => "To",
-            AppMode::Vrsei    => "Vrsei",
+            AppMode::Login     => "DjinnOS",
+            AppMode::Shell     => "Ko",
+            AppMode::Repl      => "Soa",
+            AppMode::Editor    => "Saoshin",
+            AppMode::Tiler     => "Samos",
+            AppMode::Browser   => "Faerie",
+            AppMode::Atelier   => "Kaelshunshikeaninsuy",
+            AppMode::VoxelLab  => "To",
+            AppMode::Vrsei     => "Vrsei",
+            AppMode::Alchemy   => "Alchemy",
+            AppMode::Combat    => "Combat",
+            AppMode::Shop      => "Shop",
+            AppMode::Meditation=> "Meditation",
+            AppMode::Journal   => "Journal",
+            AppMode::Book      => "Codex",
+            AppMode::Perks     => "Perks",
+            AppMode::Game7     => "7_KLGS",
+            AppMode::NpcScreen => "NPC",
+            AppMode::Home      => "Home",
         };
 
         // ── Logout check ──────────────────────────────────────────────────────
@@ -737,6 +790,67 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
         }
         if voxel_lab::consume_request() {
             mode  = AppMode::VoxelLab;
+            dirty = true;
+        }
+        if alchemy::consume_request() {
+            alchemy::workbench().open(rule_y);
+            mode  = AppMode::Alchemy;
+            dirty = true;
+        }
+        if combat::consume_request() {
+            mode  = AppMode::Combat;
+            dirty = true;
+        }
+        if shop::consume_request() {
+            shop::shop().open_player_shop(rule_y);
+            mode  = AppMode::Shop;
+            dirty = true;
+        }
+        if meditation::consume_request() {
+            meditation::meditation().open(rule_y);
+            mode  = AppMode::Meditation;
+            dirty = true;
+        }
+        if journal::consume_request() {
+            journal::journal().open(rule_y);
+            mode  = AppMode::Journal;
+            dirty = true;
+        }
+        if perk_screen::consume_request() {
+            perk_screen::screen().open(rule_y);
+            mode  = AppMode::Perks;
+            dirty = true;
+        }
+        if book::consume_request() {
+            book::book().open(rule_y);
+            mode  = AppMode::Book;
+            dirty = true;
+        }
+        if game7::consume_request() {
+            game7::game7().open(rule_y);
+            mode  = AppMode::Game7;
+            dirty = true;
+        }
+        if home::consume_request() {
+            home::home().open(rule_y);
+            mode  = AppMode::Home;
+            dirty = true;
+        }
+        if npc_screen::consume_request() {
+            mode  = AppMode::NpcScreen;
+            dirty = true;
+        }
+        // NPC screen exits back to Game7 (its caller).
+        if mode == AppMode::Shell && npc_screen::screen().exited {
+            npc_screen::screen().exited = false;
+            mode  = AppMode::Game7;
+            dirty = true;
+        }
+        // Return from combat triggered inside dungeon walk.
+        if mode == AppMode::Shell && game7::consume_from_combat() {
+            // Combat was initiated from Game7 -- resume it.
+            game7::game7().on_combat_return();
+            mode  = AppMode::Game7;
             dirty = true;
         }
         // Atelier sub-tool dispatch
@@ -777,6 +891,16 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
         // ── Mouse polling ─────────────────────────────────────────────────
         #[cfg(target_arch = "x86_64")]
         {
+            // I2C HID (trackpad) — poll then drain
+            i2c_hid::poll();
+            while let Some(mev) = i2c_hid::poll_mouse() {
+                cursor::update(mev, fbdrv.width(), fbdrv.height());
+                let (cx, cy) = cursor::pos();
+                compositor::get().on_cursor_move(cx, cy);
+                eigenstate::advance(eigenstate::T_SAKURA);
+                dirty = true;
+            }
+            // PS/2 mouse (USB HID mouse / external)
             while let Some(mev) = ps2::poll_mouse() {
                 cursor::update(mev, fbdrv.width(), fbdrv.height());
                 let (cx, cy) = cursor::pos();
@@ -807,7 +931,28 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
             match mode {
                 AppMode::Login => {
                     login_screen.handle_key(key);
-                    if login_screen.done { mode = AppMode::Shell; }
+                    if login_screen.done {
+                        home::home().open(rule_y);
+                        mode = AppMode::Home;
+                    }
+                    dirty = true;
+                }
+                AppMode::Home => {
+                    home::home().handle_key(key);
+                    if home::home().exited {
+                        home::home().exited = false;
+                        mode = AppMode::Shell;
+                    } else if let Some(launch) = home::home().launch.take() {
+                        use home::TileLaunch;
+                        match launch {
+                            TileLaunch::Atelier   => { atl.reset(); mode = AppMode::Atelier; }
+                            TileLaunch::Play      => { game7::game7().open(rule_y); mode = AppMode::Game7; }
+                            TileLaunch::Journal   => { journal::journal().open(rule_y); journal::request(); mode = AppMode::Journal; }
+                            TileLaunch::Shell     => { mode = AppMode::Shell; }
+                            TileLaunch::Meditation=> { meditation::meditation().open(rule_y); meditation::request(); mode = AppMode::Meditation; }
+                            TileLaunch::Codex     => { book::book().open(rule_y); book::request(); mode = AppMode::Book; }
+                        }
+                    }
                     dirty = true;
                 }
                 AppMode::Repl => {
@@ -871,6 +1016,63 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     }
                     dirty = true;
                 }
+                AppMode::Alchemy => {
+                    let was = alchemy::workbench().exited();
+                    alchemy::workbench().handle_key(key);
+                    if !was && alchemy::workbench().exited() { mode = AppMode::Shell; }
+                    dirty = true;
+                }
+                AppMode::Combat => {
+                    let was = combat::combat().exited();
+                    combat::combat().handle_key(key);
+                    if !was && combat::combat().exited() { mode = AppMode::Shell; }
+                    dirty = true;
+                }
+                AppMode::Shop => {
+                    let was = shop::shop().exited();
+                    shop::shop().handle_key(key);
+                    if !was && shop::shop().exited() { mode = AppMode::Shell; }
+                    dirty = true;
+                }
+                AppMode::Meditation => {
+                    let was = meditation::meditation().exited();
+                    meditation::meditation().handle_key(key);
+                    if !was && meditation::meditation().exited() { mode = AppMode::Shell; }
+                    dirty = true;
+                }
+                AppMode::Journal => {
+                    let was = journal::journal().exited();
+                    journal::journal().handle_key(key);
+                    if !was && journal::journal().exited() { mode = AppMode::Shell; }
+                    dirty = true;
+                }
+                AppMode::Book => {
+                    let was = book::book().exited();
+                    book::book().handle_key(key);
+                    if !was && book::book().exited() { mode = AppMode::Shell; }
+                    dirty = true;
+                }
+                AppMode::Perks => {
+                    let was = perk_screen::screen().exited();
+                    perk_screen::screen().handle_key(key);
+                    if !was && perk_screen::screen().exited() { mode = AppMode::Shell; }
+                    dirty = true;
+                }
+                AppMode::Game7 => {
+                    let was = game7::game7().exited;
+                    game7::game7().handle_key(key);
+                    if !was && game7::game7().exited { mode = AppMode::Shell; }
+                    dirty = true;
+                }
+                AppMode::NpcScreen => {
+                    let was = npc_screen::screen().exited;
+                    npc_screen::screen().handle_key(key);
+                    if !was && npc_screen::screen().exited {
+                        npc_screen::screen().exited = false;
+                        mode = AppMode::Game7;
+                    }
+                    dirty = true;
+                }
                 AppMode::Shell => match key {
                     Key::Char(b) => {
                         sh.handle_key(key); kbd::push(b); dirty = true;
@@ -923,9 +1125,19 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     AppMode::Tiler    => { tilr.render(gpu); }
                     AppMode::Browser  => { browser::browser().render(gpu); }
                     AppMode::Atelier  => { atl.render(gpu); }
-                    AppMode::Login    => { login_screen.render(gpu); }
-                    AppMode::VoxelLab => { vlab.render(gpu); }
-                    AppMode::Vrsei    => { vrsei.render(gpu); }
+                    AppMode::Login     => { login_screen.render(gpu); }
+                    AppMode::VoxelLab  => { vlab.render(gpu); }
+                    AppMode::Vrsei     => { vrsei.render(gpu); }
+                    AppMode::Alchemy   => { alchemy::workbench().render(gpu); }
+                    AppMode::Combat    => { combat::combat().render(gpu); }
+                    AppMode::Shop      => { shop::shop().render(gpu); }
+                    AppMode::Meditation=> { meditation::meditation().render(gpu); }
+                    AppMode::Journal   => { journal::journal().render(gpu); }
+                    AppMode::Book      => { book::book().render(gpu); }
+                    AppMode::Perks     => { perk_screen::screen().render(gpu); }
+                    AppMode::Game7     => { game7::game7().render(gpu); }
+                    AppMode::NpcScreen => { npc_screen::screen().render(gpu); }
+                    AppMode::Home      => { home::home().render(gpu); }
                 }
             });
             fbdrv.flush();

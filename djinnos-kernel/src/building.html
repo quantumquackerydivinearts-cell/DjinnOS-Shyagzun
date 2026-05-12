@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quantum Quackery Virtual Atelier</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#050308;overflow:hidden;font-family:monospace}
+#wrap{display:flex;flex-direction:column;height:100vh;align-items:center;justify-content:center}
+#view{position:relative;width:100%;max-width:900px;flex:1}
+canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+#hud{position:absolute;top:0;left:0;right:0;padding:8px 16px;display:flex;justify-content:space-between;pointer-events:none}
+#room-name{color:#c0a0e8;font-size:13px;letter-spacing:2px;text-shadow:0 0 8px #8060c0}
+#coords{color:#302048;font-size:11px}
+#minimap{position:absolute;top:10px;right:10px;opacity:0.5}
+#bar{width:100%;max-width:900px;display:flex;gap:0;border-top:1px solid #1a1030}
+#query{flex:1;background:#080612;color:#c0a0e8;border:none;padding:10px 16px;font:13px monospace;outline:none}
+#query::placeholder{color:#302048}
+#go-btn{background:#1a0e30;color:#8060b0;border:none;padding:10px 18px;font:12px monospace;cursor:pointer;border-left:1px solid #1a1030}
+#go-btn:hover{background:#2a1650;color:#c090f0}
+#info{height:36px;max-width:900px;width:100%;display:flex;align-items:center;padding:0 16px;gap:16px;border-top:1px solid #0e0820}
+.room-dot{width:8px;height:8px;border-radius:50%;transition:all 0.3s}
+.room-label{font-size:10px;color:#302048;transition:color 0.3s}
+.room-entry{display:flex;align-items:center;gap:4px;transition:opacity 0.3s}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="view">
+    <canvas id="cv"></canvas>
+    <div id="hud">
+      <span id="room-name">FOYER</span>
+      <span id="coords"></span>
+    </div>
+    <canvas id="minimap" width="80" height="80"></canvas>
+  </div>
+  <div id="bar">
+    <input id="query" type="text" placeholder="ask anything -- the building responds" autocomplete="off" spellcheck="false">
+    <button id="go-btn" onclick="submitQuery()">collapse</button>
+  </div>
+  <div id="info" id="room-info"></div>
+</div>
+
+<script>
+// ---- MAP DEFINITION -------------------------------------------------------
+// 24 wide x 22 tall. Values:
+//  0 = open floor
+//  1 = outer wall (dark granite)
+//  2 = garden wall  (Lotus/Rose -- warm green)
+//  3 = library wall (Dragon/Virus -- deep crimson)
+//  4 = workshop wall (Topology/Fold -- steel blue)
+//  5 = lab wall     (Gradient/Prion -- amber)
+//  6 = foyer wall   (Moon/Grapevine -- soft violet)
+//  9 = info desk    (rendered with gold accent)
+// Doors: wall cells adjacent to floor on both sides. Lighting = doorState.
+
+const MW = 24, MH = 22;
+const MAP = [
+// 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],// 0
+  [1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],// 1 garden
+  [1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],// 2
+  [1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],// 3 south wall open at 10-11
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],// 4 N corridor
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],// 5
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],// 6
+  [1, 4, 4, 4, 4, 0, 0, 0, 0, 6, 0, 0, 6, 0, 0, 0, 0, 3, 3, 3, 3, 1, 1, 1],// 7 W+E corridors
+  [4, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 1],// 8 workshop/foyer/lib
+  [4, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 1],// 9
+  [4, 0, 0, 0, 0, 0, 0, 0, 0, 6, 9, 9, 6, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 1],//10 info desk (cols 10-11)
+  [4, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 1],//11
+  [1, 4, 4, 4, 4, 0, 0, 0, 0, 6, 0, 0, 6, 0, 0, 0, 0, 3, 3, 3, 3, 1, 1, 1],//12
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],//13 S corridor
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],//14
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],//15
+  [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],//16 lab door
+  [1, 1, 1, 1, 1, 1, 1, 1, 5, 0, 0, 0, 0, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],//17 lab room
+  [1, 1, 1, 1, 1, 1, 1, 1, 5, 0, 0, 0, 0, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],//18
+  [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],//19
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],//20
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],//21
+];
+
+// Garden door: row 3, cols 10-11 open when activated
+// Lab door: row 16, cols 10-11 open when activated
+// Workshop door: row 7-12, col 4 open when activated (currently always open corridor)
+// Library door: row 7-12, col 17 open when activated
+
+// ---- ROOM COLORS -----------------------------------------------------------
+// Base color, activated color, room name, description
+const ROOMS = {
+  1: { base:[10,  8, 16], lit:[10,  8, 16], name:'wall',       desc:'' },
+  2: { base:[20, 60, 20], lit:[80,208,80],  name:'GARDEN',     desc:'Growth. Generative life. The Lotus-to-Cannabis spectrum.' },
+  3: { base:[70, 20, 20], lit:[200,60,60],  name:'LIBRARY',    desc:'Encoded knowledge. Void-organisms. Dragon Tongue archives.' },
+  4: { base:[20, 40, 90], lit:[60,140,210], name:'WORKSHOP',   desc:'Structural production. Topology, Fold, Phase. Where things are made.' },
+  5: { base:[90, 55, 15], lit:[210,140,50], name:'LABORATORY', desc:'Energy landscapes. Gradient and Curvature. Prion self-templating.' },
+  6: { base:[50, 30, 80], lit:[150,110,220],name:'FOYER',      desc:'Entry. All corridors visible. The building knows you are here.' },
+  9: { base:[80, 60, 10], lit:[220,180,40], name:'INFO DESK',  desc:'What this place is. Who built it. What it is for.' },
+};
+
+// Door state: 0=dark/closed, 1=lit/fully open. Animated.
+const doorState = { garden:0, library:0, workshop:0, lab:0, info:0 };
+const doorTarget = { garden:0, library:0, workshop:0, lab:0, info:0 };
+
+// ---- PLAYER ----------------------------------------------------------------
+let px = 10.5, py = 9.5;   // start in foyer center
+let angle = -Math.PI/2;     // facing north
+const MOVE_SPEED = 0.06;
+const TURN_SPEED = 0.045;
+const FOV = Math.PI / 3;    // 60 degrees
+const HALF_FOV = FOV / 2;
+
+// ---- RAYCASTER -------------------------------------------------------------
+const CV = document.getElementById('cv');
+const RW = 480, RH = 320;
+CV.width = RW; CV.height = RH;
+const ctx = CV.getContext('2d');
+const img = ctx.createImageData(RW, RH);
+const px32 = new Uint32Array(img.data.buffer);
+
+function wallColor(type, dist, side) {
+  const r = ROOMS[type];
+  if (!r) return [10, 8, 16];
+  // Choose between base and lit based on doorState
+  let activation = 0;
+  if (type===2) activation = doorState.garden;
+  else if (type===3) activation = doorState.library;
+  else if (type===4) activation = doorState.workshop;
+  else if (type===5) activation = doorState.lab;
+  else if (type===9) activation = doorState.info;
+  else if (type===6) activation = 0.5; // foyer always partially lit
+  const t = activation;
+  const br = r.base[0] + (r.lit[0]-r.base[0])*t;
+  const bg = r.base[1] + (r.lit[1]-r.base[1])*t;
+  const bb = r.base[2] + (r.lit[2]-r.base[2])*t;
+  // Distance fog
+  const fog = Math.max(0, 1 - dist/14);
+  // Side darkening
+  const sd = side ? 0.65 : 1.0;
+  return [br*fog*sd, bg*fog*sd, bb*fog*sd];
+}
+
+function getMap(mx, my) {
+  if (mx<0||my<0||mx>=MW||my>=MH) return 1;
+  let v = MAP[my][mx];
+  // Door check: garden door (row 3 cols 10-11) blocked unless activated
+  if (my===3 && (mx===10||mx===11)) return doorState.garden > 0.4 ? 0 : 2;
+  // Lab door (row 16 cols 10-11)
+  if (my===16 && (mx===10||mx===11)) return doorState.lab > 0.4 ? 0 : 5;
+  return v;
+}
+
+function castRay(rayAngle) {
+  const rdx = Math.cos(rayAngle), rdy = Math.sin(rayAngle);
+  let mx = Math.floor(px), my = Math.floor(py);
+  const deltaX = Math.abs(1/rdx), deltaY = Math.abs(1/rdy);
+  let stepX, stepY, sideDistX, sideDistY;
+  if (rdx<0) { stepX=-1; sideDistX=(px-mx)*deltaX; }
+  else        { stepX= 1; sideDistX=(mx+1-px)*deltaX; }
+  if (rdy<0) { stepY=-1; sideDistY=(py-my)*deltaY; }
+  else        { stepY= 1; sideDistY=(my+1-py)*deltaY; }
+  let side=0, hit=0, dist=0, type=0;
+  for (let i=0; i<64 && !hit; i++) {
+    if (sideDistX < sideDistY) { sideDistX+=deltaX; mx+=stepX; side=0; }
+    else                       { sideDistY+=deltaY; my+=stepY; side=1; }
+    type = getMap(mx, my);
+    if (type > 0) { hit=1; dist = side===0 ? sideDistX-deltaX : sideDistY-deltaY; }
+  }
+  return { dist, type, side };
+}
+
+function renderFrame() {
+  // Floor/ceiling
+  for (let y=0; y<RH; y++) {
+    const isCeil = y < RH/2;
+    const shade = isCeil ? 0x10_08_20 : 0x08_06_12;
+    for (let x=0; x<RW; x++) px32[y*RW+x] = 0xFF000000 | shade;
+  }
+  // Walls
+  for (let col=0; col<RW; col++) {
+    const rayAngle = angle - HALF_FOV + (col/RW)*FOV;
+    const {dist, type, side} = castRay(rayAngle);
+    const corr = dist * Math.cos(rayAngle - angle);
+    const h = Math.min(RH, Math.floor(RH / (corr + 0.001)));
+    const top = Math.floor((RH - h) / 2);
+    const [r,g,b] = wallColor(type, corr, side);
+    const col32 = 0xFF000000 | (Math.floor(b)<<16) | (Math.floor(g)<<8) | Math.floor(r);
+    for (let y=top; y<top+h; y++) if (y>=0&&y<RH) px32[y*RW+col] = col32;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// ---- MINIMAP ---------------------------------------------------------------
+const MM = document.getElementById('minimap');
+const mctx = MM.getContext('2d');
+const CELL = 3;
+function renderMinimap() {
+  mctx.clearRect(0,0,80,80);
+  for (let y=0;y<MH;y++) for (let x=0;x<MW;x++) {
+    const v = MAP[y][x];
+    if (!v) continue;
+    const r = ROOMS[v];
+    if (!r) continue;
+    mctx.fillStyle = `rgb(${r.base[0]},${r.base[1]},${r.base[2]})`;
+    mctx.fillRect(x*CELL, y*CELL, CELL, CELL);
+  }
+  mctx.fillStyle = '#f0e0ff';
+  mctx.fillRect(px*CELL-1, py*CELL-1, 2, 2);
+  // FOV lines
+  const flen = 6;
+  const a1 = angle-HALF_FOV, a2 = angle+HALF_FOV;
+  mctx.strokeStyle = 'rgba(200,160,255,0.4)';
+  mctx.lineWidth = 0.5;
+  mctx.beginPath();
+  mctx.moveTo(px*CELL, py*CELL);
+  mctx.lineTo((px+Math.cos(a1)*flen)*CELL, (py+Math.sin(a1)*flen)*CELL);
+  mctx.moveTo(px*CELL, py*CELL);
+  mctx.lineTo((px+Math.cos(a2)*flen)*CELL, (py+Math.sin(a2)*flen)*CELL);
+  mctx.stroke();
+}
+
+// ---- ROOM DETECTION --------------------------------------------------------
+const ROOM_ZONES = [
+  { name:'GARDEN',       mx:[8,14],  my:[0,4],   key:'garden' },
+  { name:'LIBRARY',      mx:[17,22], my:[7,13],  key:'library' },
+  { name:'WORKSHOP',     mx:[0,5],   my:[7,13],  key:'workshop' },
+  { name:'LABORATORY',   mx:[8,14],  my:[16,20], key:'lab' },
+  { name:'FOYER',        mx:[8,14],  my:[7,13],  key:'info' },
+  { name:'INFORMATION',  mx:[8,14],  my:[7,13],  key:'info' },
+];
+function currentRoom() {
+  const mx = Math.floor(px), my = Math.floor(py);
+  for (const z of ROOM_ZONES) {
+    if (mx>=z.mx[0]&&mx<z.mx[1]&&my>=z.my[0]&&my<z.my[1]) return z.name;
+  }
+  return 'CORRIDOR';
+}
+function getRoomDesc() {
+  const room = currentRoom();
+  for (const z of ROOM_ZONES) {
+    if (z.name === room) {
+      const r = ROOMS[z.key==='garden'?2:z.key==='library'?3:z.key==='workshop'?4:z.key==='lab'?5:6];
+      return r ? r.desc : '';
+    }
+  }
+  return '';
+}
+
+// ---- ROOM INDICATOR BAR ---------------------------------------------------
+const info = document.getElementById('info');
+const ROOM_LIST = [
+  {key:'garden',  label:'garden',   type:2},
+  {key:'library', label:'library',  type:3},
+  {key:'workshop',label:'workshop', type:4},
+  {key:'lab',     label:'lab',      type:5},
+  {key:'info',    label:'info desk',type:9},
+];
+function buildInfoBar() {
+  info.innerHTML = '';
+  for (const r of ROOM_LIST) {
+    const c = ROOMS[r.type];
+    const wrap = document.createElement('div');
+    wrap.className = 'room-entry';
+    wrap.id = 'entry-' + r.key;
+    wrap.innerHTML = `<div class="room-dot" id="dot-${r.key}" style="background:rgb(${c.base[0]},${c.base[1]},${c.base[2]})"></div><span class="room-label" id="lbl-${r.key}">${r.label}</span>`;
+    info.appendChild(wrap);
+  }
+}
+buildInfoBar();
+
+function updateInfoBar() {
+  for (const r of ROOM_LIST) {
+    const a = doorState[r.key];
+    const c = ROOMS[r.type];
+    const dot = document.getElementById('dot-' + r.key);
+    const lbl = document.getElementById('lbl-' + r.key);
+    if (!dot || !lbl) continue;
+    const ir = Math.floor(c.base[0] + (c.lit[0]-c.base[0])*a);
+    const ig = Math.floor(c.base[1] + (c.lit[1]-c.base[1])*a);
+    const ib = Math.floor(c.base[2] + (c.lit[2]-c.base[2])*a);
+    dot.style.background = `rgb(${ir},${ig},${ib})`;
+    lbl.style.color = a > 0.3 ? `rgb(${ir},${ig},${ib})` : '#302048';
+    const entry = document.getElementById('entry-' + r.key);
+    if (entry) entry.style.opacity = 0.4 + 0.6*a;
+  }
+}
+
+// ---- QUERIED COLLAPSE ROUTING ---------------------------------------------
+const ROOM_KEYWORDS = {
+  garden:   'garden lotus rose sakura daisy cannabis kael grow life seed flower plant green bloom nature organic generative growth living'.split(' '),
+  library:  'library dragon virus bacteria archaeplastida knowledge book learn memory archive history lore encode sequence void organism fossil record'.split(' '),
+  workshop: 'workshop topology fold phase kobra build make create produce tool structure scaffold atelier production scene design craft forge'.split(' '),
+  lab:      'lab laboratory gradient curvature prion blood experiment research discover compute semantic hopfield collapse field energy transform wave signal'.split(' '),
+  info:     'info about who what where help contact company studio qqva quantum quackery moon grapevine network route this place us'.split(' '),
+};
+
+let collapseAnimId = null;
+function submitQuery(text) {
+  const q = (text || document.getElementById('query').value || '').toLowerCase().trim();
+  if (!q) return;
+  // Inline keyword collapse routing
+  const words = q.split(/[\s,]+/);
+  const scores = { garden:0, library:0, workshop:0, lab:0, info:0 };
+  for (const [room, kws] of Object.entries(ROOM_KEYWORDS)) {
+    for (const word of words) {
+      for (const kw of kws) {
+        if (word.length > 2 && (word.includes(kw) || kw.includes(word))) scores[room] += 0.35;
+      }
+    }
+  }
+  const max = Math.max(0.001, ...Object.values(scores));
+  for (const room in scores) doorTarget[room] = scores[room] / max;
+
+  // Also try kernel API to enrich (same origin, fails gracefully)
+  const tongue_map = {garden:['Lotus','Rose','Sakura','Daisy','Cannabis'],library:['Dragon','Virus','Bacteria','Archaeplastida'],workshop:['Topology','Fold','Phase'],lab:['Gradient','Curvature','Prion','Blood'],info:['Moon','Grapevine']};
+  fetch('/api/intel/query/tongue', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tongues:Object.values(tongue_map).flat(),kernel:'keshi',temp:1.5})}).then(r=>r.json()).then(data=>{
+    // Use activation energy to refine doorTarget
+    const state = data.state;
+    if (!state) return;
+    // (simplified: trust keyword routing, kernel enriches)
+  }).catch(()=>{});
+}
+window.submitQuery = submitQuery;
+
+// ---- MOVEMENT & INPUT ------------------------------------------------------
+const keys = {};
+document.addEventListener('keydown', e=>{
+  keys[e.key]=true;
+  if (e.key==='Enter'&&document.activeElement===document.getElementById('query')) {
+    submitQuery();
+    document.getElementById('query').blur();
+    e.preventDefault();
+  }
+});
+document.addEventListener('keyup', e=>{ keys[e.key]=false; });
+
+function tryMove(nx, ny) {
+  const margin = 0.25;
+  if (getMap(Math.floor(nx), Math.floor(py)) === 0) px = nx;
+  if (getMap(Math.floor(px), Math.floor(ny)) === 0) py = ny;
+}
+
+// ---- MAIN LOOP ------------------------------------------------------------
+let last = 0;
+function loop(ts) {
+  const dt = Math.min((ts - last) / 16.7, 3);
+  last = ts;
+
+  // Movement (WASD / arrows, ignores input if query focused)
+  if (document.activeElement !== document.getElementById('query')) {
+    if (keys['ArrowLeft']  || keys['a'] || keys['A']) angle -= TURN_SPEED * dt;
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) angle += TURN_SPEED * dt;
+    if (keys['ArrowUp']    || keys['w'] || keys['W']) {
+      tryMove(px + Math.cos(angle)*MOVE_SPEED*dt, py + Math.sin(angle)*MOVE_SPEED*dt);
+    }
+    if (keys['ArrowDown']  || keys['s'] || keys['S']) {
+      tryMove(px - Math.cos(angle)*MOVE_SPEED*dt, py - Math.sin(angle)*MOVE_SPEED*dt);
+    }
+  }
+
+  // Animate door states toward targets
+  for (const k in doorState) {
+    const diff = doorTarget[k] - doorState[k];
+    doorState[k] += diff * 0.06 * dt;
+  }
+
+  // Render
+  renderFrame();
+  renderMinimap();
+  updateInfoBar();
+  document.getElementById('room-name').textContent = currentRoom();
+  document.getElementById('coords').textContent = Math.floor(px)+','+Math.floor(py);
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

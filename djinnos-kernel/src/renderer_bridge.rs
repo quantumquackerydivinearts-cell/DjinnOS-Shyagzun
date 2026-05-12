@@ -33,18 +33,18 @@
 // ── Cannabis mode tile sizes (LoYeshu) ────────────────────────────────────────
 //
 // Parsed from:
-//   [A  MavoTile Ao Shu    MavoZScale Ao Gaoh]   → tile = Ao×12+Shu  = 16, z=12
+//   [A  MavoTile Ye Shushy MavoZScale Ye Gaoh ]   → tile = Ye×12+Shushy = 32, z=24
 //   [I  MavoTile Ao Shushy MavoZScale Shushy  ]   → tile = Ao×12+Shushy = 20, z=8
 //   [Y  MavoTile Ao Ye     MavoZScale Yeshu   ]   → tile = Ao×12+Ye  = 14, z=6
 //
 // Rose numerals (base-12): Gaoh=0 Ao=1 Ye=2 Ui=3 Shu=4 Kiel=5 Yeshu=6
 //                           Lao=7 Shushy=8 Uinshu=9 Kokiel=10 Aonkiel=11
 
-pub const TILE_A: u32 = 16;   // Cannabis mode A  — primary world view
+pub const TILE_A: u32 = 32;   // Cannabis mode A  — primary world view
 pub const TILE_I: u32 = 20;   // Cannabis mode I  — detail view
 pub const TILE_Y: u32 = 14;   // Cannabis mode Y  — overview
 
-pub const ZSCALE_A: u32 = 12;
+pub const ZSCALE_A: u32 = 24;
 pub const ZSCALE_I: u32 =  8;
 pub const ZSCALE_Y: u32 =  6;
 

@@ -162,6 +162,42 @@ pub fn success()   -> (u8,u8,u8) { unsafe { ACTIVE.success } }
 pub fn rule()      -> (u8,u8,u8) { unsafe { ACTIVE.rule } }
 pub fn shadow()    -> (u8,u8,u8) { unsafe { ACTIVE.shadow } }
 
+/// Warm Atelier theme -- botanical warmth matching the web Atelier exactly.
+/// CSS variables translated to (b, g, r) tuples for the framebuffer.
+///
+///   --bg          #f4f0e8   warm cream background
+///   --ink         #1c1a16   near-black text
+///   --accent      #2f6d62   sage green interactive
+///   --accent-soft #d7ebe6   pale sage highlight / selection
+///   --panel       #fffaf1   off-white panel surface
+///   --line        #d8cbb8   warm taupe border / rule
+pub fn warm_theme() -> Theme {
+    // hex #rrggbb → (b, g, r)
+    let bg         = (0xe8u8, 0xf0u8, 0xf4u8); // #f4f0e8
+    let surface    = (0xf1u8, 0xfau8, 0xffu8); // #fffaf1
+    let elevated   = (0xefu8, 0xf7u8, 0xffu8); // #fff7ef — modal
+    let selection  = (0xe6u8, 0xebu8, 0xd7u8); // #d7ebe6 accent-soft
+    let text       = (0x16u8, 0x1au8, 0x1cu8); // #1c1a16 ink
+    let text_dim   = (0x80u8, 0x85u8, 0x8au8); // muted warm grey
+    let text_inv   = (0xf0u8, 0xf4u8, 0xf8u8); // near-white on accent bg
+    let accent     = (0x62u8, 0x6du8, 0x2fu8); // #2f6d62 sage green
+    let header     = (0x34u8, 0x3au8, 0x17u8); // #173a34 dark sage
+    let modified   = (0x14u8, 0x5du8, 0x7bu8); // #7b5d14 warning amber
+    let error      = (0x23u8, 0x23u8, 0x7au8); // #7a2323 warm red
+    let success    = (0x3au8, 0x58u8, 0x23u8); // #23583a forest green
+    let rule       = (0xb8u8, 0xcbu8, 0xd8u8); // #d8cbb8 warm taupe
+    let shadow     = (0xd4u8, 0xdbu8, 0xe0u8); // slightly darker bg
+    Theme { bg, surface, elevated, selection,
+            text, text_dim, text_inv,
+            accent, header, modified, error, success,
+            rule, shadow }
+}
+
+/// Sidebar gradient endpoints for the warm Atelier.
+/// Top of sidebar = #fef6e8, bottom = #f4ecdc (both (b, g, r)).
+pub const WARM_SIDEBAR_TOP: (u8,u8,u8) = (0xe8u8, 0xf6u8, 0xfeu8);
+pub const WARM_SIDEBAR_BOT: (u8,u8,u8) = (0xdcu8, 0xecu8, 0xf4u8);
+
 // ── Color utilities ───────────────────────────────────────────────────────────
 
 /// Scale all channels toward black by `pct` percent (0=unchanged, 100=black).

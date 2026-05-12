@@ -19,6 +19,7 @@ import { ShopManagerPanel } from "./panels/ShopManagerPanel";
 import { Q3Panel } from "./panels/Q3Panel";
 import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
 import { GameEditorsPanel } from "./panels/GameEditorsPanel";
+import SemanticFieldPanel from "./panels/SemanticFieldPanel";
 
 function resolveRuntimeApiBase() {
   try {
@@ -134,7 +135,8 @@ const NAV_ITEMS = [
   "Q3",
   "Supra Librix",
   "Sequential Art",
-  "Kobra Studio"
+  "Kobra Studio",
+  "Semantic Field"
 ];
 
 function capabilitiesForRole(role) {
@@ -19922,6 +19924,9 @@ function extractPythonSavedPath(outputText) {
     }
     if (section === "Supra Librix") {
       return <SupraLibrixPanel apiBase={API_BASE} authToken={authToken} />;
+    }
+    if (section === "Semantic Field") {
+      return <SemanticFieldPanel />;
     }
     if (section === "Sequential Art") {
       const listSeqPages = async () => {

@@ -440,6 +440,11 @@ impl BrowserClient {
         if url.starts_with(b"local://") {
             set_status_inner(&mut self.status, &mut self.status_n, b"Loading local...");
             self.fetch_local(&url[8..]);
+        } else if url.starts_with(b"djinn://") {
+            // djinn:// — served directly from the kernel's semantic HTTP handler.
+            // No network required.  djinn://field → GET /field, djinn://api/... etc.
+            set_status_inner(&mut self.status, &mut self.status_n, b"djinn://...");
+            self.fetch_djinn(&url[8..]);
         } else if url.starts_with(b"ko:") {
             self.eval_ko(&url[3..]);
         } else {
@@ -472,6 +477,55 @@ impl BrowserClient {
         sb[..pfx.len()].copy_from_slice(pfx);
         let sn = pfx.len() + write_u32(&mut sb[pfx.len()..], self.n_lines as u32);
         self.setstatus(&sb[..sn]);
+    }
+
+    // ── djinn:// — kernel semantic handler, no network ──────────────────────
+    //
+    // djinn://field         → GET /field  (semantic field page)
+    // djinn://api/intel/... → GET /api/intel/...
+    // The path after djinn:// is prepended with '/' and passed to
+    // http_intel::try_handle().  The HTTP response body (after headers)
+    // is extracted and rendered as HTML.
+
+    fn fetch_djinn(&mut self, path_bytes: &[u8]) {
+        crate::intel::init();
+
+        // Build the path string: prepend '/'
+        let mut path_buf = [0u8; 128];
+        path_buf[0] = b'/';
+        let pn = path_bytes.len().min(127);
+        path_buf[1..1 + pn].copy_from_slice(&path_bytes[..pn]);
+        let path = core::str::from_utf8(&path_buf[..1 + pn]).unwrap_or("/");
+
+        // building gets its own Faerie-native text renderer
+        let resp = if path.starts_with("/building") || path.starts_with("building") {
+            let suffix = if path.starts_with('/') { &path_buf[1+pn.min(0)..] } else { path_bytes };
+            let suffix = if path.starts_with("/building") { &path_bytes[8.min(path_bytes.len())..] }
+                         else if path.starts_with("building") { &path_bytes[8.min(path_bytes.len())..] }
+                         else { path_bytes };
+            crate::http_building::faerie_handle(suffix)
+        } else {
+            match crate::http_intel::try_handle("GET", path, "") {
+                Some(r) => r,
+                None => {
+                    self.push_line(b"djinn: no handler for path", KIND_NORMAL, 0xFF);
+                    return;
+                }
+            }
+        };
+
+        // Strip HTTP headers: find \r\n\r\n and take everything after.
+        let body = if let Some(i) = resp.windows(4).position(|w| w == b"\r\n\r\n") {
+            &resp[i + 4..]
+        } else {
+            &resp[..]
+        };
+
+        self.parse_html(body);
+        if self.n_lines == 0 {
+            self.push_line(b"[ djinn: empty response ]", KIND_NORMAL, 0xFF);
+        }
+        set_status_inner(&mut self.status, &mut self.status_n, b"djinn: ready");
     }
 
     // ── ko: — evaluate Kobra expression, render result ───────────────────────
@@ -508,20 +562,32 @@ impl BrowserClient {
         let w = gpu.width();
         let h = gpu.height();
 
-        // ── Full-frame background ─────────────────────────────────────────────
-        gpu.fill_rect(0, 0, w, h, BG_B, BG_G, BG_R);
+        // Switch to warm theme for the chrome.
+        let prev_theme = crate::style::get();
+        crate::style::set(crate::style::warm_theme());
+        let t  = crate::style::get();
+        let it = crate::render2d::It::new(gpu);
 
-        // ── Title bar ─────────────────────────────────────────────────────────
-        //  "◈ Faerie"   [proxy address right-aligned]
-        let tb_h = CHAR_H + 10;
-        gpu.fill_rect(0, 0, w, tb_h, UB_B, UB_G, UB_R);
-        // Left: wordmark
-        let tx = font::draw_str(gpu, 10, 5, "Faerie", SCALE, HD_B, HD_G, HD_R);
-        // Loading indicator dot when in motion
-        if self.status_n > 0 && &self.status[..7.min(self.status_n)] == b"Loading" {
-            font::draw_str(gpu, tx + 6, 5, "...", SCALE, LK_B, LK_G, LK_R);
+        // ── Warm full background ──────────────────────────────────────────────
+        it.fill(0, 0, w, h, t.bg);
+
+        // ── Chrome header bar: "Faerie" + proxy address ───────────────────────
+        let chrome_h = crate::render2d::ATL_BRAND_H;
+        it.fill(0, 0, w, chrome_h, t.surface);
+        it.fill(0, chrome_h, w, 1, t.rule);
+
+        // Title left
+        let title = if self.title_len > 0 {
+            core::str::from_utf8(&self.title[..self.title_len]).unwrap_or("Faerie")
+        } else { "Faerie" };
+        it.tt(24, 20, title, 17.0, t.text);
+
+        // Loading indicator
+        if self.status_n >= 7 && &self.status[..7] == b"Loading" {
+            it.tt(it.tt_width(title, 17.0) + 28, 24, "Loading...", 12.0, t.text_dim);
         }
-        // Right: Kyom address (byte 182 — Replica / proxy / masked follower)
+
+        // Proxy address right-aligned
         {
             let pip = proxy_ip();
             let ppt = proxy_port();
@@ -535,48 +601,33 @@ impl BrowserClient {
             pb[pn] = b':'; pn += 1;
             pn += write_u32(&mut pb[pn..], ppt as u32);
             if let Ok(ps) = core::str::from_utf8(&pb[..pn]) {
-                let pw = pn as u32 * CHAR_W;
-                font::draw_str(gpu, w.saturating_sub(pw + 10), 5, ps, SCALE, SB_B, SB_G, SB_R);
+                it.tt_right(w as i32 - 24, 24, ps, 12.0, t.text_dim);
             }
         }
-        // Separator line under title bar
-        gpu.draw_line(0, tb_h as i32, w as i32, tb_h as i32, HR_B, HR_G, HR_R);
 
-        // ── URL bar ───────────────────────────────────────────────────────────
-        let ub_y = tb_h + 1;
-        let ub_h = CHAR_H + 8;
-        gpu.fill_rect(0, ub_y, w, ub_h, UB_B, UB_G, UB_R);
-        let ty = ub_y + 4;
-        let label = if self.mode == 1 { " Go: " } else { "    " };
-        let lx = font::draw_str(gpu, 6, ty, label, SCALE, SB_B, SB_G, SB_R);
+        // ── URL / address bar ─────────────────────────────────────────────────
+        let ub_y = chrome_h + 2;
+        let ub_h = 44u32;
+        it.fill(0, ub_y, w, ub_h, t.bg);
+        it.fill(0, ub_y + ub_h, w, 1, t.rule);
+
+        // Back button
+        it.atl_button(16, ub_y + 6, 32, 32, "<", false, false);
+
+        // URL input field
         let (disp, dlen) = if self.mode == 1 {
             (&self.input, self.input_len)
         } else {
             (&self.url, self.url_len)
         };
-        let url_col = if self.mode == 1 { (LF_B, LF_G, LF_R) } else { (TX_B, TX_G, TX_R) };
-        let dstr = core::str::from_utf8(&disp[..dlen]).unwrap_or("?");
-        // Truncate URL display to fit available width
-        let max_url_chars = ((w.saturating_sub(lx + 60)) / CHAR_W) as usize;
-        let dstr_show = if dstr.len() > max_url_chars && max_url_chars > 3 {
-            &dstr[dstr.len() - max_url_chars..]
-        } else { dstr };
-        let cx = font::draw_str(gpu, lx, ty, dstr_show, SCALE, url_col.0, url_col.1, url_col.2);
-        if self.mode == 1 {
-            gpu.fill_rect(cx, ty, CHAR_W, CHAR_H, LF_B, LF_G, LF_R);
-        }
-        // Page title right-aligned in URL bar (browse mode)
-        if self.mode == 0 && self.title_len > 0 {
-            let ts = core::str::from_utf8(&self.title[..self.title_len]).unwrap_or("");
-            let tw = ts.len() as u32 * CHAR_W;
-            let tx2 = w.saturating_sub(tw + 12);
-            if tx2 > cx + CHAR_W * 4 {
-                font::draw_str(gpu, tx2, ty, ts, SCALE, SB_B, SB_G, SB_R);
-            }
-        }
-        gpu.draw_line(0, (ub_y + ub_h) as i32, w as i32, (ub_y + ub_h) as i32, HR_B, HR_G, HR_R);
+        let dstr = core::str::from_utf8(&disp[..dlen]).unwrap_or("");
+        let inp_w = w.saturating_sub(120);
+        it.atl_input(56, ub_y + 4, inp_w, "Enter URL...", dstr, self.mode == 1);
 
-        // ── Content area ──────────────────────────────────────────────────────
+        // Go hint right of input
+        it.tt(inp_w as i32 + 64, ub_y as i32 + 14, "G", 12.0, t.accent);
+
+        // ── Content area — dark "page" pane ──────────────────────────────────
         let cy    = ub_y + ub_h + 2;
         let sb_h  = CHAR_H + 6;   // status bar height
         let scr_w = 8u32;         // scrollbar width
@@ -624,28 +675,23 @@ impl BrowserClient {
             y += CHAR_H;
         }
 
-        // ── Scrollbar ─────────────────────────────────────────────────────────
+        // ── Warm scrollbar ────────────────────────────────────────────────────
         let track_h = avail;
         let track_x = w - scr_w - 2;
-        gpu.fill_rect(track_x, cy, scr_w, track_h, UB_B, UB_G, UB_R);
+        gpu.fill_rect(track_x, cy, scr_w, track_h, t.bg.0, t.bg.1, t.bg.2);
         if self.n_lines > vrows {
-            let thumb_h = ((vrows as u32 * track_h) / self.n_lines as u32).max(4);
+            let thumb_h = ((vrows as u32 * track_h) / self.n_lines as u32).max(6);
             let thumb_y = cy + (self.scroll as u32 * track_h) / self.n_lines as u32;
-            gpu.fill_rect(track_x + 1, thumb_y, scr_w - 2, thumb_h, SB_B, SB_G, SB_R);
+            gpu.fill_rect(track_x + 2, thumb_y, scr_w - 4, thumb_h,
+                          t.rule.0, t.rule.1, t.rule.2);
         }
 
-        // ── Status bar ────────────────────────────────────────────────────────
-        gpu.fill_rect(0, bot, w, sb_h, UB_B, UB_G, UB_R);
-        gpu.draw_line(0, bot as i32, w as i32, bot as i32, HR_B, HR_G, HR_R);
+        // ── Warm status bar ───────────────────────────────────────────────────
         let ss = core::str::from_utf8(&self.status[..self.status_n]).unwrap_or("");
-        font::draw_str(gpu, 8, bot + 4, ss, SCALE, SB_B, SB_G, SB_R);
-        // Hint text right-aligned
-        let hint = "↑↓ scroll   Tab link   Enter follow   G url   Bksp back   Esc exit";
-        let hw = hint.len() as u32 * CHAR_W;
-        if hw + 16 < w {
-            font::draw_str(gpu, w - hw - 8, bot + 4, hint, SCALE,
-                           UB_B.saturating_add(0x20), UB_G.saturating_add(0x20), UB_R.saturating_add(0x20));
-        }
+        it.atl_status_bar(ss, "↑↓  Tab  Enter  G  Bksp  Esc");
+
+        // Restore theme.
+        crate::style::set(prev_theme);
     }
 
     // ── Fetch and parse ───────────────────────────────────────────────────────

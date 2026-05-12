@@ -145,6 +145,13 @@ textarea { width: 100%; min-height: 120px; font-size: 14px; line-height: 1.7; pa
 .loading { font-size: 14px; color: var(--color-text-secondary); padding: 1rem 0; font-style: italic; }
 .error { font-size: 13px; color: #A32D2D; padding: 8px 12px; background: #FCEBEB; border-radius: var(--border-radius-md); margin-bottom: 1rem; }
 .section-divider { border: none; border-top: 0.5px solid var(--color-border-tertiary); margin: 1.5rem 0; }
+.prompt-akinenwun { font-family: monospace; font-size: 22px; letter-spacing: 2px; color: var(--color-text-primary); margin: 10px 0 14px; }
+.field-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px; }
+.field-table td { padding: 4px 8px 4px 0; vertical-align: middle; }
+.field-symbol { font-family: monospace; font-weight: 600; color: #a090d8; width: 56px; }
+.field-meaning { color: var(--color-text-primary); }
+.field-tongue { color: var(--color-text-secondary); font-size: 11px; width: 90px; }
+.field-bar { font-family: monospace; font-size: 11px; color: #5040a0; letter-spacing: -1px; white-space: nowrap; }
 </style>
 
 <div class="container">
@@ -341,74 +348,130 @@ const DEPTH_LABELS = ['surface — single tongue, single image','crossing — tw
 
 const corpus = [];
 
+// ── Full candidate table ──────────────────────────────────────────────────────
+// Loaded from the API on startup; falls back to the local BYTE_TABLE subset.
+
+let _fullCandidates = null;  // { addr → {sym, tongue, meaning} } once loaded
+
+async function loadFullCandidates() {
+  try {
+    const resp = await fetch('/api/v1/intel/candidates');
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    _fullCandidates = {};
+    for (const r of rows) {
+      _fullCandidates[r.addr] = { sym: r.symbol, tongue: r.tongue, meaning: r.meaning };
+    }
+  } catch (_) { /* silent — local BYTE_TABLE used as fallback */ }
+}
+
+loadFullCandidates();
+
 document.getElementById('depth-slider').addEventListener('input', function() {
   document.getElementById('depth-out').textContent = this.value;
 });
 
-function pickSeeds(tongue, n) {
-  const keys = tongue === 'any'
-    ? Object.values(TONGUE_SEEDS).flat()
-    : (TONGUE_SEEDS[tongue] || []);
-  if (!keys.length) return [];
-  const shuffled = [...keys].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, n).map(k => BYTE_TABLE[k]).filter(Boolean);
+// ── TCE prompt generation ─────────────────────────────────────────────────────
+
+const ALL_TONGUES = [
+  'Lotus','Rose','Sakura','Daisy','AppleBlossom','Aster','Grapevine','Cannabis',
+  'Dragon','Virus','Bacteria','Excavata','Archaeplastida','Myxozoa','Archaea','Protist',
+  'Immune','Neural','Serpent','Beast','Cherub','Chimera','Faerie','Djinn',
+  'Fold','Topology','Phase','Gradient','Curvature','Prion','Blood','Moon',
+  'Koi','Rope','Hook','Fang','Circle','Ledger'
+];
+
+const REGISTER_TONGUES = {
+  psychospiritual:  ['Dragon','Immune','Neural','Cherub'],
+  alchemical:       ['AppleBlossom','Prion','Blood'],
+  political:        ['Ledger','Grapevine','Circle'],
+  computational:    ['Fold','Topology','Phase'],
+  ecological:       ['Lotus','Cannabis','Bacteria','Archaeplastida'],
+  mythological:     ['Serpent','Beast','Chimera','Faerie'],
+  phenomenological: ['Cannabis','Gradient','Curvature'],
+  any:              [],
+};
+
+function buildTongueList(tongue, depth, register) {
+  const reg = REGISTER_TONGUES[register] || [];
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  if (depth === 0) {
+    if (tongue === 'any') return [pick(reg.length ? reg : ALL_TONGUES)];
+    return [tongue];
+  }
+  if (depth === 1) {
+    const base = tongue === 'any' ? pick(ALL_TONGUES) : tongue;
+    const pool = reg.filter(t => t !== base);
+    const partner = pool.length
+      ? pick(pool)
+      : ALL_TONGUES[(ALL_TONGUES.indexOf(base) + 1) % ALL_TONGUES.length];
+    return [base, partner];
+  }
+  // depth 2: selected + register tongues + random fill
+  const base = tongue === 'any' ? [] : [tongue];
+  const fill = [...ALL_TONGUES].sort(() => Math.random() - 0.5).slice(0, 2);
+  return [...new Set([...base, ...reg.slice(0, 3), ...fill])];
+}
+
+function activationBar(v) {
+  const n = Math.round(Math.max(0, Math.min(1, v)) * 8);
+  return '█'.repeat(n) + '░'.repeat(8 - n);
 }
 
 async function generatePrompt() {
-  const tongue = document.getElementById('tongue-select').value;
+  const tongue   = document.getElementById('tongue-select').value;
   const register = document.getElementById('register-select').value;
-  const depth = parseInt(document.getElementById('depth-slider').value);
-  const area = document.getElementById('prompt-area');
+  const depth    = parseInt(document.getElementById('depth-slider').value);
+  const area     = document.getElementById('prompt-area');
 
-  area.innerHTML = '<p class="loading">Generating prompt from the manifold...</p>';
+  area.innerHTML = '<p class="loading">Converging semantic field...</p>';
 
-  const seeds = pickSeeds(tongue, depth + 1);
-  const seedText = seeds.map(s => `${s.s} (${s.m})`).join(' · ');
-  const registerDesc = REGISTERS[register] || REGISTERS.any;
-  const depthDesc = DEPTH_LABELS[depth - 1];
-  const tongueDesc = tongue === 'any' ? 'across any tongue' : `in the ${tongue} tongue`;
-
-  const systemPrompt = `You are a literary companion for Shygazun, a constructed language whose grammar is semantic-first and placement-last, whose vowels A O I E Y U encode Mind+/Mind-/Space+/Space-/Time+/Time- as ontic axes, and whose tongues are: Lotus (elemental), Rose (spectral/numeric), Sakura (spatial/relational), Daisy (structural/mechanical), AppleBlossom (alchemical compound), Aster (chiral/temporal priors), Grapevine (network/ceremonial), Cannabis (phenomenological cross-products of all prior tongues through Mind, Space, Time). The language is foundationally alchemical and psychospiritual. Grammar: Nouns are any combination of byte symbols (akinenwun). Active verbs: wu + noun. Passive: noun + wu + ga. Genitive: noun + ung. Accusative: Ha + noun + wu. Ablative: Ga + noun + wu. Adjectives and adverbs are compound akinenwun. Pronouns: Awu (I), Owu (We), Ywu (You), Uwu (Y'all), Iwu (they sg), Ewu (they pl), Gaaowu (she), Haaowu (he). Your role is to generate a single precise literary composition prompt that invites native Shygazun writing. The prompt should be evocative, interdisciplinary, and structurally suggestive without being prescriptive. It should name a tension or encounter worth writing toward. Return ONLY the prompt text, nothing else, no preamble, no explanation.`;
-
-  const userMsg = `Generate a Shygazun literary composition prompt with these parameters:
-- Tongue focus: ${tongue === 'any' ? 'open across all tongues' : tongue}
-- Register: ${registerDesc}
-- Depth: ${depthDesc}
-- Seed symbols available: ${seedText || 'open selection'}
-- The prompt should invite ${depthDesc}
-- It should feel like an encounter worth writing toward, not an assignment to complete`;
+  const tongues = buildTongueList(tongue, depth, register);
+  const temp    = [0.25, 0.55, 0.85][depth] ?? 0.55;
+  const topN    = [3, 5, 8][depth] ?? 5;
 
   try {
-    const resp = await fetch('/api/shygazun/chat', {
+    const resp = await fetch('/api/v1/intel/query/tongue', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: [{role: 'user', content: userMsg}]
-      })
+      body: JSON.stringify({ tongues, kernel: 'keshi', temp, window: 14, threshold: 12.0, max_iter: 48 })
     });
+    if (!resp.ok) throw new Error(`status ${resp.status}`);
     const data = await resp.json();
-    const text = data.content?.map(b => b.text || '').join('').trim();
+    if (!data.candidates?.length) throw new Error('empty field');
 
-    if (!text) throw new Error('empty response');
+    const active = data.candidates
+      .map((c, j) => ({ ...c, act: data.state[data.active[j]] || 0 }))
+      .sort((a, b) => b.act - a.act)
+      .slice(0, topN);
 
-    const tongueLabel = tongue === 'any' ? 'open' : tongue;
-    const regLabel = register === 'any' ? 'open register' : register;
+    const akinenwun  = active.map(c => c.symbol).join('');
+    const tongueLabel = tongues.join(' · ');
+    const regLabel    = register === 'any' ? 'open' : register;
+    const depthLabel  = DEPTH_LABELS[depth];
+
+    const rows = active.map(c =>
+      `<tr>
+        <td class="field-symbol">${c.symbol}</td>
+        <td class="field-meaning">${c.meaning}</td>
+        <td class="field-tongue">${c.tongue}</td>
+        <td class="field-bar">${activationBar(c.act)}</td>
+      </tr>`
+    ).join('');
 
     area.innerHTML = `
       <div class="prompt-card">
         <div class="prompt-meta">
           <span class="badge tongue">${tongueLabel}</span>
           <span class="badge register">${regLabel}</span>
-          <span class="badge depth">depth ${depth}</span>
+          <span class="badge depth">${depthLabel}</span>
         </div>
-        <p class="prompt-text">${text}</p>
-        ${seeds.length ? `<p class="seed-symbols">Seed symbols: ${seedText}</p>` : ''}
+        <p class="prompt-akinenwun">${akinenwun}</p>
+        <table class="field-table">${rows}</table>
         <div class="prompt-actions">
-          <button onclick="usePrompt(${JSON.stringify(text).replace(/'/g,"&#39;")})">Use this prompt</button>
-          <button onclick="generatePrompt()">Another ↗</button>
+          <button onclick="usePrompt(${JSON.stringify(akinenwun)})">Write from this field</button>
+          <button onclick="generatePrompt()">Converge again ↗</button>
         </div>
       </div>`;
   } catch(e) {
@@ -452,10 +515,108 @@ function renderCorpus() {
     </div>`).join('');
 }
 
+// ── TCE composition analysis ──────────────────────────────────────────────────
+
+function tokenizeShygazun(text) {
+  // Build symbol→{addr,tongue,meaning} map — full 1358-candidate table preferred
+  const symMap = {};
+  if (_fullCandidates) {
+    for (const [addr, e] of Object.entries(_fullCandidates)) {
+      symMap[e.sym.toLowerCase()] = { addr: parseInt(addr), sym: e.sym, tongue: e.tongue, meaning: e.meaning };
+    }
+  } else {
+    for (const [addrStr, e] of Object.entries(BYTE_TABLE)) {
+      symMap[e.s.toLowerCase()] = { addr: parseInt(addrStr), sym: e.s, tongue: e.t, meaning: e.m };
+    }
+  }
+  // Sort longest-first for greedy match
+  const syms = Object.keys(symMap).sort((a, b) => b.length - a.length);
+
+  // Scan: try spaces-stripped and original
+  const tokens = [];
+  const lower = text.toLowerCase();
+  let i = 0;
+  while (i < lower.length) {
+    if (/\s/.test(lower[i])) { i++; continue; }
+    let matched = false;
+    for (const sym of syms) {
+      if (lower.startsWith(sym, i)) {
+        tokens.push(symMap[sym]);
+        i += sym.length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) i++;
+  }
+  return tokens;
+}
+
 async function analyzeComposition() {
   const text = document.getElementById('composition-input').value.trim();
   if (!text) return;
-  sendPrompt(`Please reflect the structural moves of this Shygazun composition back to me — identify which tongues are active, what path through the manifold it traces, and what it does phenomenologically: "${text}"`);
+
+  const area = document.getElementById('prompt-area');
+  area.innerHTML = '<p class="loading">Reading the manifold...</p>';
+
+  const seeds = tokenizeShygazun(text);
+  if (!seeds.length) {
+    area.innerHTML = '<p class="error">No recognized Shygazun symbols found in the composition.</p>';
+    return;
+  }
+
+  try {
+    const resp = await fetch('/api/v1/intel/query/seed', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ addrs: seeds.map(s => s.addr), kernel: 'giann', temp: 0.0, max_iter: 48 })
+    });
+    if (!resp.ok) throw new Error(`status ${resp.status}`);
+    const data = await resp.json();
+
+    // Seed set for distinguishing seeds from activated adjacents
+    const seedAddrs = new Set(seeds.map(s => s.addr));
+
+    // Tongue distribution over activated field
+    const tongueCounts = {};
+    for (const c of data.candidates) {
+      tongueCounts[c.tongue] = (tongueCounts[c.tongue] || 0) + 1;
+    }
+    const topTongues = Object.entries(tongueCounts)
+      .sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const maxCount = topTongues[0]?.[1] || 1;
+
+    const tongueRows = topTongues.map(([t, n]) => {
+      const w = Math.round((n / maxCount) * 8);
+      return `<tr><td class="field-tongue" style="width:120px">${t}</td><td class="field-bar">${'█'.repeat(w)}${'░'.repeat(8-w)}</td><td style="color:#7878a0;font-size:11px;padding-left:6px">${n}</td></tr>`;
+    }).join('');
+
+    // Adjacent candidates (activated but not seeded)
+    const adjacent = data.candidates
+      .filter(c => !seedAddrs.has(c.addr))
+      .map((c, j) => ({ ...c, act: data.state[data.active[j]] || 0 }))
+      .sort((a, b) => b.act - a.act).slice(0, 5);
+
+    const adjRows = adjacent.map(c =>
+      `<tr><td class="field-symbol">${c.symbol}</td><td class="field-meaning">${c.meaning}</td><td class="field-tongue">${c.tongue}</td></tr>`
+    ).join('');
+
+    const seedList = seeds.map(s => `<span class="badge tongue" style="font-family:monospace">${s.sym}</span>`).join(' ');
+
+    area.innerHTML = `
+      <div class="prompt-card">
+        <div class="prompt-meta"><span class="badge depth">analysis · Giann</span></div>
+        <p style="font-size:12px;color:#7878a0;margin-bottom:10px">seeds recognized</p>
+        <p style="margin-bottom:14px">${seedList}</p>
+        <p style="font-size:12px;color:#7878a0;margin-bottom:6px">tongue distribution</p>
+        <table class="field-table" style="margin-bottom:14px">${tongueRows}</table>
+        ${adjRows ? `<p style="font-size:12px;color:#7878a0;margin-bottom:6px">adjacent field</p>
+        <table class="field-table">${adjRows}</table>` : ''}
+        <p style="font-size:11px;color:#5040a0;margin-top:10px">energy ${data.energy.toFixed(3)} · ${data.iterations} iterations · ${data.candidates.length} candidates active</p>
+      </div>`;
+  } catch(e) {
+    area.innerHTML = `<p class="error">The manifold was unreachable. Try again.</p>`;
+  }
 }
 </script>
 

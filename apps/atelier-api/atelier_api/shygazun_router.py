@@ -338,7 +338,7 @@ def parse_composition(req: ParseRequest):
         for r in BYTE_ROWS
     )
     msg = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=1000,
         system=SYSTEM_PROMPT,
         messages=[{
@@ -369,7 +369,7 @@ def interpret_emotion(req: InterpretRequest):
     client = get_client()
     parts_desc = ", ".join(req.parts) if req.parts else req.compound
     msg = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=1000,
         system=SYSTEM_PROMPT,
         messages=[{
@@ -417,7 +417,7 @@ Original content: {tablet['original_summary']}
 """
 
     msg = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=1000,
         system=SYSTEM_PROMPT,
         messages=[{
@@ -451,7 +451,7 @@ def translate(req: TranslateRequest):
         else "Translate this English text into Shygazun, using the byte table grammar. Provide: (1) the Shygazun composition, (2) a symbol-by-symbol gloss explaining each choice."
     )
     msg = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=1000,
         system=SYSTEM_PROMPT,
         messages=[{
@@ -483,7 +483,7 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    model: str = "claude-sonnet-4-20250514"
+    model: str = "claude-sonnet-4-6"
     max_tokens: int = 1000
     system: Optional[str] = None
     messages: List[ChatMessage]

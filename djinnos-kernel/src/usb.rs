@@ -48,6 +48,120 @@ pub const CLASS_HID:      u8 = 0x03;
 pub const SUBCLASS_BOOT:  u8 = 0x01;
 pub const PROTO_MOUSE:    u8 = 0x02;
 
+pub const CLASS_PRINTER:  u8 = 0x07;
+
+// USB Printer class-specific requests.
+pub fn setup_printer_get_id(iface: u8) -> [u8; 8] {
+    // GET_DEVICE_ID — returns IEEE 1284 device ID string.
+    [0xA1, 0x00, 0x00, 0x00, iface, 0x00, 0xFF, 0x00]
+}
+pub fn setup_printer_get_status(iface: u8) -> [u8; 8] {
+    // GET_PORT_STATUS — returns 1-byte status.
+    [0xA1, 0x01, 0x00, 0x00, iface, 0x00, 0x01, 0x00]
+}
+pub fn setup_printer_soft_reset(iface: u8) -> [u8; 8] {
+    // SOFT_RESET.
+    [0x22, 0x02, 0x00, 0x00, iface, 0x00, 0x00, 0x00]
+}
+
+/// A USB printer device (class 7) enumerated on xHCI.
+#[derive(Default, Clone, Copy)]
+pub struct UsbPrinter {
+    pub slot:          u8,
+    pub iface:         u8,
+    pub bulk_out:      u8,   // endpoint number
+    pub bulk_in:       u8,   // optional (for status back-channel)
+    pub bulk_out_epid: u8,   // xHCI endpoint context index
+    pub bulk_in_epid:  u8,
+    pub max_pkt:       u16,
+    pub valid:         bool,
+}
+
+/// Try to enumerate a USB printer on an already-addressed slot.
+/// Returns Some(UsbPrinter) if a class-7 interface is found.
+pub fn enumerate_printer(xhci: &mut XhciController) -> Option<UsbPrinter> {
+    for port_idx in 0..xhci.max_ports() {
+        let port = port_idx + 1;
+        if !xhci.port_connected(port) { continue; }
+
+        xhci.reset_port(port);
+        for _ in 0u32..10_000 { core::hint::spin_loop(); }
+
+        let speed = xhci.port_speed(port);
+        let slot  = xhci.enable_slot()?;
+        if !xhci.address_device(slot, port, speed) { continue; }
+
+        let mut buf = [0u8; 256];
+        let n = xhci.control(slot, setup_get_descriptor(DESC_DEVICE, 0, 18), true, &mut buf[..18])?;
+        if n < 8 { continue; }
+
+        let n = xhci.control(slot, setup_get_descriptor(DESC_CONFIG, 0, 9), true, &mut buf[..9])?;
+        if n < 9 { continue; }
+        let total = u16::from_le_bytes([buf[2], buf[3]]) as usize;
+        let total = total.min(256);
+        let n = xhci.control(slot, setup_get_descriptor(DESC_CONFIG, 0, total as u16),
+                              true, &mut buf[..total])?;
+        if n < 9 { continue; }
+
+        if let Some(dev) = parse_printer_config(xhci, slot, &buf[..n]) {
+            return Some(dev);
+        }
+    }
+    None
+}
+
+fn parse_printer_config(xhci: &mut XhciController, slot: u8, cfg: &[u8]) -> Option<UsbPrinter> {
+    let mut dev = UsbPrinter { slot, max_pkt: 512, ..Default::default() };
+    let mut i = 0;
+    let mut in_printer_iface = false;
+
+    while i < cfg.len() {
+        let len = cfg[i] as usize;
+        if len < 2 || i + len > cfg.len() { break; }
+        let desc_type = cfg[i + 1];
+        match desc_type {
+            DESC_INTERFACE => {
+                if len < 9 { i += len; continue; }
+                let cls = cfg[i + 5];
+                in_printer_iface = cls == CLASS_PRINTER;
+                if in_printer_iface { dev.iface = cfg[i + 2]; }
+            }
+            DESC_ENDPOINT => {
+                if len < 7 || !in_printer_iface { i += len; continue; }
+                let addr    = cfg[i + 2];
+                let attrs   = cfg[i + 3];
+                let max_pkt = u16::from_le_bytes([cfg[i + 4], cfg[i + 5]]);
+                let is_in   = addr & 0x80 != 0;
+                let ep_num  = addr & 0x7F;
+                if attrs & 0x03 == 2 {  // bulk
+                    if is_in  { dev.bulk_in  = ep_num; }
+                    else      { dev.bulk_out = ep_num; dev.max_pkt = max_pkt; }
+                }
+            }
+            _ => {}
+        }
+        i += len;
+    }
+
+    if dev.bulk_out == 0 { return None; }  // must have bulk OUT
+    dev.bulk_out_epid = dev.bulk_out * 2;
+    dev.bulk_in_epid  = if dev.bulk_in > 0 { dev.bulk_in * 2 + 1 } else { 0 };
+
+    // SET_CONFIGURATION 1
+    xhci.control(slot, setup_set_configuration(1), false, &mut [])?;
+    if !xhci.configure_endpoints(slot, dev.bulk_out,
+                                  if dev.bulk_in > 0 { dev.bulk_in } else { dev.bulk_out },
+                                  dev.max_pkt) {
+        return None;
+    }
+
+    dev.valid = true;
+    crate::uart::puts("usb: USB printer found  bulk_out_epid=");
+    crate::uart::putu(dev.bulk_out_epid as u64);
+    crate::uart::puts("\r\n");
+    Some(dev)
+}
+
 /// SET_PROTOCOL request — sets HID boot protocol (0) or report protocol (1).
 pub fn setup_hid_set_protocol(iface: u8, protocol: u8) -> [u8; 8] {
     [0x21, 0x0B, protocol, 0, iface, 0, 0, 0]

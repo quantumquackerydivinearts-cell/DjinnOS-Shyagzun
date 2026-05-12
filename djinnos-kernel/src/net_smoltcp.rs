@@ -212,10 +212,26 @@ pub fn poll() {
 
 // ── HTTP request handler ──────────────────────────────────────────────────────
 
+fn parse_method(req: &str) -> &str {
+    req.lines().next().unwrap_or("").split_whitespace().next().unwrap_or("GET")
+}
+
+fn parse_body(req: &str) -> &str {
+    if let Some(i) = req.find("\r\n\r\n") { &req[i+4..] }
+    else if let Some(i) = req.find("\n\n") { &req[i+2..] }
+    else { "" }
+}
+
 fn handle_http(req: &[u8]) -> Vec<u8> {
-    // Parse the request line: "GET /path HTTP/1.x\r\n..."
     let req_str = core::str::from_utf8(req).unwrap_or("");
-    let path = parse_get_path(req_str);
+    let method  = parse_method(req_str);
+    let path    = parse_get_path(req_str);
+    let body    = parse_body(req_str);
+
+    // Semantic substrate routes — handled before file serving.
+    if let Some(resp) = crate::http_intel::try_handle(method, path, body) {
+        return resp;
+    }
 
     let (body, content_type, status) = if path == "/" || path.is_empty() {
         // Directory listing

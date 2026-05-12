@@ -6,7 +6,55 @@
 #[cfg(target_arch = "riscv64")]
 const UART_MMIO: *mut u8 = 0x10000000 as *mut u8;
 
+// ── Ring buffer — captures last 8 KiB of UART output ─────────────────────────
+// Shell `log` command reads this to display diagnostic output on screen.
+
+const RING_SZ: usize = 8 * 1024;
+static mut RING: [u8; RING_SZ] = [0u8; RING_SZ];
+static mut RING_W: usize = 0;
+static mut RING_FULL: bool = false;
+
+fn ring_push(b: u8) {
+    unsafe {
+        RING[RING_W] = b;
+        RING_W += 1;
+        if RING_W >= RING_SZ { RING_W = 0; RING_FULL = true; }
+    }
+}
+
+/// Copy up to `out.len()` bytes of recent log into `out`.
+/// Returns the number of bytes written and whether the buffer wrapped.
+pub fn recent_log(out: &mut [u8]) -> (usize, bool) {
+    unsafe {
+        if !RING_FULL {
+            let n = RING_W.min(out.len());
+            out[..n].copy_from_slice(&RING[..n]);
+            (n, false)
+        } else {
+            // Wrapped: data runs from RING_W..RING_SZ then 0..RING_W.
+            let tail = RING_SZ - RING_W;
+            let head = RING_W;
+            let total = tail + head;
+            let skip = if total > out.len() { total - out.len() } else { 0 };
+            let mut wi = 0usize;
+            // Copy tail portion (older data), skipping if needed.
+            let tail_skip = skip.min(tail);
+            for i in (RING_W + tail_skip)..RING_SZ {
+                if wi < out.len() { out[wi] = RING[i]; wi += 1; }
+            }
+            // Copy head portion.
+            let head_skip = skip.saturating_sub(tail);
+            for i in head_skip..RING_W {
+                if wi < out.len() { out[wi] = RING[i]; wi += 1; }
+            }
+            (wi, true)
+        }
+    }
+}
+
 pub fn putc(byte: u8) {
+    ring_push(byte);
+
     #[cfg(target_arch = "riscv64")]
     unsafe { UART_MMIO.write_volatile(byte) }
 

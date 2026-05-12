@@ -341,7 +341,12 @@ fn depth_key(x: usize, y: usize, z: usize) -> usize {
 }
 
 // Fixed-size sort buffer for visible nodes.
-const MAX_VISIBLE: usize = 512;
+const MAX_VISIBLE: usize = 1024;
+
+// World-space viewport radius. Only cells within this many voxels of the
+// camera are collected; avoids iterating the full 64×64 grid every frame.
+// At TILE_A=32 on 1920-wide screen: ~30 iso-cells across → radius 28 gives margin.
+const VIEWPORT_R: i32 = 28;
 
 #[derive(Copy, Clone)]
 struct DrawCmd {
@@ -377,16 +382,26 @@ pub fn render(
         gpu.fill_span(0, sw, y, b, g, r);
     }
 
+    // Camera world position (integer cells).
+    let cam_wx = camera.wx / 256;
+    let cam_wz = camera.wz / 256;
+
+    // Viewport window: only iterate cells within VIEWPORT_R of the camera.
+    let x_lo = (cam_wx - VIEWPORT_R).max(0) as usize;
+    let x_hi = (cam_wx + VIEWPORT_R + 1).min(MAP_X as i32) as usize;
+    let z_lo = (cam_wz - VIEWPORT_R).max(0) as usize;
+    let z_hi = (cam_wz + VIEWPORT_R + 1).min(MAP_Z as i32) as usize;
+
     // Collect visible nodes into the draw buffer, sorted back-to-front.
     let mut cmds  = [DrawCmd { depth: 0, x: 0, y: 0, z: 0 }; MAX_VISIBLE];
     let mut ncmds = 0usize;
 
-    for x in 0..MAP_X {
+    'outer: for x in x_lo..x_hi {
         for y in 0..MAP_Y {
-            for z in 0..MAP_Z {
+            for z in z_lo..z_hi {
                 let node = &scene.nodes[x][y][z];
                 if node.is_air() || node.faces == 0 { continue; }
-                if ncmds >= MAX_VISIBLE { break; }
+                if ncmds >= MAX_VISIBLE { break 'outer; }
                 cmds[ncmds] = DrawCmd {
                     depth: depth_key(x, y, z),
                     x: x as u8, y: y as u8, z: z as u8,
@@ -396,21 +411,29 @@ pub fn render(
         }
     }
 
-    // Insertion sort (small N, no alloc).
-    for i in 1..ncmds {
-        let mut j = i;
-        while j > 0 && cmds[j].depth > cmds[j-1].depth {
-            cmds.swap(j, j-1);
-            j -= 1;
-        }
+    // Counting sort on bounded depth key (max depth = MAP_X + MAP_Z + MAP_Y - 1 = 143).
+    // O(n) sort, no heap required, depth buckets on stack.
+    const DEPTH_MAX: usize = MAP_X + MAP_Z + MAP_Y;
+    let mut buckets = [0u16; DEPTH_MAX];
+    for ci in 0..ncmds { buckets[cmds[ci].depth] += 1; }
+    // Prefix sums — we want descending order (furthest first), so scan from high end.
+    let mut sorted = [DrawCmd { depth: 0, x: 0, y: 0, z: 0 }; MAX_VISIBLE];
+    let mut prefix = [0u16; DEPTH_MAX];
+    let mut acc = 0u16;
+    for d in (0..DEPTH_MAX).rev() {
+        prefix[d] = acc;
+        acc += buckets[d];
+    }
+    for ci in 0..ncmds {
+        let d = cmds[ci].depth;
+        sorted[prefix[d] as usize] = cmds[ci];
+        prefix[d] += 1;
     }
 
     // Draw each node back-to-front.
-    let cam_wx = camera.wx / 256;
-    let cam_wz = camera.wz / 256;
 
     for ci in 0..ncmds {
-        let c    = &cmds[ci];
+        let c    = &sorted[ci];
         let wx   = c.x as i32;
         let wy   = c.y as i32;
         let wz   = c.z as i32;

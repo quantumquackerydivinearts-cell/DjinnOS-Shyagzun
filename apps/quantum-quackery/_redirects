@@ -1,5 +1,10 @@
 # quantum-quackery/_redirects
 # Cloudflare Pages redirect rules.
 
+# Short-path rewrites for long-named HTML files (200 = serve content at requested URL)
+/shygazun   /shygazun_literary_companion.html           200
+/synthesis  /shygazun_photonic_synthesis_companion.html  200
+/encyclopedia /encyclopedia-esoterica.html              200
+
 # API calls proxy to Render
 /api/*  https://djinnos-shyagzun-atelier-api.onrender.com/:splat  200

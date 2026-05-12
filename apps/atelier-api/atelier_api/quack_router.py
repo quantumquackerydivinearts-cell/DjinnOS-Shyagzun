@@ -9,6 +9,11 @@ factorization geometry of the byte table.
 The byte table is the common ledger. Every minted Quack extends the language
 for everyone while the holder owns the proof of contribution.
 
+Additional endpoints:
+GET  /v1/quack/ranks                 — list all Shygazun rank definitions (public)
+GET  /v1/quack/rank                  — current artisan's rank (auth required)
+GET  /v1/quack/rank/{artisan_id}     — any artisan's public rank
+
 Endpoints
 ---------
 POST /v1/quack/propose           — submit a tongue extension (auth required)
@@ -378,3 +383,77 @@ def list_proposals(
         TongueProposal.artisan_id == artisan_id
     ).order_by(TongueProposal.proposed_at.desc()).all()
     return [_row_to_proposal_out(r) for r in rows]
+
+
+# ── Rank title endpoints ──────────────────────────────────────────────────────
+
+class RankDefinition(BaseModel):
+    min_quacks: int
+    title:      str
+    gloss:      str
+
+
+class RankOut(BaseModel):
+    artisan_id:  str
+    quack_count: int
+    rank_title:  str
+    rank_gloss:  str
+    next_rank:   Optional[str]
+    quacks_to_next: Optional[int]
+
+
+def _compute_rank_out(artisan_id: str, quack_count: int) -> RankOut:
+    from .quack_titles import PRACTITIONER_RANKS, practitioner_rank, rank_gloss
+
+    title = practitioner_rank(quack_count)
+    gloss = rank_gloss(quack_count)
+
+    next_rank = None
+    quacks_to_next = None
+    for min_q, next_title, _ in reversed(PRACTITIONER_RANKS):
+        if quack_count < min_q:
+            next_rank = next_title
+            quacks_to_next = min_q - quack_count
+            break
+
+    return RankOut(
+        artisan_id=artisan_id,
+        quack_count=quack_count,
+        rank_title=title,
+        rank_gloss=gloss,
+        next_rank=next_rank,
+        quacks_to_next=quacks_to_next,
+    )
+
+
+@router.get("/ranks")
+def list_ranks() -> list[RankDefinition]:
+    """List all Shygazun practitioner rank definitions. Public."""
+    from .quack_titles import PRACTITIONER_RANKS, _RANK_ZERO
+    result = [
+        RankDefinition(min_quacks=0, title=_RANK_ZERO, gloss="Wu·Na·Sha·Ko — the Way, not yet actualized as a practitioner")
+    ]
+    for min_q, title, gloss in reversed(PRACTITIONER_RANKS):
+        result.append(RankDefinition(min_quacks=min_q, title=title, gloss=gloss))
+    return result
+
+
+@router.get("/rank")
+def my_rank(
+    artisan_id: str = Depends(_resolve_artisan),
+    db: Session = Depends(get_db),
+) -> RankOut:
+    """Return the current artisan's Shygazun rank based on their minted Quack count."""
+    count = db.query(QuackToken).filter(
+        QuackToken.holder_artisan_id == artisan_id
+    ).count()
+    return _compute_rank_out(artisan_id, count)
+
+
+@router.get("/rank/{artisan_id}")
+def artisan_rank(artisan_id: str, db: Session = Depends(get_db)) -> RankOut:
+    """Return any artisan's Shygazun rank. Public."""
+    count = db.query(QuackToken).filter(
+        QuackToken.holder_artisan_id == artisan_id
+    ).count()
+    return _compute_rank_out(artisan_id, count)

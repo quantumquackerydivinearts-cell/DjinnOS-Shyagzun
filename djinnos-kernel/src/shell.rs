@@ -98,7 +98,18 @@ impl Shell {
 
     #[cfg(not(target_arch = "riscv64"))]
     pub fn handle_key(&mut self, key: Key) {
+        let page = ROWS as usize;
         match key {
+            // Scroll controls — must come before Key::Char(c) catch-all.
+            Key::Up | Key::PageUp | Key::Char(0x15) => {
+                self.view_offset = (self.view_offset + page)
+                    .min(self.next_line.saturating_sub(1));
+                self.dirty = true;
+            }
+            Key::Down | Key::PageDown | Key::Char(0x04) => {
+                self.view_offset = self.view_offset.saturating_sub(page);
+                self.dirty = true;
+            }
             Key::Char(c) => {
                 if self.input_len < 79 {
                     self.input[self.input_len] = c;
@@ -110,14 +121,6 @@ impl Shell {
                 if self.input_len > 0 { self.input_len -= 1; self.dirty = true; }
             }
             Key::Enter => self.commit_and_execute_x86(),
-            Key::Up    => {
-                self.view_offset = (self.view_offset + 1).min(self.next_line.saturating_sub(1));
-                self.dirty = true;
-            }
-            Key::Down  => {
-                self.view_offset = self.view_offset.saturating_sub(1);
-                self.dirty = true;
-            }
             _          => {}
         }
     }
@@ -385,6 +388,9 @@ impl Shell {
                 self.push_line(b"  info                     system + eigenstate", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Ze / clear               clear terminal",[R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Ro / pci                 PCI devices",   [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  wifi                     init RTL8852AE WiFi (needs firmware)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  install                  install to internal NVMe (replaces OS)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  log                      dump recent UART log to screen", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Zot / acpi               ACPI tables",   [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Si / date                date/time",     [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Shak / audio             HDA codec",     [R_DIM, G_DIM, B_DIM]);
@@ -402,6 +408,21 @@ impl Shell {
                 self.push_line(b"  Faerie <url>             Kyompufwun HTTP reader via Kyom", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kyom [ip:port]           show/set Kyom proxy",    [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  Kobra <expr>             evaluate Kobra expression", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  skill list|set <n> <r>   skill ranks",   [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  perk list|unlock <id>    meditation perks",[R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  quest list|offer|accept|complete <slug>", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  alchemy                  spatial ingredient grid",[R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  fight [bandit|guard|shade] combat encounter",[R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  shop                     your shop",     [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  meditate                 BreathOfKo",    [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  journal                  quest/combat/notes log",[R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  dungeon [zone]           generate dungeon",[R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  codex [file.bkm]         book authoring + binding spec", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  print [file.bkl]         send .bkl to USB printer (PCL3)", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  forage list [zone]       available resources", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  forage take <idx>        harvest a resource", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  forage offer <zone> <id> leave an offering", [R_DIM, G_DIM, B_DIM]);
+                self.push_line(b"  forage fae               Fae relation state (author view)", [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  ec [NN]                  EC register",   [R_DIM, G_DIM, B_DIM]);
                 self.push_line(b"  dsdt                     DSDT bytes",    [R_DIM, G_DIM, B_DIM]);
             }
@@ -457,6 +478,57 @@ impl Shell {
 
             // ── Ro = byte 83 — Ion-channel / Gate / Receptor → PCI ───────────
             b"Ro" | b"pci" => self.cmd_pci(),
+
+            // ── log — dump recent UART output to the shell screen ─────────────
+            b"log" => {
+                let mut buf = [0u8; 4096];
+                let (n, wrapped) = crate::uart::recent_log(&mut buf);
+                if wrapped {
+                    self.push_line(b"[log wrapped -- showing most recent 4 KiB]",
+                                   [R_DIM, G_DIM, B_DIM]);
+                }
+                // Split on \n and push each line.
+                let mut start = 0usize;
+                for i in 0..n {
+                    if buf[i] == b'\n' || buf[i] == b'\r' {
+                        if i > start {
+                            let line = &buf[start..i];
+                            // Filter out lone \r
+                            if !line.is_empty() && line != b"\r" {
+                                self.push_line(line, [R_IN, G_IN, B_IN]);
+                            }
+                        }
+                        start = i + 1;
+                    }
+                }
+                if start < n {
+                    self.push_line(&buf[start..n], [R_IN, G_IN, B_IN]);
+                }
+            }
+
+            // ── wifi — initialise RTL8852AE and report status ─────────────────
+            b"wifi" => {
+                self.push_line(b"rtw89: initialising RTL8852AE...", [R_IN, G_IN, B_IN]);
+                if crate::rtw89::init() {
+                    self.push_line(b"rtw89: firmware booted", [R_IN, G_IN, B_IN]);
+                } else {
+                    self.push_line(b"rtw89: init failed -- run log for details",
+                                   [0xa0, 0x40, 0x40]);
+                }
+            }
+
+            // ── intel — Hopfield query demo on the Shygazun byte table ──────────
+            b"intel" => {
+                crate::intel::shell_demo();
+                self.push_line(b"intel: demo complete", [R_IN, G_IN, B_IN]);
+            }
+
+            // ── install — write DjinnOS to the internal NVMe ──────────────────
+            b"install" => {
+                self.push_line(b"Installing to internal NVMe...", [R_IN, G_IN, B_IN]);
+                let msg = crate::installer::run();
+                self.push_line(msg.as_bytes(), [R_IN, G_IN, B_IN]);
+            }
 
             // ── Zot = byte 107 — Earth → ACPI hardware structure ─────────────
             b"Zot" | b"acpi" => self.cmd_acpi(),
@@ -699,6 +771,133 @@ impl Shell {
                     msg[pfx.len()..pfx.len() + n].copy_from_slice(&rest[..n]);
                     self.push_line(&msg[..pfx.len() + n], [R_IN, G_IN, B_IN]);
                 }
+            }
+
+            // ── skill / perk / quest — dispatched through kobra game layer ─────
+            b"skill" | b"perk" | b"quest" => {
+                let mut full = [0u8; 80];
+                let vl = verb.len().min(79);
+                full[..vl].copy_from_slice(&verb[..vl]);
+                if !rest.is_empty() {
+                    full[vl] = b' ';
+                    let rl = rest.len().min(79 - vl - 1);
+                    full[vl + 1..vl + 1 + rl].copy_from_slice(&rest[..rl]);
+                }
+                let result = crate::kobra::eval_expr(&full[..vl + if rest.is_empty() { 0 } else { 1 + rest.len().min(79 - vl - 1) }]);
+                for i in 0..result.line_count() {
+                    self.push_line(result.line(i), [R_DIM, G_DIM, B_DIM]);
+                }
+            }
+
+            // ── Alchemy — spatial ingredient grid ────────────────────────────
+            b"alchemy" | b"Alchemy" => {
+                crate::alchemy::workbench().open(self.rule_y);
+                crate::alchemy::request();
+                self.push_line(b"Workbench...", [R_IN, G_IN, B_IN]);
+            }
+
+            // ── Combat — launch test encounter ────────────────────────────────
+            b"fight" | b"combat" => {
+                let eid = if rest == b"guard"  { crate::combat::ENEMY_GUARD }
+                          else if rest == b"shade" { crate::combat::ENEMY_SHADE }
+                          else { crate::combat::ENEMY_BANDIT };
+                crate::combat::request_encounter(eid, self.rule_y);
+                self.push_line(b"Entering combat...", [R_IN, G_IN, B_IN]);
+            }
+
+            // ── Shop — open player shop ───────────────────────────────────────
+            b"shop" | b"Shop" => {
+                crate::shop::shop().open_player_shop(self.rule_y);
+                crate::shop::request_open();
+                self.push_line(b"Opening shop...", [R_IN, G_IN, B_IN]);
+            }
+
+            // ── Meditation ────────────────────────────────────────────────────
+            b"meditate" | b"Meditate" | b"meditation" => {
+                crate::meditation::request();
+                self.push_line(b"Entering meditation...", [R_IN, G_IN, B_IN]);
+            }
+
+            // ── Journal ───────────────────────────────────────────────────────
+            b"journal" | b"Journal" => {
+                crate::journal::request();
+                self.push_line(b"Opening journal...", [R_IN, G_IN, B_IN]);
+            }
+
+            // ── Dungeon gen test ──────────────────────────────────────────────
+            b"dungeon" => {
+                let zone = if rest.is_empty() { b"test_dungeon" as &[u8] } else { rest };
+                crate::dungeon::dungeon().generate(zone);
+                let n = crate::dungeon::dungeon().room_count;
+                let mut buf = [0u8; 60]; let mut off = 0;
+                let pfx = b"Dungeon: "; buf[..pfx.len()].copy_from_slice(pfx); off = pfx.len();
+                let mut nb = [0u8; 4];
+                let nn = write_u32(&mut nb, n as u32);
+                buf[off..off+nn].copy_from_slice(&nb[..nn]); off += nn;
+                let sfx = b" rooms generated";
+                buf[off..off+sfx.len()].copy_from_slice(sfx); off += sfx.len();
+                self.push_line(&buf[..off], [R_IN, G_IN, B_IN]);
+            }
+
+            // -- print -- USB printer -----------------------------------------
+            b"print" => {
+                let r = if rest.is_empty() {
+                    // Print the most recently exported layout.
+                    crate::printer::print_sa_file(b"layout.bkl")
+                } else {
+                    crate::printer::print_sa_file(rest)
+                };
+                self.push_line(r.as_bytes(), match r {
+                    crate::printer::PrintResult::Ok => [R_PR, G_PR, B_PR],
+                    _                               => [0xa0, 0x40, 0x40],
+                });
+            }
+
+            // -- perks -- perk selection screen --------------------------------
+            b"perks" | b"Perks" => {
+                crate::perk_screen::request();
+                self.push_line(b"Opening perk screen...", [R_IN, G_IN, B_IN]);
+            }
+
+            // -- play -- enter Ko's Labyrinth game loop ------------------------
+            b"play" | b"klgs" | b"game7" => {
+                crate::game7::request();
+                self.push_line(b"Entering Ko's Labyrinth...", [R_IN, G_IN, B_IN]);
+            }
+
+            // -- home -- return to the OS home screen -------------------------
+            b"home" | b"Home" => {
+                crate::home::request();
+                self.push_line(b"Home...", [R_IN, G_IN, B_IN]);
+            }
+
+            // -- forage -- world resource gathering ---------------------------
+            b"forage" => {
+                let result = if rest.is_empty() {
+                    crate::kobra::eval_expr(b"forage")
+                } else {
+                    let mut scratch = [0u8; 80];
+                    scratch[..6].copy_from_slice(b"forage");
+                    scratch[6] = b' ';
+                    let rl = rest.len().min(72);
+                    scratch[7..7 + rl].copy_from_slice(&rest[..rl]);
+                    crate::kobra::eval_expr(&scratch[..7 + rl])
+                };
+                for i in 0..result.line_count() {
+                    self.push_line(result.line(i), [R_DIM, G_DIM, B_DIM]);
+                }
+            }
+
+            // -- codex -- book authoring / binding spec -----------------------
+            b"codex" | b"Codex" | b"book" => {
+                if !rest.is_empty() {
+                    if !crate::book::book().load(rest) {
+                        self.push_line(b"codex: file not found or bad format", [0xa0, 0x40, 0x40]);
+                        return;
+                    }
+                }
+                crate::book::request();
+                self.push_line(b"Codex...", [R_IN, G_IN, B_IN]);
             }
 
             // ── Legacy diagnostic commands (kept unglyph'd) ───────────────────

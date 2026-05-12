@@ -8,7 +8,7 @@
  *   Skill {
  *     id:               string       — matches skill_table in services.py
  *     name:             string       — display name
- *     max_rank:         50           — all skills train to rank 50
+ *     max_rank:         100          — all skills train to rank 100
  *     vitriol_affinity: string       — primary VITRIOL stat (V/I/R/T/I/O/L)
  *     sanity_dimension: string       — which sanity axis this skill presses
  *     perks:            PerkDef[]    — perks unlocked via this skill
@@ -153,7 +153,7 @@ export const SKILLS = [
   {
     id: "barter",
     name: "Barter",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "O",        // Ostentation — exchange as display
     sanity_dimension: "narrative",
     perks: [],
@@ -161,7 +161,7 @@ export const SKILLS = [
   {
     id: "energy_weapons",
     name: "Energy Weapons",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "I",        // Ingenuity
     sanity_dimension: "cosmic",
     perks: [],
@@ -169,7 +169,7 @@ export const SKILLS = [
   {
     id: "explosives",
     name: "Explosives",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "T",        // Tactility
     sanity_dimension: "terrestrial",
     perks: [],
@@ -177,7 +177,7 @@ export const SKILLS = [
   {
     id: "guns",
     name: "Guns",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "T",        // Tactility
     sanity_dimension: "terrestrial",
     perks: [],
@@ -185,7 +185,7 @@ export const SKILLS = [
   {
     id: "lockpick",
     name: "Lockpick",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "I",        // Ingenuity
     sanity_dimension: "narrative",
     perks: [],
@@ -193,7 +193,7 @@ export const SKILLS = [
   {
     id: "medicine",
     name: "Medicine",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "R",        // Reflectivity
     sanity_dimension: "terrestrial",
     perks: [],
@@ -201,7 +201,7 @@ export const SKILLS = [
   {
     id: "melee_weapons",
     name: "Melee Weapons",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "V",        // Vitality
     sanity_dimension: "terrestrial",
     perks: [],
@@ -209,7 +209,7 @@ export const SKILLS = [
   {
     id: "repair",
     name: "Repair",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "T",        // Tactility
     sanity_dimension: "alchemical",
     perks: [],
@@ -217,7 +217,7 @@ export const SKILLS = [
   {
     id: "alchemy",
     name: "Alchemy",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "R",        // Reflectivity — transformation through understanding
     sanity_dimension: "alchemical",
     perks: [],
@@ -226,7 +226,7 @@ export const SKILLS = [
   {
     id: "sneak",
     name: "Sneak",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "L",        // Levity — lightness of presence
     sanity_dimension: "narrative",
     perks: [],
@@ -234,7 +234,7 @@ export const SKILLS = [
   {
     id: "hack",
     name: "Hack",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "I",        // Ingenuity
     sanity_dimension: "alchemical",
     perks: [],
@@ -242,7 +242,7 @@ export const SKILLS = [
   {
     id: "speech",
     name: "Speech",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "L",        // Levity — expression and wit
     sanity_dimension: "narrative",
     perks: [],
@@ -250,7 +250,7 @@ export const SKILLS = [
   {
     id: "survival",
     name: "Survival",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "V",        // Vitality
     sanity_dimension: "terrestrial",
     perks: [],
@@ -258,7 +258,7 @@ export const SKILLS = [
   {
     id: "unarmed",
     name: "Unarmed",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "V",        // Vitality
     sanity_dimension: "terrestrial",
     perks: [],
@@ -266,7 +266,7 @@ export const SKILLS = [
   {
     id: "meditation",
     name: "Meditation",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "I",        // Introspection — first I in VITRIOL
     sanity_dimension: "cosmic",
     perks: MEDITATION_PERKS,
@@ -275,7 +275,7 @@ export const SKILLS = [
   {
     id: "magic",
     name: "Magic",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "L",        // Levity — magic as fluid, surprising, ungovernable
     sanity_dimension: "cosmic",
     perks: [],
@@ -283,7 +283,7 @@ export const SKILLS = [
   {
     id: "blacksmithing",
     name: "Blacksmithing",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "T",        // Tactility — iron demands contact
     sanity_dimension: "alchemical",
     perks: [],
@@ -291,7 +291,7 @@ export const SKILLS = [
   {
     id: "silversmithing",
     name: "Silversmithing",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "O",        // Ostentation — silver is prestige metal
     sanity_dimension: "alchemical",
     perks: [],
@@ -299,7 +299,7 @@ export const SKILLS = [
   {
     id: "goldsmithing",
     name: "Goldsmithing",
-    max_rank: 50,
+    max_rank: 100,
     vitriol_affinity: "O",        // Ostentation — gold is the apex of material display
     sanity_dimension: "alchemical",
     perks: [],

@@ -14,7 +14,12 @@ pub struct NetInfo {
     pub active:    bool,
 }
 
-static mut STACK: Option<TcpStack> = None;
+static mut STACK:        Option<TcpStack> = None;
+static mut USB_NET_ACTIVE: bool = false;
+
+/// True when the USB port is in use for phone tethering (xhci consumed by UsbNet).
+/// Used by printer::init() to avoid re-initialising the same controller.
+pub fn usb_net_active() -> bool { unsafe { USB_NET_ACTIVE } }
 
 fn stack() -> Option<&'static mut TcpStack> {
     unsafe { STACK.as_mut() }
@@ -44,7 +49,10 @@ pub fn init() -> bool {
                     );
                     crate::uart::puts("NET: USB — using static 192.168.42.2\r\n");
                 }
-                unsafe { core::ptr::write_volatile(&mut STACK, Some(TcpStack::new(usb_nic))); }
+                unsafe {
+                    core::ptr::write_volatile(&mut STACK, Some(TcpStack::new(usb_nic)));
+                    USB_NET_ACTIVE = true;
+                }
                 crate::uart::puts("NET: USB tethering ready\r\n");
                 return true;
             }

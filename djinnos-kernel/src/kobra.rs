@@ -54,6 +54,12 @@ impl EvalResult {
     pub fn line(&self, i: usize) -> &[u8] {
         &self.lines[i][..self.lens[i] as usize]
     }
+
+    /// Append bytes to the current partial line (no newline).
+    pub fn push_text(&mut self, s: &[u8]) { self.write(s); }
+
+    /// Flush the current partial line as a complete line (equivalent to writing '\n').
+    pub fn push_line(&mut self) { self.flush_cur(); }
 }
 
 impl Output for EvalResult {
@@ -74,10 +80,42 @@ impl Output for EvalResult {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// Parse and evaluate a single Kobra expression (raw bytes, no newline needed).
+/// Game-system namespaces (quest/skill/perk) are dispatched before Kobra AST.
 /// Returns a line buffer the caller can display.
 pub fn eval_expr(src: &[u8]) -> EvalResult {
+    let mut out = EvalResult::new();
+
+    // Game dispatch layer — intercept before Kobra AST.
+    if src.starts_with(b"quest ") {
+        crate::quest_tracker::quest_dispatch(&src[6..], &mut out);
+        return out;
+    }
+    if src.starts_with(b"quest") && src.len() == 5 {
+        crate::quest_tracker::quest_dispatch(b"", &mut out);
+        return out;
+    }
+    if src.starts_with(b"skill ") {
+        crate::skills::skill_dispatch(&src[6..], &mut out);
+        return out;
+    }
+    if src.starts_with(b"perk ") {
+        crate::skills::perk_dispatch(&src[5..], &mut out);
+        return out;
+    }
+    if src.starts_with(b"perk") && src.len() == 4 {
+        crate::skills::perk_dispatch(b"", &mut out);
+        return out;
+    }
+    if src.starts_with(b"forage ") {
+        crate::foraging::forage_dispatch(&src[7..], &mut out);
+        return out;
+    }
+    if src.starts_with(b"forage") && src.len() == 6 {
+        crate::foraging::forage_dispatch(b"", &mut out);
+        return out;
+    }
+
     let mut pool = Pool::empty();
-    let mut out  = EvalResult::new();
 
     match parse(src, &mut pool) {
         ParseResult::Ok(root) => {

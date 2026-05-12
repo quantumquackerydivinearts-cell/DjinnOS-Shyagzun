@@ -28,7 +28,7 @@ pub struct AcpiInfo {
     pub madt_addr:   u64,
     pub mcfg_addr:   u64,
 
-    // PCIe ECAM — the important one for Sprint 3
+    // PCIe ECAM
     pub ecam_base:      u64,
     pub ecam_start_bus: u8,
     pub ecam_end_bus:   u8,
@@ -41,6 +41,10 @@ pub struct AcpiInfo {
     // IRQ source overrides (ISA bus, up to 16 entries)
     pub overrides:      [IrqOverride; 16],
     pub n_overrides:    u8,
+
+    // AMD IOMMU base addresses from IVRS (up to 4)
+    pub iommu_base:  [u64; 4],
+    pub n_iommu:     u8,
 }
 
 #[derive(Clone, Copy)]
@@ -63,6 +67,8 @@ impl AcpiInfo {
             lapic_addr: 0, ioapic_addr: 0, ioapic_gsi_base: 0,
             overrides: [IrqOverride::zero(); 16],
             n_overrides: 0,
+            iommu_base: [0u64; 4],
+            n_iommu: 0,
         }
     }
 }
@@ -197,7 +203,64 @@ unsafe fn dispatch_table(addr: u64) {
         b"FACP" => parse_fadt(addr),
         b"APIC" => parse_madt(addr),
         b"MCFG" => parse_mcfg(addr),
+        b"IVRS" => parse_ivrs(addr),
         _ => {}
+    }
+}
+
+// ── IVRS (AMD I/O Virtualization Reporting Structure) ─────────────────────────
+//
+// Scans IVHD blocks (type 0x10 / 0x11) for IOMMU MMIO base addresses.
+// Called before NVMe init so disable_iommu() can clear IommuEn before
+// any DMA-capable drivers try to use I/O queues.
+
+unsafe fn parse_ivrs(addr: u64) {
+    let p         = addr as *const u8;
+    let table_len = u32_le(p, 4) as usize;
+    // IVRS header is 48 bytes (36 standard + IVInfo 4 + reserved 8).
+    let mut off = 48usize;
+    while off + 4 <= table_len {
+        let block_type = *p.add(off);
+        let block_len  = u16_le(p, off + 2) as usize;
+        if block_len < 4 { break; }
+        // IVHD type 0x10 and 0x11 both carry the IOMMU MMIO base at offset 8.
+        if (block_type == 0x10 || block_type == 0x11) && block_len >= 16 {
+            let base = u64_le(p, off + 8);
+            if base != 0 && (INFO.n_iommu as usize) < 4 {
+                INFO.iommu_base[INFO.n_iommu as usize] = base;
+                INFO.n_iommu += 1;
+                uart::puts("acpi: IVRS IOMMU base=0x");
+                uart::putx(base);
+                uart::puts("\r\n");
+            }
+        }
+        off += block_len;
+    }
+}
+
+/// Disable all AMD IOMMUs found via IVRS.
+/// Must be called after acpi::init() and before any PCIe DMA driver (NVMe, etc.).
+/// Clears bit 0 (IommuEn) of the IOMMU Control Register at base+0x18.
+pub fn disable_iommu() {
+    let n = unsafe { INFO.n_iommu } as usize;
+    if n == 0 { return; }
+    for i in 0..n {
+        let base = unsafe { INFO.iommu_base[i] };
+        if base == 0 { continue; }
+        unsafe {
+            // IOMMU Control Register is 32-bit at base+0x18. bit 0 = IommuEn.
+            let ctrl = (base + 0x18) as *mut u32;
+            let v = ctrl.read_volatile();
+            uart::puts("acpi: IOMMU ctrl=0x");
+            uart::putx(v as u64);
+            uart::puts("\r\n");
+            if v & 1 != 0 {
+                ctrl.write_volatile(v & !1);
+                uart::puts("acpi: IOMMU disabled @ 0x");
+                uart::putx(base);
+                uart::puts("\r\n");
+            }
+        }
     }
 }
 

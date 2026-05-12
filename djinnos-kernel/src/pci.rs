@@ -168,6 +168,111 @@ pub fn init() {
     crate::uart::puts("pci: ");
     crate::uart::putu(count() as u64);
     crate::uart::puts(" devices\r\n");
+    wifi_scan();
+}
+
+// ── WiFi detection ────────────────────────────────────────────────────────────
+//
+// Scans for network controllers (class 0x02) and prints vendor/device ID
+// to UART. Matches known chipsets by name so the driver sprint can target
+// the right hardware.
+//
+// Class 0x02 subclass breakdown:
+//   0x00  Ethernet
+//   0x80  Other (WiFi, Bluetooth combo, etc.)
+// Some WiFi cards also appear as 0x02:0x00 — scan all of class 0x02.
+
+fn wifi_chipset_name(vendor: u16, device: u16) -> &'static str {
+    match (vendor, device) {
+        // Intel Wi-Fi 6 / 6E / 7
+        (0x8086, 0x2723) => "Intel Wi-Fi 6 AX200",
+        (0x8086, 0x06F0) => "Intel Wi-Fi 6 AX201 (CNVi)",
+        (0x8086, 0x34F0) => "Intel Wi-Fi 6 AX201 (CNVi, Ice Lake)",
+        (0x8086, 0xA0F0) => "Intel Wi-Fi 6 AX201 (CNVi, Tiger Lake)",
+        (0x8086, 0x2725) => "Intel Wi-Fi 6E AX210",
+        (0x8086, 0x2726) => "Intel Wi-Fi 6E AX211 (CNVi)",
+        (0x8086, 0x7AF0) => "Intel Wi-Fi 6E AX211 (CNVi, Alder Lake)",
+        (0x8086, 0x51F0) => "Intel Wi-Fi 6E AX211 (CNVi, RPL-S)",
+        (0x8086, 0x7E40) => "Intel Wi-Fi 7 BE200",
+        (0x8086, 0x272B) => "Intel Wi-Fi 7 BE201 (CNVi)",
+        // Intel 9000 series
+        (0x8086, 0x2526) => "Intel Wi-Fi 5 9260",
+        (0x8086, 0x24F3) => "Intel Wireless 8260",
+        (0x8086, 0x24FD) => "Intel Wireless 8265",
+        (0x8086, 0x3165) => "Intel Wireless 3165",
+        (0x8086, 0x3166) => "Intel Wireless 3168",
+        // Realtek
+        (0x10EC, 0x8852) => "Realtek RTL8852AE (Wi-Fi 6)",
+        (0x10EC, 0xC852) => "Realtek RTL8852CE (Wi-Fi 6E)",
+        (0x10EC, 0x8822) => "Realtek RTL8822CE",
+        (0x10EC, 0xC821) => "Realtek RTL8821CE",
+        (0x10EC, 0xB822) => "Realtek RTL8822BE",
+        (0x10EC, 0xB723) => "Realtek RTL8723BE",
+        // MediaTek
+        (0x14C3, 0x7961) => "MediaTek MT7921 (Wi-Fi 6)",
+        (0x14C3, 0x0608) => "MediaTek MT7921K (Wi-Fi 6E)",
+        (0x14C3, 0x7922) => "MediaTek MT7922 (Wi-Fi 6E)",
+        // Qualcomm / Atheros
+        (0x168C, 0x003E) => "Qualcomm Atheros QCA6174",
+        (0x17CB, 0x1101) => "Qualcomm WCN6855 (Wi-Fi 6E)",
+        (0x17CB, 0x1103) => "Qualcomm WCN7850 (Wi-Fi 7)",
+        (0x168C, 0x0042) => "Qualcomm Atheros QCA9377",
+        (0x168C, 0x0032) => "Atheros AR9485",
+        // Broadcom
+        (0x14E4, 0x43BA) => "Broadcom BCM43602",
+        (0x14E4, 0x43A3) => "Broadcom BCM4350",
+        _ => "",
+    }
+}
+
+fn putu16_hex(v: u16) {
+    let digits = [b"0123456789abcdef"[((v >> 12) & 0xF) as usize],
+                  b"0123456789abcdef"[((v >>  8) & 0xF) as usize],
+                  b"0123456789abcdef"[((v >>  4) & 0xF) as usize],
+                  b"0123456789abcdef"[( v        & 0xF) as usize]];
+    crate::uart::puts(core::str::from_utf8(&digits).unwrap_or("????"));
+}
+
+fn putu8_hex(v: u8) {
+    let digits = [b"0123456789abcdef"[((v >> 4) & 0xF) as usize],
+                  b"0123456789abcdef"[( v       & 0xF) as usize]];
+    crate::uart::puts(core::str::from_utf8(&digits).unwrap_or("??"));
+}
+
+pub fn wifi_scan() {
+    let mut found = false;
+    for slot in devices() {
+        let d = match slot { Some(d) => d, None => continue };
+        // WiFi is almost always 0x02:0x80; some chips report 0x02:0x00.
+        if d.class != 0x02 { continue; }
+        // Skip pure Ethernet (vendor 0x8086 e1000 family, Realtek 0x10EC:0x8168, etc.)
+        // by checking known Ethernet device IDs — but simpler: just print everything
+        // in class 0x02 and let the human sort it out. WiFi will be obvious.
+        let name = wifi_chipset_name(d.vendor, d.device);
+        crate::uart::puts("WiFi scan: [");
+        putu16_hex(d.vendor);
+        crate::uart::puts(":");
+        putu16_hex(d.device);
+        crate::uart::puts("] class=");
+        putu8_hex(d.class);
+        crate::uart::puts("/");
+        putu8_hex(d.sub);
+        crate::uart::puts(" bus=");
+        putu8_hex(d.bus);
+        crate::uart::puts(" dev=");
+        putu8_hex(d.dev);
+        crate::uart::puts(" func=");
+        putu8_hex(d.func);
+        if !name.is_empty() {
+            crate::uart::puts(" -- ");
+            crate::uart::puts(name);
+        }
+        crate::uart::puts("\r\n");
+        found = true;
+    }
+    if !found {
+        crate::uart::puts("WiFi scan: no class-02 devices found\r\n");
+    }
 }
 
 fn scan_bus(bus: u8) {
@@ -230,7 +335,7 @@ pub fn class_name(class: u8, sub: u8) -> &'static str {
         (0x01, 0x06) => "SATA (AHCI)",
         (0x01, 0x08) => "NVMe",
         (0x02, 0x00) => "Ethernet",
-        (0x02, 0x80) => "Network (other)",
+        (0x02, 0x80) => "WiFi / network (other)",
         (0x03, 0x00) => "VGA display",
         (0x03, 0x02) => "Display (3D)",
         (0x04, 0x01) => "Audio (AC97)",

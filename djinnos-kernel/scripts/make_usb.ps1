@@ -1,26 +1,29 @@
-# DjinnOS USB boot drive setup
+# DjinnOS USB boot drive setup — UEFI loader path (no GRUB required)
 #
-# Partitions the target USB-C drive with:
-#   Partition 1 — FAT32 EFI System Partition (~256 MiB)
-#                 holds GRUB EFI + kernel ELF + grub.cfg
-#   Partition 2 — Raw Sa filesystem (rest of drive)
-#                 holds kobra.elf and other user binaries
+# Layout written to the USB EFI partition (FAT32, GPT):
+#   EFI\BOOT\BOOTX64.EFI   ← djinnos-loader.efi
+#   kernel.elf              ← djinnos-kernel ELF (root of partition)
 #
-# Requirements (must be installed and on PATH):
-#   grub-install  — from GRUB2 for Windows or via MSYS2/Cygwin
-#   grub-mkimage  — same package
-#   mformat       — from mtools (for formatting FAT without Admin rights)
+# The djinnos-loader IS the EFI bootloader. It reads kernel.elf directly
+# from the root of the FAT32 partition via raw BlockIo, then jumps to it.
+# No GRUB, no multiboot, no extra tooling required.
 #
-# If grub tools are not available on Windows, run the equivalent steps
-# in a Linux environment (WSL when available, or a live Linux USB).
+# Requirements:
+#   - Run as Administrator (diskpart needs it)
+#   - Rust toolchain with x86_64-unknown-uefi and x86_64-unknown-none targets
 #
 # Usage:
 #   .\make_usb.ps1 <DiskNumber>
 #
-# Find your USB drive's disk number with:
-#   Get-Disk | Select-Object Number, FriendlyName, Size, PartitionStyle
+#   Find your USB disk number first:
+#   Get-Disk | Select-Object Number, FriendlyName, Size
 #
-# SAFETY: double-check the disk number before running — this ERASES the drive.
+# HP Envy / Secure Boot:
+#   Before booting, disable Secure Boot in HP BIOS:
+#   F10 at POST → Security → Secure Boot → Disabled → F10 Save & Exit
+#   Then F9 at POST to select the USB boot device.
+#
+# SAFETY: this ERASES the target disk. Double-check the number.
 
 param(
     [Parameter(Mandatory=$true)]
@@ -28,102 +31,132 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$env:PATH += ";$env:USERPROFILE\.cargo\bin"
+$ROOT      = Split-Path $PSScriptRoot             # c:\DjinnOS\djinnos-kernel
+$REPO_ROOT = Split-Path $ROOT                    # c:\DjinnOS
 
-# ── Verify target disk ─────────────────────────────────────────────────────────
+# ── Confirm target ─────────────────────────────────────────────────────────────
+
 $disk = Get-Disk -Number $DiskNumber -ErrorAction SilentlyContinue
 if (-not $disk) {
     Write-Error "Disk $DiskNumber not found.  Run: Get-Disk | Select Number, FriendlyName, Size"
     exit 1
 }
-Write-Host "Target disk: [$DiskNumber] $($disk.FriendlyName)  $([int]($disk.Size / 1GB)) GiB"
-$confirm = Read-Host "Type YES to erase this disk and create DjinnOS partitions"
+$gb = [math]::Round($disk.Size / 1GB, 1)
+Write-Host ""
+Write-Host "  Target : [$DiskNumber] $($disk.FriendlyName)  ($gb GiB)" -ForegroundColor Yellow
+Write-Host "  Action : erase + GPT + 256 MiB FAT32 EFI partition" -ForegroundColor Yellow
+Write-Host ""
+$confirm = Read-Host "Type YES to continue"
 if ($confirm -ne "YES") { Write-Host "Aborted."; exit 0 }
 
-# ── Build the kernel ELF (multiboot2, 64-bit) ─────────────────────────────────
-Write-Host "`nBuilding kernel..."
-Set-Location (Split-Path $PSScriptRoot)
+# ── Build loader (UEFI EFI application) ───────────────────────────────────────
+
+Write-Host "`nBuilding djinnos-loader..." -ForegroundColor Cyan
+$LOADER_DIR = Join-Path $REPO_ROOT "djinnos-loader"
+Push-Location $LOADER_DIR
+cargo build --target x86_64-unknown-uefi --release
+if ($LASTEXITCODE -ne 0) { Write-Error "Loader build failed"; exit 1 }
+Pop-Location
+
+$LOADER_EFI = Join-Path $LOADER_DIR "target\x86_64-unknown-uefi\release\djinnos-loader.efi"
+if (-not (Test-Path $LOADER_EFI)) {
+    Write-Error "Loader EFI not found at: $LOADER_EFI"
+    exit 1
+}
+$loaderKiB = [math]::Round((Get-Item $LOADER_EFI).Length / 1KB)
+Write-Host "  Loader : $loaderKiB KiB" -ForegroundColor Green
+
+# ── Build kernel (bare-metal ELF) ─────────────────────────────────────────────
+
+Write-Host "`nBuilding djinnos-kernel..." -ForegroundColor Cyan
+Push-Location $ROOT
 cargo build --target x86_64-unknown-none --release
 if ($LASTEXITCODE -ne 0) { Write-Error "Kernel build failed"; exit 1 }
-$KERNEL_ELF = "target\x86_64-unknown-none\release\djinnos-kernel"
-Write-Host "Kernel: $KERNEL_ELF ($([int]((Get-Item $KERNEL_ELF).Length / 1024)) KiB)"
+Pop-Location
+
+$KERNEL_ELF = Join-Path $ROOT "target\x86_64-unknown-none\release\djinnos-kernel"
+if (-not (Test-Path $KERNEL_ELF)) {
+    Write-Error "Kernel ELF not found at: $KERNEL_ELF"
+    exit 1
+}
+$kernelKiB = [math]::Round((Get-Item $KERNEL_ELF).Length / 1KB)
+Write-Host "  Kernel : $kernelKiB KiB" -ForegroundColor Green
 
 # ── Partition the drive ────────────────────────────────────────────────────────
-Write-Host "`nPartitioning disk $DiskNumber..."
-$diskpartScript = @"
+
+Write-Host "`nPartitioning disk $DiskNumber (diskpart)..." -ForegroundColor Cyan
+
+$dp = @"
 select disk $DiskNumber
 clean
 convert gpt
 create partition efi size=256
-format quick fs=fat32 label="DJINNOS_EFI"
+format quick fs=fat32 label="DJINNOS"
 assign letter=Z
-create partition primary
-format quick fs=exfat label="DJINNOS_SA"
-assign letter=Y
 "@
-$diskpartScript | diskpart
 
-# Wait for drive letters to appear
-Start-Sleep -Seconds 3
+$dp | diskpart | Out-Null
+if ($LASTEXITCODE -ne 0) { Write-Error "diskpart failed"; exit 1 }
 
-# ── Install GRUB to the EFI partition ─────────────────────────────────────────
-Write-Host "`nInstalling GRUB..."
-$efi = "Z:"
-$boot_dir = "$efi\EFI\BOOT"
-New-Item -Path $boot_dir -ItemType Directory -Force | Out-Null
-New-Item -Path "$efi\djinnos"   -ItemType Directory -Force | Out-Null
+# Give Windows a moment to mount the new volume.
+Start-Sleep -Seconds 4
 
-# If grub-mkimage is available, generate a minimal EFI stub.
-# Otherwise, provide instructions for Linux-based GRUB install.
-if (Get-Command grub-mkimage -ErrorAction SilentlyContinue) {
-    grub-mkimage --format=x86_64-efi `
-                 --output="$boot_dir\BOOTX64.EFI" `
-                 --prefix="/djinnos/grub" `
-                 part_gpt fat normal multiboot2 echo ls video gfxterm
-    New-Item -Path "$efi\djinnos\grub" -ItemType Directory -Force | Out-Null
-} else {
-    Write-Host @"
-
-  grub-mkimage not found on this system.
-  To complete the GRUB install, run from a Linux environment:
-
-    sudo grub-install --target=x86_64-efi \
-         --efi-directory=/mnt/efi \
-         --boot-directory=/mnt/efi/djinnos \
-         --removable
-
-  where /mnt/efi is the mounted EFI partition (Z: on this machine).
-"@
+if (-not (Test-Path "Z:\")) {
+    Write-Error "EFI partition did not mount as Z:. Check disk number and try again."
+    exit 1
 }
 
-# ── Copy kernel and write grub.cfg ────────────────────────────────────────────
-Copy-Item $KERNEL_ELF "$efi\djinnos\kernel.elf"
-Write-Host "Kernel copied to $efi\djinnos\kernel.elf"
+# ── Write boot files ───────────────────────────────────────────────────────────
 
-@"
-set timeout=3
-set default=0
+Write-Host "`nWriting boot files..." -ForegroundColor Cyan
 
-menuentry "DjinnOS" {
-    insmod multiboot2
-    insmod gfxterm
-    set gfxmode=1280x800x32,1920x1080x32,auto
-    terminal_output gfxterm
-    multiboot2 /djinnos/kernel.elf
-    boot
-}
-"@ | Out-File "$efi\djinnos\grub\grub.cfg" -Encoding ascii
-Write-Host "grub.cfg written"
+New-Item -Path "Z:\EFI\BOOT" -ItemType Directory -Force | Out-Null
 
-# ── Done ──────────────────────────────────────────────────────────────────────
+# Loader becomes the EFI boot application.
+Copy-Item $LOADER_EFI "Z:\EFI\BOOT\BOOTX64.EFI"
+Write-Host "  Z:\EFI\BOOT\BOOTX64.EFI  ($loaderKiB KiB)" -ForegroundColor Green
+
+# Kernel sits at the root — djinnos-loader scans for KERNEL.ELF (FAT32 8.3 name).
+Copy-Item $KERNEL_ELF "Z:\kernel.elf"
+Write-Host "  Z:\kernel.elf             ($kernelKiB KiB)" -ForegroundColor Green
+
+# ── Verify ────────────────────────────────────────────────────────────────────
+
+Write-Host ""
+Get-ChildItem "Z:\" -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
+
+# ── Dismount ──────────────────────────────────────────────────────────────────
+
+Write-Host "Dismounting Z:..." -ForegroundColor Cyan
+$dpDismount = "select disk $DiskNumber`nremove letter=Z"
+$dpDismount | diskpart | Out-Null
+
+# ── Instructions ──────────────────────────────────────────────────────────────
+
 Write-Host @"
 
-Done.  Boot order:
-  1. Plug the USB drive into the target machine.
-  2. Enter firmware (F2 / F12 / DEL at POST) → Boot from USB.
-  3. GRUB menu appears → select DjinnOS.
-  4. Ko shell renders on screen; PS/2 keyboard is active.
+Done.
 
-QEMU test (no framebuffer, serial mode):
-  .\build_x86.ps1 run
-"@
+HP Envy boot steps
+──────────────────
+1. Plug the USB drive in.
+
+2. Disable Secure Boot (one-time):
+     Power on → F10 (BIOS Setup)
+     Security → Secure Boot Configuration → Secure Boot → Disabled
+     F10 → Save and Exit
+
+3. Boot from USB:
+     Power on → F9 (Boot Menu) → select the USB device
+
+4. The loader prints to both screen and COM1 serial (38400 baud).
+   On screen: flashes green briefly, then hands off to the kernel.
+   Serial log shows: GOP ok / RSDP ok / kernel read ok / entry=...
+
+5. Ko shell should appear. Run 'lspci' to see the PCI device list
+   and confirm the WiFi chipset line from the UART log.
+
+To rebuild and reflash without repartitioning:
+  .\make_usb.ps1 <DiskNumber>   (repartitions each time — safe, just slower)
+
+"@ -ForegroundColor White

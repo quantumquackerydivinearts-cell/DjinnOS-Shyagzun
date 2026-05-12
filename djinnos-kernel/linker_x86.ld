@@ -14,11 +14,11 @@
 ENTRY(_start)
 
 MEMORY {
-    RAM : ORIGIN = 0x1000000, LENGTH = 64M
+    RAM : ORIGIN = 0x10000000, LENGTH = 64M
 }
 
 SECTIONS {
-    . = 0x1000000;
+    . = 0x10000000;
 
     .note.Xen : {
         KEEP(*(.note.Xen))

@@ -1,53 +1,27 @@
-// Atelier — DjinnOS in-kernel production hub.
+// atelier.rs -- Kaelshunshikeaninsuy: DjinnOS production hub.
 //
-// The authoring environment for Ko's Labyrinth and the KLGS series,
-// running bare-metal inside DjinnOS.
+// Visual design mirrors the web Atelier (apps/atelier-desktop/):
+//   Warm cream palette, 280px sidebar, Inter typography, flat panels.
+//   Sidebar: gradient, brand header, nav items with active state.
+//   Content: tool-specific view with header bar + status bar.
 //
-// Keys (hub):
-//   Up/Down    navigate
-//   Enter      open selected tool
-//   Escape     return to Ko shell
-//
-// Keys (filename / URL prompt):
-//   Printable  type
-//   Backspace  delete
-//   Enter      confirm and launch
-//   Escape     cancel back to hub
-//
-// Keys (Character Workshop / Dialogue Forge):
-//   Up/Down    scroll
-//   Escape     back to hub
+// Navigation:
+//   Up/Down / mouse    sidebar item selection
+//   Enter              open selected tool
+//   Escape             back to Ko shell
 
-use crate::font;
 use crate::gpu::GpuSurface;
 use crate::input::Key;
+use crate::render2d::{It, ATL_SIDEBAR_W, ATL_NAV_H, ATL_BRAND_H};
+use crate::style;
 
-const SCALE: u32 = 2;
-const CHAR_W: u32 = font::GLYPH_W * SCALE;
-const CHAR_H: u32 = font::GLYPH_H * SCALE;
-const MX: u32 = 12;
-const MY: u32 = 8;
-
-const BG_R: u8 = 0x06; const BG_G: u8 = 0x08; const BG_B: u8 = 0x10;
-const HD_R: u8 = 0xc8; const HD_G: u8 = 0x96; const HD_B: u8 = 0x4b;
-const TX_R: u8 = 0xc0; const TX_G: u8 = 0xc0; const TX_B: u8 = 0xc0;
-const AC_R: u8 = 0x60; const AC_G: u8 = 0xd0; const AC_B: u8 = 0x88;
-const HI_R: u8 = 0x10; const HI_G: u8 = 0x28; const HI_B: u8 = 0x18;
-const DM_R: u8 = 0x58; const DM_G: u8 = 0x60; const DM_B: u8 = 0x58;
-const PR_R: u8 = 0xff; const PR_G: u8 = 0xe0; const PR_B: u8 = 0x40;
-const SH_R: u8 = 0x80; const SH_G: u8 = 0x80; const SH_B: u8 = 0x80;
-
-// ── Request ───────────────────────────────────────────────────────────────────
+// ── Request / launch ──────────────────────────────────────────────────────────
 
 static mut REQUESTED: bool = false;
-
-pub fn request() { unsafe { REQUESTED = true; } }
-
+pub fn request()         { unsafe { REQUESTED = true; } }
 pub fn consume_request() -> bool {
     unsafe { if REQUESTED { REQUESTED = false; true } else { false } }
 }
-
-// ── Input buffer (filename / URL typed by user) ───────────────────────────────
 
 static mut ATL_INPUT:   [u8; 128] = [0u8; 128];
 static mut ATL_INPUT_N: usize     = 0;
@@ -56,53 +30,32 @@ pub fn launch_input() -> &'static [u8] {
     unsafe { &ATL_INPUT[..ATL_INPUT_N] }
 }
 
-// ── Menu ──────────────────────────────────────────────────────────────────────
-
-#[derive(Clone, Copy, PartialEq)]
-enum MenuKey {
-    KoStudio,
-    Yew,
-    Ledger,
-    Faerie,
-    VoxelLab,
-    Vrsei,
-    CharWorkshop,
-    DialogueForge,
-    Shell,
-}
-
-struct MenuItem {
-    label: &'static str,
-    desc:  &'static str,
-    key:   MenuKey,
-}
-
-const MENU: &[MenuItem] = &[
-    MenuItem { label: "Soa",     desc: "Mind holding both poles — REPL",            key: MenuKey::KoStudio },
-    MenuItem { label: "Saoshin",  desc: "Cup · related · seed — file editor",        key: MenuKey::Yew },
-    MenuItem { label: "Samos",   desc: "Feast of held ease — byte table",           key: MenuKey::Ledger },
-    MenuItem { label: "Faerie",  desc: "Kyompufwun — HTTP reader via Kyom",         key: MenuKey::Faerie },
-    MenuItem { label: "To",      desc: "Scaffold before building — voxel lab",      key: MenuKey::VoxelLab },
-    MenuItem { label: "Vrsei",   desc: "Rotor shaping space — voxel model sculptor", key: MenuKey::Vrsei },
-    MenuItem { label: "Av",      desc: "Mind holding space — agent registry",       key: MenuKey::CharWorkshop },
-    MenuItem { label: "Mekha",   desc: "Call held absolute — dialogue",             key: MenuKey::DialogueForge },
-    MenuItem { label: "Ko",      desc: "",                                           key: MenuKey::Shell },
-];
-
-const LABEL_COL: u32 = 22; // chars wide for label column
-
-// ── Launch signal ─────────────────────────────────────────────────────────────
+// ── Menu items ────────────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum AtelierLaunch {
-    KoStudio,
-    Yew,       // filename in launch_input()
-    Ledger,
-    Faerie,    // URL in launch_input()
-    VoxelLab,
-    Vrsei,
-    Shell,
+    KoStudio, Yew, Ledger, Faerie, VoxelLab, Vrsei, Shell,
 }
+
+struct NavItem {
+    label: &'static str,
+    desc:  &'static str,
+}
+
+const NAV: &[NavItem] = &[
+    NavItem { label: "Soa",      desc: "Mind holding both poles — REPL"           },
+    NavItem { label: "Saoshin",  desc: "Cup related seed — file editor"            },
+    NavItem { label: "Samos",    desc: "Feast of held ease — byte table"           },
+    NavItem { label: "Faerie",   desc: "Kyompufwun — HTTP reader"                  },
+    NavItem { label: "To",       desc: "Scaffold before building — voxel lab"      },
+    NavItem { label: "Vrsei",    desc: "Rotor shaping space — sculptor"            },
+    NavItem { label: "Av",       desc: "Mind holding space — agent registry"       },
+    NavItem { label: "Mekha",    desc: "Call held absolute — dialogue forge"       },
+    NavItem { label: "Ko",       desc: "Return to shell"                           },
+];
+
+// Section break before Ko (index 8) — thin rule separates it.
+const SECTION_BREAK: usize = 8;
 
 // ── Sub-mode ──────────────────────────────────────────────────────────────────
 
@@ -118,24 +71,21 @@ enum SubMode {
 // ── Atelier ───────────────────────────────────────────────────────────────────
 
 pub struct Atelier {
-    selected: usize,
-    sub_mode: SubMode,
-    rule_y:   u32,
-    launch:   Option<AtelierLaunch>,
-    cw_top:   usize,
-    cw_sel:   usize,
-    df_top:   usize,
+    pub selected: usize,
+    sub_mode:     SubMode,
+    rule_y:       u32,
+    launch:       Option<AtelierLaunch>,
+    cw_top:       usize,
+    cw_sel:       usize,
+    df_top:       usize,
 }
 
 impl Atelier {
     pub fn new(rule_y: u32) -> Self {
         Atelier {
-            selected: 0,
-            sub_mode: SubMode::Hub,
-            rule_y,
-            launch: None,
-            cw_top: 0, cw_sel: 0,
-            df_top: 0,
+            selected: 0, sub_mode: SubMode::Hub,
+            rule_y, launch: None,
+            cw_top: 0, cw_sel: 0, df_top: 0,
         }
     }
 
@@ -145,9 +95,9 @@ impl Atelier {
         self.launch   = None;
     }
 
-    pub fn consume_launch(&mut self) -> Option<AtelierLaunch> {
-        self.launch.take()
-    }
+    pub fn consume_launch(&mut self) -> Option<AtelierLaunch> { self.launch.take() }
+
+    // ── Key handling ──────────────────────────────────────────────────────────
 
     pub fn handle_key(&mut self, key: Key) {
         match self.sub_mode {
@@ -159,105 +109,40 @@ impl Atelier {
         }
     }
 
-    pub fn render(&self, gpu: &dyn GpuSurface) {
-        match self.sub_mode {
-            SubMode::Hub            => self.render_hub(gpu),
-            SubMode::PromptFilename => self.render_prompt(gpu, "Saoshin  >  Filename:", false),
-            SubMode::PromptUrl      => self.render_prompt(gpu, "Faerie  >  URL:", true),
-            SubMode::CharWorkshop   => self.render_cw(gpu),
-            SubMode::DialogueForge  => self.render_df(gpu),
-        }
-    }
-
-    // ── Hub ───────────────────────────────────────────────────────────────────
-
     fn hub_key(&mut self, key: Key) {
         match key {
-            Key::Up   => { if self.selected > 0 { self.selected -= 1; } }
-            Key::Down => { if self.selected + 1 < MENU.len() { self.selected += 1; } }
-            Key::Enter => match MENU[self.selected].key {
-                MenuKey::KoStudio     => { self.launch = Some(AtelierLaunch::KoStudio); }
-                MenuKey::Yew          => { unsafe { ATL_INPUT_N = 0; } self.sub_mode = SubMode::PromptFilename; }
-                MenuKey::Ledger       => { self.launch = Some(AtelierLaunch::Ledger); }
-                MenuKey::Faerie       => { unsafe { ATL_INPUT_N = 0; } self.sub_mode = SubMode::PromptUrl; }
-                MenuKey::VoxelLab     => { self.launch = Some(AtelierLaunch::VoxelLab); }
-                MenuKey::Vrsei        => { self.launch = Some(AtelierLaunch::Vrsei); }
-                MenuKey::CharWorkshop => { self.cw_top = 0; self.cw_sel = 0; self.sub_mode = SubMode::CharWorkshop; }
-                MenuKey::DialogueForge => { self.df_top = 0; self.sub_mode = SubMode::DialogueForge; }
-                MenuKey::Shell        => { self.launch = Some(AtelierLaunch::Shell); }
-            },
+            Key::Up     => { if self.selected > 0 { self.selected -= 1; } }
+            Key::Down   => { if self.selected + 1 < NAV.len() { self.selected += 1; } }
+            Key::Enter  => { self.activate(); }
             Key::Escape => { self.launch = Some(AtelierLaunch::Shell); }
             _ => {}
         }
     }
 
-    fn render_hub(&self, gpu: &dyn GpuSurface) {
-        let floor = self.rule_y + 4;
-        let w = gpu.width();
-        let h = gpu.height();
-        gpu.fill_rect(0, floor, w, h.saturating_sub(floor), BG_B, BG_G, BG_R);
-
-        let y0 = floor + MY;
-
-        // Header
-        font::draw_str(gpu, MX, y0, "Kaelshunshikeaninsuy", SCALE, HD_R, HD_G, HD_B);
-        let sub = "Ko's Labyrinth  7_KLGS";
-        let sub_x = w.saturating_sub(MX + (sub.len() as u32) * CHAR_W);
-        font::draw_str(gpu, sub_x, y0, sub, SCALE, DM_R, DM_G, DM_B);
-
-        // Rule
-        let rule_y = y0 + CHAR_H + 4;
-        gpu.fill_rect(MX, rule_y, w.saturating_sub(MX * 2), 1, DM_B, DM_G, DM_R);
-
-        let label_x = MX + CHAR_W * 2;
-        let desc_x  = label_x + CHAR_W * LABEL_COL;
-        let item_y0 = rule_y + MY;
-        let max_y   = h.saturating_sub(CHAR_H + 8);
-
-        for (i, item) in MENU.iter().enumerate() {
-            let y = item_y0 + i as u32 * (CHAR_H + 4);
-            if y + CHAR_H > max_y { break; }
-
-            // Separator before Ko Shell
-            if item.key == MenuKey::Shell {
-                gpu.fill_rect(label_x, y.saturating_sub(4), w.saturating_sub(label_x + MX), 1,
-                              DM_B / 2, DM_G / 2, DM_R / 2);
-                font::draw_str(gpu, label_x, y, item.label, SCALE, DM_R, DM_G, DM_B);
-                if i == self.selected {
-                    gpu.fill_rect(0, y.saturating_sub(2), w, CHAR_H + 4, HI_B, HI_G, HI_R);
-                    font::draw_str(gpu, MX, y, ">", SCALE, SH_R, SH_G, SH_B);
-                    font::draw_str(gpu, label_x, y, item.label, SCALE, SH_R, SH_G, SH_B);
-                }
-                continue;
-            }
-
-            if i == self.selected {
-                gpu.fill_rect(0, y.saturating_sub(2), w, CHAR_H + 4, HI_B, HI_G, HI_R);
-                font::draw_str(gpu, MX, y, ">", SCALE, AC_R, AC_G, AC_B);
-                font::draw_str(gpu, label_x, y, item.label, SCALE, AC_R, AC_G, AC_B);
-            } else {
-                font::draw_str(gpu, label_x, y, item.label, SCALE, TX_R, TX_G, TX_B);
-            }
-
-            if !item.desc.is_empty() {
-                font::draw_str(gpu, desc_x, y, item.desc, SCALE, DM_R, DM_G, DM_B);
-            }
+    fn activate(&mut self) {
+        match self.selected {
+            0 => { self.launch = Some(AtelierLaunch::KoStudio); }
+            1 => { unsafe { ATL_INPUT_N = 0; } self.sub_mode = SubMode::PromptFilename; }
+            2 => { self.launch = Some(AtelierLaunch::Ledger); }
+            3 => { unsafe { ATL_INPUT_N = 0; } self.sub_mode = SubMode::PromptUrl; }
+            4 => { self.launch = Some(AtelierLaunch::VoxelLab); }
+            5 => { self.launch = Some(AtelierLaunch::Vrsei); }
+            6 => { self.cw_sel = 0; self.cw_top = 0; self.sub_mode = SubMode::CharWorkshop; }
+            7 => { self.df_top = 0; self.sub_mode = SubMode::DialogueForge; }
+            _ => { self.launch = Some(AtelierLaunch::Shell); }
         }
-
-        // Status bar
-        let sy = h.saturating_sub(CHAR_H + 2);
-        font::draw_str(gpu, MX, sy, "Up/Dn navigate   Enter select   Esc to shell",
-                       SCALE, DM_R, DM_G, DM_B);
     }
-
-    // ── Prompt ────────────────────────────────────────────────────────────────
 
     fn prompt_key(&mut self, key: Key, is_url: bool) {
         match key {
             Key::Escape    => { self.sub_mode = SubMode::Hub; }
             Key::Enter     => {
                 if unsafe { ATL_INPUT_N } > 0 {
-                    self.launch = Some(if is_url { AtelierLaunch::Faerie } else { AtelierLaunch::Yew });
+                    self.launch = Some(if is_url {
+                        AtelierLaunch::Faerie
+                    } else {
+                        AtelierLaunch::Yew
+                    });
                 }
             }
             Key::Backspace => { unsafe { if ATL_INPUT_N > 0 { ATL_INPUT_N -= 1; } } }
@@ -273,43 +158,6 @@ impl Atelier {
         }
     }
 
-    fn render_prompt(&self, gpu: &dyn GpuSurface, label: &str, _is_url: bool) {
-        let floor = self.rule_y + 4;
-        let w = gpu.width();
-        let h = gpu.height();
-        gpu.fill_rect(0, floor, w, h.saturating_sub(floor), BG_B, BG_G, BG_R);
-
-        let y0 = floor + MY;
-        font::draw_str(gpu, MX, y0, "Kaelshunshikeaninsuy", SCALE, HD_R, HD_G, HD_B);
-
-        let rule_y = y0 + CHAR_H + 4;
-        gpu.fill_rect(MX, rule_y, w.saturating_sub(MX * 2), 1, DM_B, DM_G, DM_R);
-
-        let py = rule_y + MY * 5;
-
-        // Label
-        font::draw_str(gpu, MX, py, label, SCALE, PR_R, PR_G, PR_B);
-
-        // Input text
-        let input_x = MX + (label.len() as u32 + 2) * CHAR_W;
-        let inp_n = unsafe { ATL_INPUT_N };
-        let inp   = unsafe { &ATL_INPUT[..inp_n] };
-        if let Ok(s) = core::str::from_utf8(inp) {
-            font::draw_str(gpu, input_x, py, s, SCALE, TX_R, TX_G, TX_B);
-        }
-
-        // Cursor
-        let cx = input_x + inp_n as u32 * CHAR_W;
-        if cx + CHAR_W <= w {
-            gpu.fill_rect(cx, py, CHAR_W, CHAR_H, AC_B, AC_G, AC_R);
-        }
-
-        let sy = h.saturating_sub(CHAR_H + 2);
-        font::draw_str(gpu, MX, sy, "Enter open   Esc cancel", SCALE, DM_R, DM_G, DM_B);
-    }
-
-    // ── Character Workshop ────────────────────────────────────────────────────
-
     fn cw_key(&mut self, key: Key) {
         let count = crate::agent::agent_count();
         match key {
@@ -322,182 +170,255 @@ impl Atelier {
         else if self.cw_sel >= self.cw_top + 14 { self.cw_top = self.cw_sel.saturating_sub(13); }
     }
 
-    fn render_cw(&self, gpu: &dyn GpuSurface) {
-        let floor = self.rule_y + 4;
-        let w = gpu.width();
-        let h = gpu.height();
-        gpu.fill_rect(0, floor, w, h.saturating_sub(floor), BG_B, BG_G, BG_R);
-
-        let y0 = floor + MY;
-        font::draw_str(gpu, MX, y0, "Kaelshunshikeaninsuy  >  Av", SCALE, HD_R, HD_G, HD_B);
-
-        let rule_y = y0 + CHAR_H + 4;
-        gpu.fill_rect(MX, rule_y, w.saturating_sub(MX * 2), 1, DM_B, DM_G, DM_R);
-
-        // Column headers
-        let col_id   = MX + CHAR_W * 2;
-        let col_name = col_id + CHAR_W * 12;
-        let col_gate = col_name + CHAR_W * 22;
-        let col_lay  = col_gate + CHAR_W * 6;
-        let col_mob  = col_lay  + CHAR_W * 5;
-
-        let hdr_y = rule_y + 4;
-        font::draw_str(gpu, col_id,   hdr_y, "ID",      SCALE, DM_R, DM_G, DM_B);
-        font::draw_str(gpu, col_name, hdr_y, "Name",    SCALE, DM_R, DM_G, DM_B);
-        font::draw_str(gpu, col_gate, hdr_y, "Gate",    SCALE, DM_R, DM_G, DM_B);
-        font::draw_str(gpu, col_lay,  hdr_y, "Lay",     SCALE, DM_R, DM_G, DM_B);
-        font::draw_str(gpu, col_mob,  hdr_y, "Mob",     SCALE, DM_R, DM_G, DM_B);
-
-        let list_y = hdr_y + CHAR_H + 4;
-        let vis = ((h.saturating_sub(list_y + CHAR_H + 8)) / (CHAR_H + 2)) as usize;
-        let count = crate::agent::agent_count();
-
-        for i in 0..vis {
-            let ai = self.cw_top + i;
-            if ai >= count { break; }
-            let Some(a) = crate::agent::get_by_index(ai) else { break };
-            let y = list_y + i as u32 * (CHAR_H + 2);
-
-            if ai == self.cw_sel {
-                gpu.fill_rect(0, y.saturating_sub(2), w, CHAR_H + 4, HI_B, HI_G, HI_R);
-                font::draw_str(gpu, MX, y, ">", SCALE, AC_R, AC_G, AC_B);
-            }
-
-            let (tr, tg, tb) = if ai == self.cw_sel { (AC_R, AC_G, AC_B) } else { (TX_R, TX_G, TX_B) };
-
-            // entity_id
-            let id_n = a.entity_id.len().min(10);
-            if let Ok(s) = core::str::from_utf8(&a.entity_id[..id_n]) {
-                font::draw_str(gpu, col_id, y, s, SCALE, tr, tg, tb);
-            }
-
-            // name (first 20 chars)
-            let nm_n = a.name.len().min(20);
-            if let Ok(s) = core::str::from_utf8(&a.name[..nm_n]) {
-                font::draw_str(gpu, col_name, y, s, SCALE, tr, tg, tb);
-            }
-
-            // tongue_gate
-            let mut tg_buf = [b' '; 4];
-            write_u8_dec(&mut tg_buf, a.tongue_gate);
-            if let Ok(s) = core::str::from_utf8(trim(&tg_buf)) {
-                font::draw_str(gpu, col_gate, y, s, SCALE, DM_R, DM_G, DM_B);
-            }
-
-            // max_layer
-            let mut lay_buf = [b' '; 4];
-            write_u8_dec(&mut lay_buf, a.max_layer);
-            if let Ok(s) = core::str::from_utf8(trim(&lay_buf)) {
-                font::draw_str(gpu, col_lay, y, s, SCALE, DM_R, DM_G, DM_B);
-            }
-
-            // mobius
-            if a.mobius_close {
-                font::draw_str(gpu, col_mob, y, "M", SCALE, AC_R, AC_G, AC_B);
-            }
-        }
-
-        // Count line
-        let cnt_y = h.saturating_sub(CHAR_H * 2 + 6);
-        let mut cbuf = [b' '; 24];
-        let lbl = b"Registered: ";
-        cbuf[..lbl.len()].copy_from_slice(lbl);
-        let n = lbl.len() + write_u32_buf(&mut cbuf[lbl.len()..], count as u32);
-        if let Ok(s) = core::str::from_utf8(&cbuf[..n]) {
-            font::draw_str(gpu, MX, cnt_y, s, SCALE, DM_R, DM_G, DM_B);
-        }
-
-        let sy = h.saturating_sub(CHAR_H + 2);
-        font::draw_str(gpu, MX, sy, "Up/Dn navigate   Esc back", SCALE, DM_R, DM_G, DM_B);
-    }
-
-    // ── Dialogue Forge ────────────────────────────────────────────────────────
-
     fn df_key(&mut self, key: Key) {
         match key {
             Key::Escape => { self.sub_mode = SubMode::Hub; }
             Key::Up     => { if self.df_top > 0 { self.df_top -= 1; } }
-            Key::Down   => { self.df_top = self.df_top.saturating_add(1); }
+            Key::Down   => { self.df_top += 1; }
             _ => {}
         }
     }
 
-    fn render_df(&self, gpu: &dyn GpuSurface) {
-        let floor = self.rule_y + 4;
-        let w = gpu.width();
-        let h = gpu.height();
-        gpu.fill_rect(0, floor, w, h.saturating_sub(floor), BG_B, BG_G, BG_R);
+    // ── Render ────────────────────────────────────────────────────────────────
 
-        let y0 = floor + MY;
-        font::draw_str(gpu, MX, y0, "Kaelshunshikeaninsuy  >  Mekha", SCALE, HD_R, HD_G, HD_B);
+    pub fn render(&self, gpu: &dyn GpuSurface) {
+        // Switch to warm Atelier theme for this render call.
+        let prev_theme = style::get();
+        style::set(style::warm_theme());
 
-        let rule_y = y0 + CHAR_H + 4;
-        gpu.fill_rect(MX, rule_y, w.saturating_sub(MX * 2), 1, DM_B, DM_G, DM_R);
+        let it  = It::new(gpu);
+        let y0  = self.rule_y + 4;
 
-        // Info block
-        let iy = rule_y + MY;
-        font::draw_str(gpu, MX, iy,
-            "Dialogue is authored in the Atelier API and synced via Myrun.",
-            SCALE, DM_R, DM_G, DM_B);
-        font::draw_str(gpu, MX, iy + CHAR_H + 4,
-            "Use Saoshin to edit .ko scripts.  quest_req / flag_req are set in the Atelier.",
-            SCALE, DM_R, DM_G, DM_B);
+        // Full background
+        it.fill(0, y0, gpu.width(), gpu.height().saturating_sub(y0), style::get().bg);
 
-        // Line count
-        let total = crate::dialogue::line_count();
-        let mut buf = [b' '; 32];
-        let lbl = b"Loaded lines: ";
-        buf[..lbl.len()].copy_from_slice(lbl);
-        let n = lbl.len() + write_u32_buf(&mut buf[lbl.len()..], total as u32);
-        if let Ok(s) = core::str::from_utf8(&buf[..n]) {
-            font::draw_str(gpu, MX, iy + (CHAR_H + 4) * 3, s, SCALE, TX_R, TX_G, TX_B);
-        }
+        // ── Sidebar ───────────────────────────────────────────────────────────
+        it.atl_sidebar(y0);
+        it.atl_brand(y0, "Kaelshunshikeaninsuy");
 
-        // Pool breakdown
-        let pools: &[(&[u8], usize)] = &[
-            (b"Alfir (0006_WTCH)", crate::dialogue::ALFIR_LINES.len()),
-            (b"Ko (2021_GODS)",    crate::dialogue::KO_LINES.len()),
-            (b"Negaya (1101_VDWR)", crate::dialogue::NEGAYA_LINES.len()),
-        ];
-        let mut py = iy + (CHAR_H + 4) * 4 + 8;
-        for (name, count) in pools {
-            if py + CHAR_H > h.saturating_sub(CHAR_H + 8) { break; }
-            let mut row = [b' '; 40];
-            let nn = name.len().min(22);
-            row[..nn].copy_from_slice(&name[..nn]);
-            row[24] = b':';
-            let cn = write_u32_buf(&mut row[26..], *count as u32);
-            if let Ok(s) = core::str::from_utf8(&row[..26 + cn]) {
-                font::draw_str(gpu, MX + CHAR_W * 2, py, s, SCALE, TX_R, TX_G, TX_B);
+        let nav_y0 = y0 + ATL_BRAND_H + 1;
+        for (i, item) in NAV.iter().enumerate() {
+            if i == SECTION_BREAK {
+                // Thin rule before the last item (Ko shell).
+                let sy = nav_y0 + i as u32 * ATL_NAV_H - 6;
+                it.fill(16, sy, ATL_SIDEBAR_W - 32, 1, style::get().rule);
             }
-            py += CHAR_H + 2;
+            let iy = nav_y0 + i as u32 * ATL_NAV_H;
+            it.atl_nav_item(iy, item.label, item.desc, i == self.selected);
         }
 
-        let sy = h.saturating_sub(CHAR_H + 2);
-        font::draw_str(gpu, MX, sy, "Esc back", SCALE, DM_R, DM_G, DM_B);
+        // ── Content area ──────────────────────────────────────────────────────
+        it.atl_content_bg(y0);
+
+        match self.sub_mode {
+            SubMode::Hub            => self.render_hub_content(&it, y0),
+            SubMode::PromptFilename => self.render_prompt(&it, y0, "Open file:", false),
+            SubMode::PromptUrl      => self.render_prompt(&it, y0, "Open URL:", true),
+            SubMode::CharWorkshop   => self.render_cw(&it, y0),
+            SubMode::DialogueForge  => self.render_df(&it, y0),
+        }
+
+        // Status bar
+        it.atl_status_bar(
+            "arrows = navigate   Enter = open   Esc = shell",
+            "Kaelshunshikeaninsuy",
+        );
+
+        // Restore previous theme
+        style::set(prev_theme);
     }
-}
 
-// ── Formatting helpers ────────────────────────────────────────────────────────
+    // ── Hub content (welcome + selected item detail) ──────────────────────────
 
-fn write_u8_dec(buf: &mut [u8], mut n: u8) {
-    if buf.is_empty() { return; }
-    if n == 0 { buf[0] = b'0'; return; }
-    let mut tmp = [0u8; 3]; let mut l = 0;
-    while n > 0 { tmp[l] = b'0' + n % 10; n /= 10; l += 1; }
-    let w = buf.len();
-    for i in 0..l.min(w) { buf[i] = tmp[l - 1 - i]; }
-}
+    fn render_hub_content(&self, it: &It, y0: u32) {
+        let t    = style::get();
+        let item = &NAV[self.selected];
+        let cx   = ATL_SIDEBAR_W + 1;
+        let cw   = it.gpu.width().saturating_sub(cx);
 
-fn write_u32_buf(buf: &mut [u8], mut n: u32) -> usize {
-    if n == 0 { if !buf.is_empty() { buf[0] = b'0'; } return 1; }
-    let mut tmp = [0u8; 10]; let mut l = 0;
-    while n > 0 { tmp[l] = b'0' + (n % 10) as u8; n /= 10; l += 1; }
-    for i in 0..l.min(buf.len()) { buf[i] = tmp[l - 1 - i]; }
-    l
-}
+        it.atl_header_bar(y0, item.label, item.desc);
 
-fn trim(buf: &[u8]) -> &[u8] {
-    let end = buf.iter().position(|&b| b == b' ').unwrap_or(buf.len());
-    if end == 0 { &buf[..1] } else { &buf[..end] }
+        let py = y0 + ATL_BRAND_H + 40;
+
+        // Welcome card
+        it.atl_panel(cx + 28, py, cw.saturating_sub(56), 160);
+
+        let card_x = (cx + 44) as i32;
+        let card_y = (py + 24) as i32;
+
+        it.tt(card_x, card_y,      "Kaelshunshikeaninsuy", 22.0, t.text);
+        it.tt(card_x, card_y + 36, "The authoring environment for Ko's Labyrinth", 14.0, t.text_dim);
+        it.tt(card_x, card_y + 58, "and the KLGS series, running bare-metal inside DjinnOS.", 13.0, t.text_dim);
+
+        // Quick action buttons
+        it.atl_button(cx + 28, py + 116, 140, 32, "Open Tool", true, false);
+        it.atl_button(cx + 180, py + 116, 120, 32, "Ko Shell", false, false);
+
+        // Keyboard hint panel
+        let hint_y = py + 196;
+        it.tt(cx as i32 + 28, hint_y as i32, "Keyboard", 12.0, t.text_dim);
+        it.fill(cx + 28, hint_y + 16, cw.saturating_sub(56), 1, t.rule);
+
+        let hints = [
+            ("Up / Down",   "Navigate sidebar"),
+            ("Enter",       "Open selected tool"),
+            ("Escape",      "Return to Ko shell"),
+        ];
+        for (i, (key, desc)) in hints.iter().enumerate() {
+            let hy = hint_y + 24 + i as u32 * 22;
+            it.tt(cx as i32 + 28,  hy as i32, key,  12.0, t.accent);
+            it.tt(cx as i32 + 140, hy as i32, desc, 12.0, t.text_dim);
+        }
+    }
+
+    // ── Prompt (filename / URL input) ─────────────────────────────────────────
+
+    fn render_prompt(&self, it: &It, y0: u32, label: &str, _is_url: bool) {
+        let t    = style::get();
+        let cx   = ATL_SIDEBAR_W + 1;
+        let cw   = it.gpu.width().saturating_sub(cx);
+        let tool = if _is_url { "Faerie" } else { "Saoshin" };
+
+        it.atl_header_bar(y0, tool, label);
+
+        let inp_x = cx + 28;
+        let inp_y = y0 + ATL_BRAND_H + 60;
+        let inp_w = cw.saturating_sub(56).min(560);
+
+        // Label
+        it.tt(inp_x as i32, inp_y as i32 - 22, label, 13.0, t.text_dim);
+
+        // Input field
+        let inp_n = unsafe { ATL_INPUT_N };
+        let inp   = unsafe { &ATL_INPUT[..inp_n] };
+        let val   = core::str::from_utf8(inp).unwrap_or("");
+        it.atl_input(inp_x, inp_y, inp_w, "Type here...", val, true);
+
+        // Action buttons
+        it.atl_button(inp_x, inp_y + 52, 120, 32, "Open", true, false);
+        it.atl_button(inp_x + 136, inp_y + 52, 100, 32, "Cancel", false, false);
+    }
+
+    // ── Character Workshop ────────────────────────────────────────────────────
+
+    fn render_cw(&self, it: &It, y0: u32) {
+        let t  = style::get();
+        let cx = ATL_SIDEBAR_W + 1;
+        let cw = it.gpu.width().saturating_sub(cx);
+
+        it.atl_header_bar(y0, "Av", "Agent registry — character workshop");
+
+        let count   = crate::agent::agent_count();
+        let tab_y   = y0 + ATL_BRAND_H;
+        it.atl_tab_bar(&["Agents", "Coil", "Attestations"], 0, tab_y);
+
+        let list_y  = tab_y + 36 + 16;
+        let row_h   = 40u32;
+        let vis     = ((it.gpu.height().saturating_sub(list_y + 40)) / row_h) as usize;
+
+        // Column headers
+        let col_id   = cx + 28;
+        let col_name = cx + 140;
+        let col_gate = cx + 340;
+        let col_lay  = cx + 500;
+
+        it.tt(col_id   as i32, list_y as i32, "ID",       11.0, t.text_dim);
+        it.tt(col_name as i32, list_y as i32, "Name",     11.0, t.text_dim);
+        it.tt(col_gate as i32, list_y as i32, "Gate",     11.0, t.text_dim);
+        it.tt(col_lay  as i32, list_y as i32, "Layer",    11.0, t.text_dim);
+        it.fill(cx, list_y + 16, cw.saturating_sub(28), 1, t.rule);
+
+        for vi in 0..vis {
+            let si = self.cw_top + vi;
+            if si >= count { break; }
+            let row_y = list_y + 20 + vi as u32 * row_h;
+            let sel   = si == self.cw_sel;
+
+            if sel {
+                it.fill(cx, row_y - 4, cw.saturating_sub(28), row_h, t.selection);
+            }
+            let tc = if sel { t.accent } else { t.text };
+
+            if let Some(ag) = crate::agent::get_by_index(si) {
+                it.tt_mono(col_id   as i32, row_y as i32,
+                    core::str::from_utf8(ag.entity_id).unwrap_or("?"), 12.0, tc);
+                it.tt(col_name as i32, row_y as i32,
+                    core::str::from_utf8(ag.name).unwrap_or("?"), 13.0, tc);
+                it.tt(col_gate as i32, row_y as i32,
+                    if ag.tongue_gate > 0 { "gated" } else { "open" }, 12.0, t.text_dim);
+                let mut lb = [0u8; 4]; lb[0] = b'0' + ag.max_layer / 10; lb[1] = b'0' + ag.max_layer % 10;
+                it.tt_mono(col_lay as i32, row_y as i32,
+                    core::str::from_utf8(&lb[..2]).unwrap_or("?"), 12.0, t.text_dim);
+            }
+        }
+
+        if count == 0 {
+            let ey = list_y + 48;
+            it.tt(cx as i32 + 28, ey as i32, "No agents registered.", 14.0, t.text_dim);
+        }
+    }
+
+    // ── Dialogue Forge ────────────────────────────────────────────────────────
+
+    fn render_df(&self, it: &It, y0: u32) {
+        let t  = style::get();
+        let cx = ATL_SIDEBAR_W + 1;
+        let cw = it.gpu.width().saturating_sub(cx);
+
+        it.atl_header_bar(y0, "Mekha", "Dialogue forge — scripted line pools");
+
+        let tab_y = y0 + ATL_BRAND_H;
+        it.atl_tab_bar(&["Lines", "Coil", "Attestations"], 0, tab_y);
+
+        let pool_count = crate::dialogue::line_count();
+        let list_y     = tab_y + 36 + 16;
+        let row_h      = 36u32;
+        let vis        = ((it.gpu.height().saturating_sub(list_y + 40)) / row_h) as usize;
+
+        // Header row
+        let col_id   = cx + 28;
+        let col_ent  = cx + 130;
+        let col_kind = cx + 280;
+        let col_gate = cx + 420;
+
+        it.tt(col_id   as i32, list_y as i32, "Line ID",    11.0, t.text_dim);
+        it.tt(col_ent  as i32, list_y as i32, "Entity",     11.0, t.text_dim);
+        it.tt(col_kind as i32, list_y as i32, "Kind",       11.0, t.text_dim);
+        it.tt(col_gate as i32, list_y as i32, "Quest gate", 11.0, t.text_dim);
+        it.fill(cx, list_y + 16, cw.saturating_sub(28), 1, t.rule);
+
+        // Pool summary (per-entity counts from all pools)
+        let pools: &[(&[u8], &[crate::dialogue::DialogueLine])] = &[
+            (b"0006_WTCH", crate::dialogue::ALFIR_LINES),
+            (b"2021_GODS", crate::dialogue::KO_LINES),
+            (b"2003_VDWR", crate::dialogue::NEGAYA_LINES),
+            (b"0020_TOWN", crate::dialogue::SIDHAL_LINES),
+            (b"0021_TOWN", crate::dialogue::WELLS_LINES),
+            (b"0022_TOWN", crate::dialogue::LAVELLE_LINES),
+            (b"0007_WTCH", crate::dialogue::FOREST_WITCH_LINES),
+            (b"0017_ROYL", crate::dialogue::NEXIOTT_LINES),
+            (b"1018_DJNN", crate::dialogue::DROVITTH_LINES),
+            (b"0024_TOWN", crate::dialogue::ELSA_LINES),
+            (b"0000_0451", crate::dialogue::HYPATIA_EARLY_LINES),
+        ];
+
+        for (vi, &(eid, pool)) in pools.iter().skip(self.df_top).take(vis).enumerate() {
+            let row_y = list_y + 20 + vi as u32 * row_h;
+            let name  = core::str::from_utf8(eid).unwrap_or("?");
+            it.tt_mono(col_ent as i32, row_y as i32, name, 12.0, t.text);
+            let mut nb = [0u8; 4]; let n = pool.len();
+            nb[0] = b'0' + (n / 10) as u8; nb[1] = b'0' + (n % 10) as u8;
+            it.tt(col_id as i32, row_y as i32,
+                core::str::from_utf8(&nb[..2]).unwrap_or("?"), 12.0, t.text_dim);
+            it.tt(col_kind as i32, row_y as i32, "mixed", 12.0, t.text_dim);
+        }
+
+        // Total badge
+        let mut tb = [0u8; 6]; let tp = pool_count;
+        let mut idx = 0; let mut v = tp;
+        while v > 0 && idx < 6 { tb[idx] = b'0' + (v % 10) as u8; idx += 1; v /= 10; }
+        tb[..idx].reverse();
+        let ts = core::str::from_utf8(&tb[..idx.max(1)]).unwrap_or("0");
+        it.atl_badge(cx + cw.saturating_sub(120), list_y - 4, ts, t.accent);
+    }
 }

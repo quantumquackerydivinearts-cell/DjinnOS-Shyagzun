@@ -133,6 +133,8 @@ pub fn poll() -> Option<Key> {
                     0x50 => Some(Key::Down),
                     0x4B => Some(Key::Left),
                     0x4D => Some(Key::Right),
+                    0x49 => Some(Key::PageUp),
+                    0x51 => Some(Key::PageDown),
                     _    => None,
                 };
             }

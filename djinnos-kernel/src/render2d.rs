@@ -356,7 +356,205 @@ impl<'a> It<'a> {
             self.text(x + style::M3 * 2, y, label, SCALE, self.theme.text);
         }
     }
+
+    // ── TrueType text ─────────────────────────────────────────────────────────
+
+    /// Render Inter (sans-serif) at any size.  y = top of em-box.
+    /// Color is (b, g, r).  Returns end-x relative to clip region.
+    pub fn tt(&self, x: i32, y: i32, s: &str, size_px: f32, col: (u8,u8,u8)) -> i32 {
+        crate::truetype::inter(
+            self.gpu, self.cx as i32 + x, self.cy as i32 + y, s, size_px, col,
+        ) - self.cx as i32
+    }
+
+    /// Render JetBrains Mono (code / REPL) at any size.
+    pub fn tt_mono(&self, x: i32, y: i32, s: &str, size_px: f32, col: (u8,u8,u8)) -> i32 {
+        crate::truetype::mono(
+            self.gpu, self.cx as i32 + x, self.cy as i32 + y, s, size_px, col,
+        ) - self.cx as i32
+    }
+
+    /// Pixel width of `s` rendered with Inter at `size_px`.
+    pub fn tt_width(&self, s: &str, size_px: f32) -> i32 {
+        crate::truetype::inter_width(s, size_px)
+    }
+
+    /// Render Inter right-aligned so its right edge is at `x`.
+    pub fn tt_right(&self, x: i32, y: i32, s: &str, size_px: f32, col: (u8,u8,u8)) {
+        let w = crate::truetype::inter_width(s, size_px);
+        crate::truetype::inter(
+            self.gpu, self.cx as i32 + x - w, self.cy as i32 + y, s, size_px, col,
+        );
+    }
+
+    /// Render Inter centred within [x, x+w].
+    pub fn tt_center(&self, x: i32, y: i32, w: i32, s: &str,
+                     size_px: f32, col: (u8,u8,u8)) {
+        let sw = crate::truetype::inter_width(s, size_px);
+        let tx = x + (w - sw) / 2;
+        crate::truetype::inter(
+            self.gpu, self.cx as i32 + tx, self.cy as i32 + y, s, size_px, col,
+        );
+    }
+
+    // ── Warm Atelier layout components ────────────────────────────────────────
+    //
+    // Matches apps/atelier-desktop/src/index.css exactly.
+    // 280px sidebar, botanical warmth, flat design (1px border, no shadow),
+    // Inter 13–17px typography, 8–12px border radius.
+
+    /// Sidebar gradient + right border from y0 downward.
+    pub fn atl_sidebar(&self, y0: u32) {
+        let h = self.ch.saturating_sub(y0);
+        self.grad_v(0, y0, ATL_SIDEBAR_W, h,
+                    style::WARM_SIDEBAR_TOP, style::WARM_SIDEBAR_BOT);
+        self.fill(ATL_SIDEBAR_W, y0, 1, h, self.theme.rule);
+    }
+
+    /// Brand header (title + horizontal rule) at top of sidebar.
+    pub fn atl_brand(&self, y0: u32, title: &str) {
+        let h = ATL_BRAND_H;
+        self.grad_v(0, y0, ATL_SIDEBAR_W, h,
+                    style::WARM_SIDEBAR_TOP, style::WARM_SIDEBAR_BOT);
+        let ty = y0 as i32 + (h as i32 - 17) / 2;
+        self.tt(20, ty, title, 17.0, self.theme.header);
+        self.fill(0, y0 + h, ATL_SIDEBAR_W, 1, self.theme.rule);
+    }
+
+    /// One sidebar navigation item: name (14px) + description (11px, dim).
+    /// Active: accent-soft fill + 3px left bar.
+    pub fn atl_nav_item(&self, y: u32, label: &str, desc: &str, active: bool) {
+        let t = self.theme;
+        if active {
+            self.fill(0, y, ATL_SIDEBAR_W, ATL_NAV_H, t.selection);
+            self.fill(0, y, 3, ATL_NAV_H, t.accent);
+        }
+        let lc = if active { t.accent } else { t.text };
+        self.tt(16, y as i32 + 7,  label, 14.0, lc);
+        self.tt(16, y as i32 + 26, desc,  11.0, t.text_dim);
+    }
+
+    /// Section divider label inside sidebar (11px dimmed + hairline).
+    pub fn atl_section_label(&self, x: u32, y: u32, label: &str) {
+        self.tt(x as i32, y as i32, label, 11.0, self.theme.text_dim);
+        self.fill(x, y + 15, ATL_SIDEBAR_W.saturating_sub(x + 20), 1, self.theme.rule);
+    }
+
+    /// Content area background (right of sidebar).
+    pub fn atl_content_bg(&self, y0: u32) {
+        let x = ATL_SIDEBAR_W + 1;
+        self.fill(x, y0, self.cw.saturating_sub(x), self.ch.saturating_sub(y0), self.theme.bg);
+    }
+
+    /// Tool header bar in the content area (title 17px + subtitle 12px).
+    pub fn atl_header_bar(&self, y: u32, title: &str, subtitle: &str) {
+        let x = ATL_SIDEBAR_W + 1;
+        let w = self.cw.saturating_sub(x);
+        let h = ATL_BRAND_H;
+        let t = self.theme;
+        self.fill(x, y, w, h, t.surface);
+        self.fill(x, y + h, w, 1, t.rule);
+        self.tt(x as i32 + 28, y as i32 + 14, title,    17.0, t.text);
+        if !subtitle.is_empty() {
+            self.tt(x as i32 + 28, y as i32 + 36, subtitle, 12.0, t.text_dim);
+        }
+    }
+
+    /// Horizontal tab bar (draws at x=sidebar_w+1, full content width, 36px tall).
+    pub fn atl_tab_bar(&self, tabs: &[&str], selected: usize, y: u32) {
+        let x0 = ATL_SIDEBAR_W + 1;
+        let cw = self.cw.saturating_sub(x0);
+        let h  = 36u32;
+        let t  = self.theme;
+        self.fill(x0, y, cw, h, t.bg);
+        self.fill(x0, y + h - 1, cw, 1, t.rule);
+        let mut tx = x0 as i32 + 16;
+        for (i, &tab) in tabs.iter().enumerate() {
+            let tw = self.tt_width(tab, 13.0) + 32;
+            if i == selected {
+                self.fill_rounded(tx as u32, y + 2, tw as u32, h - 3, 8, t.selection);
+                self.fill(tx as u32, y + h - 2, tw as u32, 2, t.accent);
+            }
+            let tc = if i == selected { t.accent } else { t.text_dim };
+            self.tt(tx + 16, y as i32 + (h as i32 - 13) / 2, tab, 13.0, tc);
+            tx += tw as i32;
+        }
+    }
+
+    /// Flat panel: surface fill, 12px radius, 1px warm-taupe border, no shadow.
+    pub fn atl_panel(&self, x: u32, y: u32, w: u32, h: u32) {
+        self.fill_rounded(x, y, w, h, 12, self.theme.surface);
+        self.stroke_rounded(x, y, w, h, 12, 1, self.theme.rule);
+    }
+
+    /// Warm text input field (36px standard height).
+    pub fn atl_input(&self, x: u32, y: u32, w: u32,
+                     placeholder: &str, value: &str, focused: bool) {
+        let t  = self.theme;
+        let h  = 36u32;
+        let bg     = if focused { t.surface } else { t.bg };
+        let border = if focused { t.accent  } else { t.rule };
+        self.fill_rounded(x, y, w, h, 8, bg);
+        self.stroke_rounded(x, y, w, h, 8, 1, border);
+        let ty = y as i32 + (h as i32 - 14) / 2;
+        if value.is_empty() {
+            self.tt(x as i32 + 12, ty, placeholder, 13.0, t.text_dim);
+        } else {
+            let end_x = self.tt(x as i32 + 12, ty, value, 13.0, t.text);
+            if focused {
+                let cx = (x + 12 + end_x.max(0) as u32).min(x + w - 4);
+                self.fill(cx, y + 6, 2, h - 12, t.accent);
+            }
+        }
+    }
+
+    /// Warm button: primary (sage fill + white text) or secondary (outline).
+    pub fn atl_button(&self, x: u32, y: u32, w: u32, h: u32,
+                      label: &str, primary: bool, focused: bool) {
+        let t = self.theme;
+        if primary {
+            let bg = if focused { style::lighten(t.accent, 12) } else { t.accent };
+            self.fill_rounded(x, y, w, h, 8, bg);
+            self.tt_center(x as i32, y as i32 + (h as i32 - 13) / 2,
+                           w as i32, label, 13.0, t.text_inv);
+        } else {
+            let bg = if focused { t.selection } else { t.bg };
+            self.fill_rounded(x, y, w, h, 8, bg);
+            self.stroke_rounded(x, y, w, h, 8, 1, t.rule);
+            self.tt_center(x as i32, y as i32 + (h as i32 - 13) / 2,
+                           w as i32, label, 13.0, t.text);
+        }
+    }
+
+    /// Pill badge (counts, status labels).
+    pub fn atl_badge(&self, x: u32, y: u32, label: &str, col: (u8,u8,u8)) {
+        let lw = self.tt_width(label, 11.0);
+        let pw = (lw + 16).max(24) as u32;
+        let bg = style::mix(col, self.theme.bg, 40);
+        self.fill_rounded(x, y, pw, 20, 10, bg);
+        self.tt(x as i32 + (pw as i32 - lw) / 2, y as i32 + 4, label, 11.0, col);
+    }
+
+    /// Status / hint bar at the bottom of the content area.
+    pub fn atl_status_bar(&self, left: &str, right: &str) {
+        let h  = 28u32;
+        let y  = self.ch.saturating_sub(h);
+        let x  = ATL_SIDEBAR_W + 1;
+        let w  = self.cw.saturating_sub(x);
+        let t  = self.theme;
+        self.fill(x, y, w, h, t.surface);
+        self.fill(x, y, w, 1, t.rule);
+        let ty = y as i32 + (h as i32 - 12) / 2;
+        self.tt(x as i32 + 16, ty, left,  12.0, t.text_dim);
+        self.tt_right(self.cw as i32 - 16, ty, right, 12.0, t.text_dim);
+    }
 }
+
+// ── Atelier layout constants ──────────────────────────────────────────────────
+
+pub const ATL_SIDEBAR_W: u32 = 280;
+pub const ATL_NAV_H:     u32 = 44;
+pub const ATL_BRAND_H:   u32 = 60;
 
 // ── Integer sqrt ─────────────────────────────────────────────────────────────
 
