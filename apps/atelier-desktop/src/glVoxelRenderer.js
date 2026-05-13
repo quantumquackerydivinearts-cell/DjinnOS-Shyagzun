@@ -152,7 +152,7 @@ function _buildGeo(voxels, cx, cy, cz) {
     const wx=v.x-cx, wy=(v.z!=null?Number(v.z):0)-cy, wz=(v.y!=null?Number(v.y):0)-cz;
     const [r,g,b]=_hex(v.color);
     for (const {n,q,ua,va} of _FACES) {
-      for (const [i0,i1,i2] of [[0,1,2],[0,2,3]]) {
+      for (const [i0,i1,i2] of [[0,2,1],[0,3,2]]) {
         for (const qi of [i0,i1,i2]) {
           const [qx,qy,qz]=q[qi];
           buf[off++]=wx+qx; buf[off++]=wy+qy; buf[off++]=wz+qz;
