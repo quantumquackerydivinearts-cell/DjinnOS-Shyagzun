@@ -8,7 +8,8 @@ from typing import Any, Dict, Mapping, Optional, Sequence
 
 import stripe
 from uuid import uuid4
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, status
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect, status
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response, ORJSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -51,6 +52,7 @@ from .business_schemas import (
     ArtisanAccessVerifyInput,
     ArtisanLoginInput,
     ArtisanLoginOut,
+    AttachmentOut,
     BookingCreate,
     BookingUpdate,
     BookingOut,
@@ -3623,6 +3625,77 @@ def delete_contact(
     except ValueError:
         raise HTTPException(status_code=404, detail="contact_not_found")
     return Response(status_code=204)
+
+
+_ALLOWED_ENTITY_TYPES = {
+    "booking", "contact", "lead", "client", "quote", "order",
+    "contract", "invoice", "supplier", "inventory_item",
+    "artisan", "guild", "studio", "distribution",
+}
+
+_MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+@app.get("/v1/attachments", response_model=list[AttachmentOut])
+def list_attachments(
+    entity_type:  str,
+    entity_id:    str,
+    ctx:          CapabilityContext  = Depends(_capability_context),
+    workspace_id: str                = Depends(_workspace_id_dep),
+    svc:          AtelierService     = Depends(_atelier_service),
+) -> list[AttachmentOut]:
+    if entity_type not in _ALLOWED_ENTITY_TYPES:
+        raise HTTPException(400, "invalid_entity_type")
+    return svc.list_attachments(workspace_id, entity_type, entity_id)
+
+
+@app.post("/v1/attachments", response_model=AttachmentOut, status_code=201)
+async def upload_attachment(
+    entity_type:  str,
+    entity_id:    str,
+    file:         UploadFile         = File(...),
+    ctx:          CapabilityContext  = Depends(_capability_context),
+    workspace_id: str                = Depends(_workspace_id_dep),
+    svc:          AtelierService     = Depends(_atelier_service),
+) -> AttachmentOut:
+    if entity_type not in _ALLOWED_ENTITY_TYPES:
+        raise HTTPException(400, "invalid_entity_type")
+    data = await file.read()
+    if len(data) > _MAX_ATTACHMENT_BYTES:
+        raise HTTPException(413, "file_too_large_max_10mb")
+    return svc.create_attachment(
+        workspace_id = workspace_id,
+        entity_type  = entity_type,
+        entity_id    = entity_id,
+        filename     = file.filename or "upload",
+        content_type = file.content_type,
+        data         = data,
+    )
+
+
+@app.get("/v1/attachments/{attachment_id}/download")
+def download_attachment(
+    attachment_id: str,
+    workspace_id:  str          = Depends(_workspace_id_dep),
+    svc:           AtelierService = Depends(_atelier_service),
+) -> Response:
+    row = svc.get_attachment_data(attachment_id, workspace_id)
+    if row is None:
+        raise HTTPException(404, "attachment_not_found")
+    return Response(
+        content     = row.data,
+        media_type  = row.content_type or "application/octet-stream",
+        headers     = {"Content-Disposition": f'attachment; filename="{row.filename}"'},
+    )
+
+
+@app.delete("/v1/attachments/{attachment_id}", status_code=204)
+def delete_attachment(
+    attachment_id: str,
+    workspace_id:  str          = Depends(_workspace_id_dep),
+    svc:           AtelierService = Depends(_atelier_service),
+) -> None:
+    svc.delete_attachment(attachment_id, workspace_id)
 
 
 @app.get("/v1/booking")

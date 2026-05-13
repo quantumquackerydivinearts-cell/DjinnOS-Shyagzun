@@ -89,6 +89,19 @@ class BookingCreate(BaseModel):
     notes: str = ""
 
 
+class AttachmentOut(BaseModel):
+    id:           str
+    entity_type:  str
+    entity_id:    str
+    filename:     str
+    content_type: str | None
+    size_bytes:   int
+    created_at:   datetime
+
+    class Config:
+        from_attributes = True
+
+
 class BookingUpdate(BaseModel):
     title: str | None = None
     status: str | None = None

@@ -4876,6 +4876,41 @@ class AtelierService:
         out = self._require_repo().create_contact(row)
         return ContactOut.model_validate(out, from_attributes=True)
 
+    def list_attachments(self, workspace_id: str, entity_type: str, entity_id: str):
+        from .business_schemas import AttachmentOut
+        rows = self._require_repo().list_attachments(workspace_id, entity_type, entity_id)
+        return [AttachmentOut.model_validate(r, from_attributes=True) for r in rows]
+
+    def create_attachment(self, workspace_id: str, entity_type: str, entity_id: str,
+                          filename: str, content_type: str | None, data: bytes):
+        from .business_schemas import AttachmentOut
+        from .models import Attachment
+        from datetime import datetime
+        row = Attachment(
+            workspace_id = workspace_id,
+            entity_type  = entity_type,
+            entity_id    = entity_id,
+            filename     = filename,
+            content_type = content_type,
+            size_bytes   = len(data),
+            data         = data,
+            created_at   = datetime.utcnow(),
+        )
+        out = self._require_repo().create_attachment(row)
+        return AttachmentOut.model_validate(out, from_attributes=True)
+
+    def get_attachment_data(self, attachment_id: str, workspace_id: str):
+        from .models import Attachment
+        row = self._require_repo().get_attachment(attachment_id, workspace_id)
+        return row
+
+    def delete_attachment(self, attachment_id: str, workspace_id: str) -> bool:
+        row = self._require_repo().get_attachment(attachment_id, workspace_id)
+        if row is None:
+            return False
+        self._require_repo().delete_attachment(row)
+        return True
+
     def list_bookings(self, workspace_id: str) -> Sequence[BookingOut]:
         rows = self._require_repo().list_bookings(workspace_id=workspace_id)
         return [BookingOut.model_validate(row, from_attributes=True) for row in rows]

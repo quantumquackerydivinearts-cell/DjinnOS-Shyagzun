@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -1027,3 +1027,18 @@ class QuackToken(Base):
     breath_diff:      Mapped[str | None] = mapped_column(Text,        nullable=True)
     proposal_id:      Mapped[str | None] = mapped_column(String(36),  nullable=True)
     minted_at:        Mapped[datetime]   = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class Attachment(Base):
+    """Polymorphic file attachment scoped to a workspace entity."""
+    __tablename__ = "attachments"
+
+    id:           Mapped[str]      = mapped_column(String(36),   primary_key=True, default=_uuid)
+    workspace_id: Mapped[str]      = mapped_column(String(36),   ForeignKey("workspaces.id"), nullable=False)
+    entity_type:  Mapped[str]      = mapped_column(String(40),   nullable=False)
+    entity_id:    Mapped[str]      = mapped_column(String(36),   nullable=False)
+    filename:     Mapped[str]      = mapped_column(String(255),  nullable=False)
+    content_type: Mapped[str|None] = mapped_column(String(120),  nullable=True)
+    size_bytes:   Mapped[int]      = mapped_column(Integer,      nullable=False, default=0)
+    data:         Mapped[bytes]    = mapped_column(LargeBinary,  nullable=False)
+    created_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)

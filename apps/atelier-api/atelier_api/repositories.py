@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from .models import (
     ArtisanAccount,
+    Attachment,
     Booking,
     CRMContact,
     Workspace,
@@ -127,6 +128,33 @@ class AtelierRepository:
         self._db.delete(row)
         self._db.commit()
         return True
+
+    def list_attachments(self, workspace_id: str, entity_type: str, entity_id: str) -> Sequence[Attachment]:
+        return self._db.scalars(
+            select(Attachment).where(
+                Attachment.workspace_id == workspace_id,
+                Attachment.entity_type  == entity_type,
+                Attachment.entity_id    == entity_id,
+            ).order_by(Attachment.created_at.asc())
+        ).all()
+
+    def get_attachment(self, attachment_id: str, workspace_id: str) -> Attachment | None:
+        return self._db.scalar(
+            select(Attachment).where(
+                Attachment.id           == attachment_id,
+                Attachment.workspace_id == workspace_id,
+            )
+        )
+
+    def create_attachment(self, row: Attachment) -> Attachment:
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def delete_attachment(self, row: Attachment) -> None:
+        self._db.delete(row)
+        self._db.commit()
 
     def list_bookings(self, workspace_id: str) -> Sequence[Booking]:
         return self._db.scalars(select(Booking).where(Booking.workspace_id == workspace_id)).all()

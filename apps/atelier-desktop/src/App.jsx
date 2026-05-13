@@ -17,6 +17,7 @@ import { KobraStudioPanel } from "./panels/KobraStudioPanel";
 import { drawWebGL2 } from "./glVoxelRenderer";
 import { ShopManagerPanel } from "./panels/ShopManagerPanel";
 import { BookingPanel } from "./panels/BookingPanel";
+import { AttachmentsPanel } from "./panels/AttachmentsPanel";
 import { Q3Panel } from "./panels/Q3Panel";
 import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
 import { GameEditorsPanel } from "./panels/GameEditorsPanel";
@@ -6471,6 +6472,7 @@ export function App() {
   const [clientNotes, setClientNotes] = useState("");
   const [clients, setClients] = useState([]);
   const [clientFilter, setClientFilter] = useState("");
+  const [clientSelectedId, setClientSelectedId] = useState(null);
 
   const [quoteTitle, setQuoteTitle] = useState("");
   const [quoteAmount, setQuoteAmount] = useState("");
@@ -16097,22 +16099,57 @@ function extractPythonSavedPath(outputText) {
       );
     }
     if (section === "Clients") {
+      const selectedClient = clients.find(c => c.id === clientSelectedId) || null;
       return (
-        <section className="panel">
-          <h2>Clients</h2>
-          <div className="row">
-            <input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="client name" />
-            <input value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="client email" />
-            <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="client phone" />
-            <button className="action" onClick={() => createEntity("clients_create", "/v1/clients", { workspace_id: workspaceId, full_name: clientName, email: clientEmail || null, phone: clientPhone || null, status: "active", notes: clientNotes }, () => { setClientName(""); setClientEmail(""); setClientPhone(""); setClientNotes(""); }, listClients)}>Create</button>
-            <button className="action" onClick={listClients}>Refresh</button>
-          </div>
-          <div className="row">
-            <textarea value={clientNotes} onChange={(e) => setClientNotes(e.target.value)} placeholder="client notes" />
-            <input value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} placeholder="filter clients" />
-          </div>
-          <pre>{JSON.stringify(filteredClients, null, 2)}</pre>
-        </section>
+        <>
+          <section className="panel">
+            <h2>Clients</h2>
+            <div className="row">
+              <input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="client name" />
+              <input value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="client email" />
+              <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="client phone" />
+              <button className="action" onClick={() => createEntity("clients_create", "/v1/clients", { workspace_id: workspaceId, full_name: clientName, email: clientEmail || null, phone: clientPhone || null, status: "active", notes: clientNotes }, () => { setClientName(""); setClientEmail(""); setClientPhone(""); setClientNotes(""); }, listClients)}>Create</button>
+              <button className="action" onClick={listClients}>Refresh</button>
+            </div>
+            <div className="row">
+              <textarea value={clientNotes} onChange={(e) => setClientNotes(e.target.value)} placeholder="client notes" />
+              <input value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} placeholder="filter clients" />
+            </div>
+            <div style={{ marginTop: "0.5rem" }}>
+              {filteredClients.map(c => (
+                <div
+                  key={c.id}
+                  onClick={() => setClientSelectedId(id => id === c.id ? null : c.id)}
+                  style={{
+                    padding: "0.4rem 0.75rem", cursor: "pointer",
+                    borderBottom: "1px solid #1e2e1e",
+                    background: c.id === clientSelectedId ? "#1a2a1a" : "transparent",
+                    display: "flex", gap: "0.75rem", alignItems: "baseline",
+                  }}
+                >
+                  <strong style={{ fontSize: "0.9rem" }}>{c.full_name || "—"}</strong>
+                  {c.email && <span style={{ opacity: 0.55, fontSize: "0.8rem" }}>{c.email}</span>}
+                  {c.phone && <span style={{ opacity: 0.4, fontSize: "0.8rem" }}>{c.phone}</span>}
+                  <span className="badge" style={{ marginLeft: "auto" }}>{c.status}</span>
+                </div>
+              ))}
+              {filteredClients.length === 0 && <p className="muted-text">No clients. Click Refresh.</p>}
+            </div>
+          </section>
+          {selectedClient && (
+            <section className="panel">
+              <h2>{selectedClient.full_name} — Files</h2>
+              {selectedClient.notes && <p className="muted-text" style={{ marginBottom: "0.5rem" }}>{selectedClient.notes}</p>}
+              <AttachmentsPanel
+                entityType="client"
+                entityId={selectedClient.id}
+                apiBase={API_BASE}
+                authToken={authToken}
+                workspaceId={workspaceId}
+              />
+            </section>
+          )}
+        </>
       );
     }
     if (section === "Quotes") {
