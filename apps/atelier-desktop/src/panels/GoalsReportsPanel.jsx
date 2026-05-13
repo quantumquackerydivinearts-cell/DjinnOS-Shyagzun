@@ -85,7 +85,8 @@ export function GoalsReportsPanel({ apiBase, authToken, workspaceId }) {
   }
 
   async function deleteGoal(id) {
-    await api(`/goals/${id}`,"DELETE"); loadGoals();
+    try { await api(`/goals/${id}`,"DELETE"); loadGoals(); }
+    catch(e) { setGoalStatus(e.message); }
   }
 
   function editGoal(g) {
@@ -115,12 +116,13 @@ export function GoalsReportsPanel({ apiBase, authToken, workspaceId }) {
   }
 
   async function toggleDigest(d) {
-    await api(`/reports/digests/${d.id}`,"PUT",{ ...d, active:!d.active });
-    loadDigests();
+    try { await api(`/reports/digests/${d.id}`,"PUT",{ ...d, active:!d.active }); loadDigests(); }
+    catch(e) { setDigestStatus(e.message); }
   }
 
   async function deleteDigest(id) {
-    await api(`/reports/digests/${id}`,"DELETE"); loadDigests();
+    try { await api(`/reports/digests/${id}`,"DELETE"); loadDigests(); }
+    catch(e) { setDigestStatus(e.message); }
   }
 
   // ── Styles ───────────────────────────────────────────────────────────────────

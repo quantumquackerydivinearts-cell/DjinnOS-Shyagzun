@@ -107,8 +107,10 @@ export function GraphPanel({ apiBase, authToken, workspaceId }) {
   }
 
   async function deleteConfig(id) {
-    await fetch(`${apiBase}/v1/graph/configs/${id}`, { method: "DELETE", headers: hdrs });
-    loadConfigs();
+    try {
+      await fetch(`${apiBase}/v1/graph/configs/${id}`, { method: "DELETE", headers: hdrs });
+      loadConfigs();
+    } catch {}
   }
 
   async function loadTelemetry() {
