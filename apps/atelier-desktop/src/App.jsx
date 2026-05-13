@@ -11181,6 +11181,20 @@ function extractPythonSavedPath(outputText) {
     });
   }
 
+  async function loadKoFileToRenderer() {
+    await runAction("load_ko_to_renderer", async () => {
+      if (!hasDesktopFs()) throw new Error("studio_fs unavailable outside desktop shell");
+      if (!studioFsRoot) throw new Error("studio_fs root not set — choose a folder first");
+      if (!studioFsSelectedScript) throw new Error("no .ko file selected");
+      const result = await window.atelierDesktop.fs.readKobraScript(studioFsRoot, studioFsSelectedScript);
+      if (!result?.ok || typeof result.content !== "string") throw new Error("studio_fs_read failed");
+      setRendererKobra(result.content);
+      setRendererVisualSource("kobra");
+      applyKosLabyrinthPreset();
+      return { filename: result.filename, lines: result.content.split("\n").length };
+    });
+  }
+
   async function importSelectedFsPythonToRenderer() {
     await runAction("studio_fs_import_python_renderer", async () => {
       if (!hasDesktopFs()) {
@@ -19555,6 +19569,7 @@ function extractPythonSavedPath(outputText) {
               <button className="action" onClick={refreshStudioFsScripts}>List .ko</button>
               <button className="action" onClick={refreshStudioFsAssets}>Scan Assets</button>
               <button className="action" onClick={importSelectedFsScriptToStudio}>Import</button>
+              <button className="action" onClick={loadKoFileToRenderer} title="Load .ko file and switch renderer to Ko's Labyrinth preset">Load → KL</button>
               <button className="action" onClick={saveSelectedStudioFileToFs}>Save</button>
               <button className="action" onClick={exportAllKobraScriptsToFs}>Export All</button>
               <span className="badge">{`.ko: ${studioFsScripts.length}`}</span>
