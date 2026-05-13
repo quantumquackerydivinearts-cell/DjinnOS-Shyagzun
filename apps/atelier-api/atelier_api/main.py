@@ -44,6 +44,7 @@ from .bok_router import router as bok_router
 from .qqees_router import router as qqees_router
 from .import_router import router as import_router
 from .graph_router import router as graph_router
+from .goals_reports_router import router as goals_reports_router
 
 
 from .business_schemas import (
@@ -1269,6 +1270,7 @@ app.include_router(bok_router,           prefix="/v1/bok",            tags=["bok
 app.include_router(qqees_router,         prefix="/v1/qqees",          tags=["qqees"])
 app.include_router(import_router,        prefix="/v1",                tags=["import"])
 app.include_router(graph_router,         prefix="/v1/graph",          tags=["graph"])
+app.include_router(goals_reports_router, prefix="/v1",                tags=["goals-reports"])
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)

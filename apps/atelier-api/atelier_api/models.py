@@ -1029,6 +1029,35 @@ class QuackToken(Base):
     minted_at:        Mapped[datetime]   = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
 
+class WorkspaceGoal(Base):
+    __tablename__ = "workspace_goals"
+
+    id:            Mapped[str]      = mapped_column(String(36),  primary_key=True, default=_uuid)
+    workspace_id:  Mapped[str]      = mapped_column(String(36),  ForeignKey("workspaces.id"), nullable=False)
+    title:         Mapped[str]      = mapped_column(String(160), nullable=False)
+    metric_type:   Mapped[str]      = mapped_column(String(40),  nullable=False, default="lead_count")
+    period_start:  Mapped[str]      = mapped_column(String(10),  nullable=False)  # ISO date
+    period_end:    Mapped[str]      = mapped_column(String(10),  nullable=False)
+    target_value:  Mapped[int]      = mapped_column(Integer,     nullable=False)
+    current_value: Mapped[int]      = mapped_column(Integer,     nullable=False, default=0)
+    status:        Mapped[str]      = mapped_column(String(20),  nullable=False, default="open")
+    notes:         Mapped[str|None] = mapped_column(Text,        nullable=True)
+    created_at:    Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at:    Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class WorkspaceDigestSchedule(Base):
+    __tablename__ = "workspace_digest_schedules"
+
+    id:              Mapped[str]           = mapped_column(String(36),  primary_key=True, default=_uuid)
+    workspace_id:    Mapped[str]           = mapped_column(String(36),  ForeignKey("workspaces.id"), nullable=False)
+    recipient_email: Mapped[str]           = mapped_column(String(320), nullable=False)
+    cadence:         Mapped[str]           = mapped_column(String(20),  nullable=False, default="weekly")
+    active:          Mapped[bool]          = mapped_column(Boolean,     nullable=False, default=True)
+    last_sent_at:    Mapped[datetime|None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at:      Mapped[datetime]      = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
 class GraphConfigRecord(Base):
     __tablename__  = "graph_configs"
     __table_args__ = (UniqueConstraint("workspace_id", "name", name="uq_graph_config_ws_name"),)
