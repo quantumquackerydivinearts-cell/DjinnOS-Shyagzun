@@ -6469,6 +6469,7 @@ export function App() {
   const [leadNotes, setLeadNotes] = useState("");
   const [leads, setLeads] = useState([]);
   const [leadFilter, setLeadFilter] = useState("");
+  const [leadSelectedId, setLeadSelectedId] = useState(null);
 
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
@@ -6477,6 +6478,7 @@ export function App() {
   const [clients, setClients] = useState([]);
   const [clientFilter, setClientFilter] = useState("");
   const [clientSelectedId, setClientSelectedId] = useState(null);
+  const [contactSelectedId, setContactSelectedId] = useState(null);
 
   const [quoteTitle, setQuoteTitle] = useState("");
   const [quoteAmount, setQuoteAmount] = useState("");
@@ -6495,6 +6497,7 @@ export function App() {
   const [orderNotes, setOrderNotes] = useState("");
   const [orders, setOrders] = useState([]);
   const [orderFilter, setOrderFilter] = useState("");
+  const [orderSelectedId, setOrderSelectedId] = useState(null);
   const [contracts, setContracts] = useState([]);
   const [contractTitle, setContractTitle] = useState("");
   const [contractCategory, setContractCategory] = useState("consultations");
@@ -15946,23 +15949,28 @@ function extractPythonSavedPath(outputText) {
           <section className="panel">
             {filteredContacts.length === 0 && <p style={{ opacity: 0.5 }}>No contacts yet.</p>}
             {filteredContacts.map(c => (
-              <div key={c.id} style={{ padding: "0.6rem 0", borderBottom: "1px solid #2a2030" }}>
+              <div key={c.id}
+                onClick={() => setContactSelectedId(id => id === c.id ? null : c.id)}
+                style={{ padding: "0.6rem 0", borderBottom: "1px solid #2a2030", cursor: "pointer", background: c.id === contactSelectedId ? "rgba(58,184,160,0.04)" : "transparent" }}
+              >
                 <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem" }}>
                   <strong>{c.full_name}</strong>
-                  {c.email   && <a href={`mailto:${c.email}`}   style={{ opacity: 0.8, fontSize: "0.9em" }}>{c.email}</a>}
+                  {c.email   && <a href={`mailto:${c.email}`}   style={{ opacity: 0.8, fontSize: "0.9em" }} onClick={e=>e.stopPropagation()}>{c.email}</a>}
                   {c.phone   && <span style={{ opacity: 0.7, fontSize: "0.9em" }}>{c.phone}</span>}
-                  {c.website && <a href={c.website} target="_blank" rel="noreferrer" style={{ opacity: 0.7, fontSize: "0.85em" }}>{c.website}</a>}
+                  {c.website && <a href={c.website} target="_blank" rel="noreferrer" style={{ opacity: 0.7, fontSize: "0.85em" }} onClick={e=>e.stopPropagation()}>{c.website}</a>}
                   <button
                     className="action"
                     style={{ marginLeft: "auto", opacity: 0.5, fontSize: "0.8em", padding: "0.1rem 0.4rem" }}
-                    onClick={() => runAction("contact_delete", async () => {
-                      await apiCall(`/v1/crm/contacts/${c.id}`, "DELETE", null);
-                      await listContacts();
-                    })}
+                    onClick={(e) => { e.stopPropagation(); runAction("contact_delete", async () => { await apiCall(`/v1/crm/contacts/${c.id}`, "DELETE", null); await listContacts(); }); }}
                   >✕</button>
                 </div>
                 {c.address && <div style={{ opacity: 0.6, fontSize: "0.85em", marginTop: "0.15rem" }}>{c.address}</div>}
                 {c.notes   && <div style={{ opacity: 0.55, fontSize: "0.82em", marginTop: "0.15rem", fontStyle: "italic" }}>{c.notes}</div>}
+                {c.id === contactSelectedId && (
+                  <div style={{ marginTop: "0.5rem" }} onClick={e=>e.stopPropagation()}>
+                    <AttachmentsPanel entityType="contact" entityId={c.id} apiBase={API_BASE} authToken={authToken} workspaceId={workspaceId} />
+                  </div>
+                )}
               </div>
             ))}
           </section>
@@ -16041,65 +16049,59 @@ function extractPythonSavedPath(outputText) {
       );
     }
     if (section === "Leads") {
+      const selectedLead = leads.find(l => l.id === leadSelectedId) || null;
       return (
-        <section className="panel">
-          <h2>Leads</h2>
-          <div className="row">
-            <input value={leadName} onChange={(e) => setLeadName(e.target.value)} placeholder="lead name" />
-            <input value={leadEmail} onChange={(e) => setLeadEmail(e.target.value)} placeholder="lead email" />
-            <input value={leadPhone} onChange={(e) => setLeadPhone(e.target.value)} placeholder="lead phone" />
-            <button
-              className="action"
-              onClick={() =>
-                createEntity(
-                  "leads_create",
-                  "/v1/leads",
-                  {
-                    workspace_id: workspaceId,
-                    full_name: leadName,
-                    email: leadEmail || null,
-                    phone: leadPhone || null,
-                    details: leadDetails,
-                    status: "new",
-                    source: leadSource,
-                    notes: leadNotes
-                  },
-                  () => {
-                    setLeadName("");
-                    setLeadEmail("");
-                    setLeadPhone("");
-                    setLeadDetails("");
-                    setLeadSource("internal");
-                    setLeadNotes("");
-                  },
-                  listLeads
-                )
-              }
-            >
-              Create
-            </button>
-            <button className="action" onClick={listLeads}>Refresh</button>
-          </div>
-          <div className="row">
-            <input value={leadDetails} onChange={(e) => setLeadDetails(e.target.value)} placeholder="lead details" />
-            <select value={leadSource} onChange={(e) => setLeadSource(e.target.value)}>
-              <option value="internal">internal</option>
-              <option value="referral">referral</option>
-              <option value="shop:consultations">shop:consultations</option>
-              <option value="shop:licenses">shop:licenses</option>
-              <option value="shop:catalog">shop:catalog</option>
-              <option value="shop:custom-orders">shop:custom-orders</option>
-              <option value="shop:digital">shop:digital</option>
-              <option value="shop:land-assessments">shop:land-assessments</option>
-              <option value="other">other</option>
-            </select>
-          </div>
-          <div className="row">
-            <textarea value={leadNotes} onChange={(e) => setLeadNotes(e.target.value)} placeholder="lead notes" />
-            <input value={leadFilter} onChange={(e) => setLeadFilter(e.target.value)} placeholder="filter leads" />
-          </div>
-          <pre>{JSON.stringify(filteredLeads, null, 2)}</pre>
-        </section>
+        <>
+          <section className="panel">
+            <h2>Leads</h2>
+            <div className="row">
+              <input value={leadName} onChange={(e) => setLeadName(e.target.value)} placeholder="full name" />
+              <input value={leadEmail} onChange={(e) => setLeadEmail(e.target.value)} placeholder="email" />
+              <input value={leadPhone} onChange={(e) => setLeadPhone(e.target.value)} placeholder="phone" />
+              <select value={leadSource} onChange={(e) => setLeadSource(e.target.value)}>
+                <option value="internal">internal</option>
+                <option value="referral">referral</option>
+                <option value="shop:consultations">shop:consultations</option>
+                <option value="shop:licenses">shop:licenses</option>
+                <option value="shop:catalog">shop:catalog</option>
+                <option value="shop:custom-orders">shop:custom-orders</option>
+                <option value="shop:digital">shop:digital</option>
+                <option value="shop:land-assessments">shop:land-assessments</option>
+                <option value="shop:qqees">shop:qqees</option>
+                <option value="shop:qcr">shop:qcr</option>
+                <option value="other">other</option>
+              </select>
+              <button className="action" onClick={() => createEntity("leads_create", "/v1/leads", { workspace_id: workspaceId, full_name: leadName, email: leadEmail || null, phone: leadPhone || null, details: leadDetails, status: "new", source: leadSource, notes: leadNotes }, () => { setLeadName(""); setLeadEmail(""); setLeadPhone(""); setLeadDetails(""); setLeadSource("internal"); setLeadNotes(""); }, listLeads)}>Create</button>
+              <button className="action" onClick={listLeads}>Refresh</button>
+              <input value={leadFilter} onChange={(e) => setLeadFilter(e.target.value)} placeholder="filter" style={{ flex: 1 }} />
+            </div>
+            <div className="row">
+              <textarea value={leadDetails} onChange={(e) => setLeadDetails(e.target.value)} placeholder="details" rows={2} style={{ flex: 2 }} />
+              <textarea value={leadNotes} onChange={(e) => setLeadNotes(e.target.value)} placeholder="notes" rows={2} style={{ flex: 2 }} />
+            </div>
+            <div style={{ marginTop: "0.5rem" }}>
+              {filteredLeads.map(l => (
+                <div key={l.id}
+                  onClick={() => setLeadSelectedId(id => id === l.id ? null : l.id)}
+                  style={{ padding: "0.4rem 0.75rem", cursor: "pointer", borderBottom: "1px solid #1e2e1e", background: l.id === leadSelectedId ? "#1a2a1a" : "transparent", display: "flex", gap: "0.75rem", alignItems: "baseline" }}
+                >
+                  <strong style={{ fontSize: "0.9rem" }}>{l.full_name || "—"}</strong>
+                  {l.email && <span style={{ opacity: 0.55, fontSize: "0.8rem" }}>{l.email}</span>}
+                  {l.source && <span style={{ opacity: 0.4, fontSize: "0.75rem" }}>{l.source}</span>}
+                  <span className="badge" style={{ marginLeft: "auto" }}>{l.status}</span>
+                </div>
+              ))}
+              {filteredLeads.length === 0 && <p className="muted-text">No leads. Click Refresh.</p>}
+            </div>
+          </section>
+          {selectedLead && (
+            <section className="panel">
+              <h2>{selectedLead.full_name} — Files</h2>
+              {selectedLead.details && <p className="muted-text" style={{ marginBottom: "0.5rem" }}>{selectedLead.details}</p>}
+              <AttachmentsPanel entityType="lead" entityId={selectedLead.id} apiBase={API_BASE} authToken={authToken} workspaceId={workspaceId} />
+            </section>
+          )}
+        </>
       );
     }
     if (section === "Import") {
@@ -16200,28 +16202,51 @@ function extractPythonSavedPath(outputText) {
       );
     }
     if (section === "Orders") {
+      const selectedOrder = orders.find(o => o.id === orderSelectedId) || null;
       return (
-        <section className="panel">
-          <h2>Orders</h2>
-          <div className="row">
-            <input value={orderTitle} onChange={(e) => setOrderTitle(e.target.value)} placeholder="order title" />
-            <input value={orderAmount} onChange={(e) => setOrderAmount(e.target.value)} placeholder="amount cents" />
-            <input value={orderCurrency} onChange={(e) => setOrderCurrency(e.target.value)} placeholder="currency" />
-            <input value={orderQuoteId} onChange={(e) => setOrderQuoteId(e.target.value)} placeholder="Quote ID (optional)" />
-            <input value={orderClientId} onChange={(e) => setOrderClientId(e.target.value)} placeholder="Client ID (optional)" />
-            <button className="action" onClick={() => createEntity("orders_create", "/v1/orders", { workspace_id: workspaceId, title: orderTitle, amount_cents: Number.parseInt(orderAmount || "0", 10), currency: orderCurrency, status: "open", quote_id: orderQuoteId || null, client_id: orderClientId || null, notes: orderNotes }, () => { setOrderTitle(""); setOrderAmount(""); setOrderQuoteId(""); setOrderClientId(""); setOrderNotes(""); }, listOrders)}>Create</button>
-            <button className="action" onClick={listOrders}>Refresh</button>
-          </div>
-          <div className="row">
-            <textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} placeholder="order notes" />
-          </div>
-          <div className="row"><input value={orderFilter} onChange={(e) => setOrderFilter(e.target.value)} placeholder="filter orders" /></div>
-          <pre>{JSON.stringify(filteredOrders, null, 2)}</pre>
-        </section>
+        <>
+          <section className="panel">
+            <h2>Orders</h2>
+            <div className="row">
+              <input value={orderTitle} onChange={(e) => setOrderTitle(e.target.value)} placeholder="title" style={{ flex: 2 }} />
+              <input value={orderAmount} onChange={(e) => setOrderAmount(e.target.value)} placeholder="amount cents" style={{ width: 110 }} />
+              <input value={orderCurrency} onChange={(e) => setOrderCurrency(e.target.value)} placeholder="currency" style={{ width: 70 }} />
+              <input value={orderQuoteId} onChange={(e) => setOrderQuoteId(e.target.value)} placeholder="Quote ID" style={{ flex: 1 }} />
+              <input value={orderClientId} onChange={(e) => setOrderClientId(e.target.value)} placeholder="Client ID" style={{ flex: 1 }} />
+              <button className="action" onClick={() => createEntity("orders_create", "/v1/orders", { workspace_id: workspaceId, title: orderTitle, amount_cents: Number.parseInt(orderAmount || "0", 10), currency: orderCurrency, status: "open", quote_id: orderQuoteId || null, client_id: orderClientId || null, notes: orderNotes }, () => { setOrderTitle(""); setOrderAmount(""); setOrderQuoteId(""); setOrderClientId(""); setOrderNotes(""); }, listOrders)}>Create</button>
+              <button className="action" onClick={listOrders}>Refresh</button>
+            </div>
+            <div className="row">
+              <textarea value={orderNotes} onChange={(e) => setOrderNotes(e.target.value)} placeholder="notes" rows={2} style={{ flex: 1 }} />
+              <input value={orderFilter} onChange={(e) => setOrderFilter(e.target.value)} placeholder="filter" style={{ flex: 1 }} />
+            </div>
+            <div style={{ marginTop: "0.5rem" }}>
+              {filteredOrders.map(o => (
+                <div key={o.id}
+                  onClick={() => setOrderSelectedId(id => id === o.id ? null : o.id)}
+                  style={{ padding: "0.4rem 0.75rem", cursor: "pointer", borderBottom: "1px solid #1e2e1e", background: o.id === orderSelectedId ? "#1a2a1a" : "transparent", display: "flex", gap: "0.75rem", alignItems: "baseline" }}
+                >
+                  <strong style={{ fontSize: "0.9rem" }}>{o.title || "—"}</strong>
+                  <span style={{ opacity: 0.55, fontSize: "0.8rem" }}>${((o.amount_cents || 0) / 100).toFixed(2)} {o.currency}</span>
+                  {o.quote_id && <span style={{ opacity: 0.4, fontSize: "0.75rem" }}>quote linked</span>}
+                  <span className="badge" style={{ marginLeft: "auto" }}>{o.status}</span>
+                </div>
+              ))}
+              {filteredOrders.length === 0 && <p className="muted-text">No orders. Click Refresh.</p>}
+            </div>
+          </section>
+          {selectedOrder && (
+            <section className="panel">
+              <h2>{selectedOrder.title} — Files</h2>
+              <AttachmentsPanel entityType="order" entityId={selectedOrder.id} apiBase={API_BASE} authToken={authToken} workspaceId={workspaceId} />
+            </section>
+          )}
+        </>
       );
     }
     if (section === "Contracts") {
       return (
+        <>
         <section className="panel">
           <h2>Contracts</h2>
           <div className="row">
@@ -16254,23 +16279,40 @@ function extractPythonSavedPath(outputText) {
             <button className="action" onClick={listContracts}>Refresh</button>
           </div>
           <div className="row">
-            <select value={contractSelectedId} onChange={(e) => setContractSelectedId(e.target.value)}>
-              <option value="">select contract</option>
-              {contracts.map((item) => (
-                <option key={`contract-${String(item?.id || "")}`} value={String(item?.id || "")}>
-                  {`${String(item?.id || "")} :: ${String(item?.title || "")}`}
-                </option>
-              ))}
-            </select>
-            <button className="action" onClick={validateContract} disabled={!adminVerified || role !== "steward"}>Validate</button>
-            <button className="action" onClick={cancelContract} disabled={!adminVerified || role !== "steward"}>Cancel</button>
-            <button className="action" onClick={processContract} disabled={!adminVerified || role !== "steward"}>Process</button>
+            <input value={contractFilter} onChange={(e) => setContractFilter(e.target.value)} placeholder="filter contracts" style={{ flex: 1 }} />
           </div>
-          <div className="row">
-            <input value={contractFilter} onChange={(e) => setContractFilter(e.target.value)} placeholder="filter contracts" />
+          <div style={{ marginTop: "0.5rem" }}>
+            {filteredContracts.map(c => (
+              <div key={c.id}
+                onClick={() => setContractSelectedId(id => id === c.id ? null : c.id)}
+                style={{ padding: "0.4rem 0.75rem", cursor: "pointer", borderBottom: "1px solid #1e2e1e", background: c.id === contractSelectedId ? "#1a2a1a" : "transparent", display: "flex", gap: "0.75rem", alignItems: "baseline" }}
+              >
+                <strong style={{ fontSize: "0.9rem" }}>{c.title || "—"}</strong>
+                <span style={{ opacity: 0.55, fontSize: "0.8rem" }}>{c.party_name}</span>
+                {c.amount_cents > 0 && <span style={{ opacity: 0.45, fontSize: "0.8rem" }}>${((c.amount_cents||0)/100).toFixed(2)} {c.currency}</span>}
+                <span className="badge" style={{ marginLeft: "auto" }}>{c.status}</span>
+              </div>
+            ))}
+            {filteredContracts.length === 0 && <p className="muted-text">No contracts. Click Refresh.</p>}
           </div>
-          <pre>{JSON.stringify(filteredContracts, null, 2)}</pre>
+          {contractSelectedId && (
+            <div className="row" style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid #1e2e1e" }}>
+              <button className="action" onClick={validateContract} disabled={!adminVerified || role !== "steward"}>Validate</button>
+              <button className="action" onClick={cancelContract}  disabled={!adminVerified || role !== "steward"}>Cancel</button>
+              <button className="action" onClick={processContract} disabled={!adminVerified || role !== "steward"}>Process</button>
+            </div>
+          )}
         </section>
+        {contractSelectedId && (() => {
+          const c = contracts.find(x => x.id === contractSelectedId);
+          return c ? (
+            <section className="panel">
+              <h2>{c.title} — Files</h2>
+              <AttachmentsPanel entityType="contract" entityId={c.id} apiBase={API_BASE} authToken={authToken} workspaceId={workspaceId} />
+            </section>
+          ) : null;
+        })()}
+      </>
       );
     }
     if (section === "Ledger") {

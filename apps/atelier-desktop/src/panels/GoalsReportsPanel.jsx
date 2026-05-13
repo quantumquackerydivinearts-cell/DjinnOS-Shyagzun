@@ -183,6 +183,15 @@ export function GoalsReportsPanel({ apiBase, authToken, workspaceId }) {
               <input style={{...s.input,width:"100%"}} value={goalForm.notes||""}
                 onChange={e=>setGoalForm(f=>({...f,notes:e.target.value}))} />
             </div>
+            {editingId && (
+              <div>
+                <label style={s.label}>STATUS</label>
+                <select style={{...s.input,width:"100%"}} value={goalForm.status||"open"}
+                  onChange={e=>setGoalForm(f=>({...f,status:e.target.value}))}>
+                  {STATUSES.map(st=><option key={st} value={st}>{st}</option>)}
+                </select>
+              </div>
+            )}
           </div>
           {goalStatus && <div style={{color:"#f87171",fontSize:11,margin:"6px 0"}}>{goalStatus}</div>}
           <div style={{...s.row,marginTop:10}}>
