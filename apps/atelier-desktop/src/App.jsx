@@ -25,6 +25,7 @@ import { ComicMakerPanel } from "./panels/ComicMakerPanel";
 import { Q3Panel } from "./panels/Q3Panel";
 import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
 import { GameEditorsPanel } from "./panels/GameEditorsPanel";
+import { GameAuthoringPanel } from "./panels/GameAuthoringPanel";
 import SemanticFieldPanel from "./panels/SemanticFieldPanel";
 
 function resolveRuntimeApiBase() {
@@ -141,6 +142,7 @@ const NAV_ITEMS = [
   "Supra Librix",
   "Comic Maker",
   "Kobra Studio",
+  "Game Authoring",
   "Semantic Field",
   "QQEES",
   "QCR",
@@ -20215,6 +20217,20 @@ function extractPythonSavedPath(outputText) {
       );
     }
 
+    if (section === "Game Authoring") {
+      return (
+        <section className="panel panel-wide" style={{ padding: 0, overflow: "hidden", height: "calc(100vh - 240px)", minHeight: 560 }}>
+          <GameAuthoringPanel
+            apiBase={API_BASE}
+            parseKobra={parseKobraShygazunScript}
+            drawWebGL2={drawWebGL2}
+            studioFsRoot={studioFsRoot}
+            hasDesktopFs={hasDesktopFs}
+          />
+        </section>
+      );
+    }
+
     if (section === "_Sequential Art Legacy") {
       const listSeqPages = async () => {
         if (!seqProjectId) return;
@@ -20626,13 +20642,17 @@ function extractPythonSavedPath(outputText) {
       <main className="content">
         <div className="hero">
           <h1>{section}</h1>
-          <p>Operational tooling first. Kernel placement remains workshop-gated for verified steward sessions.</p>
+          {section !== "Game Authoring" && (
+            <p>Operational tooling first. Kernel placement remains workshop-gated for verified steward sessions.</p>
+          )}
           <div className="statusbar">
             <span className="badge">Role: {role}</span>
             <span className="badge">Workspace: {workspaceId}</span>
-            <span className="badge">Admin Gate: {adminVerified ? "verified" : "locked"}</span>
-            <span className="badge">Artisan Access: {artisanAccessVerified ? "verified" : "locked"}</span>
-            <span className="badge">{`Governor: ${labGovernor.level}`}</span>
+            {section !== "Game Authoring" && <>
+              <span className="badge">Admin Gate: {adminVerified ? "verified" : "locked"}</span>
+              <span className="badge">Artisan Access: {artisanAccessVerified ? "verified" : "locked"}</span>
+              <span className="badge">{`Governor: ${labGovernor.level}`}</span>
+            </>}
             <span className="badge">{busyAction ? `Running: ${busyAction}` : notice}</span>
           </div>
         </div>
