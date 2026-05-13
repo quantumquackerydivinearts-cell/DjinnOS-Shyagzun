@@ -171,34 +171,34 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 153,10011001,Aster,Enno,Delete space
 154,10011010,Aster,Yl,Run space
 155,10011011,Aster,Hoz,Unbind space
-156,10011100,Grapevine,Sa,Feast table / root volume
-157,10011101,Grapevine,Sao,Cup / file / persistent object
-158,10011110,Grapevine,Syr,Wine / volatile buffer
-159,10011111,Grapevine,Seth,Platter / directory / bundle
-160,10100000,Grapevine,Samos,Banquet hall / database cluster
-161,10100001,Grapevine,Sava,Amphora / snapshot archive
-162,10100010,Grapevine,Sael,Leftovers / cache
-163,10100011,Grapevine,Myk,Messenger / packet
-164,10100100,Grapevine,Myr,Procession path / route
-165,10100101,Grapevine,Mio,Stride / hop
-166,10100110,Grapevine,Mek,Call / emit event
-167,10100111,Grapevine,Mavo,Banner / metadata
-168,10101000,Grapevine,Mekha,Herald / gateway
-169,10101001,Grapevine,Myrun,Sacred march / stream
-170,10101010,Grapevine,Dyf,Jitter / nondeterminism
-171,10101011,Grapevine,Dyo,Burst / load spike
-172,10101100,Grapevine,Dyth,Packet loss / corruption
-173,10101101,Grapevine,Dyska,Concurrency / thread dance
-174,10101110,Grapevine,Dyne,Broadcast / flood
-175,10101111,Grapevine,Dyran,Overflow / memory full
-176,10110000,Grapevine,Dyso,Overload threshold
-177,10110001,Grapevine,Kyf,Cluster node
-178,10110010,Grapevine,Kyl,Steward / coordinator
-179,10110011,Grapevine,Kyra,Control token / semaphore
-180,10110100,Grapevine,Kyvos,Ring topology
-181,10110101,Grapevine,Kysha,Consensus choir
-182,10110110,Grapevine,Kyom,Replica/ proxy / masked follower
-183,10110111,Grapevine,Kysael,Authoritative commit
+156,10011100,Grapevine,Sa,Feast table / root volume [Puf/Air — the vessel that holds]
+157,10011101,Grapevine,Sao,Cup / file / persistent object [Puf/Air — the vessel that holds]
+158,10011110,Grapevine,Syr,Wine / volatile buffer [Puf/Air — the vessel that holds]
+159,10011111,Grapevine,Seth,Platter / directory / bundle [Puf/Air — the vessel that holds]
+160,10100000,Grapevine,Samos,Banquet hall / database cluster [Puf/Air — the vessel that holds]
+161,10100001,Grapevine,Sava,Amphora / snapshot archive [Puf/Air — the vessel that holds]
+162,10100010,Grapevine,Sael,Leftovers / cache [Puf/Air — the vessel that holds]
+163,10100011,Grapevine,Myk,Messenger / packet [Mel/Water — the flow that carries]
+164,10100100,Grapevine,Myr,Procession path / route [Mel/Water — the flow that carries]
+165,10100101,Grapevine,Mio,Stride / hop [Mel/Water — the flow that carries]
+166,10100110,Grapevine,Mek,Call / emit event [Mel/Water — the flow that carries]
+167,10100111,Grapevine,Mavo,Banner / metadata [Mel/Water — the flow that carries]
+168,10101000,Grapevine,Mekha,Herald / gateway [Mel/Water — the flow that carries]
+169,10101001,Grapevine,Myrun,Sacred march / stream [Mel/Water — the flow that carries]
+170,10101010,Grapevine,Dyf,Jitter / nondeterminism [Zot/Earth — the substrate that resists]
+171,10101011,Grapevine,Dyo,Burst / load spike [Zot/Earth — the substrate that resists]
+172,10101100,Grapevine,Dyth,Packet loss / corruption [Zot/Earth — the substrate that resists]
+173,10101101,Grapevine,Dyska,Concurrency / thread dance [Zot/Earth — the substrate that resists]
+174,10101110,Grapevine,Dyne,Broadcast / flood [Zot/Earth — the substrate that resists]
+175,10101111,Grapevine,Dyran,Overflow / memory full [Zot/Earth — the substrate that resists]
+176,10110000,Grapevine,Dyso,Overload threshold [Zot/Earth — the substrate that resists]
+177,10110001,Grapevine,Kyf,Cluster node [Shak/Fire — the governance that decides]
+178,10110010,Grapevine,Kyl,Steward / coordinator [Shak/Fire — the governance that decides]
+179,10110011,Grapevine,Kyra,Control token / semaphore [Shak/Fire — the governance that decides]
+180,10110100,Grapevine,Kyvos,Ring topology [Shak/Fire — the governance that decides]
+181,10110101,Grapevine,Kysha,Consensus choir [Shak/Fire — the governance that decides]
+182,10110110,Grapevine,Kyom,Replica / proxy / masked follower [Shak/Fire — the governance that decides]
+183,10110111,Grapevine,Kysael,Authoritative commit [Shak/Fire — the governance that decides]
 184,10111000,Cannabis,At,Grounded awareness / consciousness of material presence (Lotus seen through Mind — the felt sense of being here, embodied, in a specific moment of earth)
 185,10111001,Cannabis,Ar,Chromatic perception / awareness of energetic quality (Rose through Mind — the direct experience of frequency, color as felt rather than measured)
 186,10111010,Cannabis,Av,Relational consciousness / awareness of connection and structure (Sakura through Mind — knowing where you stand in relation to other things)
