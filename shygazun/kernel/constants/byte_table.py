@@ -171,35 +171,7 @@ _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
 153,10011001,Aster,Enno,Delete space
 154,10011010,Aster,Yl,Run space
 155,10011011,Aster,Hoz,Unbind space
-156,10011100,Grapevine,Sa,Feast table / root volume [Puf/Air — the vessel that holds]
-157,10011101,Grapevine,Sao,Cup / file / persistent object [Puf/Air — the vessel that holds]
-158,10011110,Grapevine,Syr,Wine / volatile buffer [Puf/Air — the vessel that holds]
-159,10011111,Grapevine,Seth,Platter / directory / bundle [Puf/Air — the vessel that holds]
-160,10100000,Grapevine,Samos,Banquet hall / database cluster [Puf/Air — the vessel that holds]
-161,10100001,Grapevine,Sava,Amphora / snapshot archive [Puf/Air — the vessel that holds]
-162,10100010,Grapevine,Sael,Leftovers / cache [Puf/Air — the vessel that holds]
-163,10100011,Grapevine,Myk,Messenger / packet [Mel/Water — the flow that carries]
-164,10100100,Grapevine,Myr,Procession path / route [Mel/Water — the flow that carries]
-165,10100101,Grapevine,Mio,Stride / hop [Mel/Water — the flow that carries]
-166,10100110,Grapevine,Mek,Call / emit event [Mel/Water — the flow that carries]
-167,10100111,Grapevine,Mavo,Banner / metadata [Mel/Water — the flow that carries]
-168,10101000,Grapevine,Mekha,Herald / gateway [Mel/Water — the flow that carries]
-169,10101001,Grapevine,Myrun,Sacred march / stream [Mel/Water — the flow that carries]
-170,10101010,Grapevine,Dyf,Jitter / nondeterminism [Zot/Earth — the substrate that resists]
-171,10101011,Grapevine,Dyo,Burst / load spike [Zot/Earth — the substrate that resists]
-172,10101100,Grapevine,Dyth,Packet loss / corruption [Zot/Earth — the substrate that resists]
-173,10101101,Grapevine,Dyska,Concurrency / thread dance [Zot/Earth — the substrate that resists]
-174,10101110,Grapevine,Dyne,Broadcast / flood [Zot/Earth — the substrate that resists]
-175,10101111,Grapevine,Dyran,Overflow / memory full [Zot/Earth — the substrate that resists]
-176,10110000,Grapevine,Dyso,Overload threshold [Zot/Earth — the substrate that resists]
-177,10110001,Grapevine,Kyf,Cluster node [Shak/Fire — the governance that decides]
-178,10110010,Grapevine,Kyl,Steward / coordinator [Shak/Fire — the governance that decides]
-179,10110011,Grapevine,Kyra,Control token / semaphore [Shak/Fire — the governance that decides]
-180,10110100,Grapevine,Kyvos,Ring topology [Shak/Fire — the governance that decides]
-181,10110101,Grapevine,Kysha,Consensus choir [Shak/Fire — the governance that decides]
-182,10110110,Grapevine,Kyom,Replica / proxy / masked follower [Shak/Fire — the governance that decides]
-183,10110111,Grapevine,Kysael,Authoritative commit [Shak/Fire — the governance that decides]
-184,10111000,Cannabis,At,Grounded awareness / consciousness of material presence (Lotus seen through Mind — the felt sense of being here, embodied, in a specific moment of earth)
+156,10011100,Grapevine,Sa,Feast table / root volume157,10011101,Grapevine,Sao,Cup / file / persistent object158,10011110,Grapevine,Syr,Wine / volatile buffer159,10011111,Grapevine,Seth,Platter / directory / bundle160,10100000,Grapevine,Samos,Banquet hall / database cluster161,10100001,Grapevine,Sava,Amphora / snapshot archive162,10100010,Grapevine,Sael,Leftovers / cache163,10100011,Grapevine,Myk,Messenger / packet164,10100100,Grapevine,Myr,Procession path / route165,10100101,Grapevine,Mio,Stride / hop166,10100110,Grapevine,Mek,Call / emit event167,10100111,Grapevine,Mavo,Banner / metadata168,10101000,Grapevine,Mekha,Herald / gateway169,10101001,Grapevine,Myrun,Sacred march / stream170,10101010,Grapevine,Dyf,Jitter / nondeterminism171,10101011,Grapevine,Dyo,Burst / load spike172,10101100,Grapevine,Dyth,Packet loss / corruption173,10101101,Grapevine,Dyska,Concurrency / thread dance174,10101110,Grapevine,Dyne,Broadcast / flood175,10101111,Grapevine,Dyran,Overflow / memory full176,10110000,Grapevine,Dyso,Overload threshold177,10110001,Grapevine,Kyf,Cluster node178,10110010,Grapevine,Kyl,Steward / coordinator179,10110011,Grapevine,Kyra,Control token / semaphore180,10110100,Grapevine,Kyvos,Ring topology181,10110101,Grapevine,Kysha,Consensus choir182,10110110,Grapevine,Kyom,Replica / proxy / masked follower183,10110111,Grapevine,Kysael,Authoritative commit184,10111000,Cannabis,At,Grounded awareness / consciousness of material presence (Lotus seen through Mind — the felt sense of being here, embodied, in a specific moment of earth)
 185,10111001,Cannabis,Ar,Chromatic perception / awareness of energetic quality (Rose through Mind — the direct experience of frequency, color as felt rather than measured)
 186,10111010,Cannabis,Av,Relational consciousness / awareness of connection and structure (Sakura through Mind — knowing where you stand in relation to other things)
 187,10111011,Cannabis,Azr,Structural intuition / felt sense of how things are assembled (Daisy through Mind — the bodily knowledge of mechanism and form)
