@@ -20159,7 +20159,7 @@ function extractPythonSavedPath(outputText) {
     // ── QCR ────────────────────────────────────────────────────────────────────
     if (section === "QCR") {
       const loadContracts = async () => {
-        const data = await apiCall("/v1/qcr/contracts", "GET");
+        const data = await apiCall("/v1/billing/contracts", "GET");
         if (data) setQcrContracts(Array.isArray(data) ? data : data.contracts || []);
       };
       const selectedContract = qcrContracts.find(c => c.id === qcrSelected) || null;

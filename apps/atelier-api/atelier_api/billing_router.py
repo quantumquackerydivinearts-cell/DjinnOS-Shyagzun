@@ -276,6 +276,32 @@ def trigger_roko_check(
     }
 
 
+# ── Revenue shares ────────────────────────────────────────────────────────────
+
+@router.get("/shares")
+def list_revenue_shares(
+    artisan_id: str     = Depends(_require_steward),
+    db:         Session = Depends(get_db),
+) -> list[dict]:
+    rows = db.query(RevenueShare).order_by(RevenueShare.period.desc()).limit(200).all()
+    return [
+        {
+            "id":                      r.id,
+            "period":                  r.period,
+            "implementation_id":       r.implementation_id,
+            "revenue_cents":           r.revenue_cents,
+            "total_cost_cents":        r.total_cost_cents,
+            "profit_cents":            r.profit_cents,
+            "dispatcher_share_cents":  r.dispatcher_share_cents,
+            "practitioner_pool_cents": r.practitioner_pool_cents,
+            "practitioner_pool_pct":   r.practitioner_pool_pct,
+            "guild_share_cents":       r.guild_share_cents,
+            "settled":                 r.settled,
+        }
+        for r in rows
+    ]
+
+
 # ── Quack offsets ─────────────────────────────────────────────────────────────
 
 @router.get("/offsets", response_model=list[OffsetOut])
@@ -285,6 +311,17 @@ def list_offsets(
 ) -> list[OffsetOut]:
     rows = db.query(QuackOffset).all()
     return [_offset_out(r) for r in rows]
+
+
+@router.post("/offsets/refresh")
+def refresh_offsets(
+    artisan_id: str     = Depends(_require_steward),
+    db:         Session = Depends(get_db),
+) -> dict:
+    """Recompute all Quack offset balances from the current ledger and H value."""
+    update_quack_offsets(db)
+    count = db.query(QuackOffset).count()
+    return {"refreshed": count, "shannon_h": shannon_entropy()}
 
 
 @router.get("/offsets/{practitioner_id}", response_model=OffsetOut)
