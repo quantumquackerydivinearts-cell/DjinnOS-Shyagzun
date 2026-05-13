@@ -53,8 +53,10 @@ export function BookingPanel({ apiBase, authToken, workspaceId }) {
   const hdrs = { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` };
 
   const load = useCallback(async () => {
-    const r = await fetch(`${apiBase}/v1/booking?workspace_id=${workspaceId}`, { headers: hdrs });
-    if (r.ok) setBookings(await r.json());
+    try {
+      const r = await fetch(`${apiBase}/v1/booking?workspace_id=${workspaceId}`, { headers: hdrs });
+      if (r.ok) setBookings(await r.json());
+    } catch {}
   }, [apiBase, authToken, workspaceId]);
 
   useEffect(() => { if (authToken) load(); }, [load]);
@@ -63,26 +65,28 @@ export function BookingPanel({ apiBase, authToken, workspaceId }) {
     if (!form.title.trim() || !form.starts_at || !form.ends_at) {
       setStatus("Title, start, and end are required."); return;
     }
-    if (editingId) {
-      const r = await fetch(`${apiBase}/v1/booking/${editingId}`, {
-        method: "PUT", headers: hdrs,
-        body: JSON.stringify({ title: form.title, status: form.status, notes: form.notes,
-          starts_at: form.starts_at, ends_at: form.ends_at }),
-      });
-      if (!r.ok) { setStatus("Update failed."); return; }
-    } else {
-      const r = await fetch(`${apiBase}/v1/booking`, {
-        method: "POST", headers: hdrs,
-        body: JSON.stringify({ ...form, workspace_id: workspaceId }),
-      });
-      if (!r.ok) { setStatus("Create failed."); return; }
-    }
-    setForm(EMPTY_FORM); setEditingId(null); setShowForm(false); setStatus(""); load();
+    try {
+      if (editingId) {
+        const r = await fetch(`${apiBase}/v1/booking/${editingId}`, {
+          method: "PUT", headers: hdrs,
+          body: JSON.stringify({ title: form.title, status: form.status, notes: form.notes,
+            starts_at: form.starts_at, ends_at: form.ends_at }),
+        });
+        if (!r.ok) { setStatus("Update failed."); return; }
+      } else {
+        const r = await fetch(`${apiBase}/v1/booking`, {
+          method: "POST", headers: hdrs,
+          body: JSON.stringify({ ...form, workspace_id: workspaceId }),
+        });
+        if (!r.ok) { setStatus("Create failed."); return; }
+      }
+      setForm(EMPTY_FORM); setEditingId(null); setShowForm(false); setStatus(""); load();
+    } catch (e) { setStatus(e.message); }
   }
 
   async function del(id) {
-    await fetch(`${apiBase}/v1/booking/${id}`, { method: "DELETE", headers: hdrs });
-    load();
+    try { await fetch(`${apiBase}/v1/booking/${id}`, { method: "DELETE", headers: hdrs }); load(); }
+    catch {}
   }
 
   function startEdit(b) {

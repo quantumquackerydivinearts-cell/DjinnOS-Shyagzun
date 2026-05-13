@@ -50,17 +50,21 @@ export function AttachmentsPanel({ entityType, entityId, apiBase, authToken, wor
   }
 
   async function del(id) {
-    await fetch(`${apiBase}/v1/attachments/${id}?workspace_id=${workspaceId}`, { method: "DELETE", headers: hdrs });
-    setFiles(prev => prev.filter(f => f.id !== id));
+    try {
+      await fetch(`${apiBase}/v1/attachments/${id}?workspace_id=${workspaceId}`, { method: "DELETE", headers: hdrs });
+      setFiles(prev => prev.filter(f => f.id !== id));
+    } catch {}
   }
 
   async function download(id, filename) {
-    const r = await fetch(`${apiBase}/v1/attachments/${id}/download?workspace_id=${workspaceId}`, { headers: hdrs });
-    const blob = await r.blob();
-    const a = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(blob), download: filename,
-    });
-    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    try {
+      const r = await fetch(`${apiBase}/v1/attachments/${id}/download?workspace_id=${workspaceId}`, { headers: hdrs });
+      const blob = await r.blob();
+      const a = Object.assign(document.createElement("a"), {
+        href: URL.createObjectURL(blob), download: filename,
+      });
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch {}
   }
 
   const s = {
