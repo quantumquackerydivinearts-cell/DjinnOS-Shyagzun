@@ -143,17 +143,19 @@ function ProjectManager({ selectedProjectId, onSelect }) {
   const [newType, setNewType] = useState("game_voxel");
   const [error, setError] = useState(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (showError = true) => {
     try {
       const r = await fetch(`${API_BASE}/v1/render_lab/projects`);
       const data = await r.json();
       setProjects(Array.isArray(data.projects) ? data.projects : []);
+      setError(null);
     } catch (e) {
-      setError(friendlyErr(e));
+      if (showError) setError(friendlyErr(e));
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Silent auto-fetch on mount — errors only show when user clicks Refresh
+  useEffect(() => { load(false); }, [load]);
 
   const create = async () => {
     setCreating(true);
