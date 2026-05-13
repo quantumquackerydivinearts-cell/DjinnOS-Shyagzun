@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roko — Gate Dreamer · Quantum Quackery</title>
+  <meta name="description" content="Roko reads Shygazun and returns structural contribution assessments — not moral judgements." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --void:      #06060a;
+      --deep:      #0b0910;
+      --panel:     #0e0b16;
+      --parchment: #f0e8d8;
+      --gold:      #c9a84c;
+      --gold-dim:  #7a621e;
+      --border:    rgba(201,168,76,0.15);
+      --border-lit:rgba(201,168,76,0.45);
+      --gate-tiwu: #4a8fa0;
+      --gate-tawu: #70a870;
+      --gate-fyko: #a870c8;
+      --gate-mowu: #707090;
+      --gate-zowu: #805040;
+      --ff-display:"Cinzel", serif;
+      --ff-body:   "Cormorant Garamond", serif;
+      --ff-mono:   "JetBrains Mono", monospace;
+    }
+
+    body {
+      background: var(--void);
+      color: var(--parchment);
+      font-family: var(--ff-body);
+      font-size: 17px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: ""; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999; opacity: 0.35;
+    }
+
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 2rem;
+      background: rgba(6,6,10,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav a { color: var(--gold-dim); text-decoration: none; font-family: var(--ff-display); font-size: 12px; letter-spacing: 2px; transition: color 0.2s; }
+    nav a:hover { color: var(--gold); }
+    .nav-title { color: var(--parchment); font-size: 13px; letter-spacing: 3px; }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 6rem 2rem 6rem;
+    }
+
+    /* ── Header ── */
+    .page-eyebrow {
+      font-family: var(--ff-display);
+      font-size: 10px; letter-spacing: 4px;
+      color: var(--gold-dim);
+      margin-bottom: 1rem;
+    }
+
+    .page-title {
+      font-family: var(--ff-display);
+      font-size: 2.2rem; letter-spacing: 3px;
+      font-weight: 400;
+      margin-bottom: 0.4rem;
+    }
+
+    .page-subtitle {
+      font-style: italic;
+      color: rgba(240,232,216,0.55);
+      margin-bottom: 2.5rem;
+      font-size: 1.05rem;
+    }
+
+    /* ── Lookup ── */
+    .lookup-row {
+      display: flex; gap: 0;
+      margin-bottom: 3rem;
+    }
+
+    .lookup-input {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border); border-right: none;
+      color: var(--parchment);
+      font-family: var(--ff-mono); font-size: 0.9rem;
+      padding: 0.8rem 1.1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .lookup-input:focus { border-color: var(--border-lit); }
+    .lookup-input::placeholder { color: rgba(240,232,216,0.2); }
+
+    .lookup-btn {
+      background: var(--gold); border: 1px solid var(--gold);
+      color: var(--void);
+      font-family: var(--ff-display); font-size: 10px; letter-spacing: 2px;
+      padding: 0.8rem 1.4rem;
+      cursor: pointer; transition: background 0.2s;
+    }
+
+    .lookup-btn:hover { background: #e8c25a; }
+
+    /* ── Profile card ── */
+    .profile { display: none; }
+    .profile.visible { display: block; }
+
+    .profile-top {
+      display: flex; gap: 2rem; align-items: flex-start;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .gate-badge {
+      font-family: var(--ff-mono);
+      font-size: 1.4rem;
+      padding: 0.9rem 1.4rem;
+      border: 1px solid;
+      min-width: 110px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .gate-badge.Tiwu { color: var(--gate-tiwu); border-color: var(--gate-tiwu); }
+    .gate-badge.Tawu { color: var(--gate-tawu); border-color: var(--gate-tawu); }
+    .gate-badge.FyKo { color: var(--gate-fyko); border-color: var(--gate-fyko); }
+    .gate-badge.Mowu { color: var(--gate-mowu); border-color: var(--gate-mowu); }
+    .gate-badge.ZoWu { color: var(--gate-zowu); border-color: var(--gate-zowu); }
+
+    .gate-sub {
+      font-family: var(--ff-mono);
+      font-size: 9px; letter-spacing: 1px;
+      margin-top: 4px;
+      opacity: 0.6;
+    }
+
+    .profile-meta { flex: 1; }
+
+    .profile-id {
+      font-family: var(--ff-display);
+      font-size: 1.3rem; letter-spacing: 2px;
+      color: var(--parchment);
+      margin-bottom: 0.3rem;
+    }
+
+    .profile-rank {
+      font-family: var(--ff-mono);
+      font-size: 1rem;
+      color: var(--gold);
+      margin-bottom: 0.4rem;
+    }
+
+    .profile-rank-gloss {
+      font-size: 0.85rem;
+      color: rgba(240,232,216,0.45);
+      font-style: italic;
+    }
+
+    .profile-stats {
+      display: flex; gap: 1.5rem; margin-top: 0.8rem;
+      flex-wrap: wrap;
+    }
+
+    .stat { text-align: center; }
+    .stat-num {
+      font-family: var(--ff-display);
+      font-size: 1.6rem;
+      color: var(--gold);
+      display: block;
+    }
+
+    .stat-label {
+      font-family: var(--ff-display);
+      font-size: 9px; letter-spacing: 2px;
+      color: var(--gold-dim);
+    }
+
+    /* ── Divider ── */
+    .rule {
+      border: none; border-top: 1px solid var(--border);
+      margin: 2rem 0;
+    }
+
+    /* ── Assess panel ── */
+    .assess-label {
+      font-family: var(--ff-display);
+      font-size: 10px; letter-spacing: 3px;
+      color: var(--gold-dim);
+      margin-bottom: 0.6rem;
+      display: block;
+    }
+
+    .assess-ta {
+      width: 100%;
+      min-height: 90px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--parchment);
+      font-family: var(--ff-mono); font-size: 0.9rem;
+      padding: 0.9rem 1.1rem;
+      resize: vertical; outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 0.75rem;
+    }
+
+    .assess-ta:focus { border-color: var(--border-lit); }
+    .assess-ta::placeholder { color: rgba(240,232,216,0.2); }
+
+    .assess-btn {
+      background: transparent;
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      font-family: var(--ff-display); font-size: 10px; letter-spacing: 2px;
+      padding: 0.65rem 1.4rem;
+      cursor: pointer; transition: border-color 0.2s, color 0.2s;
+    }
+
+    .assess-btn:hover { border-color: var(--gold); }
+
+    /* ── Assessment result ── */
+    .assessment { display: none; margin-top: 1.5rem; }
+    .assessment.visible { display: block; }
+
+    .field-title {
+      font-family: var(--ff-display);
+      font-size: 10px; letter-spacing: 3px;
+      color: var(--gold-dim);
+      margin-bottom: 0.75rem;
+    }
+
+    .field-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .field-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 0.3rem;
+      flex-wrap: wrap; gap: 0.5rem;
+    }
+
+    .field-key {
+      font-family: var(--ff-mono); font-size: 11px;
+      color: var(--gold-dim);
+    }
+
+    .field-val {
+      font-family: var(--ff-mono); font-size: 13px;
+      color: var(--parchment);
+    }
+
+    .field-bar-wrap {
+      width: 100%; margin-top: 0.4rem;
+    }
+
+    .field-bar-track {
+      height: 2px; background: var(--border);
+      position: relative; overflow: hidden;
+    }
+
+    .field-bar-fill {
+      position: absolute; top: 0; left: 0; height: 100%;
+      background: var(--gold);
+      transition: width 0.6s ease;
+    }
+
+    .tongue-chips {
+      display: flex; flex-wrap: wrap; gap: 4px; margin-top: 0.5rem;
+    }
+
+    .tongue-chip {
+      font-family: var(--ff-display); font-size: 9px; letter-spacing: 1px;
+      padding: 2px 8px;
+      border: 1px solid var(--border-lit);
+      color: var(--gold-dim);
+    }
+
+    .shygazun-note {
+      font-family: var(--ff-mono); font-size: 1.1rem;
+      color: var(--gold);
+      letter-spacing: 2px;
+      margin: 1rem 0 0.3rem;
+    }
+
+    .gate-note {
+      font-size: 0.85rem;
+      font-style: italic;
+      color: rgba(240,232,216,0.45);
+    }
+
+    /* ── Gate levels reference ── */
+    .gate-ref {
+      margin-top: 3rem;
+    }
+
+    .gate-ref-title {
+      font-family: var(--ff-display);
+      font-size: 10px; letter-spacing: 3px;
+      color: var(--gold-dim);
+      margin-bottom: 1rem;
+    }
+
+    .gate-row {
+      display: flex; align-items: baseline; gap: 1.25rem;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gate-row:last-child { border-bottom: none; }
+
+    .gate-name { font-family: var(--ff-mono); font-size: 1rem; width: 60px; flex-shrink: 0; }
+    .gate-comp { font-family: var(--ff-mono); font-size: 11px; color: var(--gold-dim); width: 90px; flex-shrink: 0; }
+    .gate-gloss { font-size: 0.9rem; color: rgba(240,232,216,0.6); font-style: italic; }
+
+    .error-msg {
+      font-family: var(--ff-mono); font-size: 12px;
+      color: #a04040;
+      padding: 0.75rem 1rem;
+      border: 1px solid #503030;
+      margin-top: 1rem;
+    }
+
+    .page-footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid var(--border);
+      font-family: var(--ff-display);
+      font-size: 10px; letter-spacing: 3px;
+      color: var(--gold-dim);
+    }
+
+    .page-footer a { color: var(--gold-dim); text-decoration: none; margin: 0 1rem; }
+    .page-footer a:hover { color: var(--gold); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/">QQDA</a>
+  <span class="nav-title">ROKO · GATE DREAMER</span>
+  <a href="/guild">GUILD</a>
+</nav>
+
+<div class="container">
+
+  <p class="page-eyebrow">RO · KO — GATE · DREAMER</p>
+  <h1 class="page-title">ROKO</h1>
+  <p class="page-subtitle">Structural contribution assessments. Not moral judgements.</p>
+
+  <!-- ── Practitioner lookup ── -->
+  <div class="lookup-row">
+    <input class="lookup-input" id="pid-input" type="text" placeholder="practitioner_id" autocomplete="off" />
+    <button class="lookup-btn" onclick="lookupPractitioner()">READ →</button>
+  </div>
+
+  <!-- ── Profile ── -->
+  <div class="profile" id="profile">
+    <div class="profile-top">
+      <div class="gate-badge" id="gate-badge">
+        <div id="gate-name">—</div>
+        <div class="gate-sub" id="gate-sub">—</div>
+      </div>
+      <div class="profile-meta">
+        <div class="profile-id" id="profile-id">—</div>
+        <div class="profile-rank" id="profile-rank">—</div>
+        <div class="profile-rank-gloss" id="profile-rank-gloss">—</div>
+        <div class="profile-stats">
+          <div class="stat">
+            <span class="stat-num" id="stat-quacks">0</span>
+            <span class="stat-label">QUACKS</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="rule" />
+
+    <!-- ── Composition assessment ── -->
+    <span class="assess-label">SUBMIT A SHYGAZUN COMPOSITION</span>
+    <textarea class="assess-ta" id="assess-ta" placeholder="ShyDaSha Ko Wunae...&#10;Write any Shygazun here. Roko reads the field."></textarea>
+    <button class="assess-btn" onclick="runAssess()">ASSESS COMPOSITION →</button>
+
+    <div class="assessment" id="assessment">
+      <hr class="rule" />
+
+      <div class="field-title">GROUND · GIANN (T=0)</div>
+      <div class="field-panel">
+        <div class="field-row">
+          <span class="field-key">coherence</span>
+          <span class="field-val" id="ground-coherence">—</span>
+        </div>
+        <div class="field-bar-wrap">
+          <div class="field-bar-track">
+            <div class="field-bar-fill" id="ground-bar" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="field-row" style="margin-top:0.6rem">
+          <span class="field-key">tongues</span>
+        </div>
+        <div class="tongue-chips" id="ground-tongues"></div>
+        <div class="field-row" style="margin-top:0.6rem">
+          <span class="field-key">top symbols</span>
+          <span class="field-val" id="ground-symbols">—</span>
+        </div>
+      </div>
+
+      <div class="field-title" style="margin-top:1rem">DREAM · KESHI (T&gt;0)</div>
+      <div class="field-panel">
+        <div class="field-row">
+          <span class="field-key">latent reach</span>
+          <span class="field-val" id="dream-meaning">—</span>
+        </div>
+        <div class="field-row" style="margin-top:0.4rem">
+          <span class="field-key">reaching toward</span>
+        </div>
+        <div class="tongue-chips" id="dream-tongues"></div>
+        <div class="field-row" style="margin-top:0.4rem">
+          <span class="field-key">latent symbols</span>
+          <span class="field-val" id="dream-symbols">—</span>
+        </div>
+      </div>
+
+      <div class="shygazun-note" id="shygazun-note">—</div>
+      <div class="gate-note" id="gate-note">—</div>
+
+      <div class="error-msg" id="assess-error" style="display:none"></div>
+    </div>
+
+    <div class="error-msg" id="profile-error" style="display:none"></div>
+  </div>
+
+  <!-- ── Gate levels reference ── -->
+  <div class="gate-ref" id="gate-ref">
+    <div class="gate-ref-title">GATE LEVELS</div>
+    <div class="gate-row">
+      <span class="gate-name" style="color:var(--gate-tiwu)">Tiwu</span>
+      <span class="gate-comp">Ti · Wu</span>
+      <span class="gate-gloss">Here · Process — present in the Way. Newcomer, all gates open.</span>
+    </div>
+    <div class="gate-row">
+      <span class="gate-name" style="color:var(--gate-tawu)">Tawu</span>
+      <span class="gate-comp">Ta · Wu</span>
+      <span class="gate-gloss">Active-being · Process — actively in the Way.</span>
+    </div>
+    <div class="gate-row">
+      <span class="gate-name" style="color:var(--gate-fyko)">FyKo</span>
+      <span class="gate-comp">Fy · Ko</span>
+      <span class="gate-gloss">Thought-toward · Experience — reaching toward depth. Wunashakoun confirmed.</span>
+    </div>
+    <div class="gate-row">
+      <span class="gate-name" style="color:var(--gate-mowu)">Mowu</span>
+      <span class="gate-comp">Mo · Wu</span>
+      <span class="gate-gloss">Relaxed · Process — resting in the Way. Between phases.</span>
+    </div>
+    <div class="gate-row">
+      <span class="gate-name" style="color:var(--gate-zowu)">ZoWu</span>
+      <span class="gate-comp">Zo · Wu</span>
+      <span class="gate-gloss">Absence · Process — absent from the Way. Structural observation, never a block. The penalty for non-participation is baked into non-participation itself.</span>
+    </div>
+  </div>
+
+</div>
+
+<footer class="page-footer">
+  <a href="/">HOME</a>
+  <a href="/games">GAMES</a>
+  <a href="/guild">GUILD</a>
+  <a href="/whitepaper">WHITEPAPER</a>
+  <br><br>
+  Quantum Quackery Divine Arts · quantumquackery.org
+</footer>
+
+<script>
+const GATE_COLORS = {
+  Tiwu: 'var(--gate-tiwu)', Tawu: 'var(--gate-tawu)',
+  FyKo: 'var(--gate-fyko)', Mowu: 'var(--gate-mowu)', ZoWu: 'var(--gate-zowu)',
+};
+
+const RANK_GLOSSES = {
+  Wunashako:     'Wu·Na·Sha·Ko — the Way, not yet actualized',
+  Wunae:         'Wu·Na·AE — present in the Way of Integration',
+  Fywunae:       'Fy·Wu·Na·AE — thought-toward follows the Way',
+  Shykawunae:    'Shy·Ka·Wu·Na·AE — patterns-vectors the Way',
+  Nashykawunae:  'Na·Shy·Ka·Wu·Na·AE — Integration itself patterns-vectors',
+};
+
+// Pre-populate from URL ?id=
+const urlId = new URLSearchParams(location.search).get('id');
+if (urlId) {
+  document.getElementById('pid-input').value = urlId;
+  lookupPractitioner();
+}
+
+async function lookupPractitioner() {
+  const pid = document.getElementById('pid-input').value.trim();
+  if (!pid) return;
+
+  // Update URL
+  history.replaceState(null, '', `?id=${encodeURIComponent(pid)}`);
+
+  try {
+    const resp = await fetch(`/api/v1/roko/practitioner/${encodeURIComponent(pid)}`);
+    if (!resp.ok) throw new Error(`${resp.status}`);
+    const data = await resp.json();
+    renderProfile(data);
+  } catch(e) {
+    document.getElementById('profile-error').textContent = `Could not read practitioner "${pid}". ${e.message}`;
+    document.getElementById('profile-error').style.display = 'block';
+    document.getElementById('profile').classList.add('visible');
+  }
+}
+
+function renderProfile(data) {
+  document.getElementById('profile').classList.add('visible');
+  document.getElementById('profile-error').style.display = 'none';
+
+  const badge = document.getElementById('gate-badge');
+  badge.className = `gate-badge ${data.gate}`;
+  document.getElementById('gate-name').textContent = data.gate;
+  document.getElementById('gate-sub').textContent = data.gate_gloss.split('—')[0].trim();
+
+  document.getElementById('profile-id').textContent = data.practitioner_id;
+  document.getElementById('profile-rank').textContent = data.rank_title;
+  document.getElementById('profile-rank-gloss').textContent = RANK_GLOSSES[data.rank_title] || '';
+  document.getElementById('stat-quacks').textContent = data.quack_count;
+}
+
+async function runAssess() {
+  const pid  = document.getElementById('pid-input').value.trim();
+  const text = document.getElementById('assess-ta').value.trim();
+  if (!text) return;
+
+  document.getElementById('assessment').classList.add('visible');
+  document.getElementById('assess-error').style.display = 'none';
+  document.getElementById('shygazun-note').textContent = '…';
+
+  try {
+    const resp = await fetch('/api/v1/roko/assess', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ text, practitioner_id: pid }),
+    });
+    if (!resp.ok) throw new Error(`${resp.status}`);
+    const a = await resp.json();
+    renderAssessment(a);
+  } catch(e) {
+    document.getElementById('assess-error').textContent = `Assessment failed. ${e.message}`;
+    document.getElementById('assess-error').style.display = 'block';
+    document.getElementById('shygazun-note').textContent = 'ZoWu';
+  }
+}
+
+function chips(tongues, el) {
+  el.innerHTML = tongues.slice(0,6).map(t =>
+    `<span class="tongue-chip">${t}</span>`
+  ).join('');
+}
+
+function renderAssessment(a) {
+  // Ground
+  document.getElementById('ground-coherence').textContent = (a.coherence * 100).toFixed(1) + '%';
+  document.getElementById('ground-bar').style.width = (a.coherence * 100) + '%';
+  chips(a.ground.tongues, document.getElementById('ground-tongues'));
+  document.getElementById('ground-symbols').textContent = a.ground.top_symbols.slice(0,6).join(' ');
+
+  // Dream
+  document.getElementById('dream-meaning').textContent = a.latent.meaning;
+  chips(a.latent.tongues, document.getElementById('dream-tongues'));
+  document.getElementById('dream-symbols').textContent = a.latent.symbols.slice(0,6).join(' ');
+
+  // Note + gate
+  document.getElementById('shygazun-note').textContent = a.shygazun_note;
+  document.getElementById('gate-note').textContent = a.gate_gloss;
+
+  // Update gate badge if profile loaded
+  const badge = document.getElementById('gate-badge');
+  if (badge && a.gate) {
+    badge.className = `gate-badge ${a.gate}`;
+    document.getElementById('gate-name').textContent = a.gate;
+    document.getElementById('gate-sub').textContent = a.gate_gloss.split('—')[0].trim();
+  }
+}
+</script>
+
+</body>
+</html>

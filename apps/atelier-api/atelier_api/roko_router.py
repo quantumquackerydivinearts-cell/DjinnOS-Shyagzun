@@ -220,3 +220,42 @@ def practitioner_profile(practitioner_id: str, db: Session = Depends(get_db)):
         gate            = gate,
         gate_gloss      = _roko.GATE_GLOSSES[gate],
     )
+
+
+# ── Institutional site assessment ─────────────────────────────────────────────
+
+class SiteAssessRequest(BaseModel):
+    domain:      str
+    contract_id: str
+    flags:       Optional[dict] = None
+
+class SiteAssessmentOut(BaseModel):
+    domain:          str
+    contract_id:     str
+    gate:            str
+    gate_gloss:      str
+    practice_viable: bool
+    observations:    list[str]
+    checked_at:      str
+
+@router.post("/site-assess", response_model=SiteAssessmentOut)
+def site_assess(req: SiteAssessRequest):
+    """
+    Roko institutional assessment: does this site's environment permit
+    open Wunashakoun practice? Called by the scheduled billing job and
+    on-demand by stewards.
+    """
+    a = _roko.assess_site(
+        domain      = req.domain,
+        contract_id = req.contract_id,
+        flags       = req.flags,
+    )
+    return SiteAssessmentOut(
+        domain          = a.domain,
+        contract_id     = a.contract_id,
+        gate            = a.gate,
+        gate_gloss      = a.gate_gloss,
+        practice_viable = a.practice_viable,
+        observations    = a.observations,
+        checked_at      = a.checked_at,
+    )

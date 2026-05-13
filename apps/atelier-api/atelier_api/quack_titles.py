@@ -32,9 +32,17 @@ Rank titles (ascending volume):
         One through whom Integration itself patterns-vectors the Way.
         The practitioner and the process are one.
 
+    Aeruki           (200+ Tongues worked)
+        AE·Ru·Ki -- Highest-Vector·Lowest-Red·Green.
+        Full chromatic traversal. One who has spanned the entire visible spectrum
+        of the language -- from the lowest register to the highest, through the
+        living middle. Threshold is tongues_worked, not quack_count: breadth
+        across 200 distinct Tongue registers, not volume of generation events.
+        Currently aspirational -- requires the byte table to grow to 200 Tongues.
+
 QuackTitle records the specific Tongue and akinen generated -- a generation
 event log, not a displayed title. PractitionerTitles accumulates these events
-and derives the rank title from the total Quack count.
+and derives the rank title from the total Quack count and tongues worked.
 """
 
 from __future__ import annotations
@@ -44,29 +52,57 @@ from shygazun.kernel.constants.byte_table import SHYGAZUN_BYTE_ROWS
 # ── Rank title registry ───────────────────────────────────────────────────────
 
 # Ordered descending by threshold so the first match is the correct rank.
+# Ranks 1-4 threshold on quack_count. Rank 5 (Aeruki) thresholds on tongues_worked.
 PRACTITIONER_RANKS: list[tuple[int, str, str]] = [
     (100, "Nashykawunae", "Na·Shy·Ka·Wu·Na·AE — one through whom Integration patterns-vectors the Way"),
     ( 20, "Shykawunae",   "Shy·Ka·Wu·Na·AE    — one who vectors pattern along the Way to Integration"),
     (  5, "Fywunae",      "Fy·Wu·Na·AE         — one whose thought-toward follows the Way to Integration"),
     (  1, "Wunae",        "Wu·Na·AE            — one in whom the Way integrates toward the Highest"),
 ]
-_RANK_ZERO = "Wunashako"
+_RANK_ZERO   = "Wunashako"
+RANK_AERUKI  = "Aeruki"
+GLOSS_AERUKI = "AE·Ru·Ki — Highest-Vector·Lowest-Red·Green — full chromatic traversal of the language"
+AERUKI_TONGUES_THRESHOLD = 200
+
+# Profit share percentages by rank (for QCR revenue distribution)
+RANK_PROFIT_SHARE: dict[str, float] = {
+    "Wunashako":    0.00,
+    "Wunae":        0.24,
+    "Fywunae":      0.28,
+    "Shykawunae":   0.32,
+    "Nashykawunae": 0.36,
+    RANK_AERUKI:    0.40,
+}
 
 
-def practitioner_rank(quack_count: int) -> str:
-    """Return the Shygazun rank title for a given Quack count."""
+def practitioner_rank(quack_count: int, tongues_worked: int = 0) -> str:
+    """
+    Return the Shygazun rank title.
+    Aeruki (rank 5) is determined by tongues_worked >= 200.
+    Ranks 1-4 are determined by quack_count.
+    """
+    if tongues_worked >= AERUKI_TONGUES_THRESHOLD:
+        return RANK_AERUKI
     for min_q, title, _ in PRACTITIONER_RANKS:
         if quack_count >= min_q:
             return title
     return _RANK_ZERO
 
 
-def rank_gloss(quack_count: int) -> str:
-    """Return the composition gloss for a given Quack count."""
+def rank_gloss(quack_count: int, tongues_worked: int = 0) -> str:
+    """Return the composition gloss for a given rank."""
+    if tongues_worked >= AERUKI_TONGUES_THRESHOLD:
+        return GLOSS_AERUKI
     for min_q, _, gloss in PRACTITIONER_RANKS:
         if quack_count >= min_q:
             return gloss
     return "Wu·Na·Sha·Ko — the Way, not yet actualized as a practitioner"
+
+
+def rank_profit_share(quack_count: int, tongues_worked: int = 0) -> float:
+    """Return the practitioner's profit share percentage (0.0–0.40)."""
+    title = practitioner_rank(quack_count, tongues_worked)
+    return RANK_PROFIT_SHARE.get(title, 0.0)
 
 
 # ── Generation event record ───────────────────────────────────────────────────

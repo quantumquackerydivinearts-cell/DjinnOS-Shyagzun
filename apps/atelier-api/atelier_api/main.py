@@ -35,6 +35,8 @@ from .shygazun_reasoning import router as shygazun_reasoning_router
 from .quack_router import router as quack_router
 from .routers.intel import router as intel_router
 from .roko_router import router as roko_router
+from .qcr_service_router import router as qcr_service_router
+from .billing_router import router as billing_router
 
 
 from .business_schemas import (
@@ -1231,7 +1233,9 @@ app.include_router(shygazun_router, prefix="/shygazun", tags=["shygazun"])
 app.include_router(shygazun_reasoning_router, prefix="/v1/shygazun", tags=["shygazun-reasoning"])
 app.include_router(quack_router, prefix="/v1/quack", tags=["quack"])
 app.include_router(intel_router, prefix="/v1/intel", tags=["intel"])
-app.include_router(roko_router,  prefix="/v1/roko",  tags=["roko"])
+app.include_router(roko_router,        prefix="/v1/roko",    tags=["roko"])
+app.include_router(qcr_service_router, prefix="/v1/qcr",     tags=["qcr"])
+app.include_router(billing_router,     prefix="/v1/billing",  tags=["billing"])
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)

@@ -307,3 +307,50 @@ def all_tongues() -> list[str]:
 
 def candidates_by_tongue(tongue: str) -> list[Candidate]:
     return [c for c in CANDIDATES if c.tongue == tongue]
+
+
+# ── Shannon entropy + Quack offset ───────────────────────────────────────────
+
+def shannon_entropy(temp: float = 1.0) -> float:
+    """
+    Compute the Shannon entropy H of the semantic field at the given temperature.
+
+    H = -Σ p(i) log₂ p(i)
+
+    where p(i) is the marginal activation probability of candidate i under the
+    Boltzmann distribution at temperature `temp`. Uses the full weight matrix.
+
+    As the byte table grows (more Quacks → more candidates), H rises.
+    This value drives the Quack offset floating rate.
+    """
+    W = build_weight_matrix("keshi", temp)
+    # Approximate marginal probabilities via softmax of diagonal energy proxy.
+    # Diagonal of W @ W gives a proxy for each candidate's connectivity.
+    diag = np.einsum("ij,ji->i", W, W.T)   # shape (N,)
+    # Softmax to probability distribution
+    shifted = diag - diag.max()
+    exp_d   = np.exp(shifted / max(temp, 1e-6))
+    probs   = exp_d / (exp_d.sum() + 1e-12)
+    # Shannon entropy
+    log_p = np.where(probs > 0, np.log2(probs + 1e-12), 0.0)
+    h = float(-np.dot(probs, log_p))
+    return round(h, 6)
+
+
+def quack_offset_rate(baseline_h: float, base_value_cents: int = 100) -> float:
+    """
+    Return the current offset value per Quack in cents, floating with H.
+
+    offset_value = base_value_cents × (H_current / H_baseline)
+
+    If baseline_h is 0 (not yet established), return base_value_cents unchanged.
+    """
+    if baseline_h <= 0:
+        return float(base_value_cents)
+    h_now = shannon_entropy()
+    return base_value_cents * (h_now / baseline_h)
+
+
+def tongue_count() -> int:
+    """Number of distinct Tongue registers currently in the byte table."""
+    return len(set(c.tongue for c in CANDIDATES))

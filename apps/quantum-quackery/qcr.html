@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Queried Collapse Routing — Quantum Quackery Guild</title>
+  <meta name="description" content="QCR: navigation by semantic convergence, not URL hierarchy. A guild service. Dispatched manually. Maintained by Wunashakoun practitioners." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --void:      #06060a;
+      --panel:     #0b0910;
+      --deep:      #0e0b18;
+      --parchment: #f0e8d8;
+      --gold:      #c9a84c;
+      --gold-dim:  #7a621e;
+      --ember:     #c85a28;
+      --border:    rgba(201,168,76,0.14);
+      --border-lit:rgba(201,168,76,0.45);
+      --ff-display:"Cinzel", serif;
+      --ff-body:   "Cormorant Garamond", serif;
+      --ff-mono:   "JetBrains Mono", monospace;
+    }
+
+    body {
+      background: var(--void);
+      color: var(--parchment);
+      font-family: var(--ff-body);
+      font-size: 18px;
+      line-height: 1.7;
+    }
+
+    body::before {
+      content: ""; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999; opacity: 0.35;
+    }
+
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 2rem;
+      background: rgba(6,6,10,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    nav a { color: var(--gold-dim); text-decoration: none; font-family: var(--ff-display); font-size: 12px; letter-spacing: 2px; transition: color 0.2s; }
+    nav a:hover { color: var(--gold); }
+    .nav-title { color: var(--parchment); font-size: 13px; letter-spacing: 3px; }
+
+    .container { max-width: 880px; margin: 0 auto; padding: 6rem 2rem 6rem; }
+
+    /* ── Hero ── */
+    .eyebrow { font-family: var(--ff-display); font-size: 10px; letter-spacing: 4px; color: var(--gold-dim); margin-bottom: 1rem; }
+    h1 { font-family: var(--ff-display); font-size: 2.4rem; letter-spacing: 3px; font-weight: 400; margin-bottom: 0.5rem; }
+    .subtitle { font-style: italic; color: rgba(240,232,216,0.55); margin-bottom: 3rem; font-size: 1.1rem; }
+
+    /* ── Rule ── */
+    .rule { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
+
+    /* ── Section headings ── */
+    h2 { font-family: var(--ff-display); font-size: 11px; letter-spacing: 3px; color: var(--gold-dim); margin-bottom: 1.25rem; }
+
+    p { margin-bottom: 1rem; color: rgba(240,232,216,0.85); }
+    strong { color: var(--parchment); font-weight: 500; }
+
+    /* ── Live demo ── */
+    .demo-frame {
+      border: 1px solid var(--border);
+      padding: 2rem;
+      margin: 1.5rem 0;
+      background: var(--panel);
+    }
+
+    .demo-query-row { display: flex; gap: 0; margin-bottom: 1.5rem; }
+
+    .demo-input {
+      flex: 1;
+      background: var(--deep); border: 1px solid var(--border); border-right: none;
+      color: var(--parchment); font-family: var(--ff-mono); font-size: 0.9rem;
+      padding: 0.75rem 1rem; outline: none; transition: border-color 0.2s;
+    }
+    .demo-input:focus { border-color: var(--border-lit); }
+    .demo-input::placeholder { color: rgba(240,232,216,0.2); }
+
+    .demo-btn {
+      background: var(--gold); border: 1px solid var(--gold); color: var(--void);
+      font-family: var(--ff-display); font-size: 10px; letter-spacing: 2px;
+      padding: 0.75rem 1.2rem; cursor: pointer; transition: background 0.2s;
+    }
+    .demo-btn:hover { background: #e8c25a; }
+
+    .demo-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .demo-section {
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--border);
+      transition: border-color 0.4s, background 0.4s;
+    }
+    .demo-section.lit { border-color: var(--border-lit); background: rgba(201,168,76,0.04); }
+
+    .ds-label { font-family: var(--ff-display); font-size: 10px; letter-spacing: 2px; color: var(--gold-dim); margin-bottom: 0.3rem; }
+    .ds-label.lit { color: var(--gold); }
+
+    .ds-bar-track { height: 2px; background: rgba(201,168,76,0.1); margin-bottom: 0.5rem; }
+    .ds-bar-fill { height: 100%; background: var(--gold); transition: width 0.5s ease; width: 0%; }
+
+    .ds-body { font-size: 0.85rem; color: rgba(240,232,216,0.55); }
+
+    .demo-meta { font-family: var(--ff-mono); font-size: 11px; color: var(--gold-dim); margin-top: 1rem; }
+
+    /* ── Code blocks ── */
+    pre {
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 1.25rem 1.4rem; overflow-x: auto;
+      font-family: var(--ff-mono); font-size: 13px; color: rgba(240,232,216,0.75);
+      line-height: 1.6; margin: 1rem 0;
+    }
+    .kw { color: #a070d0; }
+    .st { color: #70a870; }
+    .cm { color: #504060; font-style: italic; }
+
+    /* ── Tier table ── */
+    .tier-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+    .tier-table th { font-family: var(--ff-display); font-size: 9px; letter-spacing: 2px; color: var(--gold-dim); text-align: left; padding: 0.5rem 1rem 0.5rem 0; border-bottom: 1px solid var(--border); }
+    .tier-table td { padding: 0.7rem 1rem 0.7rem 0; border-bottom: 1px solid var(--border); color: rgba(240,232,216,0.8); vertical-align: top; }
+    .tier-table td:first-child { font-family: var(--ff-display); letter-spacing: 1px; color: var(--parchment); }
+    .free-badge { font-family: var(--ff-display); font-size: 9px; letter-spacing: 2px; padding: 2px 8px; border: 1px solid #406040; color: #70a870; }
+    .paid-badge { font-family: var(--ff-display); font-size: 9px; letter-spacing: 2px; padding: 2px 8px; border: 1px solid var(--border-lit); color: var(--gold); }
+
+    /* ── Obligation block ── */
+    .obligation {
+      border-left: 2px solid var(--gold-dim);
+      padding: 0.75rem 1.25rem;
+      margin: 1.25rem 0;
+      color: rgba(240,232,216,0.7);
+      font-size: 0.95rem;
+    }
+
+    /* ── CTA ── */
+    .cta { margin-top: 2rem; }
+    .cta a {
+      display: inline-block; font-family: var(--ff-display); font-size: 11px; letter-spacing: 3px;
+      padding: 0.85rem 2rem; border: 1px solid var(--gold); color: var(--gold);
+      text-decoration: none; transition: background 0.2s, color 0.2s; margin-right: 1rem;
+    }
+    .cta a:hover { background: var(--gold); color: var(--void); }
+    .cta a.secondary { border-color: var(--gold-dim); color: var(--gold-dim); }
+    .cta a.secondary:hover { background: var(--gold-dim); color: var(--void); }
+
+    .page-footer {
+      text-align: center; padding: 3rem 2rem;
+      border-top: 1px solid var(--border);
+      font-family: var(--ff-display); font-size: 10px; letter-spacing: 3px; color: var(--gold-dim);
+    }
+    .page-footer a { color: var(--gold-dim); text-decoration: none; margin: 0 1rem; }
+    .page-footer a:hover { color: var(--gold); }
+
+    @media (max-width: 600px) {
+      .demo-sections { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/">QQDA</a>
+  <span class="nav-title">QUERIED COLLAPSE ROUTING</span>
+  <a href="/guild">GUILD</a>
+</nav>
+
+<div class="container">
+
+  <p class="eyebrow">QUANTUM QUACKERY DIVINE ARTS · GUILD SERVICE</p>
+  <h1>Queried Collapse<br>Routing</h1>
+  <p class="subtitle">Navigation by semantic convergence, not URL hierarchy. Dynamic content. Stable address space. Proprietary patternicity.</p>
+
+  <!-- ── Live demo ── -->
+  <h2>EXPERIENCE IT NOW</h2>
+  <p>Ask something below. The sections respond to what you ask — not to where you click. This page navigates itself.</p>
+
+  <div class="demo-frame">
+    <div class="demo-query-row">
+      <input class="demo-input" id="demo-q" type="text" placeholder="what grows in the garden · who maintains the language · how does encryption work" autocomplete="off" />
+      <button class="demo-btn" onclick="demoRoute()">→</button>
+    </div>
+
+    <div class="demo-sections">
+      <div class="demo-section" id="ds-garden">
+        <div class="ds-label" id="dsl-garden">GARDEN</div>
+        <div class="ds-bar-track"><div class="ds-bar-fill" id="dsb-garden"></div></div>
+        <div class="ds-body">The Shygazun byte table. 1358 akinen across 38 tongue registers. The semantic substrate grows as Wunashakoun practitioners generate Quacks. Salt maintains it.</div>
+      </div>
+      <div class="demo-section" id="ds-theatre">
+        <div class="ds-label" id="dsl-theatre">THEATRE</div>
+        <div class="ds-bar-track"><div class="ds-bar-fill" id="dsb-theatre"></div></div>
+        <div class="ds-body">Ko's Labyrinth — 31 games, one world, one language. Sulphur's domain. The theatrical operations are also entropy sources: BreathOfKo traversals feed the QQEES pool.</div>
+      </div>
+      <div class="demo-section" id="ds-routing">
+        <div class="ds-label" id="dsl-routing">COLLAPSE ROUTING</div>
+        <div class="ds-bar-track"><div class="ds-bar-fill" id="dsb-routing"></div></div>
+        <div class="ds-body">The Hopfield network over the byte table converges a visitor's query to the nearest semantic attractor. The page assembles from the convergence state — not from static storage.</div>
+      </div>
+      <div class="demo-section" id="ds-encryption">
+        <div class="ds-label" id="dsl-encryption">ENTROPY ENCRYPTION</div>
+        <div class="ds-bar-track"><div class="ds-bar-fill" id="dsb-encryption"></div></div>
+        <div class="ds-body">The Quantum Quackery Entropy Encryption Service. Shannon capacity of the byte table, augmented by registered gardens and theatrical operations. Stronger as the language grows.</div>
+      </div>
+      <div class="demo-section" id="ds-guild">
+        <div class="ds-label" id="dsl-guild">GUILD</div>
+        <div class="ds-bar-track"><div class="ds-bar-fill" id="dsb-guild"></div></div>
+        <div class="ds-body">Three departments: Sulphur (Theatre, Technology, R&amp;D), Mercury (Arts, Networking, Communications), Salt (Gardens, Workshops, QQEES). QCR is a guild service, dispatched manually.</div>
+      </div>
+      <div class="demo-section" id="ds-practitioners">
+        <div class="ds-label" id="dsl-practitioners">WUNASHAKOUN</div>
+        <div class="ds-bar-track"><div class="ds-bar-fill" id="dsb-practitioners"></div></div>
+        <div class="ds-body">The practitioners who grow the language. Each Quack extends the byte table. Their ranks — Wunae through Aeruki — determine their share of QCR revenue. They maintain what you use.</div>
+      </div>
+    </div>
+
+    <div class="demo-meta" id="demo-meta">keyword mode · no key · try TCE mode with a guild key</div>
+  </div>
+
+  <hr class="rule" />
+
+  <!-- ── What it is ── -->
+  <h2>WHAT IT IS</h2>
+  <p>In standard web architecture, the address space is arbitrary: URLs encode administrative decisions, not semantic relationships. Navigation is the act of knowing or discovering addresses. Content at an address is the same regardless of how or why you arrived.</p>
+  <p>In <strong>Queried Collapse Routing</strong>, a visitor specifies a relationship — a query — and the field collapses to whatever semantic configuration is most coherent given that relationship. The destination is the result of the collapse, not its input. Two visitors asking semantically similar but distinct questions may arrive at the same address via different convergence paths and receive different, equally coherent content. Neither page was stored. Both are valid.</p>
+  <p>The address space is grounded in the <strong>Shygazun byte table</strong>: 1358 semantic candidates across 38 tongue registers, positioned by prime factorisation geometry. Address proximity is load-bearing. The byte table is canonical and grows only through genuine Wunashakoun practice. Every site using QCR navigates the same coordinate space.</p>
+
+  <hr class="rule" />
+
+  <!-- ── Tiers ── -->
+  <h2>SERVICE TIERS</h2>
+  <table class="tier-table">
+    <thead>
+      <tr>
+        <th>Tier</th><th>Mode</th><th>Rate</th><th>What you get</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Keyword</td>
+        <td><span class="free-badge">FREE</span></td>
+        <td>Bundled with site development</td>
+        <td>Client-side collapse routing via <code>qcr.js</code>. Section activation by keyword matching. No API call. Works offline. The pattern without the depth.</td>
+      </tr>
+      <tr>
+        <td>QCR + TCE</td>
+        <td><span class="paid-badge">GUILD CONTRACT</span></td>
+        <td>$35 / month per implementation</td>
+        <td>Full Hopfield convergence over the Shygazun byte table. Thermodynamic sampling (Keshi mode). Shannon entropy routing. Content assembled from convergence state. Domain-locked key. Roko monitoring.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:0.85rem;color:rgba(240,232,216,0.4)">Rate is per implementation, defined explicitly at signing. A domain with multiple subdomains or sites specifies each implementation separately.</p>
+
+  <hr class="rule" />
+
+  <!-- ── Integration ── -->
+  <h2>INTEGRATION</h2>
+  <p>Include <code>qcr.js</code> and annotate your sections with tongue affinities — which regions of the Shygazun byte table your content inhabits. The library handles both keyword routing (free) and TCE routing (with key) automatically.</p>
+
+  <pre><span class="cm">&lt;!-- Include the library --&gt;</span>
+<span class="kw">&lt;script</span> <span class="st">src</span>=<span class="st">"https://quantumquackery.org/qcr.js"</span>
+        <span class="st">data-api-key</span>=<span class="st">"qcr_your_key_here"</span>
+        <span class="st">data-input</span>=<span class="st">"#search"</span><span class="kw">&gt;&lt;/script&gt;</span>
+
+<span class="cm">&lt;!-- Annotate your sections --&gt;</span>
+<span class="kw">&lt;section</span> <span class="st">data-qcr-section</span>=<span class="st">"garden"</span>
+          <span class="st">data-qcr-tongues</span>=<span class="st">"Lotus,Cannabis"</span>
+          <span class="st">data-qcr-keywords</span>=<span class="st">"grow,seed,life,plant"</span><span class="kw">&gt;</span>
+  ...
+<span class="kw">&lt;/section&gt;</span></pre>
+
+  <p>Or use the JavaScript API for full control:</p>
+
+  <pre><span class="kw">const</span> qcr = <span class="kw">new</span> QCR({ apiKey: <span class="st">'qcr_your_key'</span> });
+
+qcr.<span class="st">section</span>(<span class="st">'garden'</span>,   el, { tongues: [<span class="st">'Lotus'</span>, <span class="st">'Cannabis'</span>],  keywords: [<span class="st">'grow'</span>, <span class="st">'seed'</span>] })
+   .<span class="st">section</span>(<span class="st">'library'</span>,  el, { tongues: [<span class="st">'Dragon'</span>, <span class="st">'Neural'</span>],   keywords: [<span class="st">'knowledge'</span>] })
+   .<span class="st">section</span>(<span class="st">'workshop'</span>, el, { tongues: [<span class="st">'Fold'</span>, <span class="st">'Topology'</span>],  keywords: [<span class="st">'build'</span>, <span class="st">'make'</span>] });
+
+qcr.<span class="st">route</span>(query, ({ activations, shannon_h }) =&gt; {
+  activations.<span class="st">forEach</span>(({ section_id, score }) =&gt; {
+    document.<span class="st">getElementById</span>(section_id)
+      ?.style.<span class="st">setProperty</span>(<span class="st">'--qcr-activation'</span>, score);
+  });
+});</pre>
+
+  <hr class="rule" />
+
+  <!-- ── Dispatch ── -->
+  <h2>HOW TO GET IT</h2>
+  <p>QCR is a guild service. It is not self-serve. A guild member arranges the contract with you in the Atelier — the domain, the implementations, the rate, the period. The credential is domain-locked and issued on signing.</p>
+
+  <div class="obligation">
+    <strong>Continuous obligations of the contracting party:</strong><br>
+    Subscription maintained per period. Non-erasure of the Wunashakoun people — the practitioners who grow the substrate your navigation runs on. Violation (prohibition of Shygazun speech, Wunashakoun practice, or endorsement of any party working toward equivalent prohibition) is grounds for contract termination and prohibition from re-entry on the same terms. Roko monitors all active contracts on a continuous schedule.
+  </div>
+
+  <p>The keyword tier is free and bundled into site development arrangements. For QCR + TCE proper, contact a guild member or reach out through the guild hall.</p>
+
+  <div class="cta">
+    <a href="/guild">GUILD HALL →</a>
+    <a href="/whitepaper" class="secondary">READ THE WHITEPAPER</a>
+  </div>
+
+  <hr class="rule" />
+
+  <!-- ── Wunashakoun ── -->
+  <h2>THE PEOPLE WHO MAINTAIN IT</h2>
+  <p>The Shygazun byte table grows through <strong>Wunashakoun practice</strong> — relational trance bounded with structural clarity. Each Quack a practitioner generates extends the semantic territory QCR navigates. A site dispatched today has access to richer navigation next season because a practitioner extended three Tongue registers.</p>
+  <p>Practitioners earn a share of QCR subscription revenue proportional to their rank — from Wunae (24%) through Aeruki (40%, 200+ Tongue registers worked). Their Quack contributions can also offset their own subscription costs, floating with the Shannon entropy of the field: as the table grows, each Quack is worth more.</p>
+  <p>The penalty for non-participation is baked into non-participation itself. Roko observes. The gate stays open. The language grows without you if you do not practice. That is the only consequence.</p>
+
+</div>
+
+<footer class="page-footer">
+  <a href="/">HOME</a>
+  <a href="/whitepaper">WHITEPAPER</a>
+  <a href="/guild">GUILD</a>
+  <a href="/practitioner">ROKO</a>
+  <br><br>
+  Quantum Quackery Divine Arts · Studio 42/6 · quantumquackery.org
+</footer>
+
+<script>
+// ── Live demo — keyword collapse routing ──────────────────────────────────────
+
+const DEMO_SECTIONS = {
+  garden:       { keywords: ['grow','garden','seed','life','plant','language','byte','table','shygazun','substrate','akinen','tongue'] },
+  theatre:      { keywords: ['game','theatre','ko','labyrinth','theatrical','play','story','entropy','mandelbrot','breath'] },
+  routing:      { keywords: ['route','routing','collapse','qcr','navigate','convergence','hopfield','attractor','semantic','field','query'] },
+  encryption:   { keywords: ['encrypt','entropy','security','qqees','shannon','capacity','noise','cryptograph','garden'] },
+  guild:        { keywords: ['guild','sulphur','mercury','salt','department','service','contract','dispatch','member','atelier'] },
+  practitioners:{ keywords: ['wunashakoun','practitioner','quack','rank','wunae','aeruki','practice','language','grows'] },
+};
+
+function demoRoute() {
+  const q = document.getElementById('demo-q').value.trim();
+  if (!q) return;
+
+  const words = q.toLowerCase().split(/\W+/).filter(w => w.length > 1);
+  const scores = {};
+
+  for (const [id, {keywords}] of Object.entries(DEMO_SECTIONS)) {
+    let s = 0;
+    for (const w of words)
+      for (const kw of keywords)
+        if (w.includes(kw) || kw.includes(w)) s += 0.4;
+    scores[id] = Math.min(1, s);
+  }
+
+  const max = Math.max(0.001, ...Object.values(scores));
+  let bestId = null, bestScore = 0;
+
+  for (const [id, raw] of Object.entries(scores)) {
+    const score = raw / max;
+    const sec   = document.getElementById('ds-' + id);
+    const bar   = document.getElementById('dsb-' + id);
+    const lbl   = document.getElementById('dsl-' + id);
+    if (!sec) continue;
+    sec.classList.toggle('lit', score > 0.3);
+    lbl.classList.toggle('lit', score > 0.3);
+    if (bar) bar.style.width = (score * 100) + '%';
+    if (score > bestScore) { bestScore = score; bestId = id; }
+  }
+
+  document.getElementById('demo-meta').textContent =
+    `keyword mode · best match: ${bestId || '—'} (${Math.round(bestScore * 100)}%) · add a guild key for TCE depth`;
+}
+
+document.getElementById('demo-q').addEventListener('keydown', e => {
+  if (e.key === 'Enter') demoRoute();
+});
+
+// Fetch and display live Shannon H
+fetch('/api/v1/qcr/field').then(r => r.json()).then(data => {
+  if (data && data.shannon_h) {
+    document.getElementById('demo-meta').textContent =
+      `keyword mode · H = ${data.shannon_h.toFixed(4)} bits · ${data.tongue_count} tongues · ${data.candidate_count} candidates`;
+  }
+}).catch(() => {});
+</script>
+
+</body>
+</html>

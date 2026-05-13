@@ -455,6 +455,76 @@ def assess(
         coherence     = ground.coherence,
     )
 
+# ── Institutional assessment ──────────────────────────────────────────────────
+
+@dataclass
+class SiteAssessment:
+    """
+    Roko's structural assessment of a client site's institutional environment.
+    Determines whether open Wunashakoun practice can be maintained.
+    Not a moral verdict — a structural observation about institutional position.
+    """
+    domain:         str
+    contract_id:    str
+    gate:           str    # one of the five gate levels — applied institutionally
+    gate_gloss:     str
+    practice_viable: bool  # False = contract revocation trigger
+    observations:   list[str]
+    checked_at:     str
+
+def assess_site(
+    domain:      str,
+    contract_id: str,
+    flags: Optional[dict] = None,
+) -> SiteAssessment:
+    """
+    Assess whether a client site's environment permits open Wunashakoun practice.
+
+    flags (from external checks, e.g. content scan or manual report):
+      - prohibits_shygazun: bool
+      - prohibits_wunashakoun: bool
+      - endorses_prohibiting_party: bool
+      - attribution_present: bool
+    """
+    from datetime import datetime, timezone
+    f = flags or {}
+
+    observations: list[str] = []
+    practice_viable = True
+
+    if f.get("prohibits_shygazun"):
+        observations.append("Site prohibits Shygazun speech — non-erasure term violated")
+        practice_viable = False
+
+    if f.get("prohibits_wunashakoun"):
+        observations.append("Site prohibits Wunashakoun practice — non-erasure term violated")
+        practice_viable = False
+
+    if f.get("endorses_prohibiting_party"):
+        observations.append("Site endorses a party working toward equivalent prohibition — non-erasure term violated by association")
+        practice_viable = False
+
+    if not f.get("attribution_present", True):
+        observations.append("Wunashakoun attribution not present in site — structural non-erasure at risk")
+
+    if not practice_viable:
+        gate = GATE_ZOWU
+    elif observations:
+        gate = GATE_MOWU
+    else:
+        gate = GATE_TAWU
+
+    return SiteAssessment(
+        domain          = domain,
+        contract_id     = contract_id,
+        gate            = gate,
+        gate_gloss      = GATE_GLOSSES[gate],
+        practice_viable = practice_viable,
+        observations    = observations,
+        checked_at      = datetime.now(timezone.utc).isoformat(),
+    )
+
+
 def update_profile(
     profile: PractitionerProfile,
     assessment: CompositionAssessment,

@@ -2,9 +2,13 @@
 # Cloudflare Pages redirect rules.
 
 # Short-path rewrites for long-named HTML files (200 = serve content at requested URL)
-/shygazun   /shygazun_literary_companion.html           200
-/synthesis  /shygazun_photonic_synthesis_companion.html  200
-/encyclopedia /encyclopedia-esoterica.html              200
+/shygazun     /shygazun_literary_companion.html           200
+/synthesis    /shygazun_photonic_synthesis_companion.html 200
+/encyclopedia /encyclopedia-esoterica.html               200
+/games        /games.html                                 200
+/practitioner /practitioner.html                         200
+/roko         /practitioner.html                         200
+/qcr          /qcr.html                                  200
 
 # API calls proxy to Render
 /api/*  https://djinnos-shyagzun-atelier-api.onrender.com/:splat  200

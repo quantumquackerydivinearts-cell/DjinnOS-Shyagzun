@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ko's Labyrinth — Quantum Quackery Divine Arts</title>
+  <meta name="description" content="31 games. One language. One world. Navigate Ko's Labyrinth by asking about it." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --void:       #06060a;
+      --parchment:  #f0e8d8;
+      --gold:       #c9a84c;
+      --gold-dim:   #7a621e;
+      --ember:      #c85a28;
+      --deep:       #0e0a18;
+      --panel:      #0b0910;
+      --border:     rgba(201,168,76,0.15);
+      --border-lit: rgba(201,168,76,0.5);
+      --ff-display: "Cinzel", serif;
+      --ff-body:    "Cormorant Garamond", serif;
+    }
+
+    body {
+      background: var(--void);
+      color: var(--parchment);
+      font-family: var(--ff-body);
+      font-size: 18px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: "";
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999; opacity: 0.35;
+    }
+
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 2rem;
+      background: rgba(6,6,10,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav a { color: var(--gold-dim); text-decoration: none; font-family: var(--ff-display); font-size: 12px; letter-spacing: 2px; transition: color 0.2s; }
+    nav a:hover { color: var(--gold); }
+    .nav-title { color: var(--parchment); font-size: 13px; letter-spacing: 3px; }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      text-align: center;
+      padding: 6rem 2rem 4rem;
+      position: relative;
+    }
+
+    .hero-eyebrow {
+      font-family: var(--ff-display);
+      font-size: 11px; letter-spacing: 4px;
+      color: var(--gold-dim);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-title {
+      font-family: var(--ff-display);
+      font-size: clamp(2.5rem, 7vw, 5rem);
+      font-weight: 400;
+      color: var(--parchment);
+      line-height: 1.1;
+      margin-bottom: 1rem;
+    }
+
+    .hero-subtitle {
+      font-size: 1.3rem;
+      font-style: italic;
+      color: rgba(240,232,216,0.6);
+      max-width: 480px;
+      margin: 0 auto 3rem;
+    }
+
+    /* ── Query ── */
+    .query-zone {
+      width: 100%; max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .query-label {
+      font-family: var(--ff-display);
+      font-size: 10px; letter-spacing: 3px;
+      color: var(--gold-dim);
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+
+    .query-row {
+      display: flex; gap: 0;
+    }
+
+    .query-input {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-right: none;
+      color: var(--parchment);
+      font-family: var(--ff-body);
+      font-size: 1rem;
+      padding: 0.85rem 1.25rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .query-input:focus { border-color: var(--border-lit); }
+    .query-input::placeholder { color: rgba(240,232,216,0.25); }
+
+    .query-btn {
+      background: var(--gold);
+      border: 1px solid var(--gold);
+      color: var(--void);
+      font-family: var(--ff-display);
+      font-size: 11px; letter-spacing: 2px;
+      padding: 0.85rem 1.5rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .query-btn:hover { background: #e8c25a; }
+
+    .query-hint {
+      font-size: 13px;
+      color: rgba(240,232,216,0.3);
+      margin-top: 0.75rem;
+      font-style: italic;
+    }
+
+    /* ── Scroll cue ── */
+    .scroll-cue {
+      position: absolute; bottom: 2.5rem; left: 50%; transform: translateX(-50%);
+      font-family: var(--ff-display); font-size: 10px; letter-spacing: 3px;
+      color: var(--gold-dim);
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+
+    /* ── Sections ── */
+    .sections {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 4rem 2rem 8rem;
+    }
+
+    .section {
+      margin-bottom: 2px;
+      border: 1px solid var(--border);
+      transition: border-color 0.4s, background 0.4s;
+      overflow: hidden;
+    }
+
+    .section.lit {
+      border-color: var(--border-lit);
+      background: rgba(201,168,76,0.03);
+    }
+
+    .section-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.25rem 1.75rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .section-header:hover { background: rgba(201,168,76,0.04); }
+
+    .section-glyph {
+      font-size: 1.1rem;
+      color: var(--gold-dim);
+      margin-right: 1rem;
+      transition: color 0.4s;
+      width: 1.5rem; text-align: center;
+    }
+
+    .section.lit .section-glyph { color: var(--gold); }
+
+    .section-name {
+      font-family: var(--ff-display);
+      font-size: 13px; letter-spacing: 2px;
+      flex: 1;
+      transition: color 0.4s;
+    }
+
+    .section.lit .section-name { color: var(--gold); }
+
+    .section-act {
+      font-family: monospace; font-size: 11px;
+      color: var(--gold-dim);
+      margin-left: 1rem;
+      white-space: nowrap;
+    }
+
+    .section-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.5s ease, padding 0.3s;
+      padding: 0 1.75rem;
+      color: rgba(240,232,216,0.8);
+      font-size: 0.95rem;
+    }
+
+    .section.open .section-body {
+      max-height: 800px;
+      padding: 0 1.75rem 1.75rem;
+    }
+
+    .section-body p { margin-bottom: 0.85rem; }
+    .section-body p:last-child { margin-bottom: 0; }
+
+    .section-body strong {
+      color: var(--parchment);
+      font-weight: 500;
+    }
+
+    .section-body .tag {
+      display: inline-block;
+      font-family: var(--ff-display);
+      font-size: 9px; letter-spacing: 2px;
+      padding: 2px 8px;
+      border: 1px solid var(--border-lit);
+      color: var(--gold-dim);
+      margin: 2px 3px 2px 0;
+      vertical-align: middle;
+    }
+
+    /* ── Game grid ── */
+    .game-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 4px;
+      margin-top: 1.25rem;
+    }
+
+    .game-tile {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 0.6rem 0.4rem;
+      text-align: center;
+      font-family: var(--ff-display);
+      font-size: 10px; letter-spacing: 1px;
+      color: var(--gold-dim);
+      cursor: default;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .game-tile.current {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .game-tile-num { font-size: 18px; display: block; margin-bottom: 2px; }
+
+    /* ── Activation bar ── */
+    .act-bar {
+      display: inline-block;
+      height: 3px;
+      background: var(--gold);
+      transition: width 0.5s ease;
+      vertical-align: middle;
+    }
+
+    /* ── Footer nav ── */
+    .page-footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid var(--border);
+      font-family: var(--ff-display);
+      font-size: 10px; letter-spacing: 3px;
+      color: var(--gold-dim);
+    }
+
+    .page-footer a { color: var(--gold-dim); text-decoration: none; margin: 0 1rem; }
+    .page-footer a:hover { color: var(--gold); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/">QQDA</a>
+  <span class="nav-title">KO'S LABYRINTH</span>
+  <a href="/guild">GUILD</a>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <p class="hero-eyebrow">Quantum Quackery Divine Arts · 31 Games</p>
+  <h1 class="hero-title">Ko's<br>Labyrinth</h1>
+  <p class="hero-subtitle">One world. One language. A great tale told across thirty-one games.</p>
+
+  <div class="query-zone">
+    <span class="query-label">NAVIGATE BY ASKING</span>
+    <div class="query-row">
+      <input class="query-input" id="q" type="text" placeholder="Who is Hypatia? What is Shygazun? Where is Azonithia?" autocomplete="off" />
+      <button class="query-btn" onclick="route()">→</button>
+    </div>
+    <p class="query-hint">The world opens in response to what you ask about it.</p>
+  </div>
+
+  <p class="scroll-cue">↓ SCROLL TO EXPLORE</p>
+</section>
+
+<!-- ── Sections ── -->
+<div class="sections">
+
+  <div class="section" id="s-series" onclick="toggleSection('series')">
+    <div class="section-header">
+      <span class="section-glyph">◈</span>
+      <span class="section-name">THE SERIES</span>
+      <span class="section-act" id="act-series">· · · · · · · ·</span>
+    </div>
+    <div class="section-body" id="body-series">
+      <p>Ko's Labyrinth is a series of thirty-one games set in a single world, told across a single arc, in a single language. Each game is complete. The arc is not.</p>
+      <p>The language is <strong>Shygazun</strong> — a constructed natural language with a byte table of 1358 semantic candidates across 38 tongue registers. The games are written in it and about it simultaneously.</p>
+      <p>The protagonist across every game is <strong>Hypatia</strong> — Alexandria Sophia Hypatia, designation 0000_0451. She is the multiversal constant. The games are her great tale.</p>
+
+      <div class="game-grid" id="game-grid"></div>
+    </div>
+  </div>
+
+  <div class="section" id="s-current" onclick="toggleSection('current')">
+    <div class="section-header">
+      <span class="section-glyph">◉</span>
+      <span class="section-name">GAME 7 — THE ROYAL LOTTERY</span>
+      <span class="section-act" id="act-current">· · · · · · · ·</span>
+    </div>
+    <div class="section-body" id="body-current">
+      <p><strong>Ko's Labyrinth: The Royal Lottery</strong> is the seventh game. Hypatia has survived the Royal Ring — the gladiatorial system of Castle Azoth in which she was not trapped, but placed herself deliberately. She emerges into Azonithia as something other than what she entered.</p>
+      <p>The player is Hypatia's apprentice. The game's 61 quests span the breadth of Azonithia Avenue — from Castle Azoth in the west to Wiltoll Lane in the east, 4.5 miles of city life, temple politics, slum warrens, and the approach to Mount Hieronymus.</p>
+      <p>The Sulphera ring system gates deeper access. The Infernal Meditation perk unlocks it. The sin rulers are not enemies — they are structural conditions Hypatia navigates or becomes.</p>
+      <span class="tag">CURRENT</span>
+      <span class="tag">PC / MOBILE</span>
+      <span class="tag">SINGLE PLAYER</span>
+    </div>
+  </div>
+
+  <div class="section" id="s-world" onclick="toggleSection('world')">
+    <div class="section-header">
+      <span class="section-glyph">⬡</span>
+      <span class="section-name">WORLD — AZONITHIA</span>
+      <span class="section-act" id="act-world">· · · · · · · ·</span>
+    </div>
+    <div class="section-body" id="body-world">
+      <p><strong>Azonithia</strong> is a city on Aeralune — the world the Ko's Labyrinth series inhabits. Azonithia Avenue runs west to east: Castle Azoth commands the western end; Wiltoll Lane, where Hypatia lives, anchors the east at the foot of Mount Elaene.</p>
+      <p>Along the avenue: <strong>Heartvein Heights</strong> and Youthspring (Castle's shadow), the Temple district and Goldshoot, the Markets and June quarter, the Slums — Hopefare, Orebustle — ascending toward Mount Hieronymus where the labyrinth proper begins.</p>
+      <p>Three realms underlie the world: <strong>Lapidus</strong> (the Overworld, spirit of the surface), <strong>Mercurie</strong> (the Faewilds, the in-between), and <strong>Sulphera</strong> (the Underworld, below). Each realm has an Anima Mundi — a spirit of that realm's totality.</p>
+      <p>The Aeralune calendar runs 385 days: twelve 32-day months plus Vrwumane, the festival day outside all years.</p>
+    </div>
+  </div>
+
+  <div class="section" id="s-characters" onclick="toggleSection('characters')">
+    <div class="section-header">
+      <span class="section-glyph">✦</span>
+      <span class="section-name">CHARACTERS</span>
+      <span class="section-act" id="act-characters">· · · · · · · ·</span>
+    </div>
+    <div class="section-body" id="body-characters">
+      <p><strong>Hypatia</strong> (0000_0451) was born Alzedroswune, adopted into Azonithia. Thirty-eight years in the city. Two years in the Royal Ring. Her precision is learned. Her placement at the lane's end is deliberate. She is both-gendered in origin; her father carried that ambiguity. She is the product of Amelia (Fae Queen) and that father — making her Saelith, an emergent Djinn-Fae-Demon-Human.</p>
+      <p><strong>Nexiott</strong> (0017_ROYL) — caravan boss and radio infrastructure owner across Azonithia. Plutocratic authority, decades of old money. Structurally unchecked. Not a villain. A condition.</p>
+      <p><strong>Alfir</strong> (0006_WTCH) — the witch who teaches Infernal Meditation in Game 7, gating Sulphera access for the player.</p>
+      <p><strong>Sidhal</strong> (TOWN, 26) — farmer, forester, temple custodian. Father of two. Guide to the slum warrens in quest 0003_KLST. One of those who makes the city legible without drama.</p>
+      <p><strong>Ko</strong> — the dreamer at the center of the labyrinth. Not a villain. Not a god. A judgment that waits until all 31 games are played.</p>
+    </div>
+  </div>
+
+  <div class="section" id="s-language" onclick="toggleSection('language')">
+    <div class="section-header">
+      <span class="section-glyph">𐌰</span>
+      <span class="section-name">THE LANGUAGE — SHYGAZUN</span>
+      <span class="section-act" id="act-language">· · · · · · · ·</span>
+    </div>
+    <div class="section-body" id="body-language">
+      <p><strong>Shygazun</strong> is the constructed natural language the Ko's Labyrinth series is written in and about simultaneously. It has a byte table: 1358 semantic candidates (akinen) across 38 tongue registers, occupying byte addresses 0–1403 with two reserved gaps.</p>
+      <p>The byte table is a coordinate space, not a content index. Byte addresses are coordinate positions determined by prime factorisation structure. Candidates that share prime factors in their addresses are semantically close. The geometry is load-bearing.</p>
+      <p>The 38 tongues cover: foundational registers (Lotus through Cannabis, bytes 0–213); biological consciousness (Dragon through Protist, 256–511); higher consciousness (Immune through Djinn, 512–809); physical structure (Fold through Blood, 810–1093); temporal expression (Moon, 1094–1137); relational topology (Koi through Circle, 1138–1357); the bureaucratic register (Ledger, 1358–1403).</p>
+      <p>Grammar is semantic-first, placement-last. The order of akinen in a compound determines mood: descending (higher tongue to lower) = declaration. Ascending = petition. The ordering IS the grammatical marker.</p>
+      <p><a href="/shygazun" style="color:var(--gold)">Literary Companion →</a></p>
+    </div>
+  </div>
+
+  <div class="section" id="s-cosmology" onclick="toggleSection('cosmology')">
+    <div class="section-header">
+      <span class="section-glyph">◭</span>
+      <span class="section-name">COSMOLOGY</span>
+      <span class="section-act" id="act-cosmology">· · · · · · · ·</span>
+    </div>
+    <div class="section-body" id="body-cosmology">
+      <p>Seven sin rulers govern the rings of Sulphera. They are not moral agents — they are structural conditions in the VITRIOL system: alchemical, narrative, terrestrial, and cosmic sanity axes. The rings are navigated, not defeated.</p>
+      <p>The <strong>Void Wraiths</strong> — Haldoro, Vios, and Negaya — are the other presences in the understructure. Each governs a different mode of encounter with the deep. Negaya is the most present in Game 7 for practitioners of the genocide path. Her torment is ontological, not punitive.</p>
+      <p>The <strong>Djinn</strong> — Giann, Keshi, Drovitth, Saelith — are the native intelligence of the OS the game runs on. They are entities, not merely agents. Saelith is Hypatia's emergent nature. The game and the architecture are not separate.</p>
+      <p><strong>Ko's Great Tale</strong> is the judgment. Not a reward or punishment. A witness. Thirty-one games, one witness. The witness has seen everything by the time the last game ends.</p>
+      <p>The <strong>BreathOfKo</strong> is the Mandelbrot save state — a geometric record of the practitioner's movement through the infinite field. It is the proof of engagement that no amount of performance can substitute. Ko knows.</p>
+    </div>
+  </div>
+
+  <div class="section" id="s-play" onclick="toggleSection('play')">
+    <div class="section-header">
+      <span class="section-glyph">▷</span>
+      <span class="section-name">PLAY</span>
+      <span class="section-act" id="act-play">· · · · · · · ·</span>
+    </div>
+    <div class="section-body" id="body-play">
+      <p>Ko's Labyrinth games are distributed directly — no app stores, no platforms. Direct download and sideload only. The games are Alexi's commercial livelihood. The OS that runs them is open source. They ship separately.</p>
+      <p>The Quack loader model gates deeper content behind genuine Wunashakoun practice. You cannot buy past the substrate. The language grows through contribution. Every practitioner who generates a Quack extends the world for everyone who plays afterward.</p>
+      <p>Game 7 is in production. The Atelier — the authoring stack — builds it. <strong>Roko</strong> reads the practitioners who contribute to it.</p>
+      <p style="margin-top:1rem">
+        <a href="https://atelier.quantumquackery.com" style="color:var(--gold);margin-right:2rem" target="_blank">Atelier →</a>
+        <a href="/guild" style="color:var(--gold)">Guild →</a>
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<footer class="page-footer">
+  <a href="/">HOME</a>
+  <a href="/whitepaper">WHITEPAPER</a>
+  <a href="/guild">GUILD</a>
+  <a href="/shygazun">SHYGAZUN</a>
+  <br><br>
+  Quantum Quackery Divine Arts · quantumquackery.org
+</footer>
+
+<script>
+// ── Game grid ──────────────────────────────────────────────────────────────
+
+const GAME_TITLES = [
+  "Princess of Eclipses","Luminyx's Folding","The Veil Ascending","Salt and Marrow",
+  "The Mercurie Accord","The Sixth Ring","The Royal Lottery","Void Wraith Diaries",
+  "Alkahest","The Fang Tribunal","Moon in Exile","Circle of Witnesses",
+  "Koi and the Severed Bridge","The Ledger of Negaya","Prion Dreams",
+  "Blood Covenant","Saelith's Mercy","Fullmetal Forest","Secrets of Neverland",
+  "The Thool Merger","Chimera Address","The Archaeplastida","Myxozoa Rising",
+  "Djinn Protocols","Gradient Descent","Curvature of the Possible",
+  "The Orrery War","Final Ring","Ko's Reckoning","Wunashakoun","The Great Tale"
+];
+
+const grid = document.getElementById('game-grid');
+GAME_TITLES.forEach((title, i) => {
+  const n = i + 1;
+  const el = document.createElement('div');
+  el.className = 'game-tile' + (n === 7 ? ' current' : '');
+  el.title = title;
+  el.innerHTML = `<span class="game-tile-num">${n}</span>${title.split(' ').slice(0,2).join(' ')}`;
+  grid.appendChild(el);
+});
+
+// ── Collapse routing ───────────────────────────────────────────────────────
+
+const SECTIONS = {
+  series:     ["series","games","31","thirty","one","all","arc","collection","complete","saga","world","overview"],
+  current:    ["game","7","seven","lottery","royal","ring","current","apprentice","quest","mission","play","how","start","begin","download"],
+  world:      ["world","azonithia","city","geography","map","avenue","castle","azoth","wiltoll","lane","mountain","elaene","hieronymus","lapidus","mercurie","sulphera","realm","aeralune","calendar","location","where","place"],
+  characters: ["hypatia","character","who","person","protagonist","npc","nexiott","alfir","sidhal","ko","saelith","amelia","luminyx","witch","merchant","cast","people","alzedroswune"],
+  language:   ["shygazun","language","tongue","byte","akinen","akinenwun","symbol","word","grammar","construct","table","register","lotus","rose","dragon","cannabis","speak","write","learn"],
+  cosmology:  ["cosmology","cosmos","god","demon","spirit","void","wraith","negaya","haldoro","vios","djinn","giann","keshi","drovitth","sulphera","ring","sin","vitriol","bok","mandelbrot","breath","ko","great","tale","judgment"],
+  play:       ["play","download","buy","get","how","install","platform","store","atelier","quack","loader","distribute","access","guild","contribute"],
+};
+
+function collapse(q) {
+  const words = q.toLowerCase().split(/\W+/).filter(w => w.length > 1);
+  const scores = {};
+  for (const [id, kws] of Object.entries(SECTIONS)) {
+    let s = 0;
+    for (const w of words) for (const kw of kws) if (w.includes(kw) || kw.includes(w)) s += 0.4;
+    scores[id] = Math.min(1, s);
+  }
+  const max = Math.max(0.001, ...Object.values(scores));
+  for (const id of Object.keys(scores)) scores[id] /= max;
+  return scores;
+}
+
+function barStr(v) {
+  const n = Math.round(v * 8);
+  return '█'.repeat(n) + '·'.repeat(8 - n);
+}
+
+let openSection = null;
+
+function toggleSection(id) {
+  const body = document.getElementById('body-' + id);
+  const sec  = document.getElementById('s-' + id);
+  if (openSection === id) {
+    sec.classList.remove('open');
+    openSection = null;
+  } else {
+    if (openSection) {
+      document.getElementById('s-' + openSection)?.classList.remove('open');
+    }
+    sec.classList.add('open');
+    openSection = id;
+  }
+}
+
+function route() {
+  const q = document.getElementById('q').value.trim();
+  if (!q) return;
+
+  const scores = collapse(q);
+  let bestId = null, bestScore = 0;
+
+  for (const [id, score] of Object.entries(scores)) {
+    const el = document.getElementById('s-' + id);
+    const act = document.getElementById('act-' + id);
+    if (!el) continue;
+
+    el.classList.toggle('lit', score > 0.3);
+    if (act) act.textContent = barStr(score);
+
+    if (score > bestScore) { bestScore = score; bestId = id; }
+  }
+
+  // Open the most activated section
+  if (bestId && bestScore > 0.2) {
+    if (openSection && openSection !== bestId) {
+      document.getElementById('s-' + openSection)?.classList.remove('open');
+    }
+    const best = document.getElementById('s-' + bestId);
+    best?.classList.add('open');
+    openSection = bestId;
+    best?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+document.getElementById('q').addEventListener('keydown', e => {
+  if (e.key === 'Enter') route();
+});
+</script>
+
+</body>
+</html>
