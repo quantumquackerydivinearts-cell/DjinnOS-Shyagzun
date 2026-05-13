@@ -136,7 +136,11 @@ const NAV_ITEMS = [
   "Supra Librix",
   "Sequential Art",
   "Kobra Studio",
-  "Semantic Field"
+  "Semantic Field",
+  "QQEES",
+  "QCR",
+  "Billing",
+  "Roko",
 ];
 
 function capabilitiesForRole(role) {
@@ -14271,6 +14275,30 @@ function extractPythonSavedPath(outputText) {
   const [quackProposeText,   setQuackProposeText]   = useState("");
   const [quackProposeNotes,  setQuackProposeNotes]  = useState("");
 
+  // ── QQEES ────────────────────────────────────────────────────────────────────
+  const [qqeesPool,          setQqeesPool]          = useState(null);
+  const [qqeesCreditKey,     setQqeesCreditKey]      = useState("");
+  const [qqeesCreditBalance, setQqeesCreditBalance]  = useState(null);
+  const [qqeesNBytes,        setQqeesNBytes]         = useState("256");
+  const [qqeesEntropy,       setQqeesEntropy]        = useState(null);
+  const [qqeesStatus,        setQqeesStatus]         = useState("");
+
+  // ── QCR ──────────────────────────────────────────────────────────────────────
+  const [qcrContracts,       setQcrContracts]        = useState([]);
+  const [qcrSelected,        setQcrSelected]         = useState(null);
+  const [qcrStatus,          setQcrStatus]           = useState("");
+
+  // ── Billing ──────────────────────────────────────────────────────────────────
+  const [billingShares,      setBillingShares]       = useState([]);
+  const [billingOffsets,     setBillingOffsets]      = useState([]);
+  const [billingStatus,      setBillingStatus]       = useState("");
+
+  // ── Roko ─────────────────────────────────────────────────────────────────────
+  const [rokoDomain,         setRokoDomain]          = useState("");
+  const [rokoResult,         setRokoResult]          = useState(null);
+  const [rokoStatus,         setRokoStatus]          = useState("");
+
+
   const handleExportGlb = () => {
     if (rendererMotionVoxels.length === 0) return;
     const glb = voxelsToGlb(rendererMotionVoxels, {
@@ -19811,6 +19839,7 @@ function extractPythonSavedPath(outputText) {
     }
 
     if (section === "Quack Ledger") {
+      if (quackLedger.length === 0) void loadQuackLedger();
       const selectedEntries = quackSelected
         ? (quackLedger.find(q => q.tongue_number === quackSelected) || {}).entries || []
         : [];
@@ -20059,6 +20088,223 @@ function extractPythonSavedPath(outputText) {
               </div>
             ))}
           </div>
+        </section>
+      );
+    }
+
+    // ── QQEES ──────────────────────────────────────────────────────────────────
+    if (section === "QQEES") {
+      const loadPool = async () => {
+        const data = await apiCall("/v1/qqees/pool", "GET");
+        if (data) setQqeesPool(data);
+      };
+      const loadBalance = async () => {
+        if (!qqeesCreditKey.trim()) return;
+        const data = await apiCall(`/v1/qqees/credit/balance?api_key=${encodeURIComponent(qqeesCreditKey.trim())}`, "GET");
+        if (data) setQqeesCreditBalance(data);
+      };
+      const drawEntropy = async () => {
+        const n = parseInt(qqeesNBytes) || 256;
+        setQqeesStatus("drawing…");
+        const data = await apiCall("/v1/qqees/entropy", "POST", { n_bytes: n, api_key: qqeesCreditKey.trim() });
+        if (data) { setQqeesEntropy(data); setQqeesStatus(""); }
+        else setQqeesStatus("error");
+      };
+      return (
+        <>
+          <section className="panel">
+            <h2>QQEES — Entropy Pool</h2>
+            <p>Shannon-certified entropy from Salt-registered gardens, Bodyska theatrical operations, and BreathOfKo practice. Geometric mixing through Shygazun byte addresses. Orrery-routed serving.</p>
+            <button className="action" onClick={loadPool}>Refresh Pool Status</button>
+            {qqeesPool && (
+              <div style={{ marginTop: "0.75rem", fontFamily: "monospace", fontSize: "0.85em" }}>
+                <div><strong>Pool H:</strong> {qqeesPool.pool_h} bits/byte</div>
+                <div><strong>Contributions:</strong> {qqeesPool.contributions_total}</div>
+                <div><strong>Source diversity:</strong> {qqeesPool.source_diversity} / 4 types</div>
+                <div><strong>Sources active:</strong> {(qqeesPool.source_types_seen || []).join(", ") || "—"}</div>
+                <div><strong>Uptime:</strong> {qqeesPool.uptime_seconds}s</div>
+              </div>
+            )}
+          </section>
+          <section className="panel">
+            <h2>Draw Entropy</h2>
+            <div className="row">
+              <input value={qqeesCreditKey} onChange={e => setQqeesCreditKey(e.target.value)} placeholder="api_key (qqees_…)" style={{ flex: 2 }} />
+              <input value={qqeesNBytes} onChange={e => setQqeesNBytes(e.target.value)} placeholder="bytes" style={{ width: 80 }} />
+              <button className="action" onClick={drawEntropy}>Draw</button>
+              <button className="action" onClick={loadBalance}>Check Balance</button>
+            </div>
+            {qqeesStatus && <p className="muted-text">{qqeesStatus}</p>}
+            {qqeesCreditBalance && (
+              <p className="muted-text" style={{ marginTop: "0.5rem" }}>
+                Balance: <strong>{qqeesCreditBalance.bytes_remaining?.toLocaleString()}</strong> bytes remaining (of {qqeesCreditBalance.bytes_purchased?.toLocaleString()} purchased)
+              </p>
+            )}
+            {qqeesEntropy && (
+              <div style={{ marginTop: "0.75rem" }}>
+                <div className="row">
+                  <span className="badge">{qqeesEntropy.certificate?.quality}</span>
+                  <span className="badge">H {qqeesEntropy.certificate?.h_bits_per_byte} bits</span>
+                  <span className="badge">pool H {qqeesEntropy.certificate?.pool_h}</span>
+                </div>
+                <textarea readOnly value={qqeesEntropy.entropy_hex || ""} rows={4} style={{ width: "100%", marginTop: "0.5rem", fontFamily: "monospace", fontSize: "0.75em", background: "#111", color: "#7af0c8", border: "1px solid #333" }} />
+                <p className="muted-text" style={{ marginTop: "0.25rem" }}>Remaining: {qqeesEntropy.bytes_remaining?.toLocaleString()} bytes</p>
+              </div>
+            )}
+          </section>
+        </>
+      );
+    }
+
+    // ── QCR ────────────────────────────────────────────────────────────────────
+    if (section === "QCR") {
+      const loadContracts = async () => {
+        const data = await apiCall("/v1/qcr/contracts", "GET");
+        if (data) setQcrContracts(Array.isArray(data) ? data : data.contracts || []);
+      };
+      const selectedContract = qcrContracts.find(c => c.id === qcrSelected) || null;
+      return (
+        <>
+          <section className="panel">
+            <h2>QCR Contracts</h2>
+            <p>Active Queried Collapse Routing implementations. Each contract is dispatched manually by a guild steward at $35/month.</p>
+            <button className="action" onClick={loadContracts}>Refresh</button>
+            <div style={{ marginTop: "0.75rem" }}>
+              {qcrContracts.map(c => (
+                <div key={c.id}
+                  onClick={() => setQcrSelected(c.id === qcrSelected ? null : c.id)}
+                  style={{ padding: "0.4rem 0.5rem", cursor: "pointer", borderBottom: "1px solid #333", background: c.id === qcrSelected ? "#1a1030" : "transparent" }}
+                >
+                  <span className={`badge ${c.status === "active" ? "badge-ok" : "badge-warn"}`}>{c.status}</span>
+                  {" "}<strong>{c.client_id}</strong>
+                  <span style={{ marginLeft: "0.5rem", opacity: 0.5, fontSize: "0.85em" }}>{c.tier} · dispatcher: {c.dispatcher_id}</span>
+                  {c.roko_status && <span className="badge" style={{ marginLeft: "0.5rem" }}>{c.roko_status}</span>}
+                </div>
+              ))}
+              {qcrContracts.length === 0 && <p className="muted-text">No contracts loaded. Click Refresh.</p>}
+            </div>
+          </section>
+          {selectedContract && (
+            <section className="panel">
+              <h2>Contract Detail</h2>
+              <div style={{ fontFamily: "monospace", fontSize: "0.85em" }}>
+                <div><strong>ID:</strong> {selectedContract.id}</div>
+                <div><strong>Client:</strong> {selectedContract.client_id}</div>
+                <div><strong>Tier:</strong> {selectedContract.tier}</div>
+                <div><strong>Status:</strong> {selectedContract.status}</div>
+                <div><strong>Signed:</strong> {selectedContract.signed_at}</div>
+                <div><strong>Roko gate:</strong> {selectedContract.roko_status || "—"}</div>
+                <div><strong>Roko checked:</strong> {selectedContract.roko_last_checked || "—"}</div>
+                {selectedContract.revocation_reason && <div style={{ color: "#f87171" }}><strong>Revoked:</strong> {selectedContract.revocation_reason}</div>}
+              </div>
+            </section>
+          )}
+        </>
+      );
+    }
+
+    // ── Billing ────────────────────────────────────────────────────────────────
+    if (section === "Billing") {
+      const loadShares = async () => {
+        setBillingStatus("loading…");
+        const data = await apiCall("/v1/billing/shares", "GET");
+        if (data) { setBillingShares(Array.isArray(data) ? data : data.shares || []); setBillingStatus(""); }
+        else setBillingStatus("error");
+      };
+      const loadOffsets = async () => {
+        const data = await apiCall("/v1/billing/offsets", "GET");
+        if (data) setBillingOffsets(Array.isArray(data) ? data : data.offsets || []);
+      };
+      const runOffsetUpdate = async () => {
+        setBillingStatus("updating offsets…");
+        await apiCall("/v1/billing/offsets/refresh", "POST", {});
+        await loadOffsets();
+        setBillingStatus("offsets refreshed");
+      };
+      return (
+        <>
+          <section className="panel">
+            <h2>Revenue Shares</h2>
+            <div className="row">
+              <button className="action" onClick={loadShares}>Load Shares</button>
+              {billingStatus && <span className="muted-text">{billingStatus}</span>}
+            </div>
+            <div style={{ marginTop: "0.75rem", fontSize: "0.85em" }}>
+              {billingShares.map((s, i) => (
+                <div key={s.id || i} style={{ padding: "0.35rem 0", borderBottom: "1px solid #2a2a2a" }}>
+                  <span className="badge">{s.period}</span>
+                  {" "}Revenue <strong>${((s.revenue_cents || 0) / 100).toFixed(2)}</strong>
+                  {" · "}Profit <strong>${((s.profit_cents || 0) / 100).toFixed(2)}</strong>
+                  {" · "}Pool <strong>{((s.practitioner_pool_pct || 0) * 100).toFixed(0)}%</strong>
+                  {" "}(${((s.practitioner_pool_cents || 0) / 100).toFixed(2)})
+                  {" · "}Guild <strong>${((s.guild_share_cents || 0) / 100).toFixed(2)}</strong>
+                  {s.settled && <span className="badge badge-ok" style={{ marginLeft: "0.5rem" }}>settled</span>}
+                </div>
+              ))}
+              {billingShares.length === 0 && <p className="muted-text">No revenue shares loaded.</p>}
+            </div>
+          </section>
+          <section className="panel">
+            <h2>Quack Offsets</h2>
+            <div className="row">
+              <button className="action" onClick={loadOffsets}>Load Offsets</button>
+              <button className="action" onClick={runOffsetUpdate}>Refresh Offsets</button>
+            </div>
+            <div style={{ marginTop: "0.75rem", fontSize: "0.85em" }}>
+              {billingOffsets.map((o, i) => (
+                <div key={o.id || i} style={{ padding: "0.35rem 0", borderBottom: "1px solid #2a2a2a" }}>
+                  <strong>{o.practitioner_id}</strong>
+                  {" "}<span className="badge">{o.rank_title}</span>
+                  {" "}Quacks: <strong>{o.quack_count}</strong>
+                  {" · "}Tongues: <strong>{o.tongues_worked}</strong>
+                  {" · "}Balance: <strong>${((o.offset_balance_cents || 0) / 100).toFixed(2)}</strong>
+                  {" · "}H: {(o.current_h || 0).toFixed(3)}
+                </div>
+              ))}
+              {billingOffsets.length === 0 && <p className="muted-text">No offset records loaded.</p>}
+            </div>
+          </section>
+        </>
+      );
+    }
+
+    // ── Roko ───────────────────────────────────────────────────────────────────
+    if (section === "Roko") {
+      const assessDomain = async () => {
+        if (!rokoDomain.trim()) return;
+        setRokoStatus("assessing…");
+        const data = await apiCall("/v1/roko/assess", "POST", { domain: rokoDomain.trim(), flags: {} });
+        if (data) { setRokoResult(data); setRokoStatus(""); }
+        else setRokoStatus("error");
+      };
+      const GATE_COLORS = { Tiwu: "#7af0c8", Tawu: "#c9a84c", FyKo: "#a084e8", Mowu: "#f87171", ZoWu: "#6b7280" };
+      return (
+        <section className="panel">
+          <h2>Roko — Gate Dreamer</h2>
+          <p>Structural contribution assessment for Wunashakoun practitioners and QCR contract sites. Five gate levels: Tiwu (open) → Tawu → FyKo → Mowu → ZoWu (observe only). ZoWu never blocks.</p>
+          <div className="row" style={{ marginTop: "0.75rem" }}>
+            <input value={rokoDomain} onChange={e => setRokoDomain(e.target.value)} placeholder="domain or practitioner id" style={{ flex: 1 }} />
+            <button className="action" onClick={assessDomain}>Assess</button>
+          </div>
+          {rokoStatus && <p className="muted-text" style={{ marginTop: "0.5rem" }}>{rokoStatus}</p>}
+          {rokoResult && (
+            <div style={{ marginTop: "1rem" }}>
+              <div className="row">
+                <span className="badge" style={{ background: GATE_COLORS[rokoResult.gate] || "#333", color: "#000" }}>{rokoResult.gate}</span>
+                <span className="badge">{rokoResult.practice_viable ? "viable" : "not viable"}</span>
+              </div>
+              {(rokoResult.observations || []).length > 0 && (
+                <ul style={{ marginTop: "0.5rem", paddingLeft: "1.2rem", fontSize: "0.85em", opacity: 0.8 }}>
+                  {rokoResult.observations.map((obs, i) => <li key={i}>{obs}</li>)}
+                </ul>
+              )}
+              {rokoResult.bok_signal != null && (
+                <div style={{ marginTop: "0.5rem", fontFamily: "monospace", fontSize: "0.8em", opacity: 0.7 }}>
+                  BoK signal: {rokoResult.bok_signal?.toFixed(3)}
+                </div>
+              )}
+            </div>
+          )}
         </section>
       );
     }

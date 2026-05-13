@@ -975,6 +975,22 @@ def _shop_sections() -> list[dict[str, str | list[str]]]:
             "summary": "Guild members book free assessments; non-members book paid slots with location intake.",
             "cta": "Open Assessments",
         },
+        {
+            "id": "qqees",
+            "title": "Entropy Encryption Service",
+            "price": "Credit-Based",
+            "tags": ["Salt Department", "H-Certified", "Multi-Source"],
+            "summary": "Shannon-certified entropy from registered gardens, Bodyska theatrical operations, and BreathOfKo practice. Geometric mixing through the Shygazun byte table. Orrery-routed serving.",
+            "cta": "Open QQEES",
+        },
+        {
+            "id": "qcr",
+            "title": "Queried Collapse Routing",
+            "price": "$35 / month",
+            "tags": ["Guild Service", "Semantic Navigation", "Manual Dispatch"],
+            "summary": "Dynamic page content with static address routing via nonlinear Shygazun addressing. Dispatched manually by guild stewards. Keyword-free on your site.",
+            "cta": "Open QCR",
+        },
     ]
 
 
@@ -987,6 +1003,8 @@ def _shop_link_overrides() -> dict[str, str]:
         "custom-orders": _os.getenv("SHOP_LINK_CUSTOM_ORDERS", "").strip(),
         "digital": _os.getenv("SHOP_LINK_DIGITAL", "").strip(),
         "land-assessments": _os.getenv("SHOP_LINK_LAND_ASSESSMENTS", "").strip(),
+        "qqees": _os.getenv("SHOP_LINK_QQEES", "").strip(),
+        "qcr": _os.getenv("SHOP_LINK_QCR", "").strip(),
     }
 
 
@@ -1273,6 +1291,8 @@ def shop_landing(
 @app.get("/digital", response_class=HTMLResponse)
 @app.get("/digital-products", response_class=HTMLResponse)
 @app.get("/land-assessments", response_class=HTMLResponse)
+@app.get("/qqees", response_class=HTMLResponse)
+@app.get("/qcr", response_class=HTMLResponse)
 def shop_section_root(
     request: Request,
     settings: Settings = Depends(_settings),
