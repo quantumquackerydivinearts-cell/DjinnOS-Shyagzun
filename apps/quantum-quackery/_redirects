@@ -1,14 +1,20 @@
 # quantum-quackery/_redirects
 # Cloudflare Pages redirect rules.
+#
+# NOTE: Cloudflare Pages Pretty URLs strips .html automatically.
+# Do NOT add entries here for files where the URL matches the filename
+# (e.g. games.html → /games). That creates a redirect loop:
+#   /games → rewrite /games.html → Pretty URLs redirects /games.html → /games → …
+#
+# Only add entries where the URL path differs from the filename.
 
-# Short-path rewrites for long-named HTML files (200 = serve content at requested URL)
+# Long-named files — the URL can't be guessed from the filename
 /shygazun     /shygazun_literary_companion.html           200
 /synthesis    /shygazun_photonic_synthesis_companion.html 200
 /encyclopedia /encyclopedia-esoterica.html               200
-/games        /games.html                                 200
-/practitioner /practitioner.html                         200
-/roko         /practitioner.html                         200
-/qcr          /qcr.html                                  200
+
+# Alias — /roko is an alternate entry to the practitioner page
+/roko         /practitioner                               301
 
 # API calls proxy to Render
 /api/*  https://djinnos-shyagzun-atelier-api.onrender.com/:splat  200
