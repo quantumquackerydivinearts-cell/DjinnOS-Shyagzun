@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -1027,6 +1027,28 @@ class QuackToken(Base):
     breath_diff:      Mapped[str | None] = mapped_column(Text,        nullable=True)
     proposal_id:      Mapped[str | None] = mapped_column(String(36),  nullable=True)
     minted_at:        Mapped[datetime]   = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class GraphConfigRecord(Base):
+    __tablename__  = "graph_configs"
+    __table_args__ = (UniqueConstraint("workspace_id", "name", name="uq_graph_config_ws_name"),)
+
+    id:           Mapped[str]      = mapped_column(String(36),  primary_key=True, default=_uuid)
+    workspace_id: Mapped[str]      = mapped_column(String(36),  ForeignKey("workspaces.id"), nullable=False)
+    name:         Mapped[str]      = mapped_column(String(120), nullable=False)
+    config_json:  Mapped[str]      = mapped_column(Text,        nullable=False, default="{}")
+    created_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class GraphTelemetryEvent(Base):
+    __tablename__ = "graph_telemetry_events"
+
+    id:            Mapped[str]      = mapped_column(String(36),  primary_key=True, default=_uuid)
+    workspace_id:  Mapped[str]      = mapped_column(String(36),  ForeignKey("workspaces.id"), nullable=False)
+    event_name:    Mapped[str]      = mapped_column(String(80),  nullable=False)
+    metadata_json: Mapped[str]      = mapped_column(Text,        nullable=False, default="{}")
+    created_at:    Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
 
 class Attachment(Base):

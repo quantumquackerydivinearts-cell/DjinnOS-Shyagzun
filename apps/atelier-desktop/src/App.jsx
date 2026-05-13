@@ -19,6 +19,7 @@ import { ShopManagerPanel } from "./panels/ShopManagerPanel";
 import { BookingPanel } from "./panels/BookingPanel";
 import { AttachmentsPanel } from "./panels/AttachmentsPanel";
 import { ImportPanel } from "./panels/ImportPanel";
+import { GraphPanel } from "./panels/GraphPanel";
 import { Q3Panel } from "./panels/Q3Panel";
 import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
 import { GameEditorsPanel } from "./panels/GameEditorsPanel";
@@ -16395,6 +16396,14 @@ function extractPythonSavedPath(outputText) {
       );
     }
     if (section === "Business Logic") {
+      return (
+        <section className="panel">
+          <h2>Business Logic — Relationship Graph</h2>
+          <GraphPanel apiBase={API_BASE} authToken={authToken} workspaceId={workspaceId} />
+        </section>
+      );
+    }
+    if (section === "_Business Logic Legacy") {
       return (
         <>
           <details className="panel unified-renderer panel-collapsible">
