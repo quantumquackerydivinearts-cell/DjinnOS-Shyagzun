@@ -1338,7 +1338,8 @@ def startup_probe_dependencies() -> None:
     # Idempotent — skips tables that already exist.  Catches stamp-vs-upgrade drift
     # that accumulates in local SQLite dev.
     try:
-        from . import models as _models  # noqa: ensure all models registered
+        from . import models as _models              # noqa: ensure all models registered
+        from . import qcr_models_append as _qcr_m   # noqa: register QCR tables
         from .db import Base as _Base, engine as _engine
         _Base.metadata.create_all(_engine, checkfirst=True)
         print("[startup] schema create_all ok")
