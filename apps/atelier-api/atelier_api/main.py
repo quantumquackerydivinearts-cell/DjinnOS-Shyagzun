@@ -39,6 +39,7 @@ from .qcr_service_router import router as qcr_service_router
 from .billing_router import router as billing_router
 from .recombination_router import router as recombination_router
 from .kobra_vm_router import router as kobra_vm_router
+from .bok_router import router as bok_router
 
 
 from .business_schemas import (
@@ -1240,6 +1241,7 @@ app.include_router(qcr_service_router, prefix="/v1/qcr",     tags=["qcr"])
 app.include_router(billing_router,       prefix="/v1/billing",       tags=["billing"])
 app.include_router(recombination_router, prefix="/v1/recombination", tags=["recombination"])
 app.include_router(kobra_vm_router,      prefix="/v1/kobra",         tags=["kobra"])
+app.include_router(bok_router,           prefix="/v1/bok",            tags=["bok"])
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)
