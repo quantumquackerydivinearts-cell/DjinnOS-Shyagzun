@@ -139,6 +139,7 @@ function friendlyErr(e) {
 
 function ProjectManager({ selectedProjectId, onSelect }) {
   const [projects, setProjects] = useState([]);
+  const [loaded,   setLoaded]   = useState(false);
   const [creating, setCreating] = useState(false);
   const [newType, setNewType] = useState("game_voxel");
   const [error, setError] = useState(null);
@@ -148,13 +149,14 @@ function ProjectManager({ selectedProjectId, onSelect }) {
       const r = await fetch(`${API_BASE}/v1/render_lab/projects`);
       const data = await r.json();
       setProjects(Array.isArray(data.projects) ? data.projects : []);
+      setLoaded(true);
       setError(null);
     } catch (e) {
       if (showError) setError(friendlyErr(e));
+      // on silent failure, leave loaded=false so the placeholder stays
     }
   }, []);
 
-  // Silent auto-fetch on mount — errors only show when user clicks Refresh
   useEffect(() => { load(false); }, [load]);
 
   const create = async () => {
@@ -209,8 +211,11 @@ function ProjectManager({ selectedProjectId, onSelect }) {
         <Btn onClick={load} style={{ marginLeft: "auto" }}>Refresh</Btn>
       </div>
       {error && <div style={{ color: "#e05", fontSize: 11, marginBottom: 6 }}>{error}</div>}
-      {projects.length === 0 && (
+      {loaded && projects.length === 0 && (
         <div style={{ color: "#556", fontSize: 12, padding: "6px 0" }}>No projects yet.</div>
+      )}
+      {!loaded && projects.length === 0 && (
+        <div style={{ color: "#556", fontSize: 12, padding: "6px 0" }}>Click Refresh to load.</div>
       )}
       {projects.map((p) => (
         <div
