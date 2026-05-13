@@ -144,3 +144,32 @@ class EntropySource(Base):
     active:                   Mapped[bool]          = mapped_column(Boolean,     nullable=False, default=True)
     last_noise_at:            Mapped[datetime|None] = mapped_column(DateTime,    nullable=True)
     entropy_bits_contributed: Mapped[int]           = mapped_column(Integer,     nullable=False, default=0)
+
+    contributions: Mapped[list["EntropyContribution"]] = relationship(back_populates="source")
+
+
+class EntropyContribution(Base):
+    __tablename__ = "entropy_contributions"
+
+    id:              Mapped[str]      = mapped_column(String(36),  primary_key=True, default=_uuid)
+    source_id:       Mapped[str]      = mapped_column(String(36),  ForeignKey("entropy_sources.id"), nullable=False)
+    contributed_at:  Mapped[datetime] = mapped_column(DateTime,    nullable=False, default=datetime.utcnow)
+    raw_bytes:       Mapped[int]      = mapped_column(Integer,     nullable=False)
+    pool_h_after:    Mapped[float]    = mapped_column(Float,       nullable=False)
+    source_type:     Mapped[str]      = mapped_column(String(20),  nullable=False)
+
+    source: Mapped["EntropySource"] = relationship(back_populates="contributions")
+
+
+class EntropyCredit(Base):
+    """Credits purchased by external parties to draw from the QQEES pool."""
+    __tablename__ = "entropy_credits"
+
+    id:               Mapped[str]           = mapped_column(String(36),  primary_key=True, default=_uuid)
+    holder_id:        Mapped[str]           = mapped_column(String(100), nullable=False, index=True)
+    bytes_remaining:  Mapped[int]           = mapped_column(Integer,     nullable=False, default=0)
+    bytes_purchased:  Mapped[int]           = mapped_column(Integer,     nullable=False, default=0)
+    purchased_at:     Mapped[datetime]      = mapped_column(DateTime,    nullable=False, default=datetime.utcnow)
+    expires_at:       Mapped[datetime|None] = mapped_column(DateTime,    nullable=True)
+    stripe_session:   Mapped[str|None]      = mapped_column(String(200), nullable=True)
+    api_key:          Mapped[str]           = mapped_column(String(64),  nullable=False, unique=True)

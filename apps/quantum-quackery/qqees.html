@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QQEES — Quantum Quackery Entropy Encryption Service</title>
+  <meta name="description" content="Shannon-certified entropy from gardens, theatrical operations, and BreathOfKo practice. Salt-run. H-based. Available as a service." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --void:       #06060a;
+      --panel:      #0b0910;
+      --deep:       #0e0b18;
+      --parchment:  #f0e8d8;
+      --gold:       #c9a84c;
+      --gold-dim:   #7a621e;
+      --teal:       #3ab8a0;
+      --teal-dim:   #1d6b5c;
+      --teal-glow:  rgba(58,184,160,0.15);
+      --border:     rgba(58,184,160,0.14);
+      --border-lit: rgba(58,184,160,0.45);
+      --ff-display: "Cinzel", serif;
+      --ff-body:    "Cormorant Garamond", serif;
+      --ff-mono:    "JetBrains Mono", monospace;
+    }
+
+    body {
+      background: var(--void);
+      color: var(--parchment);
+      font-family: var(--ff-body);
+      font-size: 18px;
+      line-height: 1.7;
+    }
+
+    body::before {
+      content: ""; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999; opacity: 0.35;
+    }
+
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 2rem;
+      background: rgba(6,6,10,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    nav a { color: var(--teal-dim); text-decoration: none; font-family: var(--ff-display); font-size: 12px; letter-spacing: 2px; transition: color 0.2s; }
+    nav a:hover { color: var(--teal); }
+    .nav-title { color: var(--parchment); font-size: 13px; letter-spacing: 3px; }
+
+    .container { max-width: 880px; margin: 0 auto; padding: 6rem 2rem 6rem; }
+
+    .eyebrow { font-family: var(--ff-display); font-size: 10px; letter-spacing: 4px; color: var(--teal-dim); margin-bottom: 1rem; }
+    h1 { font-family: var(--ff-display); font-size: 2.4rem; letter-spacing: 3px; font-weight: 400; margin-bottom: 0.5rem; }
+    .subtitle { font-style: italic; color: rgba(240,232,216,0.55); margin-bottom: 3rem; font-size: 1.1rem; }
+
+    .rule { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
+
+    h2 { font-family: var(--ff-display); font-size: 11px; letter-spacing: 3px; color: var(--teal-dim); margin-bottom: 1.25rem; }
+
+    p { margin-bottom: 1rem; color: rgba(240,232,216,0.85); }
+    strong { color: var(--parchment); font-weight: 500; }
+
+    /* ── Pool live status ── */
+    .pool-panel {
+      border: 1px solid var(--border-lit);
+      background: var(--panel);
+      padding: 2rem;
+      margin: 1.5rem 0;
+    }
+    .pool-row {
+      display: flex; align-items: center; gap: 1.5rem;
+      margin-bottom: 1.2rem;
+    }
+    .pool-label {
+      font-family: var(--ff-display); font-size: 9px; letter-spacing: 3px;
+      color: var(--teal-dim); min-width: 130px;
+    }
+    .h-bar-track {
+      flex: 1; height: 6px; background: rgba(58,184,160,0.10); border-radius: 3px; overflow: hidden;
+    }
+    .h-bar-fill {
+      height: 100%; background: var(--teal); border-radius: 3px;
+      transition: width 1.2s ease;
+    }
+    .pool-value {
+      font-family: var(--ff-mono); font-size: 13px; color: var(--teal); min-width: 80px; text-align: right;
+    }
+    .pool-status-chip {
+      display: inline-block; padding: 0.2rem 0.7rem;
+      border: 1px solid var(--border-lit); border-radius: 2px;
+      font-family: var(--ff-display); font-size: 9px; letter-spacing: 2px;
+      color: var(--teal); margin-top: 0.5rem;
+    }
+    .pool-status-chip.certified { border-color: var(--teal); color: var(--teal); }
+    .pool-status-chip.acceptable { border-color: var(--gold-dim); color: var(--gold); }
+    .pool-status-chip.low { border-color: rgba(200,80,40,0.4); color: #c85a28; }
+
+    /* ── Source types ── */
+    .sources-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;
+      margin: 1.5rem 0;
+    }
+    @media (max-width: 600px) { .sources-grid { grid-template-columns: 1fr; } }
+
+    .source-card {
+      border: 1px solid var(--border); padding: 1.5rem;
+      background: var(--panel);
+    }
+    .source-card-label {
+      font-family: var(--ff-display); font-size: 10px; letter-spacing: 3px;
+      color: var(--teal-dim); margin-bottom: 0.6rem;
+    }
+    .source-card p { font-size: 0.9rem; margin-bottom: 0; color: rgba(240,232,216,0.7); }
+
+    /* ── Pricing ── */
+    .tier-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 1rem 0; border-bottom: 1px solid var(--border);
+      font-size: 1rem;
+    }
+    .tier-row:last-child { border-bottom: none; }
+    .tier-name { font-family: var(--ff-display); font-size: 11px; letter-spacing: 2px; }
+    .tier-bytes { color: rgba(240,232,216,0.55); font-size: 0.95rem; }
+    .tier-price { font-family: var(--ff-mono); color: var(--teal); font-size: 1rem; }
+
+    /* ── Code ── */
+    pre {
+      background: #07060d; border: 1px solid var(--border);
+      padding: 1.5rem; overflow-x: auto;
+      font-family: var(--ff-mono); font-size: 13px; line-height: 1.8;
+      color: rgba(240,232,216,0.8); margin: 1rem 0;
+    }
+    .kw  { color: var(--teal); }
+    .str { color: var(--gold); }
+    .cmt { color: rgba(240,232,216,0.3); }
+
+    /* ── CTA ── */
+    .cta { display: flex; gap: 1rem; margin: 2rem 0; flex-wrap: wrap; }
+    .cta a {
+      display: inline-block; padding: 0.8rem 2rem;
+      border: 1px solid var(--teal); color: var(--teal);
+      font-family: var(--ff-display); font-size: 11px; letter-spacing: 2px;
+      text-decoration: none; transition: background 0.2s, color 0.2s;
+    }
+    .cta a:hover { background: var(--teal); color: var(--void); }
+    .cta a.secondary { border-color: var(--teal-dim); color: var(--teal-dim); }
+    .cta a.secondary:hover { background: var(--teal-dim); color: var(--void); }
+
+    .page-footer {
+      text-align: center; padding: 3rem 2rem;
+      border-top: 1px solid var(--border);
+      font-family: var(--ff-display); font-size: 10px; letter-spacing: 3px; color: var(--gold-dim);
+    }
+    .page-footer a { color: var(--gold-dim); text-decoration: none; margin: 0 1rem; }
+    .page-footer a:hover { color: var(--gold); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/">QQDA</a>
+  <span class="nav-title">QQEES</span>
+  <a href="/guild">GUILD</a>
+</nav>
+
+<div class="container">
+
+  <p class="eyebrow">QUANTUM QUACKERY DIVINE ARTS · SALT DEPARTMENT</p>
+  <h1>Entropy<br>Encryption<br>Service</h1>
+  <p class="subtitle">Shannon-certified entropy sourced from gardens, theatrical operations, and BreathOfKo practice. Geometric mixing through the Shygazun byte table. H-verified at every draw.</p>
+
+  <hr class="rule" />
+
+  <!-- ── Live pool ── -->
+  <h2>LIVE POOL STATUS</h2>
+  <p>The pool is a 256-slot space indexed to Shygazun byte addresses 0–255. Each contribution is mixed through BLAKE2b chained against current pool state — irreversible without all three: source identity, contribution bytes, and pool snapshot.</p>
+
+  <div class="pool-panel">
+    <div class="pool-row">
+      <div class="pool-label">POOL H</div>
+      <div class="h-bar-track"><div class="h-bar-fill" id="bar-h" style="width:0%"></div></div>
+      <div class="pool-value" id="val-h">—</div>
+    </div>
+    <div class="pool-row">
+      <div class="pool-label">CONTRIBUTIONS</div>
+      <div class="h-bar-track"><div class="h-bar-fill" id="bar-contrib" style="width:0%"></div></div>
+      <div class="pool-value" id="val-contrib">—</div>
+    </div>
+    <div class="pool-row">
+      <div class="pool-label">SOURCE DIVERSITY</div>
+      <div class="h-bar-track"><div class="h-bar-fill" id="bar-div" style="width:0%"></div></div>
+      <div class="pool-value" id="val-div">—</div>
+    </div>
+    <div class="pool-row">
+      <div class="pool-label">UPTIME</div>
+      <div class="h-bar-track" style="flex:1"></div>
+      <div class="pool-value" id="val-uptime">—</div>
+    </div>
+    <div id="cert-chip" class="pool-status-chip" style="display:none"></div>
+  </div>
+
+  <hr class="rule" />
+
+  <!-- ── What makes it different ── -->
+  <h2>THE GEOMETRY OF RANDOMNESS</h2>
+  <p>Most entropy services deliver bytes from a single source — typically the OS CSPRNG. QQEES layers three additional inputs, each routed to pool slots by <strong>Shygazun address geometry</strong>: the same prime-factorisation coordinate space underlying the byte table.</p>
+  <p>When you draw entropy from QQEES, the pool slots selected for XOR are chosen by the <strong>Orrery</strong> — the 12-layer elemental crossing engine that reads the current recombination state. The result is OS randomness amplified by irreversible geometric mixing from real-world sources.</p>
+  <p>Every delivery comes with an <strong>EntropyCertificate</strong>: H value of the served bytes, pool H at time of draw, source diversity count, and a quality grade. Certified requires H ≥ 7.5 on the output, H ≥ 7.0 on the pool, and ≥ 2 distinct source types active.</p>
+
+  <hr class="rule" />
+
+  <!-- ── Sources ── -->
+  <h2>ENTROPY SOURCES</h2>
+  <p>All sources are registered and maintained by the Salt department. Registration requires department approval.</p>
+
+  <div class="sources-grid">
+    <div class="source-card">
+      <div class="source-card-label">GARDEN</div>
+      <p>Physical sensors from registered Salt gardens. Temperature, humidity, photon counts, Geiger detectors, soil conductivity. Quantized and packed as IEEE-754 doubles. Biological noise is high-dimensional and difficult to predict.</p>
+    </div>
+    <div class="source-card">
+      <div class="source-card-label">THEATRICAL</div>
+      <p>Bodyska performance operations. Audio amplitude samples and motion vectors from performers feed the pool in real time. A Bodyska enactment is structurally a Lao crossing — Air into Earth — and its sensor output is correspondingly dense.</p>
+    </div>
+    <div class="source-card">
+      <div class="source-card-label">BREATH OF KO</div>
+      <p>Verified Wunashakoun BreathOfKo diffs. A diff only qualifies if geometric conditions are met (movement, edge detection) and semantic transition is confirmed by the Orrery. The diff itself — Orrery firing pattern delta encoded as bytes — enters the pool.</p>
+    </div>
+    <div class="source-card">
+      <div class="source-card-label">ORRERY</div>
+      <p>Layer-firing patterns from live Kobra VM runs. The Orrery's 12 elemental crossing layers activate non-deterministically based on cue cluster proximity. The firing sequence is unique per run. Suitable as a continuous background source.</p>
+    </div>
+  </div>
+
+  <hr class="rule" />
+
+  <!-- ── Integration ── -->
+  <h2>INTEGRATION</h2>
+  <p>Purchase an entropy credit package to receive an API key. Deduct from your balance with each draw. The certificate is returned alongside the bytes.</p>
+
+  <pre><span class="cmt"># 1 — draw 512 bytes of certified entropy</span>
+<span class="kw">import</span> requests, base64
+
+resp = requests.post(
+    <span class="str">"https://quantumquackery.org/api/v1/qqees/entropy"</span>,
+    json={<span class="str">"n_bytes"</span>: <span class="kw">512</span>, <span class="str">"api_key"</span>: <span class="str">"qqees_…"</span>},
+)
+data  = resp.json()
+raw   = bytes.fromhex(data[<span class="str">"entropy_hex"</span>])
+cert  = data[<span class="str">"certificate"</span>]    <span class="cmt"># h, pool_h, quality, …</span>
+
+<span class="cmt"># 2 — contribute garden sensor data</span>
+resp = requests.post(
+    <span class="str">"https://quantumquackery.org/api/v1/qqees/contribute"</span>,
+    json={
+        <span class="str">"source_id"</span>:   <span class="str">"your-source-uuid"</span>,
+        <span class="str">"source_type"</span>: <span class="str">"garden"</span>,
+        <span class="str">"raw_hex"</span>:     sensor_bytes.hex(),
+    },
+)</pre>
+
+  <hr class="rule" />
+
+  <!-- ── Pricing ── -->
+  <h2>ENTROPY CREDITS</h2>
+  <p>Credits are purchased in byte packages. They do not expire unless a specific expiry is attached. Guild practitioners may offset part of their purchase cost using Quack balance at the floating H-adjusted rate.</p>
+
+  <div style="border: 1px solid var(--border); background: var(--panel); padding: 1rem 1.5rem; margin: 1.5rem 0;">
+    <div class="tier-row">
+      <span class="tier-name">SEED</span>
+      <span class="tier-bytes">64 KB</span>
+      <span class="tier-price">$2.00</span>
+    </div>
+    <div class="tier-row">
+      <span class="tier-name">GARDEN</span>
+      <span class="tier-bytes">1 MB</span>
+      <span class="tier-price">$8.00</span>
+    </div>
+    <div class="tier-row">
+      <span class="tier-name">THEATRE</span>
+      <span class="tier-bytes">10 MB</span>
+      <span class="tier-price">$35.00</span>
+    </div>
+    <div class="tier-row">
+      <span class="tier-name">ORRERY</span>
+      <span class="tier-bytes">unlimited / month</span>
+      <span class="tier-price">custom</span>
+    </div>
+  </div>
+
+  <p style="font-size:0.9rem; color: rgba(240,232,216,0.45);">Source registration is free. The Salt department reviews all garden and theatrical registrations. BoK source registration is automatic upon verified practitioner status.</p>
+
+  <div class="cta">
+    <a href="/guild">JOIN THE GUILD</a>
+    <a href="mailto:salt@quantumquackery.org" class="secondary">REGISTER A SOURCE</a>
+  </div>
+
+</div>
+
+<footer class="page-footer">
+  <a href="/">HOME</a>
+  <a href="/guild">GUILD</a>
+  <a href="/qcr">QCR</a>
+  <a href="/games">KO'S LABYRINTH</a>
+  <br /><br />
+  QUANTUM QUACKERY DIVINE ARTS · SALT DEPARTMENT
+</footer>
+
+<script>
+  const API = window.location.hostname === 'localhost'
+    ? 'http://localhost:9000'
+    : 'https://quantumquackery.org/api';
+
+  async function fetchPool() {
+    try {
+      const resp = await fetch(`${API}/v1/qqees/pool`);
+      if (!resp.ok) return;
+      const d = await resp.json();
+
+      const h       = d.pool_h ?? 0;
+      const contrib = d.contributions_total ?? 0;
+      const div     = d.source_diversity ?? 0;
+      const uptime  = d.uptime_seconds ?? 0;
+
+      document.getElementById('val-h').textContent       = h.toFixed(3) + ' bits';
+      document.getElementById('val-contrib').textContent = contrib.toLocaleString();
+      document.getElementById('val-div').textContent     = div + ' / 4';
+      document.getElementById('val-uptime').textContent  = fmtUptime(uptime);
+
+      document.getElementById('bar-h').style.width       = ((h / 8) * 100).toFixed(1) + '%';
+      document.getElementById('bar-contrib').style.width = Math.min((contrib / 1000) * 100, 100).toFixed(1) + '%';
+      document.getElementById('bar-div').style.width     = ((div / 4) * 100).toFixed(1) + '%';
+
+      const chip = document.getElementById('cert-chip');
+      if (h >= 7.0 && div >= 2) {
+        chip.textContent = 'CERTIFIED';
+        chip.className   = 'pool-status-chip certified';
+      } else if (h >= 6.5) {
+        chip.textContent = 'ACCEPTABLE';
+        chip.className   = 'pool-status-chip acceptable';
+      } else {
+        chip.textContent = 'ACCUMULATING';
+        chip.className   = 'pool-status-chip low';
+      }
+      chip.style.display = '';
+    } catch (e) {
+      // pool not reachable — silent
+    }
+  }
+
+  function fmtUptime(s) {
+    if (s < 60)   return s + 's';
+    if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h + 'h ' + m + 'm';
+  }
+
+  fetchPool();
+  setInterval(fetchPool, 15000);
+</script>
+</body>
+</html>
