@@ -42,6 +42,7 @@ from .recombination_router import router as recombination_router
 from .kobra_vm_router import router as kobra_vm_router
 from .bok_router import router as bok_router
 from .qqees_router import router as qqees_router
+from .import_router import router as import_router
 
 
 from .business_schemas import (
@@ -1265,6 +1266,7 @@ app.include_router(recombination_router, prefix="/v1/recombination", tags=["reco
 app.include_router(kobra_vm_router,      prefix="/v1/kobra",         tags=["kobra"])
 app.include_router(bok_router,           prefix="/v1/bok",            tags=["bok"])
 app.include_router(qqees_router,         prefix="/v1/qqees",          tags=["qqees"])
+app.include_router(import_router,        prefix="/v1",                tags=["import"])
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)

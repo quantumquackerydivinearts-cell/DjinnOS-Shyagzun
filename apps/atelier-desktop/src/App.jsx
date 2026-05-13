@@ -18,6 +18,7 @@ import { drawWebGL2 } from "./glVoxelRenderer";
 import { ShopManagerPanel } from "./panels/ShopManagerPanel";
 import { BookingPanel } from "./panels/BookingPanel";
 import { AttachmentsPanel } from "./panels/AttachmentsPanel";
+import { ImportPanel } from "./panels/ImportPanel";
 import { Q3Panel } from "./panels/Q3Panel";
 import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
 import { GameEditorsPanel } from "./panels/GameEditorsPanel";
@@ -116,6 +117,7 @@ const NAV_ITEMS = [
   "Module Creation",
   "Learning Hall",
   "CRM",
+  "Import",
   "Booking System",
   "Leads",
   "Clients",
@@ -16098,6 +16100,18 @@ function extractPythonSavedPath(outputText) {
         </section>
       );
     }
+    if (section === "Import") {
+      return (
+        <section className="panel">
+          <h2>Import CSV</h2>
+          <p className="muted-text" style={{ marginBottom: "1rem" }}>
+            Drop any CSV export — contacts, leads, or clients. Columns are auto-detected. Existing records matched by email are updated; new ones are created.
+          </p>
+          <ImportPanel apiBase={API_BASE} authToken={authToken} workspaceId={workspaceId} />
+        </section>
+      );
+    }
+
     if (section === "Clients") {
       const selectedClient = clients.find(c => c.id === clientSelectedId) || null;
       return (

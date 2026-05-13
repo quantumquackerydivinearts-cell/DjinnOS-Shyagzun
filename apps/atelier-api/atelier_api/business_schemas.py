@@ -89,6 +89,19 @@ class BookingCreate(BaseModel):
     notes: str = ""
 
 
+class ImportRowError(BaseModel):
+    row:    int
+    reason: str
+    raw:    dict
+
+
+class ImportResult(BaseModel):
+    entity:   str
+    inserted: int
+    updated:  int
+    errors:   list[ImportRowError]
+
+
 class AttachmentOut(BaseModel):
     id:           str
     entity_type:  str
