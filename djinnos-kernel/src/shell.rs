@@ -517,6 +517,12 @@ impl Shell {
                 }
             }
 
+            // ── orrery — 12-layer elemental crossing demo ────────────────────────
+            b"orrery" => {
+                crate::recombination::shell_demo();
+                self.push_line(b"orrery: run complete", [R_IN, G_IN, B_IN]);
+            }
+
             // ── intel — Hopfield query demo on the Shygazun byte table ──────────
             b"intel" => {
                 crate::intel::shell_demo();

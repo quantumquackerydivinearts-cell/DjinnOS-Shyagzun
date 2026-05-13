@@ -315,6 +315,40 @@ pub fn query_near(addr: u16, radius: u16) -> (&'static [usize], usize) {
     unsafe { (&OUT_B[..], n_out) }
 }
 
+/// Read-only view of the global state vector.
+pub fn state() -> &'static [f32] {
+    unsafe { &STATE_V }
+}
+
+/// Mutable access to the global state vector (for recombination crossings).
+/// Safety: caller must not alias with any other borrow of STATE_V.
+pub unsafe fn state_mut() -> &'static mut [f32; N_CANDS] {
+    &mut STATE_V
+}
+
+/// Seed the global state from a list of byte addresses, pinning them to +1,
+/// with a weak negative prior (-0.2) on all others.
+pub fn seed_from_addrs(addrs: &[u16]) {
+    unsafe {
+        for v in STATE_V.iter_mut() { *v = -0.2; }
+        for &addr in addrs {
+            if let Some(idx) = CANDS.iter().position(|c| c.addr == addr) {
+                STATE_V[idx] = 1.0;
+            }
+        }
+    }
+}
+
+/// Run Giann convergence in-place on STATE_V (no pinned set — free convergence).
+pub fn converge_in_place(max_iter: usize) {
+    let mode = DjinnMode::Giann;
+    let pinned: &[usize] = &[];
+    unsafe {
+        let mut st = State { v: &mut STATE_V };
+        converge(&mut st, &mode, pinned, max_iter);
+    }
+}
+
 /// Report active candidates to UART.
 pub fn report(indices: &[usize], n: usize) {
     use crate::uart;

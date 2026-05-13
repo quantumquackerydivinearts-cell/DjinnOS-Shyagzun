@@ -126,6 +126,7 @@ mod pci;
 mod ps2;
 #[cfg(target_arch = "x86_64")]
 mod i2c_hid;
+mod recombination;
 #[cfg(target_arch = "x86_64")]
 mod rtc;
 
