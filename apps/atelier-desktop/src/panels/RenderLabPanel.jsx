@@ -28,8 +28,7 @@ import {
 // Constants
 // ---------------------------------------------------------------------------
 
-// API_BASE is now passed as a prop — this fallback is only for standalone dev use
-const _DEFAULT_API_BASE = "http://127.0.0.1:9000";
+const API_BASE = "http://127.0.0.1:9000";
 
 const PIPELINE_STAGES = [
   { id: "all",          label: "Run All",       accent: "#5b8fd4" },
@@ -532,7 +531,6 @@ export function RenderLabPanel({
   // API base URL — falls back to localhost default if not provided
   apiBase,
 }) {
-  const API_BASE = apiBase || _DEFAULT_API_BASE;
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [renderLabTab, setRenderLabTab] = useState("pipeline");
   const coherence = labCoherence ?? defaultLabCoherence();
