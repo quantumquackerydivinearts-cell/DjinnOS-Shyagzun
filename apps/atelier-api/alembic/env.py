@@ -10,6 +10,7 @@ from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, String, Table
 from atelier_api.core.config import load_settings
 from atelier_api.db import Base
 from atelier_api import models  # noqa: F401
+from atelier_api import qcr_models_append  # noqa: F401  — registers QCR tables in Base.metadata
 
 config = context.config
 
