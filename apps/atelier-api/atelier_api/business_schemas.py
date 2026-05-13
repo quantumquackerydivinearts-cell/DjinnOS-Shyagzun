@@ -81,6 +81,7 @@ class ContactOut(BaseModel):
 
 class BookingCreate(BaseModel):
     workspace_id: str
+    title: str = ""
     contact_id: str | None = None
     starts_at: datetime
     ends_at: datetime
@@ -88,9 +89,18 @@ class BookingCreate(BaseModel):
     notes: str = ""
 
 
+class BookingUpdate(BaseModel):
+    title: str | None = None
+    status: str | None = None
+    notes: str | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+
+
 class BookingOut(BaseModel):
     id: str
     workspace_id: str
+    title: str
     contact_id: str | None
     starts_at: datetime
     ends_at: datetime

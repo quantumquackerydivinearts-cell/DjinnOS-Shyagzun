@@ -16,6 +16,7 @@ import { AlchemySubjectPanel } from "./panels/AlchemySubjectPanel";
 import { KobraStudioPanel } from "./panels/KobraStudioPanel";
 import { drawWebGL2 } from "./glVoxelRenderer";
 import { ShopManagerPanel } from "./panels/ShopManagerPanel";
+import { BookingPanel } from "./panels/BookingPanel";
 import { Q3Panel } from "./panels/Q3Panel";
 import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
 import { GameEditorsPanel } from "./panels/GameEditorsPanel";
@@ -15966,18 +15967,7 @@ function extractPythonSavedPath(outputText) {
       return (
         <section className="panel">
           <h2>Booking System</h2>
-          <div className="row">
-            <input value={bookingStart} onChange={(e) => setBookingStart(e.target.value)} placeholder="start ISO datetime" />
-            <input value={bookingEnd} onChange={(e) => setBookingEnd(e.target.value)} placeholder="end ISO datetime" />
-            <input value={bookingContactId} onChange={(e) => setBookingContactId(e.target.value)} placeholder="Lead or contact ID (optional)" />
-            <button className="action" onClick={() => createEntity("bookings_create", "/v1/booking", { workspace_id: workspaceId, starts_at: bookingStart, ends_at: bookingEnd, status: "scheduled", contact_id: bookingContactId || null, notes: bookingNotes }, () => { setBookingContactId(""); setBookingNotes(""); }, listBookings)}>Create</button>
-            <button className="action" onClick={listBookings}>Refresh</button>
-          </div>
-          <div className="row">
-            <textarea value={bookingNotes} onChange={(e) => setBookingNotes(e.target.value)} placeholder="booking notes" />
-          </div>
-          <div className="row"><input value={bookingFilter} onChange={(e) => setBookingFilter(e.target.value)} placeholder="filter bookings" /><button className="action" onClick={() => downloadJson(`bookings-${workspaceId}.json`, filteredBookings)}>Export</button></div>
-          <pre>{JSON.stringify(filteredBookings, null, 2)}</pre>
+          <BookingPanel apiBase={API_BASE} authToken={authToken} workspaceId={workspaceId} />
         </section>
       );
     }

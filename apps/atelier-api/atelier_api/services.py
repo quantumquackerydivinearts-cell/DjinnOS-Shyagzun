@@ -4883,6 +4883,7 @@ class AtelierService:
     def create_booking(self, payload: BookingCreate) -> BookingOut:
         row = Booking(
             workspace_id=payload.workspace_id,
+            title=payload.title,
             contact_id=payload.contact_id,
             starts_at=payload.starts_at,
             ends_at=payload.ends_at,
@@ -4891,6 +4892,17 @@ class AtelierService:
         )
         out = self._require_repo().create_booking(row)
         return BookingOut.model_validate(out, from_attributes=True)
+
+    def update_booking(self, booking_id: str, payload: "BookingUpdate") -> "BookingOut | None":
+        from .business_schemas import BookingUpdate
+        fields = {k: v for k, v in payload.model_dump().items() if v is not None}
+        out = self._require_repo().update_booking(booking_id, fields)
+        if out is None:
+            return None
+        return BookingOut.model_validate(out, from_attributes=True)
+
+    def delete_booking(self, booking_id: str) -> bool:
+        return self._require_repo().delete_booking(booking_id)
 
     def list_lessons(self, workspace_id: str) -> Sequence[LessonOut]:
         rows = self._require_repo().list_lessons(workspace_id=workspace_id)

@@ -137,6 +137,25 @@ class AtelierRepository:
         self._db.refresh(row)
         return row
 
+    def update_booking(self, booking_id: str, fields: dict) -> Booking | None:
+        row = self._db.get(Booking, booking_id)
+        if row is None:
+            return None
+        for k, v in fields.items():
+            if v is not None:
+                setattr(row, k, v)
+        self._db.commit()
+        self._db.refresh(row)
+        return row
+
+    def delete_booking(self, booking_id: str) -> bool:
+        row = self._db.get(Booking, booking_id)
+        if row is None:
+            return False
+        self._db.delete(row)
+        self._db.commit()
+        return True
+
     def list_lessons(self, workspace_id: str) -> Sequence[Lesson]:
         return self._db.scalars(select(Lesson).where(Lesson.workspace_id == workspace_id)).all()
 

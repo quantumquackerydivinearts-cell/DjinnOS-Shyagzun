@@ -52,6 +52,7 @@ from .business_schemas import (
     ArtisanLoginInput,
     ArtisanLoginOut,
     BookingCreate,
+    BookingUpdate,
     BookingOut,
     ClientCreate,
     ClientLoginInput,
@@ -3647,6 +3648,35 @@ def create_booking(
     _enforce(ctx, "booking.write")
     _enforce_role(role, "booking.write")
     return svc.create_booking(payload.model_copy(update={"workspace_id": workspace_id}))
+
+
+@app.put("/v1/booking/{booking_id}")
+def update_booking(
+    booking_id: str,
+    payload: BookingUpdate,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> BookingOut:
+    _enforce(ctx, "booking.write")
+    _enforce_role(role, "booking.write")
+    out = svc.update_booking(booking_id, payload)
+    if out is None:
+        from fastapi import HTTPException
+        raise HTTPException(404, "booking_not_found")
+    return out
+
+
+@app.delete("/v1/booking/{booking_id}", status_code=204)
+def delete_booking(
+    booking_id: str,
+    ctx: CapabilityContext = Depends(_capability_context),
+    role: RoleContext = Depends(_role_context),
+    svc: AtelierService = Depends(_atelier_service),
+) -> None:
+    _enforce(ctx, "booking.write")
+    _enforce_role(role, "booking.write")
+    svc.delete_booking(booking_id)
 
 
 @app.get("/v1/lessons")
