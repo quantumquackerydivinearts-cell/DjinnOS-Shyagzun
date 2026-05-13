@@ -28,7 +28,8 @@ import {
 // Constants
 // ---------------------------------------------------------------------------
 
-const API_BASE = "http://127.0.0.1:9000";
+// API_BASE is now passed as a prop — this fallback is only for standalone dev use
+const _DEFAULT_API_BASE = "http://127.0.0.1:9000";
 
 const PIPELINE_STAGES = [
   { id: "all",          label: "Run All",       accent: "#5b8fd4" },
@@ -528,8 +529,12 @@ export function RenderLabPanel({
   moduleRunOutput,
   // Optional: current renderer realm
   rendererRealmId,
+  // API base URL — falls back to localhost default if not provided
+  apiBase,
 }) {
+  const API_BASE = apiBase || _DEFAULT_API_BASE;
   const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [renderLabTab, setRenderLabTab] = useState("pipeline");
   const coherence = labCoherence ?? defaultLabCoherence();
 
   const refreshReadiness = useCallback(async (projectId) => {
@@ -545,25 +550,34 @@ export function RenderLabPanel({
     }
   }, [setLabCoherence]);
 
+  const TAB = (t, label) => (
+    <button key={t} onClick={() => setRenderLabTab(t)} style={{
+      background: "none", border: "none", cursor: "pointer",
+      padding: "6px 16px", fontSize: 11, fontFamily: "inherit",
+      color: renderLabTab === t ? "#8fd3ff" : "#556",
+      borderBottom: renderLabTab === t ? "2px solid #8fd3ff" : "2px solid transparent",
+    }}>{label}</button>
+  );
+
   return (
     <div style={{
       display: "flex", flexDirection: "column", gap: 20,
       padding: 16, color: "#cdd9ef", fontSize: 13, fontFamily: "inherit",
     }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <span style={{ fontSize: 16, fontWeight: 700, color: "#8fd3ff" }}>Render Lab</span>
-        {rendererRealmId && (
-          <StatusPill label="Realm" value={rendererRealmId} accent="#556" />
-        )}
-        {selectedProjectId && (
-          <StatusPill label="Project" value={selectedProjectId} accent="#2a5fa8" />
-        )}
+      {/* Tab bar */}
+      <div style={{ display: "flex", borderBottom: "1px solid #2a3a4a", marginBottom: -8 }}>
+        {TAB("pipeline", "PIPELINE")}
+        {TAB("architecture", "ARCHITECTURE")}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          {rendererRealmId && <StatusPill label="Realm" value={rendererRealmId} accent="#556" />}
+          {selectedProjectId && <StatusPill label="Project" value={selectedProjectId} accent="#2a5fa8" />}
+        </div>
       </div>
 
-      <ProjectManager
+      {renderLabTab === "pipeline" && <ProjectManager
         selectedProjectId={selectedProjectId}
         onSelect={setSelectedProjectId}
-      />
+      />}
 
       <ReadinessBadges
         labCoherence={coherence}
@@ -573,15 +587,11 @@ export function RenderLabPanel({
         onRefreshReadiness={refreshReadiness}
       />
 
-      <PipelineRunner projectId={selectedProjectId} />
-
-      <BootstrapPanel
-        onBootstrap={onBootstrap}
-        labCoherence={coherence}
-        moduleRunOutput={moduleRunOutput}
-      />
-
-      <ArchDiagramPanel projectId={selectedProjectId} />
+      {renderLabTab === "pipeline" && <>
+        <PipelineRunner projectId={selectedProjectId} />
+        <BootstrapPanel onBootstrap={onBootstrap} labCoherence={coherence} moduleRunOutput={moduleRunOutput} />
+      </>}
+      {renderLabTab === "architecture" && <ArchDiagramPanel projectId={selectedProjectId} />}
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { AttachmentsPanel } from "./panels/AttachmentsPanel";
 import { ImportPanel } from "./panels/ImportPanel";
 import { GraphPanel } from "./panels/GraphPanel";
 import { GoalsReportsPanel } from "./panels/GoalsReportsPanel";
+import { ComicMakerPanel } from "./panels/ComicMakerPanel";
 import { Q3Panel } from "./panels/Q3Panel";
 import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
 import { GameEditorsPanel } from "./panels/GameEditorsPanel";
@@ -115,9 +116,7 @@ const NAV_ITEMS = [
   "Studio Hub",
   "Asset Library",
   "Kernel Fields",
-  "Lesson Creation",
-  "Module Creation",
-  "Learning Hall",
+  "Content Studio",
   "CRM",
   "Import",
   "Booking System",
@@ -140,7 +139,7 @@ const NAV_ITEMS = [
   "Shop Manager",
   "Q3",
   "Supra Librix",
-  "Sequential Art",
+  "Comic Maker",
   "Kobra Studio",
   "Semantic Field",
   "QQEES",
@@ -6453,6 +6452,8 @@ export function App() {
   const [lessons, setLessons] = useState([]);
   const [lessonProgress, setLessonProgress] = useState([]);
   const [lessonActorId, setLessonActorId] = useState(() => localStorage.getItem("atelier.lesson_actor") || "player");
+  const [contentStudioTab, setContentStudioTab] = useState("lessons");
+  const [lessonSelectedId, setLessonSelectedId] = useState(null);
   const [lessonFilter, setLessonFilter] = useState("");
   const LESSON_SOFT_LIMIT = 12000;
 
@@ -7334,6 +7335,7 @@ export function App() {
   const [studioMoveTargetFolder, setStudioMoveTargetFolder] = useState("notes");
   const [studioDraggedFileId, setStudioDraggedFileId] = useState(null);
   const [studioFsRoot, setStudioFsRoot] = useState(() => localStorage.getItem("atelier.studio_fs_root") || "");
+  const [studioShowAdvanced, setStudioShowAdvanced] = useState(false);
   const [studioFsScripts, setStudioFsScripts] = useState([]);
   const [studioFsSelectedScript, setStudioFsSelectedScript] = useState("");
   const [studioFsPythonFiles, setStudioFsPythonFiles] = useState([]);
@@ -15985,7 +15987,140 @@ function extractPythonSavedPath(outputText) {
         </section>
       );
     }
-    if (section === "Lesson Creation") {
+    if (section === "Content Studio") {
+      const TAB_STYLE = (t) => ({
+        padding: "6px 16px", cursor: "pointer", fontSize: 11,
+        fontFamily: '"Cinzel", serif', letterSpacing: 2,
+        borderBottom: contentStudioTab === t ? "2px solid #3ab8a0" : "2px solid transparent",
+        color: contentStudioTab === t ? "#3ab8a0" : "#3a5a3c",
+        background: "none", border: "none",
+        borderBottom: contentStudioTab === t ? "2px solid #3ab8a0" : "2px solid transparent",
+      });
+      const progressMap = {};
+      lessonProgress.forEach(e => { if (e?.lesson_id) progressMap[e.lesson_id] = e; });
+      const selectedLesson = lessons.find(l => l.id === lessonSelectedId) || null;
+
+      return (
+        <>
+          <section className="panel" style={{ padding: 0 }}>
+            {/* Tab bar */}
+            <div style={{ display: "flex", borderBottom: "1px solid #2a3a2a", padding: "0 12px" }}>
+              {[["lessons","LESSONS"],["modules","MODULES"],["learn","LEARN"]].map(([t,label]) => (
+                <button key={t} style={TAB_STYLE(t)} onClick={() => setContentStudioTab(t)}>{label}</button>
+              ))}
+            </div>
+
+            {/* ── LESSONS tab ── */}
+            {contentStudioTab === "lessons" && (
+              <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", minHeight: 480 }}>
+                {/* Lesson list */}
+                <div style={{ borderRight: "1px solid #2a3a2a", overflowY: "auto" }}>
+                  <div style={{ padding: "8px 12px", borderBottom: "1px solid #1e2e1e", display: "flex", gap: 6 }}>
+                    <input value={lessonFilter} onChange={e=>setLessonFilter(e.target.value)}
+                      placeholder="filter" style={{ flex:1,background:"#0e130e",border:"1px solid #2a3a2a",color:"#e8f0e8",padding:"4px 8px",borderRadius:4,fontSize:12 }} />
+                    <button className="action" onClick={listLessons} style={{ fontSize:11 }}>↻</button>
+                  </div>
+                  {filteredLessons.map(l => (
+                    <div key={l.id}
+                      onClick={() => { setLessonSelectedId(l.id); setLessonTitle(l.title||""); setLessonBody(l.body||""); }}
+                      style={{ padding:"7px 12px", borderBottom:"1px solid #1e2e1e", cursor:"pointer",
+                        background: l.id===lessonSelectedId ? "#1a2a1a" : "transparent",
+                        borderLeft: l.id===lessonSelectedId ? "2px solid #3ab8a0" : "2px solid transparent" }}
+                    >
+                      <div style={{ fontWeight: l.id===lessonSelectedId ? 600 : 400, fontSize:12 }}>{l.title||"Untitled"}</div>
+                      <div style={{ fontSize:10, opacity:0.5 }}>{l.status||"draft"}</div>
+                    </div>
+                  ))}
+                  {filteredLessons.length === 0 && <div style={{ padding:"12px",opacity:0.4,fontSize:12 }}>No lessons yet.</div>}
+                </div>
+                {/* Editor */}
+                <div style={{ padding: "12px 16px" }}>
+                  <div className="row" style={{ marginBottom: 8 }}>
+                    <input value={lessonTitle} onChange={e=>setLessonTitle(e.target.value)}
+                      placeholder="lesson title" style={{ flex:1,background:"#0e130e",border:"1px solid #2a3a2a",color:"#e8f0e8",padding:"5px 10px",borderRadius:4,fontSize:13 }} />
+                    <button className="action" onClick={validateLessonDraft}>Validate</button>
+                    <button className="action" onClick={createLessonDraft}>{lessonSelectedId ? "Save" : "Create"}</button>
+                  </div>
+                  <div style={{ marginBottom: 8, display:"flex", gap: 6, flexWrap:"wrap" }}>
+                    {[["## Learning Objective\n- ","Objective"],["### Exercise\n1. ","Exercise"],["### Reflection\n- ","Reflection"],["> Key Insight","Callout"]].map(([block,label]) => (
+                      <button key={label} className="action" style={{ fontSize:11 }} onClick={() => appendLessonBlock(block)}>{label}</button>
+                    ))}
+                  </div>
+                  <div className="lesson-workbench">
+                    <div>
+                      <textarea className="editor lesson-editor" value={lessonBody}
+                        onChange={e=>setLessonBody(e.target.value)} onKeyDown={handleLessonEditorKeyDown}
+                        placeholder="Write lesson content…" />
+                      <p className={`char-count ${lessonBody.length > LESSON_SOFT_LIMIT ? "char-count-warn" : ""}`}>
+                        {`${lessonBody.length} chars${lessonBody.length > LESSON_SOFT_LIMIT ? " (above soft limit)" : ""}`}
+                      </p>
+                    </div>
+                    <div className="lesson-preview">
+                      <h3>Preview</h3>
+                      <div className="preview-body">{renderMarkdownBlocks(lessonBody)}</div>
+                    </div>
+                  </div>
+                  {lessonValidationOutput && Object.keys(lessonValidationOutput).length > 0 && (
+                    <pre style={{ fontSize:10, maxHeight:120, overflow:"auto", marginTop:8 }}>{JSON.stringify(lessonValidationOutput, null, 2)}</pre>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── MODULES tab ── */}
+            {contentStudioTab === "modules" && (
+              <div style={{ padding: "16px" }}>
+                <div className="row" style={{ marginBottom:12 }}>
+                  <input value={moduleTitle} onChange={e=>setModuleTitle(e.target.value)} placeholder="module title" style={{ flex:2,background:"#0e130e",border:"1px solid #2a3a2a",color:"#e8f0e8",padding:"5px 10px",borderRadius:4,fontSize:13 }} />
+                  <input value={moduleDescription} onChange={e=>setModuleDescription(e.target.value)} placeholder="description" style={{ flex:3,background:"#0e130e",border:"1px solid #2a3a2a",color:"#e8f0e8",padding:"5px 10px",borderRadius:4,fontSize:13 }} />
+                  <button className="action" onClick={() => createEntity("modules_create","/v1/modules",{workspace_id:workspaceId,title:moduleTitle,description:moduleDescription,status:"draft"},()=>{setModuleTitle("");setModuleDescription("");},listModules)}>Create</button>
+                  <button className="action" onClick={listModules}>↻</button>
+                </div>
+                <input value={moduleFilter} onChange={e=>setModuleFilter(e.target.value)} placeholder="filter modules"
+                  style={{ marginBottom:10,background:"#0e130e",border:"1px solid #2a3a2a",color:"#e8f0e8",padding:"5px 10px",borderRadius:4,fontSize:12,width:260 }} />
+                <div>
+                  {filteredModules.map(m => (
+                    <div key={m.id} style={{ padding:"8px 12px", borderBottom:"1px solid #1e2e1e", display:"flex", gap:10, alignItems:"baseline" }}>
+                      <strong style={{ fontSize:13 }}>{m.title}</strong>
+                      {m.description && <span style={{ opacity:0.55, fontSize:12 }}>{m.description}</span>}
+                      <span className="badge" style={{ marginLeft:"auto" }}>{m.status}</span>
+                    </div>
+                  ))}
+                  {filteredModules.length === 0 && <p className="muted-text">No modules yet.</p>}
+                </div>
+              </div>
+            )}
+
+            {/* ── LEARN tab ── */}
+            {contentStudioTab === "learn" && (
+              <div style={{ padding: "16px" }}>
+                <div className="row" style={{ marginBottom:12 }}>
+                  <button className="action" onClick={listLessons}>Load Lessons</button>
+                  <button className="action" onClick={listLessonProgress}>Load Progress</button>
+                  <input value={lessonActorId} onChange={e=>setLessonActorId(e.target.value)} placeholder="actor id" style={{ width:160,background:"#0e130e",border:"1px solid #2a3a2a",color:"#e8f0e8",padding:"5px 10px",borderRadius:4,fontSize:12 }} />
+                </div>
+                {filteredLessons.length > 0 ? (
+                  <div className="lesson-list">
+                    {filteredLessons.map(lesson => (
+                      <div className="lesson-card" key={lesson.id}>
+                        <div className="row">
+                          <strong>{lesson.title}</strong>
+                          <span className="badge">{progressMap[lesson.id]?.status || "new"}</span>
+                          <button className="action" onClick={() => consumeLesson(lesson.id)}>Mark consumed</button>
+                        </div>
+                        <div className="preview-body">{renderMarkdownBlocks(lesson.body || "")}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="muted-text">Load lessons to begin.</p>}
+              </div>
+            )}
+          </section>
+        </>
+      );
+    }
+
+    if (section === "_Lesson Creation Legacy") {
       return (
         <section className="panel">
           <h2>Lesson Builder</h2>
@@ -16034,7 +16169,7 @@ function extractPythonSavedPath(outputText) {
         </section>
       );
     }
-    if (section === "Module Creation") {
+    if (section === "_Module Creation Legacy") {
       return (
         <section className="panel">
           <h2>Module Builder</h2>
@@ -16672,6 +16807,7 @@ function extractPythonSavedPath(outputText) {
               setLabCoherence={setLabCoherence}
               moduleRunOutput={moduleRunOutput}
               rendererRealmId={rendererRealmId}
+              apiBase={API_BASE}
             />
           </section>
           <section className="panel">
@@ -19411,15 +19547,26 @@ function extractPythonSavedPath(outputText) {
         <>
           <section className="panel">
             <h2>Studio Workspace</h2>
-            <div className="row">
-              <input value={studioFsRoot} onChange={(e) => setStudioFsRoot(e.target.value)} placeholder="kobra scripts folder path" />
+            {/* ── Compact toolbar ── */}
+            <div className="row" style={{ flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+              <input value={studioFsRoot} onChange={(e) => setStudioFsRoot(e.target.value)}
+                placeholder="kobra scripts folder path" style={{ flex: 2, minWidth: 200 }} />
               <button className="action" onClick={chooseStudioFsFolder}>Choose Folder</button>
               <button className="action" onClick={refreshStudioFsScripts}>List .kobra</button>
-              <button className="action" onClick={refreshStudioFsAssets}>List scene/sprite/python/audio</button>
-              <button className="action" onClick={importSelectedFsScriptToStudio}>Import Selected</button>
-              <button className="action" onClick={saveSelectedStudioFileToFs}>Save Selected</button>
-              <button className="action" onClick={exportAllKobraScriptsToFs}>Export All .kobra</button>
+              <button className="action" onClick={refreshStudioFsAssets}>Scan Assets</button>
+              <button className="action" onClick={importSelectedFsScriptToStudio}>Import</button>
+              <button className="action" onClick={saveSelectedStudioFileToFs}>Save</button>
+              <button className="action" onClick={exportAllKobraScriptsToFs}>Export All</button>
+              <span className="badge">{`.kobra: ${studioFsScripts.length}`}</span>
+              <span className="badge">{`scenes: ${studioFsSceneFiles.length}`}</span>
+              <span className="badge">{`FS: ${hasDesktopFs() ? "✓" : "web"}`}</span>
+              <button className="action" style={{ marginLeft: "auto" }}
+                onClick={() => setStudioShowAdvanced(v => !v)}>
+                {studioShowAdvanced ? "▲ Less" : "▼ Advanced"}
+              </button>
             </div>
+            {/* ── Advanced (collapsible) ── */}
+            {studioShowAdvanced && (<>
             <div className="row">
               <select value={studioFsSelectedScript} onChange={(e) => setStudioFsSelectedScript(e.target.value)}>
                 <option value="">select .kobra from folder</option>
@@ -19433,63 +19580,49 @@ function extractPythonSavedPath(outputText) {
                   <option key={`studio-fs-py-${name}`} value={name}>{name}</option>
                 ))}
               </select>
-              <button className="action" onClick={importSelectedFsPythonToRenderer}>Import .py to Renderer</button>
+              <button className="action" onClick={importSelectedFsPythonToRenderer}>Import .py</button>
               <label className="inline-toggle">
-                <input
-                  type="checkbox"
-                  checked={studioFsPythonAutoWatch}
-                  onChange={(e) => setStudioFsPythonAutoWatch(e.target.checked)}
-                />
+                <input type="checkbox" checked={studioFsPythonAutoWatch}
+                  onChange={(e) => setStudioFsPythonAutoWatch(e.target.checked)} />
                 Auto-watch .py
               </label>
-              <input
-                value={studioFsPythonWatchMs}
-                onChange={(e) => setStudioFsPythonWatchMs(e.target.value)}
-                placeholder="watch ms"
-              />
-              <span className="badge">{`Desktop FS: ${hasDesktopFs() ? "available" : "web-only"}`}</span>
-              <span className="badge">{`.kobra files: ${studioFsScripts.length}`}</span>
-              <span className="badge">{`.py files: ${studioFsPythonFiles.length}`}</span>
-              <span className="badge">{`scene files: ${studioFsSceneFiles.length}`}</span>
-              <span className="badge">{`sprite files: ${studioFsSpriteFiles.length}`}</span>
+              <input value={studioFsPythonWatchMs} onChange={(e) => setStudioFsPythonWatchMs(e.target.value)} placeholder="watch ms" style={{ width: 80 }} />
+              <span className="badge">{`.py: ${studioFsPythonFiles.length}`}</span>
+              <span className="badge">{`sprites: ${studioFsSpriteFiles.length}`}</span>
             </div>
             <div className="row">
               <select value={studioFsSelectedScene} onChange={(e) => setStudioFsSelectedScene(e.target.value)}>
-                <option value="">select .scene.json from folder</option>
+                <option value="">select .scene.json</option>
                 {studioFsSceneFiles.map((name) => (
                   <option key={`studio-fs-scene-${name}`} value={name}>{name}</option>
                 ))}
               </select>
-              <button className="action" onClick={importSelectedFsSceneToRenderer}>Import Scene to Renderer</button>
-              <button className="action" onClick={exportRendererSceneToFs}>Export Current Scene</button>
-            </div>
-            <div className="row">
+              <button className="action" onClick={importSelectedFsSceneToRenderer}>Import Scene</button>
+              <button className="action" onClick={exportRendererSceneToFs}>Export Scene</button>
               <select value={studioFsSelectedSprite} onChange={(e) => setStudioFsSelectedSprite(e.target.value)}>
-                <option value="">select .sprite.json from folder</option>
+                <option value="">select .sprite.json</option>
                 {studioFsSpriteFiles.map((name) => (
                   <option key={`studio-fs-sprite-${name}`} value={name}>{name}</option>
                 ))}
               </select>
-              <button className="action" onClick={importSelectedFsSpriteToRenderer}>Import Sprite to Renderer</button>
-              <button className="action" onClick={exportRendererSpriteToFs}>Export Current Sprite</button>
+              <button className="action" onClick={importSelectedFsSpriteToRenderer}>Import Sprite</button>
+              <button className="action" onClick={exportRendererSpriteToFs}>Export Sprite</button>
             </div>
             <div className="row">
               <select value={studioFsRuntimePlanPath} onChange={(e) => setStudioFsRuntimePlanPath(e.target.value)}>
-                <option value="">select runtime plan from gameplay/runtime_plans</option>
+                <option value="">select runtime plan</option>
                 {studioFsRuntimePlanFiles.map((name) => (
                   <option key={`studio-fs-runtime-plan-${name}`} value={name}>{name}</option>
                 ))}
               </select>
-              <input
-                value={studioFsRuntimePlanPath}
-                onChange={(e) => setStudioFsRuntimePlanPath(e.target.value)}
-                placeholder="runtime plan path (relative to Studio FS root)"
-              />
-              <button className="action" onClick={refreshStudioFsAssets}>Refresh Runtime Plans</button>
-              <button className="action" onClick={runRuntimePlanFromFs}>Run Runtime Plan File</button>
-              <button className="action" onClick={runDungeonSweepFromApi}>Run Dungeon Sweep</button>
-              <span className="badge">{`runtime plans: ${studioFsRuntimePlanFiles.length}`}</span>
+              <input value={studioFsRuntimePlanPath} onChange={(e) => setStudioFsRuntimePlanPath(e.target.value)} placeholder="runtime plan path" />
+              <button className="action" onClick={refreshStudioFsAssets}>↻ Plans</button>
+              <button className="action" onClick={runRuntimePlanFromFs}>Run Plan</button>
+              <button className="action" onClick={runDungeonSweepFromApi}>Dungeon Sweep</button>
+              <span className="badge">{`plans: ${studioFsRuntimePlanFiles.length}`}</span>
             </div>
+            </>)}
+            {/* ── Folder and file management ── */}
             <div className="row">
               <input value={studioNewFolder} onChange={(e) => setStudioNewFolder(e.target.value)} placeholder="new folder name" />
               <button className="action" onClick={createStudioFolder}>Add Folder</button>
@@ -19653,7 +19786,7 @@ function extractPythonSavedPath(outputText) {
         </>
       );
     }
-    if (section === "Learning Hall") {
+    if (section === "_Learning Hall Legacy") {
       const progressMap = {};
       lessonProgress.forEach((entry) => {
         if (entry && entry.lesson_id) {
@@ -20056,7 +20189,18 @@ function extractPythonSavedPath(outputText) {
     if (section === "Semantic Field") {
       return <SemanticFieldPanel />;
     }
-    if (section === "Sequential Art") {
+    if (section === "Comic Maker") {
+      return (
+        <section className="panel" style={{ padding: 0, overflow: "hidden" }}>
+          <ComicMakerPanel
+            apiBase={API_BASE} artisanId={artisanId}
+            authToken={authToken} workspaceId={workspaceId} role={role}
+          />
+        </section>
+      );
+    }
+
+    if (section === "_Sequential Art Legacy") {
       const listSeqPages = async () => {
         if (!seqProjectId) return;
         const data = await apiCall(`/v1/projects/${seqProjectId}/pages`, "GET");
