@@ -87,6 +87,34 @@ def element_candidates(element: str) -> list[int]:
 # Address → candidate index lookup
 _ADDR_TO_IDX: dict[int, int] = {int(CANDIDATES[i].addr): i for i in range(N)}
 
+
+def elem_of_addr(addr: int) -> Optional[str]:
+    """
+    Return the elemental register for a byte address, or None.
+    Mirrors the Rust address-range detection in recombination.rs.
+    """
+    # Lotus
+    if addr in (0, 1, 8, 9, 16, 20):     return "Zot"
+    if addr in (2, 3, 10, 11, 17, 21):   return "Mel"
+    if addr in (4, 5, 12, 13, 18, 22):   return "Puf"
+    if addr in (6, 7, 14, 15, 19, 23):   return "Shak"
+    # Sakura
+    if 48 <= addr <= 53:                  return "Zot"
+    if 54 <= addr <= 59:                  return "Mel"
+    if 60 <= addr <= 65:                  return "Puf"
+    if 66 <= addr <= 71:                  return "Shak"
+    # AppleBlossom pure elements
+    if addr == 104:                       return "Shak"
+    if addr == 105:                       return "Puf"
+    if addr == 106:                       return "Mel"
+    if addr == 107:                       return "Zot"
+    # Grapevine
+    if 156 <= addr <= 162:                return "Puf"
+    if 163 <= addr <= 169:                return "Mel"
+    if 170 <= addr <= 176:                return "Zot"
+    if 177 <= addr <= 183:                return "Shak"
+    return None
+
 # ── Thermodynamic depth per destination ──────────────────────────────────────
 
 _DEST_DEPTH = {"Shak": 0.0, "Puf": 0.33, "Mel": 0.67, "Zot": 1.0}
@@ -133,11 +161,16 @@ LAYERS: tuple[RecombLayer, ...] = (
 
 # ── Orrery cue checking ───────────────────────────────────────────────────────
 
-def check_cue(layer: RecombLayer, state: list[float] | np.ndarray) -> bool:
-    """A layer fires when all 4 cue-cluster addresses are active (s > 0.5)."""
+def check_cue(layer: RecombLayer, state: list[float] | np.ndarray,
+              threshold: float = 0.1) -> bool:
+    """
+    A layer fires when all 4 cue-cluster addresses exceed the threshold.
+    Default threshold 0.1 works with soft tanh fields (temp > 0).
+    Use 0.5 for hard binary fields (Giann T=0).
+    """
     for addr in layer.cue:
         idx = _ADDR_TO_IDX.get(addr)
-        if idx is None or state[idx] <= 0.5:
+        if idx is None or state[idx] <= threshold:
             return False
     return True
 
@@ -216,6 +249,7 @@ def run(
     input_addrs: list[int],
     temp:        float = 0.35,
     max_iter:    int   = 32,
+    kernel:      str   = "keshi",
 ) -> RecombTrace:
     """
     Run a semantic state (specified by byte addresses) through all 12 layers
@@ -223,9 +257,13 @@ def run(
 
     Each layer checks its Orrery cue against the current field state.
     If the cue is satisfied, the crossing transformation is applied.
+
+    kernel: "giann" spreads activation globally (inverse-distance) — better
+            for Kobra programs where cue addresses may be far from seeds.
+            "keshi" is local (exponential decay) — better for precise queries.
     """
     # Initial convergence from input seeds
-    W  = build_weight_matrix("keshi", temp)
+    W  = build_weight_matrix(kernel, temp)
     s  = np.full(N, -0.2, dtype=np.float32)
     pinned = []
     for addr in input_addrs:
