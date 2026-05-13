@@ -43,7 +43,8 @@ export function AttachmentsPanel({ entityType, entityId, apiBase, authToken, wor
     try {
       const r = await fetch(url, { method: "POST", headers: hdrs, body: form });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || "Upload failed"); }
-      setFiles(prev => [...prev, await r.json()]);
+      const created = await r.json();
+      setFiles(prev => [...prev, created]);
     } catch (e) { setError(e.message); }
     finally { setUploading(false); }
   }
