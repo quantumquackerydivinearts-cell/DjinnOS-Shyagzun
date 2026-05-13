@@ -1266,10 +1266,12 @@ app.include_router(qqees_router,         prefix="/v1/qqees",          tags=["qqe
 @app.get("/", response_class=HTMLResponse)
 @app.get("/shop", response_class=HTMLResponse)
 def shop_landing(
+    response: Response,
     section: Optional[str] = None,
     settings: Settings = Depends(_settings),
     svc: AtelierService = Depends(_atelier_service),
 ) -> str:
+    response.headers["Cache-Control"] = "no-store"
     if section:
         workspace_id = settings.shop_workspace_id
         items: Sequence[ShopItemOut] = []
@@ -1295,9 +1297,11 @@ def shop_landing(
 @app.get("/qcr", response_class=HTMLResponse)
 def shop_section_root(
     request: Request,
+    response: Response,
     settings: Settings = Depends(_settings),
     svc: AtelierService = Depends(_atelier_service),
 ) -> str:
+    response.headers["Cache-Control"] = "no-store"
     section_id = request.url.path.lstrip("/")
     if section_id == "physical-goods":
         section_id = "catalog"
