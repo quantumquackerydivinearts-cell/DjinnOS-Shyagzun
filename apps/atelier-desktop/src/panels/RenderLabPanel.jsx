@@ -131,6 +131,12 @@ function Btn({ onClick, disabled, accent, children, style }) {
 // Project list + create
 // ---------------------------------------------------------------------------
 
+function friendlyErr(e) {
+  const msg = String(e);
+  if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) return "API unavailable";
+  return msg;
+}
+
 function ProjectManager({ selectedProjectId, onSelect }) {
   const [projects, setProjects] = useState([]);
   const [creating, setCreating] = useState(false);
@@ -143,7 +149,7 @@ function ProjectManager({ selectedProjectId, onSelect }) {
       const data = await r.json();
       setProjects(Array.isArray(data.projects) ? data.projects : []);
     } catch (e) {
-      setError(String(e));
+      setError(friendlyErr(e));
     }
   }, []);
 
@@ -166,7 +172,7 @@ function ProjectManager({ selectedProjectId, onSelect }) {
         setError(JSON.stringify(data));
       }
     } catch (e) {
-      setError(String(e));
+      setError(friendlyErr(e));
     } finally {
       setCreating(false);
     }
@@ -178,7 +184,7 @@ function ProjectManager({ selectedProjectId, onSelect }) {
       if (selectedProjectId === id) onSelect(null);
       await load();
     } catch (e) {
-      setError(String(e));
+      setError(friendlyErr(e));
     }
   };
 
@@ -250,7 +256,7 @@ function PipelineRunner({ projectId }) {
       const data = await r.json();
       setLastResult(data);
     } catch (e) {
-      setError(String(e));
+      setError(friendlyErr(e));
     } finally {
       setRunning(null);
     }
@@ -351,7 +357,7 @@ function ArchDiagramPanel({ projectId }) {
       setParseError(null);
       return normalized;
     } catch (e) {
-      setParseError(String(e));
+      setParseError(friendlyErr(e));
       setParsedModel(null);
       return null;
     }
@@ -363,7 +369,7 @@ function ArchDiagramPanel({ projectId }) {
     try {
       drawArchDiagram(canvas, model);
     } catch (e) {
-      setParseError(String(e));
+      setParseError(friendlyErr(e));
     }
   }, []);
 
