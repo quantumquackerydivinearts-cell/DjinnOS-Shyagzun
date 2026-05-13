@@ -112,7 +112,7 @@ function registerIpcHandlers() {
     const normalizedRoot = path.resolve(rootDir);
     const entries = await fs.readdir(normalizedRoot, { withFileTypes: true });
     const files = entries
-      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".kobra"))
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".ko"))
       .map((entry) => entry.name)
       .sort((a, b) => a.localeCompare(b));
     return { ok: true, files };

@@ -11145,8 +11145,8 @@ function extractPythonSavedPath(outputText) {
       if (!studioSelectedFile) {
         throw new Error("studio_fs no selected file");
       }
-      const sourceName = String(studioSelectedFile.name || "untitled.kobra");
-      const filename = sourceName.toLowerCase().endsWith(".kobra") ? sourceName : `${sourceName}.kobra`;
+      const sourceName = String(studioSelectedFile.name || "untitled.ko");
+      const filename = sourceName.toLowerCase().endsWith(".ko") ? sourceName : `${sourceName}.ko`;
       const result = await window.atelierDesktop.fs.writeKobraScript(studioFsRoot, filename, String(studioSelectedFile.content || ""));
       await refreshStudioFsScripts();
       return result;
@@ -11236,9 +11236,9 @@ function extractPythonSavedPath(outputText) {
       if (!studioFsRoot) {
         throw new Error("studio_fs root not set");
       }
-      const kobraFiles = studioFiles.filter((file) => String(file.name || "").toLowerCase().endsWith(".kobra"));
+      const kobraFiles = studioFiles.filter((file) => String(file.name || "").toLowerCase().endsWith(".ko"));
       if (kobraFiles.length === 0) {
-        throw new Error("studio_fs no .kobra files in studio");
+        throw new Error("studio_fs no .ko files in studio");
       }
       for (const file of kobraFiles) {
         await window.atelierDesktop.fs.writeKobraScript(studioFsRoot, file.name, String(file.content || ""));
@@ -19552,12 +19552,12 @@ function extractPythonSavedPath(outputText) {
               <input value={studioFsRoot} onChange={(e) => setStudioFsRoot(e.target.value)}
                 placeholder="kobra scripts folder path" style={{ flex: 2, minWidth: 200 }} />
               <button className="action" onClick={chooseStudioFsFolder}>Choose Folder</button>
-              <button className="action" onClick={refreshStudioFsScripts}>List .kobra</button>
+              <button className="action" onClick={refreshStudioFsScripts}>List .ko</button>
               <button className="action" onClick={refreshStudioFsAssets}>Scan Assets</button>
               <button className="action" onClick={importSelectedFsScriptToStudio}>Import</button>
               <button className="action" onClick={saveSelectedStudioFileToFs}>Save</button>
               <button className="action" onClick={exportAllKobraScriptsToFs}>Export All</button>
-              <span className="badge">{`.kobra: ${studioFsScripts.length}`}</span>
+              <span className="badge">{`.ko: ${studioFsScripts.length}`}</span>
               <span className="badge">{`scenes: ${studioFsSceneFiles.length}`}</span>
               <span className="badge">{`FS: ${hasDesktopFs() ? "✓" : "web"}`}</span>
               <button className="action" style={{ marginLeft: "auto" }}
@@ -19569,7 +19569,7 @@ function extractPythonSavedPath(outputText) {
             {studioShowAdvanced && (<>
             <div className="row">
               <select value={studioFsSelectedScript} onChange={(e) => setStudioFsSelectedScript(e.target.value)}>
-                <option value="">select .kobra from folder</option>
+                <option value="">select .ko from folder</option>
                 {studioFsScripts.map((scriptName) => (
                   <option key={`studio-fs-${scriptName}`} value={scriptName}>{scriptName}</option>
                 ))}
