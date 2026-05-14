@@ -10,6 +10,7 @@ static mut CUR_X:       u32 = 0;
 static mut CUR_Y:       u32 = 0;
 static mut CUR_BTN:     u8  = 0;
 static mut CUR_PREV:    u8  = 0;
+static mut CUR_SCROLL:  i32 = 0;  // accumulated scroll ticks this frame
 static mut SCREEN_W:    u32 = 1920;
 static mut SCREEN_H:    u32 = 1080;
 
@@ -28,11 +29,17 @@ pub fn update(ev: MouseEvent, sw: u32, sh: u32) {
         SCREEN_H = sh;
         CUR_PREV = CUR_BTN;
         CUR_BTN  = ev.buttons;
+        CUR_SCROLL += ev.dz as i32;
         let nx = CUR_X as i32 + ev.dx as i32;
         let ny = CUR_Y as i32 + ev.dy as i32;
         CUR_X = nx.clamp(0, sw as i32 - 1) as u32;
         CUR_Y = ny.clamp(0, sh as i32 - 1) as u32;
     }
+}
+
+/// Consume and return accumulated scroll ticks since last call.
+pub fn take_scroll() -> i32 {
+    unsafe { let v = CUR_SCROLL; CUR_SCROLL = 0; v }
 }
 
 pub fn pos() -> (u32, u32) { unsafe { (CUR_X, CUR_Y) } }
@@ -41,6 +48,16 @@ pub fn buttons() -> u8     { unsafe { CUR_BTN } }
 /// True the frame the left button transitions 0 -> 1.
 pub fn left_clicked() -> bool {
     unsafe { CUR_BTN & 0x01 != 0 && CUR_PREV & 0x01 == 0 }
+}
+
+/// True the frame the right button transitions 0 -> 1.
+pub fn right_clicked() -> bool {
+    unsafe { CUR_BTN & 0x02 != 0 && CUR_PREV & 0x02 == 0 }
+}
+
+/// True the frame the middle button transitions 0 -> 1.
+pub fn middle_clicked() -> bool {
+    unsafe { CUR_BTN & 0x04 != 0 && CUR_PREV & 0x04 == 0 }
 }
 
 /// True while left button is held.

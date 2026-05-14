@@ -871,6 +871,34 @@ impl Shell {
                 self.push_line(b"Entering Ko's Labyrinth...", [R_IN, G_IN, B_IN]);
             }
 
+            // -- Ty -- run a user ELF binary from the ramdisk -----------------
+            b"Ty" | b"exec" | b"run" => {
+                if rest.is_empty() {
+                    self.push_line(b"Ty: usage: Ty <filename.elf>", [0xa0, 0x40, 0x40]);
+                } else {
+                    match crate::ramdisk::find(rest) {
+                        None => {
+                            let mut msg = [0u8; 80];
+                            let pfx = b"Ty: not found: ";
+                            msg[..pfx.len()].copy_from_slice(pfx);
+                            let n = rest.len().min(80 - pfx.len());
+                            msg[pfx.len()..pfx.len()+n].copy_from_slice(&rest[..n]);
+                            self.push_line(&msg[..pfx.len()+n], [0xa0, 0x40, 0x40]);
+                        }
+                        Some(data) => {
+                            self.push_line(b"Ty: launching...", [R_IN, G_IN, B_IN]);
+                            #[cfg(target_arch = "x86_64")]
+                            match crate::process::spawn_elf_x86(data) {
+                                Some(()) => self.push_line(b"Ty: exited", [R_IN, G_IN, B_IN]),
+                                None     => self.push_line(b"Ty: ELF load failed", [0xa0, 0x40, 0x40]),
+                            }
+                            #[cfg(not(target_arch = "x86_64"))]
+                            self.push_line(b"Ty: not supported on this arch", [0xa0, 0x40, 0x40]);
+                        }
+                    }
+                }
+            }
+
             // -- home -- return to the OS home screen -------------------------
             b"home" | b"Home" => {
                 crate::home::request();
@@ -904,6 +932,145 @@ impl Shell {
                 }
                 crate::book::request();
                 self.push_line(b"Codex...", [R_IN, G_IN, B_IN]);
+            }
+
+            // ── Ty — spawn x86_64 ELF user process ───────────────────────────
+            // Usage: Ty <filename>
+            // Loads a static x86_64 ELF from the Sa volume or ramdisk and
+            // enters ring 3.  The process exits via syscall SYS_ZU (1).
+            b"Ty" | b"exec" | b"run" => {
+                if rest.is_empty() {
+                    self.push_line(b"Ty: usage: Ty <filename.elf>", [0xa0, 0x40, 0x40]);
+                } else {
+                    // Try ramdisk first (zero-copy), then Sa volume (copy into Vec).
+                    let ok = if let Some(data) = crate::ramdisk::find(rest) {
+                        self.push_line(b"Ty: loading ELF...", [R_IN, G_IN, B_IN]);
+                        crate::process::spawn_elf_x86(data).is_some()
+                    } else {
+                        // Sa volume: determine size then read into heap buffer.
+                        extern crate alloc;
+                        let size = crate::sa::file_size(rest);
+                        if size == 0 {
+                            false
+                        } else {
+                            let mut buf = alloc::vec![0u8; size];
+                            let n = crate::sa::read_file(rest, &mut buf);
+                            if n == 0 {
+                                false
+                            } else {
+                                buf.truncate(n);
+                                self.push_line(b"Ty: loading ELF...", [R_IN, G_IN, B_IN]);
+                                crate::process::spawn_elf_x86(&buf).is_some()
+                            }
+                        }
+                    };
+                    if !ok {
+                        let mut msg = [0u8; 80];
+                        let pfx = b"Ty: not found or ELF invalid: ";
+                        msg[..pfx.len()].copy_from_slice(pfx);
+                        let n = rest.len().min(80 - pfx.len());
+                        msg[pfx.len()..pfx.len() + n].copy_from_slice(&rest[..n]);
+                        self.push_line(&msg[..pfx.len() + n], [0xa0, 0x40, 0x40]);
+                    }
+                }
+            }
+
+            // ── Soa-stream — guild broadcast stream ──────────────────────────
+            // Usage:
+            //   stream <ip>:<port>        configure relay and start
+            //   stream stop               stop streaming
+            //   stream title <text>       set stream title (included in META)
+            //   stream tongues <n n n>    set tongue numbers for QCR discovery
+            //   stream                    show current status
+            b"stream" | b"Soastream" => {
+                if rest == b"stop" {
+                    crate::stream::stop();
+                    self.push_line(b"stream: stopped", [R_IN, G_IN, B_IN]);
+                } else if rest.starts_with(b"title ") {
+                    // stream title My Opening Session
+                    let t = &rest[6..];
+                    crate::stream::set_title(t);
+                    let mut msg = [0u8; 80]; let pfx = b"stream: title set: ";
+                    msg[..pfx.len()].copy_from_slice(pfx);
+                    let n = t.len().min(80 - pfx.len());
+                    msg[pfx.len()..pfx.len()+n].copy_from_slice(&t[..n]);
+                    self.push_line(&msg[..pfx.len()+n], [R_IN, G_IN, B_IN]);
+                } else if rest.starts_with(b"tongues ") {
+                    // stream tongues 2 3 7
+                    let nums = &rest[8..];
+                    let mut tongs = [0u16; 16];
+                    let mut tn = 0usize;
+                    let mut cur = 0u32;
+                    let mut in_num = false;
+                    for &b in nums.iter().chain(core::iter::once(&b' ')) {
+                        if b >= b'0' && b <= b'9' {
+                            cur = cur * 10 + (b - b'0') as u32;
+                            in_num = true;
+                        } else if in_num {
+                            if tn < 16 && cur > 0 { tongs[tn] = cur as u16; tn += 1; }
+                            cur = 0; in_num = false;
+                        }
+                    }
+                    crate::stream::set_tongues(&tongs[..tn]);
+                    let mut msg = [0u8; 40]; let pfx = b"stream: tongues set (";
+                    msg[..pfx.len()].copy_from_slice(pfx);
+                    let mut mn = pfx.len();
+                    msg[mn] = b'0' + (tn as u8).min(9); mn += 1;
+                    let sfx = b" tongues)";
+                    msg[mn..mn+sfx.len()].copy_from_slice(sfx); mn += sfx.len();
+                    self.push_line(&msg[..mn], [R_IN, G_IN, B_IN]);
+                } else if rest.is_empty() {
+                    if crate::stream::is_live() {
+                        let title = crate::stream::title();
+                        if title.is_empty() {
+                            self.push_line(b"stream: LIVE  (no title set)", [R_PR, G_PR, B_PR]);
+                        } else {
+                            let mut msg = [0u8; 80];
+                            let pfx = b"stream: LIVE  \"";
+                            msg[..pfx.len()].copy_from_slice(pfx);
+                            let n = title.len().min(80 - pfx.len() - 1);
+                            msg[pfx.len()..pfx.len()+n].copy_from_slice(&title[..n]);
+                            msg[pfx.len()+n] = b'"';
+                            self.push_line(&msg[..pfx.len()+n+1], [R_PR, G_PR, B_PR]);
+                        }
+                    } else {
+                        self.push_line(b"stream: inactive", [R_DIM, G_DIM, B_DIM]);
+                        self.push_line(b"  stream <ip>:7700          -- connect to relay",     [R_DIM, G_DIM, B_DIM]);
+                        self.push_line(b"  stream title <text>       -- set title",             [R_DIM, G_DIM, B_DIM]);
+                        self.push_line(b"  stream tongues <n n n>    -- set QCR tongues",       [R_DIM, G_DIM, B_DIM]);
+                        self.push_line(b"  Soastream (Atelier)       -- broadcaster UI",        [R_DIM, G_DIM, B_DIM]);
+                    }
+                } else if let Some(col) = rest.iter().position(|&b| b == b':') {
+                    // Parse ip:port and start
+                    let ip_bytes   = &rest[..col];
+                    let port_bytes = &rest[col + 1..];
+                    let mut ip = [0u8; 4];
+                    let mut ii = 0usize;
+                    let mut oct = 0u32;
+                    for &b in ip_bytes {
+                        if b == b'.' {
+                            if ii < 4 { ip[ii] = oct as u8; ii += 1; oct = 0; }
+                        } else if b >= b'0' && b <= b'9' {
+                            oct = oct * 10 + (b - b'0') as u32;
+                        }
+                    }
+                    if ii == 3 { ip[3] = oct as u8; ii += 1; }
+                    if ii == 4 {
+                        let port = parse_u32(port_bytes).unwrap_or(7700) as u16;
+                        crate::stream::configure(ip, port);
+                        crate::stream::start();
+                        let mut buf = [0u8; 80]; let mut n = 0;
+                        let pfx = b"stream: connecting -> ";
+                        buf[..pfx.len()].copy_from_slice(pfx); n = pfx.len();
+                        let rl = rest.len().min(80 - n);
+                        buf[n..n + rl].copy_from_slice(&rest[..rl]); n += rl;
+                        self.push_line(&buf[..n], [R_PR, G_PR, B_PR]);
+                    } else {
+                        self.push_line(b"stream: bad IP - usage: stream <ip>:<port>", [0xa0, 0x40, 0x40]);
+                    }
+                } else {
+                    self.push_line(b"stream: unknown subcommand", [0xa0, 0x40, 0x40]);
+                }
             }
 
             // ── Legacy diagnostic commands (kept unglyph'd) ───────────────────

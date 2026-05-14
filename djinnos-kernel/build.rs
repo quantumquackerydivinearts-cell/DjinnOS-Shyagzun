@@ -86,4 +86,101 @@ fn main() {
     println!("cargo:rerun-if-changed=assets/fonts/Inter-Regular.ttf");
     println!("cargo:rerun-if-changed=assets/fonts/JetBrainsMono-Regular.ttf");
     println!("cargo:rerun-if-changed=build.rs");
+
+    // ── Freestanding C sources ────────────────────────────────────────────────
+    // Only compiled when targeting a bare-metal kernel (target_os = "none").
+    // Set CC_x86_64_unknown_none or CC in the environment to override the
+    // compiler (e.g. CC=clang or CC=x86_64-elf-gcc).
+    if env::var("CARGO_CFG_TARGET_OS").unwrap_or_default().is_empty() {
+        compile_c_kernel_sources();
+    }
+}
+
+// ── C kernel source compilation ───────────────────────────────────────────────
+
+fn compile_c_kernel_sources() {
+    use std::path::PathBuf;
+
+    let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let c_root   = manifest.join("c");
+    if !c_root.exists() { return; }
+
+    let (compiler, extra_flags) = detect_c_compiler();
+
+    let mut build = cc::Build::new();
+    build.compiler(&compiler);
+
+    // Freestanding kernel flags — no hosted runtime, no red-zone, no SIMD.
+    for flag in &[
+        "-ffreestanding", "-nostdlib", "-fno-builtin", "-nostartfiles",
+        "-m64", "-mno-red-zone", "-mno-mmx", "-mno-sse", "-mno-sse2",
+        "-fno-stack-protector", "-O2", "-Wall",
+    ] {
+        build.flag(flag);
+    }
+    for flag in &extra_flags {
+        build.flag(flag);
+    }
+
+    build.include(c_root.join("include"));
+
+    // Compile subdirectories: root, runtime, streaming.
+    // Examples and test files are excluded from the main build.
+    let compile_dirs = [".", "runtime", "streaming"];
+    let mut any = false;
+
+    for sub in &compile_dirs {
+        let dir = c_root.join(sub);
+        if !dir.exists() { continue; }
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().map_or(false, |e| e == "c") {
+                let name = path.file_name().unwrap().to_string_lossy().into_owned();
+                // Skip explicit test files (compiled separately when needed).
+                if name.starts_with("test_") { continue; }
+                build.file(&path);
+                println!("cargo:rerun-if-changed={}", path.display());
+                any = true;
+            }
+        }
+    }
+
+    println!("cargo:rerun-if-changed={}", c_root.join("include").display());
+
+    if any {
+        build.compile("djinnos_c");
+        println!("cargo:rustc-link-lib=static=djinnos_c");
+        // Signal to Rust code that C sources were successfully compiled.
+        println!("cargo:rustc-cfg=c_toolchain_available");
+    }
+}
+
+fn detect_c_compiler() -> (String, Vec<String>) {
+    // Priority: env override → clang (cross-target) → ELF GCC → Linux GCC.
+    if let Ok(cc) = env::var("CC_x86_64_unknown_none").or_else(|_| env::var("CC")) {
+        return (cc, vec![]);
+    }
+    // Clang can target bare-metal via --target.
+    if tool_exists("clang") {
+        return ("clang".into(), vec![
+            "--target=x86_64-unknown-none-elf".into(),
+        ]);
+    }
+    if tool_exists("x86_64-elf-gcc")       { return ("x86_64-elf-gcc".into(),       vec![]); }
+    if tool_exists("x86_64-linux-gnu-gcc") { return ("x86_64-linux-gnu-gcc".into(), vec![]); }
+    // Last resort — may not produce bare-metal ELF on all platforms.
+    println!("cargo:warning=No bare-metal C cross-compiler found; \
+              set CC_x86_64_unknown_none or CC to fix. Trying 'gcc'.");
+    ("gcc".into(), vec!["-m64".into()])
+}
+
+fn tool_exists(name: &str) -> bool {
+    std::process::Command::new(name).arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status().is_ok()
 }

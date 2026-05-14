@@ -378,3 +378,88 @@ pub fn shell_demo() {
     let (out2, n2) = query_by_tongue(&[4], DjinnMode::Keshi { temp: 2.0 });
     report(out2, n2.min(8));
 }
+
+// ── C ABI wrappers (Phase 2) ──────────────────────────────────────────────────
+//
+// Flat C-compatible interface over the Rust Hopfield API.
+// All Rust-specific types (enums with data, slices, etc.) are linearised into
+// plain integers and pointer+length pairs before crossing the boundary.
+//
+// Mode constants (matching djinnos.h):
+//   0 = DJINN_GIANN    deterministic energy minimum
+//   1 = DJINN_KESHI    temperature-driven exploration
+//   2 = DJINN_DROVITTH temporal gate (epoch = read_mtime(), window = 8)
+
+#[no_mangle]
+pub extern "C" fn djinnos_query_by_tongue(
+    tongues:    *const u8,
+    n_tongues:  usize,
+    mode:       u8,
+    temp:       f32,
+    out_addrs:  *mut u16,
+    out_n:      *mut usize,
+    capacity:   usize,
+) -> i32 {
+    if tongues.is_null() || out_addrs.is_null() || out_n.is_null() { return -1; }
+
+    let tongue_slice = unsafe { core::slice::from_raw_parts(tongues, n_tongues) };
+
+    let djinn_mode = match mode {
+        1 => DjinnMode::Keshi { temp },
+        2 => DjinnMode::Drovitth {
+            epoch:  crate::arch::read_mtime(),
+            window: 8,
+        },
+        _ => DjinnMode::Giann,
+    };
+
+    let (indices, n) = query_by_tongue(tongue_slice, djinn_mode);
+    let write_n = n.min(capacity);
+
+    let cs = cands();
+    for (i, &idx) in indices[..write_n].iter().enumerate() {
+        unsafe { out_addrs.add(i).write(cs[idx].addr); }
+    }
+    unsafe { out_n.write(write_n); }
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn djinnos_query_near(
+    addr:      u16,
+    radius:    u16,
+    out_addrs: *mut u16,
+    out_n:     *mut usize,
+    capacity:  usize,
+) -> i32 {
+    if out_addrs.is_null() || out_n.is_null() { return -1; }
+
+    let (indices, n) = query_near(addr, radius);
+    let write_n = n.min(capacity);
+    let cs = cands();
+    for (i, &idx) in indices[..write_n].iter().enumerate() {
+        unsafe { out_addrs.add(i).write(cs[idx].addr); }
+    }
+    unsafe { out_n.write(write_n); }
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn djinnos_cand_count() -> usize {
+    N_CANDS
+}
+
+#[no_mangle]
+pub extern "C" fn djinnos_cand_addr(i: usize) -> u16 {
+    if i < N_CANDS { cands()[i].addr } else { u16::MAX }
+}
+
+#[no_mangle]
+pub extern "C" fn djinnos_cand_tongue(i: usize) -> u8 {
+    if i < N_CANDS { cands()[i].tongue } else { 0 }
+}
+
+#[no_mangle]
+pub extern "C" fn djinnos_cand_lotus_gated(i: usize) -> i32 {
+    if i < N_CANDS && cands()[i].lotus_gated() { 1 } else { 0 }
+}

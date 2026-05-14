@@ -60,7 +60,7 @@ pub fn parse(data: &[u8]) -> Option<ElfInfo> {
 
     if &ehdr.e_ident[0..4] != b"\x7fELF" { return None; }
     if ehdr.e_ident[4] != 2              { return None; }   // ELF64
-    if ehdr.e_machine   != 0xF3          { return None; }   // RISC-V
+    if ehdr.e_machine != 0xF3 && ehdr.e_machine != 0x3E { return None; } // RISC-V | x86-64
 
     let phoff = ehdr.e_phoff as usize;
     let phnum = ehdr.e_phnum as usize;

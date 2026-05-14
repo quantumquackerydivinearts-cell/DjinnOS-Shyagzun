@@ -233,6 +233,11 @@ fn handle_http(req: &[u8]) -> Vec<u8> {
         return resp;
     }
 
+    // Streaming platform routes (/api/stream/*).
+    if crate::stream_platform::is_stream_route(path) {
+        return crate::stream_platform::handle_stream_request(method, path, body.as_bytes());
+    }
+
     let (body, content_type, status) = if path == "/" || path.is_empty() {
         // Directory listing
         let listing = build_index();

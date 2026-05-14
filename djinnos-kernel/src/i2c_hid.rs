@@ -83,13 +83,25 @@ static mut INPUT_REG:  u16  = 0;
 static mut RLEN:       u16  = 0;
 static mut READY:      bool = false;
 
-// Previous absolute position for delta conversion
+// Previous absolute position for delta conversion.
+// 0xFFFF = sentinel "finger not down" — reset on lift, set on first contact.
 static mut PREV_X: u16 = 0xFFFF;
 static mut PREV_Y: u16 = 0xFFFF;
 
+// Consecutive xfer failure counter — triggers controller recovery after MAX_FAILS.
+static mut FAIL_COUNT: u8 = 0;
+const MAX_FAILS: u8 = 5;
+
+// Sensitivity scale for absolute→relative delta conversion.
+// Multiply raw delta by SENS_NUM / SENS_DEN.
+// ELAN coords are typically ~3000 wide for a 130 mm trackpad; screen is 1920 px.
+// A scale of 3/2 gives 1.5× acceleration for comfortable daily use.
+const SENS_NUM: i32 = 3;
+const SENS_DEN: i32 = 2;
+
 // Mouse event ring (mirrors ps2.rs layout)
 const MRING: usize = 8;
-static mut M_RING:  [MouseEvent; MRING] = [MouseEvent { dx: 0, dy: 0, buttons: 0 }; MRING];
+static mut M_RING:  [MouseEvent; MRING] = [MouseEvent { dx: 0, dy: 0, dz: 0, buttons: 0 }; MRING];
 static mut M_WHEAD: usize = 0;
 static mut M_RTAIL: usize = 0;
 
@@ -138,7 +150,8 @@ fn i2c_disable() {
 
 fn i2c_enable() {
     rw(IC_ENABLE, 1);
-    spin(500, || rr(IC_STATUS) & 1 == 0); // wait activity clear
+    // Wait until IC_ENABLE bit 0 reads back as 1 (enable took effect).
+    spin(500, || rr(IC_ENABLE) & 1 != 0);
 }
 
 fn i2c_setup(addr: u8) {
@@ -284,16 +297,32 @@ pub fn init() -> bool {
 
 /// Called each main-loop iteration. Reads one report if available and pushes
 /// to the ring. Caller drains via poll_mouse().
+///
+/// i2c_setup() is NOT called here — the controller is configured once during
+/// init() and the target address never changes. Calling i2c_setup() on every
+/// poll would disable/re-enable the controller each frame, thrashing the bus.
+/// Recovery from persistent failures (TX_ABRT bus hang) re-runs i2c_setup().
 pub fn poll() {
     if !unsafe { READY } { return; }
 
     let (addr, input_reg, rlen) = unsafe { (TP_ADDR, INPUT_REG, RLEN) };
-    i2c_setup(addr);
-
     let reg = [(input_reg & 0xFF) as u8, (input_reg >> 8) as u8];
     let buf = match xfer(&reg, rlen) {
-        Some(b) => b,
-        None => return,
+        Some(b) => {
+            unsafe { FAIL_COUNT = 0; }
+            b
+        }
+        None => {
+            unsafe {
+                FAIL_COUNT += 1;
+                if FAIL_COUNT >= MAX_FAILS {
+                    FAIL_COUNT = 0;
+                    // Bus may be hung — reconfigure the controller to recover.
+                    i2c_setup(addr);
+                }
+            }
+            return;
+        }
     };
 
     // I2C HID §6.1.1: buf[0..2] = wLength (LE), buf[2] = report ID, buf[3..] = data
@@ -319,28 +348,55 @@ pub fn poll() {
 
 fn parse(id: u8, data: &[u8]) -> Option<MouseEvent> {
     match id {
+        // Relative mouse: boot protocol or ELAN single-touch relative report
         0x01 | 0x03 if data.len() >= 3 => {
             Some(MouseEvent {
                 buttons: data[0] & 0x07,
                 dx:      data[1] as i8,
                 dy:     -(data[2] as i8),
+                dz:      0,
             })
         }
+
+        // Absolute multitouch: ELAN report IDs 0x04–0x07
+        // data[0] = contact count (0 = all fingers lifted)
+        // data[1..2] = X LE, data[3..4] = Y LE (first contact)
         0x04..=0x07 if data.len() >= 5 => {
-            // Absolute multitouch: contact_count, x_lo, x_hi, y_lo, y_hi
+            let contact_count = data[0];
+
+            // Finger lifted — reset delta anchor so the next touch starts clean.
+            if contact_count == 0 {
+                unsafe { PREV_X = 0xFFFF; PREV_Y = 0xFFFF; }
+                return None;
+            }
+
             let x = u16::from_le_bytes([data[1], data[2]]);
             let y = u16::from_le_bytes([data[3], data[4]]);
+
+            // Reject all-zero reports — spurious data with no real contact.
+            if x == 0 && y == 0 {
+                unsafe { PREV_X = 0xFFFF; PREV_Y = 0xFFFF; }
+                return None;
+            }
+
             unsafe {
+                // First sample after a new touch: anchor without moving cursor.
                 if PREV_X == 0xFFFF {
                     PREV_X = x; PREV_Y = y;
                     return None;
                 }
-                let dx = (x as i32 - PREV_X as i32).clamp(-127, 127) as i8;
-                let dy = (y as i32 - PREV_Y as i32).clamp(-127, 127) as i8;
+
+                // Scale raw deltas by SENS_NUM / SENS_DEN for comfortable speed.
+                let raw_dx = (x as i32 - PREV_X as i32) * SENS_NUM / SENS_DEN;
+                let raw_dy = (y as i32 - PREV_Y as i32) * SENS_NUM / SENS_DEN;
                 PREV_X = x; PREV_Y = y;
-                Some(MouseEvent { buttons: 0, dx, dy: -dy })
+
+                let dx = raw_dx.clamp(-127, 127) as i8;
+                let dy = (-raw_dy).clamp(-127, 127) as i8;  // invert Y: trackpad down = screen down
+                Some(MouseEvent { buttons: 0, dx, dy, dz: 0 })
             }
         }
+
         _ => None,
     }
 }

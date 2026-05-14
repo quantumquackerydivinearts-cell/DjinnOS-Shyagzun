@@ -19,9 +19,11 @@ pub enum Key {
 
 /// Mouse movement and button event from PS/2 or USB HID.
 /// dy is already screen-oriented (positive = down), matching screen coords.
+/// dz is scroll wheel delta: positive = scroll down (toward user).
 #[derive(Clone, Copy)]
 pub struct MouseEvent {
     pub dx:      i8,
     pub dy:      i8,
+    pub dz:      i8,  // scroll wheel; 0 if not supported by source
     pub buttons: u8,  // bit 0 = left, bit 1 = right, bit 2 = middle
 }

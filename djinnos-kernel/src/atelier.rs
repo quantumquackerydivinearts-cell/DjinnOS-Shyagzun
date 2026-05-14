@@ -43,19 +43,20 @@ struct NavItem {
 }
 
 const NAV: &[NavItem] = &[
-    NavItem { label: "Soa",      desc: "Mind holding both poles — REPL"           },
-    NavItem { label: "Saoshin",  desc: "Cup related seed — file editor"            },
-    NavItem { label: "Samos",    desc: "Feast of held ease — byte table"           },
-    NavItem { label: "Faerie",   desc: "Kyompufwun — HTTP reader"                  },
-    NavItem { label: "To",       desc: "Scaffold before building — voxel lab"      },
-    NavItem { label: "Vrsei",    desc: "Rotor shaping space — sculptor"            },
-    NavItem { label: "Av",       desc: "Mind holding space — agent registry"       },
-    NavItem { label: "Mekha",    desc: "Call held absolute — dialogue forge"       },
-    NavItem { label: "Ko",       desc: "Return to shell"                           },
+    NavItem { label: "Soa",        desc: "Mind holding both poles — REPL"           },
+    NavItem { label: "Saoshin",    desc: "Cup related seed — file editor"            },
+    NavItem { label: "Samos",      desc: "Feast of held ease — byte table"           },
+    NavItem { label: "Faerie",     desc: "Kyompufwun — HTTP reader"                  },
+    NavItem { label: "To",         desc: "Scaffold before building — voxel lab"      },
+    NavItem { label: "Vrsei",      desc: "Rotor shaping space — sculptor"            },
+    NavItem { label: "Av",         desc: "Mind holding space — agent registry"       },
+    NavItem { label: "Mekha",      desc: "Call held absolute — dialogue forge"       },
+    NavItem { label: "Soastream",  desc: "Conscious persistence streaming — broadcast" },
+    NavItem { label: "Ko",         desc: "Return to shell"                           },
 ];
 
-// Section break before Ko (index 8) — thin rule separates it.
-const SECTION_BREAK: usize = 8;
+// Section break before Ko (index 9) — thin rule separates it.
+const SECTION_BREAK: usize = 9;
 
 // ── Sub-mode ──────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,16 @@ enum SubMode {
     PromptUrl,
     CharWorkshop,
     DialogueForge,
+    Streaming,          // broadcast control panel
 }
+
+// ── Streaming sub-mode state ──────────────────────────────────────────────────
+// Title input lives in a dedicated buffer so it doesn't clobber ATL_INPUT.
+
+const STR_TITLE_MAX: usize = 64;
+static mut STR_TITLE:    [u8; STR_TITLE_MAX] = [0u8; STR_TITLE_MAX];
+static mut STR_TITLE_N:  usize               = 0;
+static mut STR_INPUT_ACTIVE: bool            = false; // true while typing title
 
 // ── Atelier ───────────────────────────────────────────────────────────────────
 
@@ -106,6 +116,7 @@ impl Atelier {
             SubMode::PromptUrl      => self.prompt_key(key, true),
             SubMode::CharWorkshop   => self.cw_key(key),
             SubMode::DialogueForge  => self.df_key(key),
+            SubMode::Streaming      => self.stream_key(key),
         }
     }
 
@@ -129,6 +140,10 @@ impl Atelier {
             5 => { self.launch = Some(AtelierLaunch::Vrsei); }
             6 => { self.cw_sel = 0; self.cw_top = 0; self.sub_mode = SubMode::CharWorkshop; }
             7 => { self.df_top = 0; self.sub_mode = SubMode::DialogueForge; }
+            8 => {
+                unsafe { STR_TITLE_N = 0; STR_INPUT_ACTIVE = true; }
+                self.sub_mode = SubMode::Streaming;
+            }
             _ => { self.launch = Some(AtelierLaunch::Shell); }
         }
     }
@@ -216,6 +231,7 @@ impl Atelier {
             SubMode::PromptUrl      => self.render_prompt(&it, y0, "Open URL:", true),
             SubMode::CharWorkshop   => self.render_cw(&it, y0),
             SubMode::DialogueForge  => self.render_df(&it, y0),
+            SubMode::Streaming      => self.render_streaming(&it, y0),
         }
 
         // Status bar
@@ -420,5 +436,154 @@ impl Atelier {
         tb[..idx].reverse();
         let ts = core::str::from_utf8(&tb[..idx.max(1)]).unwrap_or("0");
         it.atl_badge(cx + cw.saturating_sub(120), list_y - 4, ts, t.accent);
+    }
+
+    // ── Streaming broadcast control panel ──────────────────────────────────────
+
+    fn stream_key(&mut self, key: Key) {
+        use Key::*;
+        unsafe {
+            match key {
+                Escape => {
+                    STR_INPUT_ACTIVE = false;
+                    self.sub_mode = SubMode::Hub;
+                }
+                Enter => {
+                    if STR_INPUT_ACTIVE {
+                        // Confirm title — copy to stream module
+                        crate::stream::set_title(&STR_TITLE[..STR_TITLE_N]);
+                        STR_INPUT_ACTIVE = false;
+                    } else if crate::stream::is_live() {
+                        crate::stream::stop();
+                    } else {
+                        crate::stream::start();
+                    }
+                }
+                Char(b'\t') => {
+                    // Tab focuses the title input
+                    STR_INPUT_ACTIVE = !STR_INPUT_ACTIVE;
+                }
+                Backspace if STR_INPUT_ACTIVE => {
+                    if STR_TITLE_N > 0 { STR_TITLE_N -= 1; }
+                }
+                Char(c) if STR_INPUT_ACTIVE => {
+                    if STR_TITLE_N < STR_TITLE_MAX {
+                        STR_TITLE[STR_TITLE_N] = c;
+                        STR_TITLE_N += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn render_streaming(&self, it: &It, y0: u32) {
+        let t  = style::get();
+        let cx = ATL_SIDEBAR_W + 1;
+        let cw = it.gpu.width().saturating_sub(cx);
+
+        it.atl_header_bar(y0, "Soastream", "Broadcast control — stream.quantumquackery.com");
+
+        let live = crate::stream::is_live();
+        let ip   = crate::stream::relay_ip();
+        let port = crate::stream::relay_port();
+
+        let content_y = y0 + ATL_BRAND_H + 20;
+        let lx = cx + 28;
+        let col2 = cx + 28 + 240;
+
+        // ── Status row ──────────────────────────────────────────────────────────
+        it.tt(lx as i32, content_y as i32, "Status:", 12.0, t.text_dim);
+        let (status_str, status_col) = if live {
+            ("● LIVE", t.accent)
+        } else {
+            ("○ offline", t.text_dim)
+        };
+        it.tt(lx as i32 + 80, content_y as i32, status_str, 13.0, status_col);
+
+        // ── Relay address ───────────────────────────────────────────────────────
+        let relay_y = content_y + 32;
+        it.tt(lx as i32, relay_y as i32, "Relay:", 12.0, t.text_dim);
+
+        // Build "x.x.x.x:PORT" display string
+        let mut relay_str = [0u8; 24];
+        let mut rn = 0usize;
+        let write_u = |buf: &mut [u8], n: &mut usize, mut v: u32| {
+            if v == 0 { if *n < buf.len() { buf[*n] = b'0'; *n += 1; } return; }
+            let mut tmp = [0u8; 5]; let mut tl = 0;
+            while v > 0 { tmp[tl] = b'0' + (v % 10) as u8; v /= 10; tl += 1; }
+            for i in (0..tl).rev() { if *n < buf.len() { buf[*n] = tmp[i]; *n += 1; } }
+        };
+        for (i, &o) in ip.iter().enumerate() {
+            write_u(&mut relay_str, &mut rn, o as u32);
+            if i < 3 && rn < relay_str.len() { relay_str[rn] = b'.'; rn += 1; }
+        }
+        if rn < relay_str.len() { relay_str[rn] = b':'; rn += 1; }
+        write_u(&mut relay_str, &mut rn, port as u32);
+        let relay_disp = core::str::from_utf8(&relay_str[..rn]).unwrap_or("?");
+        it.tt_mono(lx as i32 + 80, relay_y as i32, relay_disp, 12.0, t.text);
+
+        // hint: how to change relay
+        it.tt(lx as i32 + 80, relay_y as i32 + 16,
+              "(set via shell: stream <ip>:7700)", 10.0, t.text_dim);
+
+        // ── Title input ─────────────────────────────────────────────────────────
+        let title_y  = relay_y + 52;
+        let title_w  = cw.saturating_sub(56).min(480);
+        let inp_active = unsafe { STR_INPUT_ACTIVE };
+        let title_n    = unsafe { STR_TITLE_N };
+        let title_val  = unsafe { core::str::from_utf8(&STR_TITLE[..title_n]).unwrap_or("") };
+
+        it.tt(lx as i32, title_y as i32 - 18, "Stream title:", 11.0, t.text_dim);
+        it.atl_input(lx, title_y, title_w, "e.g. Wunashakoun Opening", title_val, inp_active);
+
+        // ── Tongue hint ─────────────────────────────────────────────────────────
+        let tongue_y = title_y + 50;
+        it.tt(lx as i32, tongue_y as i32,
+              "Set tongue register via shell:  stream tongues 2 3 7", 11.0, t.text_dim);
+
+        // ── Witness URL ──────────────────────────────────────────────────────────
+        let wit_y = tongue_y + 24;
+        it.tt(lx as i32, wit_y as i32, "Witness link:", 11.0, t.text_dim);
+        it.tt_mono(lx as i32 + 110, wit_y as i32,
+                   "stream.quantumquackery.com", 11.0, t.accent);
+
+        // ── Entropy ticks (while live) ──────────────────────────────────────────
+        if live {
+            let tick_y = wit_y + 30;
+            it.tt(lx as i32, tick_y as i32, "Frames sent:", 11.0, t.text_dim);
+            let ticks = crate::stream::frame_tick();
+            let mut tb = [0u8; 8]; let mut tn = 0usize;
+            let mut v = ticks;
+            if v == 0 { tb[0] = b'0'; tn = 1; }
+            else {
+                let mut tmp = [0u8; 8]; let mut tl = 0;
+                while v > 0 { tmp[tl] = b'0' + (v % 10) as u8; v /= 10; tl += 1; }
+                for i in (0..tl).rev() { if tn < 8 { tb[tn] = tmp[i]; tn += 1; } }
+            }
+            it.tt(lx as i32 + 110, tick_y as i32,
+                  core::str::from_utf8(&tb[..tn]).unwrap_or("0"), 12.0, t.accent);
+        }
+
+        // ── Action button ────────────────────────────────────────────────────────
+        let btn_y = tongue_y + (if live { 70 } else { 56 });
+        let btn_label = if live { "Stop stream  [Enter]" } else { "Start stream  [Enter]" };
+        it.atl_button(lx, btn_y, 200, 34, btn_label, !inp_active, false);
+
+        // Tab hint
+        it.tt(lx as i32, btn_y as i32 + 44,
+              "[Tab] edit title   [Esc] back", 10.0, t.text_dim);
+
+        // ── Right column: column headers ─────────────────────────────────────────
+        it.tt(col2 as i32, content_y as i32, "How to stream:", 12.0, t.text_dim);
+        let steps = [
+            "1. Set relay:  shell → stream <ip>:7700",
+            "2. Set title:  [Tab] + type + [Enter]",
+            "3. Press Start stream (or [Enter])",
+            "4. Witnesses:  stream.quantumquackery.com",
+        ];
+        for (i, s) in steps.iter().enumerate() {
+            it.tt(col2 as i32, content_y as i32 + 20 + (i as i32 * 18), s, 11.0, t.text_dim);
+        }
     }
 }

@@ -530,6 +530,135 @@ fn dispatch_ecall(tf: &mut crate::process::TrapFrame, sys: u32) {
     }
 }
 
+// ── x86_64 ring-3 syscall dispatcher ─────────────────────────────────────────
+//
+// Called from _syscall_entry in boot_x86.s via CALL.
+// `frame` points to the SyscallFrame on the kernel syscall stack.
+// Return value goes into RAX → user sees it after SYSRETQ.
+//
+// SyscallFrame layout (offsets match boot_x86.s push order):
+//   +0   padding
+//   +8   r11 (user RFLAGS)
+//   +16  rcx (user RIP)
+//   +24..+112  callee-saved + arg regs (r15..r14..r13..r12..rbp..rbx..r9..r8..r10..rdx..rsi..rdi)
+//   +112 rdi (a0)
+//   +120 rax (syscall number)
+
+#[cfg(target_arch = "x86_64")]
+#[repr(C)]
+pub struct X86SyscallFrame {
+    pub _pad: u64,   // alignment padding
+    pub r11:  u64,   // user RFLAGS
+    pub rcx:  u64,   // user RIP
+    pub r15:  u64,
+    pub r14:  u64,
+    pub r13:  u64,
+    pub r12:  u64,
+    pub rbp:  u64,
+    pub rbx:  u64,
+    pub r9:   u64,   // a5
+    pub r8:   u64,   // a4
+    pub r10:  u64,   // a3
+    pub rdx:  u64,   // a2
+    pub rsi:  u64,   // a1
+    pub rdi:  u64,   // a0
+    pub rax:  u64,   // syscall number
+}
+
+#[cfg(target_arch = "x86_64")]
+#[no_mangle]
+pub extern "C" fn _dispatch_syscall_x86_rs(frame: &mut X86SyscallFrame) -> u64 {
+    use byte_table::*;
+
+    let sys = frame.rax as u32;
+    let a0  = frame.rdi;
+    let a1  = frame.rsi;
+    let a2  = frame.rdx;
+
+    eigenstate::advance(byte_table::tongue_for_addr(sys));
+
+    match sys {
+        // Zu — exit: restore kernel context saved by enter_user_x86 (longjmp back)
+        SYS_ZU => {
+            crate::arch::exit_user();  // -> ! (never returns here)
+        }
+
+        // Ly — read: a0=fd a1=buf_va a2=len → bytes read
+        SYS_LY => {
+            let buf = a1 as *mut u8;
+            let len = a2 as usize;
+            if a0 == 0 && len > 0 {
+                // stdin: spin until keyboard data is available
+                loop {
+                    if crate::kbd::available() { break; }
+                    crate::process::yield_now();
+                }
+                let mut n = 0usize;
+                while n < len {
+                    match crate::kbd::pop() {
+                        Some(b) => { unsafe { buf.add(n).write(b); } n += 1; }
+                        None    => break,
+                    }
+                }
+                n as u64
+            } else {
+                0
+            }
+        }
+
+        // Soa — write: a0=fd a1=buf_va a2=len → bytes written
+        SYS_SOA => {
+            let fd  = a0;
+            let buf = a1 as *const u8;
+            let len = a2 as usize;
+            if (fd == 1 || fd == 2) && len > 0 {
+                let slice = unsafe { core::slice::from_raw_parts(buf, len) };
+                for &b in slice {
+                    crate::uart::putc(b);
+                    crate::kbd::stdout_push(b);
+                }
+                crate::process::advance_cannabis(193);
+                len as u64
+            } else {
+                0
+            }
+        }
+
+        // Sei — sbrk: a0=increment → old break (base of new region)
+        SYS_SEI => {
+            crate::arch::user_sbrk(a0 as usize)
+        }
+
+        // Sao — open file by name: a0=name_va a1=name_len → fd or MAX
+        SYS_SAO => {
+            let va  = a0 as *const u8;
+            let len = (a1 as usize).min(64);
+            let mut name = [0u8; 64];
+            unsafe { core::ptr::copy_nonoverlapping(va, name.as_mut_ptr(), len); }
+            // Sa filesystem lookup — same as RISC-V path
+            let mut out = u64::MAX;
+            crate::sa::for_each(|entry_name, _size| {
+                if entry_name == &name[..len] {
+                    // Return a simple file descriptor token (index-based)
+                    out = 100;  // placeholder — full VFS integration is future work
+                }
+            });
+            out
+        }
+
+        // Si — monotonic ticks
+        SYS_SI => crate::arch::read_mtime(),
+
+        // Fy — yield
+        SYS_FY => {
+            crate::process::yield_now();
+            0
+        }
+
+        _ => u64::MAX,
+    }
+}
+
 // ── Stubs to satisfy existing call sites ─────────────────────────────────────
 // The old API (sys=0 putchar, sys=3 write, sys=4 read) is intentionally gone.
 // Any user programs using those numbers will receive u64::MAX from the default

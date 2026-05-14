@@ -19,17 +19,18 @@ const OBF:        u8  = 0x01;  // output buffer full
 const IBF:        u8  = 0x02;  // input buffer full (must be clear before write)
 const AUX_DATA:   u8  = 0x20;  // status bit 5: byte is from aux (mouse) port
 
-static mut SHIFT:   bool = false;
-static mut CTRL:    bool = false;
-static mut SKIP_E0: bool = false;
+static mut SHIFT:        bool = false;
+static mut CTRL:         bool = false;
+static mut SKIP_E0:      bool = false;
+static mut MOUSE_INTELLI: bool = false;  // true = 4-byte IntelliMouse packets
 
-// Mouse packet accumulation
-static mut M_BUF: [u8; 3] = [0u8; 3];
+// Mouse packet accumulation — sized for 4-byte IntelliMouse packets
+static mut M_BUF: [u8; 4] = [0u8; 4];
 static mut M_IDX: usize    = 0;
 
 // Small ring of pending mouse events (mouse bytes arrive between keyboard polls)
 const MRING: usize = 8;
-static mut M_RING:  [MouseEvent; MRING] = [MouseEvent { dx: 0, dy: 0, buttons: 0 }; MRING];
+static mut M_RING:  [MouseEvent; MRING] = [MouseEvent { dx: 0, dy: 0, dz: 0, buttons: 0 }; MRING];
 static mut M_WHEAD: usize = 0;
 static mut M_RTAIL: usize = 0;
 
@@ -67,6 +68,21 @@ fn aux_send(byte: u8) {
     }
 }
 
+/// Read one byte from the aux port with timeout. Used during init probing.
+fn aux_read() -> Option<u8> {
+    unsafe {
+        let mut n = 0u32;
+        while n < 50_000 {
+            let st = inb(PS2_STATUS);
+            if st & OBF != 0 && st & AUX_DATA != 0 {
+                return Some(inb(PS2_DATA));
+            }
+            n += 1;
+        }
+        None
+    }
+}
+
 /// Initialise the PS/2 controller — keyboard on port 1, mouse on port 2.
 pub fn init() {
     unsafe {
@@ -85,6 +101,22 @@ pub fn init() {
 
         aux_send(0xF6);  // set defaults
         aux_send(0xF4);  // enable data reporting
+
+        // IntelliMouse negotiation: magic sample-rate sequence then GET_DEVICE_ID.
+        // If the mouse responds with ID 0x03 it supports 4-byte packets with Z scroll.
+        // aux_send() drains the ACK for each command, so GET_DEVICE_ID leaves only
+        // the device ID byte in the buffer for aux_read() to collect.
+        aux_send(0xF3); aux_send(200);  // SET_SAMPLE_RATE 200
+        aux_send(0xF3); aux_send(100);  // SET_SAMPLE_RATE 100
+        aux_send(0xF3); aux_send(80);   // SET_SAMPLE_RATE 80
+        aux_send(0xF2);                  // GET_DEVICE_ID (ACK drained by aux_send)
+        if let Some(id) = aux_read() {
+            if id == 0x03 {
+                MOUSE_INTELLI = true;
+                // Restore a sane sample rate after negotiation
+                aux_send(0xF3); aux_send(100);
+            }
+        }
     }
 }
 
@@ -93,17 +125,19 @@ pub fn init() {
 /// poll_mouse() separately to consume them.
 pub fn poll() -> Option<Key> {
     unsafe {
-        if inb(PS2_STATUS) & OBF == 0 { return None; }
+        // Read status once to avoid TOCTOU between OBF check and AUX_DATA check.
         let status = inb(PS2_STATUS);
-        let sc     = inb(PS2_DATA);
+        if status & OBF == 0 { return None; }
+        let sc = inb(PS2_DATA);
 
-        // Byte from aux (mouse) port — accumulate into 3-byte packet.
+        // Byte from aux (mouse) port — accumulate into 3- or 4-byte packet.
         if status & AUX_DATA != 0 {
-            // Re-sync: first byte must have bit 3 set.
+            // Re-sync: first byte must have bit 3 set (always 1 in standard PS/2 mouse).
             if M_IDX == 0 && sc & 0x08 == 0 { return None; }
             M_BUF[M_IDX] = sc;
             M_IDX += 1;
-            if M_IDX == 3 {
+            let pkt_len: usize = if MOUSE_INTELLI { 4 } else { 3 };
+            if M_IDX == pkt_len {
                 M_IDX = 0;
                 let b0 = M_BUF[0];
                 let raw_dx = M_BUF[1] as i16
@@ -114,7 +148,12 @@ pub fn poll() -> Option<Key> {
                 let dx = raw_dx.clamp(-127, 127) as i8;
                 let dy = (-(raw_dy)).clamp(-127, 127) as i8;
                 let buttons = b0 & 0x07;
-                mouse_push(MouseEvent { dx, dy, buttons });
+                // IntelliMouse byte 4: bits [3:0] = signed 4-bit Z scroll
+                let dz = if MOUSE_INTELLI {
+                    let z4 = (M_BUF[3] & 0x0F) as i8;
+                    (z4 << 4) >> 4  // sign-extend 4-bit to i8
+                } else { 0 };
+                mouse_push(MouseEvent { dx, dy, dz, buttons });
             }
             return None;
         }

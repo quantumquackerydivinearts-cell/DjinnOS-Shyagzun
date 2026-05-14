@@ -356,3 +356,266 @@ pub fn probe_timer() -> (u32, u32, u32) {
 pub fn wfi() {
     unsafe { asm!("hlt", options(nostack)); }
 }
+
+
+// ── Ring-3 userspace infrastructure ──────────────────────────────────────────
+//
+// GDT layout (replaces the 3-entry boot GDT):
+//   0x00  null
+//   0x08  kernel CS  64-bit code ring 0
+//   0x10  kernel DS  data ring 0
+//   0x18  user DS    data ring 3       ← SYSRETQ sets SS = STAR[63:48]+8
+//   0x20  user CS    64-bit code ring 3 ← SYSRETQ sets CS = STAR[63:48]+16
+//   0x28  TSS low    (16-byte 64-bit TSS descriptor)
+//   0x30  TSS high
+//
+// STAR MSR[63:48] = 0x10 → SYSRETQ: CS = 0x10+16 = 0x20 (ring 3), SS = 0x10+8 = 0x18 (ring 3)
+// STAR MSR[47:32] = 0x08 → SYSCALL: CS = 0x08 (ring 0), SS = 0x08+8 = 0x10 (ring 0)
+
+pub const SEL_KCODE: u16 = 0x08;
+pub const SEL_KDATA: u16 = 0x10;
+pub const SEL_UDATA: u16 = 0x1B;  // 0x18 | RPL=3
+pub const SEL_UCODE: u16 = 0x23;  // 0x20 | RPL=3
+pub const SEL_TSS:   u16 = 0x28;
+
+#[repr(C, align(16))]
+struct X86Gdt {
+    null:    u64,
+    kcode:   u64,
+    kdata:   u64,
+    udata:   u64,
+    ucode:   u64,
+    tss_lo:  u64,
+    tss_hi:  u64,
+}
+
+// 64-bit TSS — only RSP0 matters for SYSCALL handler stack.
+#[repr(C, packed)]
+struct X86Tss {
+    _res0:      u32,
+    rsp0:       u64,   // kernel stack for privilege-level transitions
+    _rsp1:      u64,
+    _rsp2:      u64,
+    _res1:      u64,
+    _ist:       [u64; 7],
+    _res2:      u64,
+    _res3:      u16,
+    iomap_base: u16,   // offset past TSS end → no I/O permission bitmap
+}
+
+static mut X86_GDT: X86Gdt = X86Gdt {
+    null:  0,
+    kcode: 0x00AF_9A00_0000_FFFF,  // 64-bit code DPL=0
+    kdata: 0x00CF_9200_0000_FFFF,  // data DPL=0
+    udata: 0x00CF_F200_0000_FFFF,  // data DPL=3
+    ucode: 0x00AF_FA00_0000_FFFF,  // 64-bit code DPL=3
+    tss_lo: 0,
+    tss_hi: 0,
+};
+
+static mut X86_TSS: X86Tss = X86Tss {
+    _res0: 0, rsp0: 0, _rsp1: 0, _rsp2: 0, _res1: 0,
+    _ist: [0; 7], _res2: 0, _res3: 0,
+    iomap_base: core::mem::size_of::<X86Tss>() as u16,
+};
+
+// 16 KiB kernel-only stack used during SYSCALL handling.
+// Top of stack is stored in _kernel_rsp_save (boot_x86.s data symbol).
+const KSYSCALL_STACK_LEN: usize = 16 * 1024;
+pub static mut KSYSCALL_STACK: [u8; KSYSCALL_STACK_LEN] = [0; KSYSCALL_STACK_LEN];
+
+// 4 MiB flat user heap — allocated from BSS so it's always accessible.
+pub const USER_HEAP_LEN: usize = 4 * 1024 * 1024;
+pub static mut USER_HEAP: [u8; USER_HEAP_LEN] = [0; USER_HEAP_LEN];
+pub static mut USER_HEAP_BREAK: usize = 0;
+
+// External symbols defined in boot_x86.s
+unsafe extern "C" {
+    static mut _user_rsp_save:   u64;
+    static mut _kernel_rsp_save: u64;
+}
+
+/// One-time ring-3 setup.  Call after init_idt() in the UEFI boot path.
+pub fn setup_userspace() {
+    unsafe {
+        // ── TSS descriptor ────────────────────────────────────────────────────
+        let tss_addr  = &X86_TSS as *const X86Tss as u64;
+        let tss_limit = (core::mem::size_of::<X86Tss>() - 1) as u64;
+        X86_GDT.tss_lo =
+              (tss_limit & 0xFFFF)
+            | ((tss_addr & 0xFFFF) << 16)
+            | (((tss_addr >> 16) & 0xFF) << 32)
+            | (0x89u64 << 40)                       // present, type=9 (avail 64-bit TSS)
+            | (((tss_limit >> 16) & 0xF) << 48)
+            | (((tss_addr >> 24) & 0xFF) << 56);
+        X86_GDT.tss_hi = tss_addr >> 32;
+
+        // ── TSS kernel stack ──────────────────────────────────────────────────
+        let ksp = KSYSCALL_STACK.as_ptr().add(KSYSCALL_STACK_LEN) as u64;
+        X86_TSS.rsp0 = ksp;
+        _kernel_rsp_save = ksp;
+
+        // ── Load new GDT ──────────────────────────────────────────────────────
+        #[repr(C, packed)]
+        struct Gdtr { limit: u16, base: u64 }
+        let gdtr = Gdtr {
+            limit: (core::mem::size_of::<X86Gdt>() - 1) as u16,
+            base:  &X86_GDT as *const X86Gdt as u64,
+        };
+        asm!("lgdt [{p}]", p = in(reg) &gdtr as *const Gdtr as u64, options(nostack));
+
+        // Reload CS via far return (the only valid way to change CS in 64-bit mode).
+        // Reload DS/ES/SS/FS/GS with mov.
+        asm!(
+            "push 0x08",
+            "lea  rax, [rip + 2f]",
+            "push rax",
+            "retfq",
+            "2:",
+            "mov ax, 0x10",
+            "mov ds, ax",
+            "mov es, ax",
+            "mov fs, ax",
+            "mov gs, ax",
+            "mov ss, ax",
+            out("rax") _,
+            options(nostack),
+        );
+
+        // ── Load TSS ──────────────────────────────────────────────────────────
+        asm!("ltr {:x}", in(reg) SEL_TSS, options(nostack));
+
+        // ── Enable SYSCALL instruction (EFER.SCE = 1) ─────────────────────────
+        let efer = rdmsr(0xC000_0080);
+        wrmsr(0xC000_0080, efer | 1);
+
+        // STAR: kernel CS = 0x08 at bits[47:32], user base = 0x10 at bits[63:48]
+        // SYSRETQ: CS = STAR[63:48]+16 = 0x20  SS = STAR[63:48]+8 = 0x18
+        wrmsr(0xC000_0081, (0x0010u64 << 48) | (0x0008u64 << 32));
+
+        // LSTAR: syscall entry point
+        unsafe extern "C" { fn _syscall_entry(); }
+        wrmsr(0xC000_0082, _syscall_entry as *const () as u64);
+
+        // SFMASK: clear IF, TF, DF on SYSCALL entry (interrupts off in kernel)
+        wrmsr(0xC000_0084, (1 << 9) | (1 << 8) | (1 << 10));
+    }
+    make_all_user_accessible();
+    crate::uart::puts("userspace: ring-3 ready (SYSCALL/SYSRETQ wired)\r\n");
+}
+
+/// Set U/S=1 on every present page table entry so ring-3 code can
+/// access the full identity-mapped address space.
+/// This is the simple "trust user code" policy for Phase 1.  Proper
+/// per-process page tables with isolation come in Phase 2.
+pub fn make_all_user_accessible() {
+    unsafe {
+        let cr3: u64;
+        asm!("mov {}, cr3", out(reg) cr3, options(nostack, nomem));
+        let pml4 = (cr3 & !0xFFF) as *mut u64;
+
+        for i in 0..512usize {
+            let e4 = pml4.add(i).read_volatile();
+            if e4 & 1 == 0 { continue; }
+            pml4.add(i).write_volatile(e4 | (1 << 2));  // U/S = 1
+
+            let pdpt = (e4 & 0x0000_FFFF_FFFF_F000) as *mut u64;
+            for j in 0..512usize {
+                let e3 = pdpt.add(j).read_volatile();
+                if e3 & 1 == 0 { continue; }
+                pdpt.add(j).write_volatile(e3 | (1 << 2));
+                if e3 & (1 << 7) != 0 { continue; }  // 1 GiB page — no PD below
+
+                let pd = (e3 & 0x0000_FFFF_FFFF_F000) as *mut u64;
+                for k in 0..512usize {
+                    let e2 = pd.add(k).read_volatile();
+                    if e2 & 1 == 0 { continue; }
+                    pd.add(k).write_volatile(e2 | (1 << 2));  // 2 MiB huge page U/S=1
+                }
+            }
+        }
+        flush_tlb();
+    }
+}
+
+/// Enter user mode at `entry` with `user_stack` as the initial RSP.
+/// Does NOT return — uses IRETQ to transition ring 0 → ring 3.
+pub fn enter_user_x86(entry: u64, user_stack: u64) -> ! {
+    // RFLAGS for user mode: IF=1 (interrupts on), reserved bit 1 set.
+    const USER_RFLAGS: u64 = 0x202;
+
+    unsafe {
+        // IRETQ pops (from current RSP upward): RIP, CS, RFLAGS, RSP, SS.
+        // We build this frame on the current kernel stack and then iretq.
+        asm!(
+            "push {ss}",     // SS  (user)
+            "push {rsp_u}",  // RSP (user)
+            "push {rf}",     // RFLAGS
+            "push {cs}",     // CS  (user)
+            "push {rip}",    // RIP (entry)
+            // Clear all user-visible registers before entering ring 3.
+            "xor eax, eax",
+            "xor ebx, ebx",
+            "xor ecx, ecx",
+            "xor edx, edx",
+            "xor esi, esi",
+            "xor edi, edi",
+            "xor r8d,  r8d",
+            "xor r9d,  r9d",
+            "xor r10d, r10d",
+            "xor r11d, r11d",
+            "xor r12d, r12d",
+            "xor r13d, r13d",
+            "xor r14d, r14d",
+            "xor r15d, r15d",
+            "xor ebp, ebp",
+            "iretq",
+            ss    = in(reg) SEL_UDATA as u64,
+            rsp_u = in(reg) user_stack,
+            rf    = in(reg) USER_RFLAGS,
+            cs    = in(reg) SEL_UCODE as u64,
+            rip   = in(reg) entry,
+            options(noreturn, nostack),
+        );
+    }
+}
+
+/// Expand the user heap by `incr` bytes.  Returns the old break (base of new region).
+/// Uses a flat 4 MiB static arena — zero OS-level paging required.
+pub fn user_sbrk(incr: usize) -> u64 {
+    unsafe {
+        let old = USER_HEAP.as_ptr().add(USER_HEAP_BREAK) as u64;
+        if incr > 0 {
+            USER_HEAP_BREAK += incr;
+            if USER_HEAP_BREAK > USER_HEAP_LEN {
+                USER_HEAP_BREAK = USER_HEAP_LEN;
+                return u64::MAX;  // OOM
+            }
+        }
+        old
+    }
+}
+
+// ── enter_user / exit_user — cooperative ring-3 session ──────────────────────
+//
+// Unlike enter_user_x86 (which is diverging), enter_user returns normally once
+// the user process calls SYS_ZU.  The symmetry is maintained by _enter_user_x86
+// and _exit_user_x86 in boot_x86.s: the former saves callee-saved kernel context
+// and arms the SYSCALL stack; the latter restores it and rets to our call site.
+
+unsafe extern "C" {
+    fn _enter_user_x86(entry: u64, user_stack: u64);
+    fn _exit_user_x86() -> !;
+}
+
+/// Enter ring-3 at `entry` with `user_stack` as the initial RSP.
+/// Returns when the user process exits via SYS_ZU (exit syscall).
+pub fn enter_user(entry: u64, user_stack: u64) {
+    unsafe { _enter_user_x86(entry, user_stack); }
+}
+
+/// Restore the kernel context saved by `enter_user` and return to its call site.
+/// Called by the x86-64 syscall dispatcher on SYS_ZU.
+pub fn exit_user() -> ! {
+    unsafe { _exit_user_x86() }
+}

@@ -1,0 +1,189 @@
+/*
+ * tokens.css — Alchemical Theatre design system for DjinnOS Streaming.
+ *
+ * Palette philosophy:
+ *   ~70% black/plum ground  — the space that makes signal visible
+ *   ~25% pink/magenta       — the practitioner's active color; commanding, warm
+ *   ~5%  gold               — rarity; appears only where it means something
+ *
+ * Magenta is the attractor color. Gold is the quack. Black is the ground.
+ * Never invert these relationships.
+ *
+ * Marble is reserved for surfaces that carry meaning, not just background.
+ * It should never compete with text — it appears in headers, hero surfaces,
+ * and the BoK readout frame only.
+ */
+
+.streaming-root {
+  /* ── Ground ─────────────────────────────────────────────────── */
+  --black-ground:      #0A0A0A;   /* base background; not pure black */
+  --plum-elevated:     #3A0A2A;   /* elevated panels; dark plum, unifies palette */
+  --plum-deep:         #220618;   /* very deep plum for nested surfaces */
+
+  /* ── Magenta / Pink ─────────────────────────────────────────── */
+  --magenta-primary:   #E91E96;   /* primary actions, focus rings, brand */
+  --pink-bubble:       #FFB7DD;   /* secondary surfaces, friendly states */
+  --pink-deep:         #C2185B;   /* hover / pressed state of primary */
+  --pink-muted:        #7A3055;   /* de-emphasized pink, borders */
+
+  /* ── Gold ───────────────────────────────────────────────────── */
+  --gold-alchemical:   #D4AF37;   /* dividers, active indicators — use sparingly */
+  --gold-bright:       #FFC857;   /* celebratory only: Quack earned, BoK edge crossing */
+
+  /* ── Text ───────────────────────────────────────────────────── */
+  --text-body:         #F5F0F2;   /* warm soft white */
+  --text-emphasis:     var(--magenta-primary);
+  --text-muted:        #A89AA0;
+  --text-gold:         var(--gold-alchemical);
+
+  /* ── Glow ───────────────────────────────────────────────────── */
+  --glow-magenta:      0 0 16px rgba(233, 30, 150, 0.4);
+  --glow-gold:         0 0 12px rgba(212, 175, 55, 0.5);
+  --glow-pink:         0 0 8px  rgba(255, 183, 221, 0.3);
+
+  /* ── Borders ────────────────────────────────────────────────── */
+  --border-plum:       1px solid #5A1040;
+  --border-gold:       1px solid var(--gold-alchemical);
+  --border-magenta:    1px solid var(--magenta-primary);
+  --border-muted:      1px solid #3A1A2A;
+
+  /* ── Radius ─────────────────────────────────────────────────── */
+  --radius-sm:         4px;
+  --radius-md:         8px;
+  --radius-lg:         14px;
+
+  /* ── Typography ─────────────────────────────────────────────── */
+  --font-display:      'Cormorant Garamond', 'Georgia', serif;
+  --font-body:         'Inter', 'Segoe UI', sans-serif;
+  --font-mono:         'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Transitions ────────────────────────────────────────────── */
+  --transition-fast:   120ms ease;
+  --transition-std:    220ms ease;
+
+  /* ── Layout ─────────────────────────────────────────────────── */
+  background: var(--black-ground);
+  color:      var(--text-body);
+  font-family: var(--font-body);
+}
+
+/* ── Button base ──────────────────────────────────────────────── */
+.s-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.s-btn-primary {
+  background: linear-gradient(135deg, var(--magenta-primary), var(--pink-deep));
+  color: #fff;
+}
+.s-btn-primary:hover  { box-shadow: var(--glow-magenta); }
+.s-btn-primary:active { background: var(--pink-deep); }
+
+.s-btn-ghost {
+  background: transparent;
+  border: var(--border-plum);
+  color: var(--text-muted);
+}
+.s-btn-ghost:hover { border-color: var(--magenta-primary); color: var(--text-body); }
+
+.s-btn-gold {
+  background: linear-gradient(135deg, var(--gold-alchemical), var(--gold-bright));
+  color: #0A0A0A;
+}
+.s-btn-gold:hover { box-shadow: var(--glow-gold); }
+
+/* ── Panel base ───────────────────────────────────────────────── */
+.s-panel {
+  background: var(--plum-elevated);
+  border: var(--border-plum);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.s-panel-gold {
+  background: var(--plum-deep);
+  border: var(--border-gold);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+/* ── Inputs ───────────────────────────────────────────────────── */
+.s-input {
+  background: var(--plum-deep);
+  border: var(--border-muted);
+  border-radius: var(--radius-sm);
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  width: 100%;
+}
+.s-input:focus {
+  border-color: var(--magenta-primary);
+  box-shadow: var(--glow-magenta);
+}
+
+/* ── Label ────────────────────────────────────────────────────── */
+.s-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* ── Monospace credential display ─────────────────────────────── */
+.s-credential {
+  background: #0A0A0A;
+  border: var(--border-gold);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--pink-bubble);
+  padding: 10px 14px;
+  word-break: break-all;
+  letter-spacing: 0.02em;
+}
+
+/* ── Live indicator ───────────────────────────────────────────── */
+@keyframes s-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.s-live-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--magenta-primary);
+  animation: s-pulse 1.4s ease-in-out infinite;
+  box-shadow: var(--glow-magenta);
+}
+
+/* ── Gold shimmer (Quack / BoK edge events) ───────────────────── */
+@keyframes s-shimmer {
+  0%   { box-shadow: none; }
+  50%  { box-shadow: var(--glow-gold); }
+  100% { box-shadow: none; }
+}
+.s-shimmer { animation: s-shimmer 1.2s ease; }
+
+/* ── Divider ──────────────────────────────────────────────────── */
+.s-divider {
+  height: 1px;
+  background: var(--gold-alchemical);
+  opacity: 0.2;
+  margin: 16px 0;
+}

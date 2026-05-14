@@ -162,6 +162,14 @@ pub fn is_init() -> bool { unsafe { SA_INIT } }
 // ── High-level read/write API ─────────────────────────────────────────────────
 
 /// Read a file into `out`.  Returns bytes read, 0 if not found.
+/// Return the byte length of a file in the Sa volume, or 0 if not found.
+pub fn file_size(name: &[u8]) -> usize {
+    match find_entry_index(name) {
+        Some(i) => read_entry(i).len as usize,
+        None    => 0,
+    }
+}
+
 pub fn read_file(name: &[u8], out: &mut [u8]) -> usize {
     crate::eigenstate::advance(crate::eigenstate::T_GRAPEVINE);
     let idx = match find_entry_index(name) { Some(i) => i, None => return 0 };

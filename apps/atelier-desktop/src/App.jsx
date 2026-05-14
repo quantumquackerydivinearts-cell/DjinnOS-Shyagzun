@@ -27,6 +27,7 @@ import { SupraLibrixPanel } from "./panels/SupraLibrixPanel";
 import { GameEditorsPanel } from "./panels/GameEditorsPanel";
 import { GameAuthoringPanel } from "./panels/GameAuthoringPanel";
 import SemanticFieldPanel from "./panels/SemanticFieldPanel";
+import { StreamingHub } from "./streaming/index.jsx";
 
 function resolveRuntimeApiBase() {
   try {
@@ -143,6 +144,7 @@ const NAV_ITEMS = [
   "Comic Maker",
   "Kobra Studio",
   "Game Authoring",
+  "Streaming",
   "Semantic Field",
   "QQEES",
   "QCR",
@@ -20227,6 +20229,14 @@ function extractPythonSavedPath(outputText) {
             studioFsRoot={studioFsRoot}
             hasDesktopFs={hasDesktopFs}
           />
+        </section>
+      );
+    }
+
+    if (section === "Streaming") {
+      return (
+        <section className="panel panel-wide" style={{ padding: 0, overflow: "hidden", height: "calc(100vh - 180px)", minHeight: 600 }}>
+          <StreamingHub authToken={authToken} artisanId={artisanId} />
         </section>
       );
     }

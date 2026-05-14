@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantum Quackery — Stream</title>
+<style>
+/* ── Alchemical Theatre palette ─────────────────────────────────────────────── */
+:root {
+  --black:     #0A0A0A;
+  --plum:      #3A0A2A;
+  --plum-deep: #220618;
+  --magenta:   #E91E96;
+  --pink-deep: #C2185B;
+  --pink:      #FFB7DD;
+  --gold:      #D4AF37;
+  --gold-br:   #FFC857;
+  --text:      #F5F0F2;
+  --muted:     #A89AA0;
+  --border:    rgba(90,16,64,0.7);
+  --border-g:  rgba(212,175,55,0.4);
+  --glow-m:    0 0 16px rgba(233,30,150,0.4);
+  --glow-g:    0 0 12px rgba(212,175,55,0.5);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--black);
+  color: var(--text);
+  font-family: "Segoe UI", "Inter", sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+header {
+  background: var(--plum-deep);
+  border-bottom: 1px solid var(--border-g);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand {
+  font-family: "Georgia", serif;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  background: linear-gradient(135deg, var(--magenta), var(--pink));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.live-wrap { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: var(--glow-m); }
+  50%       { opacity: 0.5; box-shadow: none; }
+}
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--magenta);
+  animation: pulse 1.4s ease infinite;
+}
+.live-text { font-size: 12px; font-weight: 700; color: var(--magenta); letter-spacing: 0.06em; }
+.viewer-count { font-size: 11px; color: var(--pink); }
+
+/* ── Main layout ── */
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  overflow: hidden;
+}
+
+/* ── Video pane ── */
+.video-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #050505;
+  gap: 12px;
+}
+
+.player-wrap {
+  width: 100%;
+  max-width: 860px;
+  position: relative;
+}
+
+video, canvas#videoCanvas {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border-g);
+  display: block;
+  background: #0A0A0A;
+}
+
+#videoCanvas { display: none; }
+
+.stream-title {
+  font-family: "Georgia", serif;
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.coord-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.coord-chip {
+  background: rgba(58,10,42,0.8);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--pink);
+  padding: 2px 8px;
+}
+
+.video-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+/* ── Side panel ── */
+.side-panel {
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--plum-deep);
+}
+
+/* ── BoK display (Julia mini) ── */
+.bok-section {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.bok-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+#bokCanvas {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: block;
+}
+
+.bok-coords {
+  margin-top: 5px;
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ── Event feed ── */
+.event-feed {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.feed-header {
+  padding: 10px 14px 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.events { flex: 1; overflow-y: auto; padding: 6px 12px; }
+
+.event-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(58,10,42,0.4);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.ev-type {
+  color: var(--magenta);
+  font-size: 10px;
+  text-transform: uppercase;
+  min-width: 88px;
+  flex-shrink: 0;
+}
+
+.ev-body { color: var(--muted); word-break: break-all; }
+
+.ev-bok { color: var(--gold); }
+.ev-bok .ev-type { color: var(--gold); }
+
+/* ── Resonance + witness bar ── */
+.witness-bar {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-g);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.witness-btn {
+  background: linear-gradient(135deg, var(--plum), var(--pink-deep));
+  border: 1px solid var(--magenta);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.witness-btn:hover { box-shadow: var(--glow-m); }
+
+.witness-note-inp {
+  background: var(--plum-deep);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 6px 10px;
+  width: 100%;
+  outline: none;
+}
+.witness-note-inp:focus { border-color: var(--magenta); }
+
+.resonance-marker {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 10px;
+  background: rgba(58,10,42,0.4);
+  border: 1px solid rgba(212,175,55,0.2);
+  border-radius: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+.rm-icon { color: var(--gold); font-size: 13px; flex-shrink: 0; }
+.rm-name { color: var(--pink); font-weight: 600; }
+.rm-bok  { font-family: monospace; font-size: 10px; color: var(--muted); }
+
+/* ── Connect form ── */
+.connect-overlay {
+  position: fixed; inset: 0;
+  background: rgba(10,10,10,0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.connect-card {
+  background: var(--plum-deep);
+  border: 1px solid var(--border-g);
+  border-radius: 14px;
+  padding: 32px 36px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: var(--glow-m);
+}
+
+.connect-card h2 {
+  font-family: "Georgia", serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.connect-card p {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--muted); margin-bottom: 5px; }
+.field input {
+  background: #0A0A0A;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 9px 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field input:focus { border-color: var(--magenta); box-shadow: var(--glow-m); }
+
+.connect-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--magenta), var(--pink-deep));
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 11px;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+  margin-top: 6px;
+}
+.connect-btn:hover { box-shadow: var(--glow-m); }
+
+.err-msg { color: #f87171; font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Quantum Quackery — Stream</div>
+  <span id="streamTitle" style="font-size:14px;color:var(--text);display:none"></span>
+  <div class="live-wrap" id="liveWrap" style="display:none">
+    <span class="live-dot"></span>
+    <span class="live-text">LIVE</span>
+    <span class="viewer-count" id="viewerCount"></span>
+  </div>
+</header>
+
+<!-- Connect overlay -->
+<div class="connect-overlay" id="connectOverlay">
+  <div class="connect-card">
+    <h2>Join Stream</h2>
+    <p>Enter the relay WebSocket address and stream ID.<br>
+       Or open a practitioner's share link directly.</p>
+
+    <div class="field">
+      <label>Relay address</label>
+      <input id="wsUrl" type="text" placeholder="wss://stream.quantumquackery.com/stream/ID"
+             value="wss://stream.quantumquackery.com">
+    </div>
+    <div class="field">
+      <label>Stream ID</label>
+      <input id="streamIdInp" type="text" placeholder="practitioner-stream-id">
+    </div>
+    <div class="field">
+      <label>Guild token (optional)</label>
+      <input id="tokenInp" type="text" placeholder="">
+    </div>
+    <button class="connect-btn" onclick="connect()">Enter Witness Space</button>
+    <div class="err-msg" id="errMsg"></div>
+  </div>
+</div>
+
+<!-- Stream layout (hidden until connected) -->
+<div class="layout" id="streamLayout" style="display:none">
+  <div class="video-pane">
+    <div class="player-wrap">
+      <video id="videoEl" controls autoplay playsinline></video>
+      <canvas id="videoCanvas"></canvas>
+    </div>
+    <div class="stream-title" id="titleDisplay"></div>
+    <div class="coord-row" id="coordRow"></div>
+    <div class="video-meta">
+      <span id="qualityDisplay"></span>
+    </div>
+  </div>
+
+  <div class="side-panel">
+    <!-- BoK Julia readout -->
+    <div class="bok-section" id="bokSection" style="display:none">
+      <div class="bok-label">BoK — Session Geometry</div>
+      <canvas id="bokCanvas" width="292" height="160"></canvas>
+      <div class="bok-coords" id="bokCoords"></div>
+    </div>
+
+    <!-- Event feed -->
+    <div class="event-feed">
+      <div class="feed-header">Semantic Events</div>
+      <div class="events" id="eventFeed"></div>
+    </div>
+
+    <!-- Witness bar -->
+    <div class="witness-bar">
+      <input class="witness-note-inp" id="witnessNote"
+             placeholder="Add a note to your attestation (optional)">
+      <button class="witness-btn" onclick="sendWitness()">
+        ◈  Attest / Resonate
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Julia renderer (alchemical palette) ───────────────────────────────────────
+
+function juliaIter(zx, zy, cx, cy, max) {
+  let x = zx, y = zy;
+  for (let i = 0; i < max; i++) {
+    const x2 = x*x, y2 = y*y;
+    if (x2 + y2 > 4) return i;
+    const nx = x2 - y2 + cx;
+    y = 2*x*y + cy; x = nx;
+  }
+  return max;
+}
+
+const PAL = [
+  [10,10,10],[58,10,42],[233,30,150],[255,183,221],[212,175,55],[255,200,87]
+];
+
+function lerp3(a, b, t) {
+  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
+}
+
+function iterColor(i, max) {
+  if (i === max) return PAL[1];
+  const t = i / max;
+  if (t < 0.15) return lerp3(PAL[0], PAL[1], t/0.15);
+  if (t < 0.45) return lerp3(PAL[1], PAL[2], (t-0.15)/0.30);
+  if (t < 0.70) return lerp3(PAL[2], PAL[3], (t-0.45)/0.25);
+  if (t < 0.88) return lerp3(PAL[3], PAL[4], (t-0.70)/0.18);
+  return lerp3(PAL[4], PAL[5], (t-0.88)/0.12);
+}
+
+function renderJulia(canvas, cx, cy) {
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(W, H);
+  const d   = img.data;
+  const zoom = H * 0.55;
+  const step = 2;
+  for (let py = 0; py < H; py += step) {
+    for (let px = 0; px < W; px += step) {
+      const zx = (px - W/2) / zoom;
+      const zy = (py - H/2) / zoom;
+      const it  = juliaIter(zx, zy, cx, cy, 60);
+      const [r,g,b] = iterColor(it, 60);
+      for (let dy = 0; dy < step && py+dy < H; dy++) {
+        for (let dx = 0; dx < step && px+dx < W; dx++) {
+          const i = ((py+dy)*W + (px+dx))*4;
+          d[i]=r; d[i+1]=g; d[i+2]=b; d[i+3]=255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// ── HLS + JPEG frame playback ──────────────────────────────────────────────────
+
+let hlsInstance = null;
+
+function tryHls(url) {
+  const vid = document.getElementById('videoEl');
+  if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+    hlsInstance = new Hls({ lowLatencyMode: true });
+    hlsInstance.loadSource(url);
+    hlsInstance.attachMedia(vid);
+    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => vid.play().catch(()=>{}));
+    document.getElementById('qualityDisplay').textContent = 'HLS';
+    vid.style.display = 'block';
+    document.getElementById('videoCanvas').style.display = 'none';
+    return true;
+  }
+  if (vid.canPlayType('application/vnd.apple.mpegurl')) {
+    vid.src = url;
+    vid.play().catch(()=>{});
+    document.getElementById('qualityDisplay').textContent = 'HLS (native)';
+    vid.style.display = 'block';
+    return true;
+  }
+  return false;
+}
+
+// JPEG frame fallback (from relay WebSocket)
+function renderJpegFrame(b64, w, h) {
+  const canvas = document.getElementById('videoCanvas');
+  const vid    = document.getElementById('videoEl');
+  vid.style.display    = 'none';
+  canvas.style.display = 'block';
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w; canvas.height = h;
+  }
+  const img = new Image();
+  img.onload = () => {
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = `data:image/jpeg;base64,${b64}`;
+}
+
+// ── WebSocket connection ───────────────────────────────────────────────────────
+
+let ws = null;
+const MAX_EVENTS = 100;
+
+function connect() {
+  const relay    = document.getElementById('wsUrl').value.trim();
+  const streamId = document.getElementById('streamIdInp').value.trim();
+  const token    = document.getElementById('tokenInp').value.trim();
+
+  let url = relay;
+  if (streamId && !relay.includes('/stream/')) {
+    url = relay.replace(/\/?$/, '') + '/stream/' + streamId;
+  }
+  if (token) url += (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+
+  document.getElementById('errMsg').textContent = 'Connecting…';
+
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    document.getElementById('connectOverlay').style.display = 'none';
+    document.getElementById('streamLayout').style.display   = 'grid';
+    document.getElementById('liveWrap').style.display       = 'flex';
+  };
+
+  ws.onmessage = (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+    handleMsg(msg);
+  };
+
+  ws.onerror = () => {
+    document.getElementById('errMsg').textContent = 'Connection failed.';
+  };
+
+  ws.onclose = () => {
+    document.getElementById('liveWrap').style.display = 'none';
+    pushEvent('disconnected', 'relay closed', false);
+  };
+}
+
+function handleMsg(msg) {
+  switch (msg.type) {
+
+    case 'meta': {
+      const title = msg.label || msg.id || '';
+      document.getElementById('titleDisplay').textContent = title;
+      document.getElementById('streamTitle').textContent  = title;
+      document.getElementById('streamTitle').style.display = 'block';
+      // Coord chips
+      const row = document.getElementById('coordRow');
+      row.innerHTML = '';
+      (msg.coords || []).forEach(addr => {
+        const chip = document.createElement('span');
+        chip.className = 'coord-chip';
+        chip.textContent = addr;
+        row.appendChild(chip);
+      });
+      // Try HLS
+      if (msg.hls) tryHls(msg.hls);
+      pushEvent('stream_meta', `${title} (${(msg.coords||[]).length} coords)`, false);
+      break;
+    }
+
+    case 'frame':
+      renderJpegFrame(msg.data, msg.w || 320, msg.h || 180);
+      break;
+
+    case 'semantic': {
+      const ev = msg.payload || {};
+      const isBok = ev.ev === 'bok_update' || ev.ev === 'bok_transition';
+      pushEvent(ev.ev || 'event', JSON.stringify(ev), isBok);
+      if (isBok && ev.re != null && ev.im != null) {
+        updateBok(ev.re, ev.im);
+      }
+      break;
+    }
+
+    case 'witness_event':
+      pushEvent('witness', `${msg.from}: ${JSON.stringify(msg.payload)}`, false);
+      break;
+
+    case 'resonance_marker': {
+      const rm = document.createElement('div');
+      rm.className = 'resonance-marker';
+      rm.innerHTML = `
+        <span class="rm-icon">◈</span>
+        <div>
+          <div class="rm-name">${msg.artisan_id || 'witness'}</div>
+          ${msg.bok ? `<div class="rm-bok">c = ${msg.bok}</div>` : ''}
+          ${msg.note ? `<div style="font-size:11px;color:var(--text);margin-top:3px">${msg.note}</div>` : ''}
+        </div>`;
+      document.getElementById('eventFeed').appendChild(rm);
+      document.getElementById('eventFeed').scrollTop = 9999;
+      break;
+    }
+
+    case 'bok_update':
+      if (msg.re != null) updateBok(msg.re, msg.im);
+      break;
+  }
+}
+
+function updateBok(re, im) {
+  const section = document.getElementById('bokSection');
+  section.style.display = 'block';
+  const canvas  = document.getElementById('bokCanvas');
+  requestIdleCallback
+    ? requestIdleCallback(() => renderJulia(canvas, re, im))
+    : setTimeout(() => renderJulia(canvas, re, im), 0);
+  document.getElementById('bokCoords').textContent =
+    `c = ${Number(re).toFixed(5)} + ${Number(im).toFixed(5)}i`;
+}
+
+function pushEvent(type, body, isBok = false) {
+  const feed = document.getElementById('eventFeed');
+  const row  = document.createElement('div');
+  row.className = `event-row${isBok ? ' ev-bok' : ''}`;
+  row.innerHTML = `<span class="ev-type">${type}</span><span class="ev-body">${body}</span>`;
+  feed.appendChild(row);
+  if (feed.children.length > MAX_EVENTS) feed.children[0].remove();
+  feed.scrollTop = 9999;
+}
+
+function sendWitness() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  const note = document.getElementById('witnessNote').value.trim();
+  ws.send(JSON.stringify({ type: 'witness', payload: { ts: Date.now() / 1000, note } }));
+  document.getElementById('witnessNote').value = '';
+  pushEvent('witness_sent', 'attestation sent', false);
+}
+
+// ── Pre-fill from query string ─────────────────────────────────────────────────
+
+(function () {
+  const p = new URLSearchParams(location.search);
+  const relay  = p.get('relay');
+  const stream = p.get('stream');
+  const token  = p.get('token');
+  if (relay)  document.getElementById('wsUrl').value = relay;
+  if (stream) document.getElementById('streamIdInp').value = stream;
+  if (token)  document.getElementById('tokenInp').value  = token;
+  if (relay && stream) connect();
+  else if (stream) {
+    const base = 'wss://stream.quantumquackery.com';
+    document.getElementById('wsUrl').value = base;
+    connect();
+  }
+})();
+</script>
+
+<!-- hls.js loaded from CDN if available; fallback to native HLS -->
+<script>
+(function () {
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js';
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>

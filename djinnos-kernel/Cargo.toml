@@ -20,6 +20,7 @@ kobra-core = { path = "crates/kobra-core" }
 
 [build-dependencies]
 fontdue = "0.9"
+cc      = "1"
 
 [profile.dev]
 panic         = "abort"

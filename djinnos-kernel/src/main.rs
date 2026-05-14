@@ -99,8 +99,7 @@ mod x86net;
 #[cfg(not(target_arch = "riscv64"))]
 mod net { pub use crate::x86net::*; }
 
-#[cfg(target_arch = "riscv64")]
-mod elf;
+mod elf;   // ELF parser — used by both RISC-V spawn_elf and x86_64 spawn_elf_x86
 #[cfg(target_arch = "riscv64")]
 mod fs;
 #[cfg(target_arch = "riscv64")]
@@ -129,6 +128,10 @@ mod i2c_hid;
 mod recombination;
 #[cfg(target_arch = "x86_64")]
 mod rtc;
+#[cfg(target_arch = "x86_64")]
+mod stream;
+mod ffi_test;        // Phase 1 C toolchain probe
+mod stream_platform; // Phase 4 streaming platform Rust glue
 
 use core::panic::PanicInfo;
 
@@ -664,6 +667,8 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     uart::puts("\r\nDjinnOS kernel [x86_64 UEFI]\r\n");
 
     trap::init();
+    arch::setup_userspace();   // ring-3 GDT + TSS + SYSCALL/SYSRETQ
+    ffi_test::run();           // Phase 1: verify C toolchain end-to-end
     mm::init();
     process::init();
     kos_characters::init();
@@ -698,6 +703,12 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     acpi::disable_iommu();  // must precede any PCIe DMA driver
     pci::init();
     hda::init();
+
+    if x86net::init() {
+        uart::puts("NET: ready\r\n");
+    } else {
+        uart::puts("NET: no NIC found\r\n");
+    }
 
     process::advance_cannabis(193);
     process::spawn(19, ko_idle, 0);
@@ -1104,6 +1115,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
         }
 
         x86net::poll();
+        stream::poll(Some(&fbdrv as &dyn gpu::GpuSurface));
 
         // Persist eigenstate every ~5 s so linguistic history survives reboots.
         if frame % 300 == 0 && frame > 0 { eigenstate::persist(); }

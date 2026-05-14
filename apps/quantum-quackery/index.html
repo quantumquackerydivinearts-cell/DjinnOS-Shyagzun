@@ -114,8 +114,7 @@
     }
 
     html, body {
-      width: 100%; height: 100%;
-      overflow: hidden;
+      width: 100%;
       font-family: 'Cormorant Garamond', serif;
       color: var(--ink);
       transition: color var(--transition);
@@ -281,8 +280,8 @@
 
     /* ── Main content ── */
     #content {
-      position: absolute;
-      inset: 0;
+      position: relative;
+      min-height: 100vh;
       z-index: 10;
       display: flex;
       flex-direction: column;
@@ -517,7 +516,7 @@
   <div id="dawn-bloom"></div>
   <div id="moon"></div>
 
-  <svg id="mountains" viewBox="0 0 1400 420" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+  <svg id="mountains" viewBox="0 0 1400 420" preserveAspectRatio="none" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="mg1" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="#0d1a14" stop-opacity="0.6"/>
@@ -628,7 +627,7 @@
 
     <a class="door" href="/games" id="door-games">
       <div class="door-glyph">◉</div>
-      <div class="door-name">Ko's Labyrinth</div>
+      <div class="door-name">Ko's Labyrnth</div>
       <div class="door-desc">31 Games · One World</div>
     </a>
 
@@ -648,6 +647,12 @@
       <div class="door-glyph">∿</div>
       <div class="door-name">QQEES</div>
       <div class="door-desc">Entropy Encryption Service</div>
+    </a>
+
+    <a class="door" href="/stream" id="door-stream">
+        <div class="door-glyph">42/6</div>
+        <div class="door-name">Stream</div>
+        <div class="door-desc">Stream Ko's Labyrnth and Ambroflow Games</div>
     </a>
   </div>
 </div>

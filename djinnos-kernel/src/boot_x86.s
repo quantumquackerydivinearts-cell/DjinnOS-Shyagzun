@@ -245,6 +245,160 @@ _isr_generic:
 _isr_spurious:
     iretq
 
+/* ── Userspace RSP save slots ─────────────────────────────────────────────── */
+/* Used by _syscall_entry to swap between user and kernel stacks without
+ * touching the user stack (which is in ring-3 and may not be trusted). */
+
+.section .data
+.align 8
+.global _user_rsp_save
+.global _kernel_rsp_save
+_user_rsp_save:   .quad 0
+_kernel_rsp_save: .quad 0
+
+/* ── SYSCALL entry stub ────────────────────────────────────────────────────── */
+/* LSTAR MSR points here.  The SYSCALL instruction saves user RIP → RCX,
+ * user RFLAGS → R11, then jumps here in ring 0 with interrupts disabled.
+ * RSP is still the user RSP — we switch to the kernel syscall stack first.
+ *
+ * SyscallFrame layout (RSP after all pushes, low address first):
+ *   RSP+0   padding (8 B for 16-byte alignment)
+ *   RSP+8   r11     (user RFLAGS saved by SYSCALL)
+ *   RSP+16  rcx     (user RIP saved by SYSCALL)
+ *   RSP+24  r15
+ *   RSP+32  r14
+ *   RSP+40  r13
+ *   RSP+48  r12
+ *   RSP+56  rbp
+ *   RSP+64  rbx
+ *   RSP+72  r9      (arg5)
+ *   RSP+80  r8      (arg4)
+ *   RSP+88  r10     (arg3)
+ *   RSP+96  rdx     (arg2)
+ *   RSP+104 rsi     (arg1)
+ *   RSP+112 rdi     (arg0)
+ *   RSP+120 rax     (syscall number; return value in rax after dispatch)
+ *
+ * Total: 16 × 8 = 128 bytes pushed.  Kernel stack top must be 16-byte aligned
+ * so that RSP = top - 128 is also 16-byte aligned when call fires.
+ */
+
+.section .text
+.global _syscall_entry
+.align 16
+_syscall_entry:
+    mov   [rip + _user_rsp_save],   rsp
+    mov   rsp, [rip + _kernel_rsp_save]
+
+    push  rax          /* syscall number (return value slot) */
+    push  rdi          /* arg0 */
+    push  rsi          /* arg1 */
+    push  rdx          /* arg2 */
+    push  r10          /* arg3 */
+    push  r8           /* arg4 */
+    push  r9           /* arg5 */
+    push  rbx
+    push  rbp
+    push  r12
+    push  r13
+    push  r14
+    push  r15
+    push  rcx          /* user RIP */
+    push  r11          /* user RFLAGS */
+    sub   rsp, 8       /* alignment pad → 128 bytes total, aligned ✓ */
+
+    mov   rdi, rsp
+    call  _dispatch_syscall_x86_rs   /* returns value in rax */
+
+    add   rsp, 8       /* skip padding */
+    pop   r11          /* user RFLAGS → for SYSRETQ */
+    pop   rcx          /* user RIP   → for SYSRETQ */
+    pop   r15
+    pop   r14
+    pop   r13
+    pop   r12
+    pop   rbp
+    pop   rbx
+    pop   r9
+    pop   r8
+    pop   r10
+    pop   rdx
+    pop   rsi
+    pop   rdi
+    add   rsp, 8       /* skip saved rax — return value is already in rax */
+
+    mov   rsp, [rip + _user_rsp_save]
+    sysretq
+
+/* ── Kernel syscall stack + enter/exit user frame ─────────────────────────── */
+
+.section .bss
+.align 16
+.global _kern_syscall_stack
+_kern_syscall_stack:  .space 16384
+.global _kern_syscall_stack_top
+_kern_syscall_stack_top:
+
+/* Callee-saved context saved by _enter_user_x86, restored by _exit_user_x86. */
+.align 8
+.global _uef_r15; _uef_r15: .space 8
+.global _uef_r14; _uef_r14: .space 8
+.global _uef_r13; _uef_r13: .space 8
+.global _uef_r12; _uef_r12: .space 8
+.global _uef_rbx; _uef_rbx: .space 8
+.global _uef_rbp; _uef_rbp: .space 8
+.global _uef_rsp; _uef_rsp: .space 8
+
+/* ── Enter ring 3 via IRETQ ───────────────────────────────────────────────── */
+// _enter_user_x86(entry: rdi, user_stack: rsi)
+// Saves callee-saved regs, arms the kernel syscall stack, then IRETQ.
+// Returns normally when the user process calls SYS_ZU (see _exit_user_x86).
+.section .text
+.global _enter_user_x86
+_enter_user_x86:
+    mov   [rip + _uef_r15], r15
+    mov   [rip + _uef_r14], r14
+    mov   [rip + _uef_r13], r13
+    mov   [rip + _uef_r12], r12
+    mov   [rip + _uef_rbx], rbx
+    mov   [rip + _uef_rbp], rbp
+    mov   [rip + _uef_rsp], rsp   /* caller RSP — return address is on top */
+
+    lea   rax, [rip + _kern_syscall_stack_top]
+    mov   [rip + _kernel_rsp_save], rax
+
+    /* Build IRETQ frame: push SS, RSP_user, RFLAGS, CS_user, RIP */
+    mov   r10, 0x1b               /* user SS: selector 0x18 | RPL=3 */
+    push  r10
+    push  rsi                     /* user RSP */
+    mov   r10, 0x202              /* RFLAGS: IF=1, bit1=1 */
+    push  r10
+    mov   r10, 0x23               /* user CS: selector 0x20 | RPL=3 */
+    push  r10
+    push  rdi                     /* user RIP */
+
+    xor   eax,  eax;  xor ebx,  ebx;  xor ecx,  ecx;  xor edx,  edx
+    xor   esi,  esi;  xor edi,  edi;  xor ebp,  ebp
+    xor   r8d,  r8d;  xor r9d,  r9d;  xor r10d, r10d; xor r11d, r11d
+    xor   r12d, r12d; xor r13d, r13d; xor r14d, r14d; xor r15d, r15d
+    iretq
+
+/* ── Restore kernel context on user process exit ─────────────────────────── */
+/* Called from _dispatch_syscall_x86_rs when sys=SYS_ZU.                     */
+/* Restores callee-saved regs + RSP, then rets to the caller of              */
+/* _enter_user_x86, making it appear to return normally.                      */
+.global _exit_user_x86
+_exit_user_x86:
+    mov   r15, [rip + _uef_r15]
+    mov   r14, [rip + _uef_r14]
+    mov   r13, [rip + _uef_r13]
+    mov   r12, [rip + _uef_r12]
+    mov   rbx, [rip + _uef_rbx]
+    mov   rbp, [rip + _uef_rbp]
+    mov   rsp, [rip + _uef_rsp]
+    xor   eax, eax
+    ret
+
 /* ── Boot page tables (before .bss so the BSS clear never touches them) ───── */
 
 .section .boot_pt, "aw"

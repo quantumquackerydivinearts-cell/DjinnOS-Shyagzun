@@ -160,6 +160,30 @@ pub fn init() {
     }
 }
 
+// ── C ABI allocator entry points (Phase 3) ───────────────────────────────────
+// Called from c/runtime/alloc.c via djinnos_alloc / djinnos_free.
+
+#[no_mangle]
+pub extern "C" fn djinnos_heap_alloc(size: usize, _align: usize) -> *mut u8 {
+    if size == 0 { return core::ptr::null_mut(); }
+    let layout = match alloc::alloc::Layout::from_size_align(size, 16) {
+        Ok(l)  => l,
+        Err(_) => return core::ptr::null_mut(),
+    };
+    unsafe { alloc::alloc::alloc(layout) }
+}
+
+#[no_mangle]
+pub extern "C" fn djinnos_heap_free(ptr: *mut u8, size: usize, _align: usize) {
+    if ptr.is_null() { return; }
+    let sz = if size == 0 { 1 } else { size };
+    let layout = match alloc::alloc::Layout::from_size_align(sz, 16) {
+        Ok(l)  => l,
+        Err(_) => return,
+    };
+    unsafe { alloc::alloc::dealloc(ptr, layout); }
+}
+
 // ── Sv39 kernel identity map (RISC-V only) ────────────────────────────────────
 //
 // Two 1 GiB gigapages cover everything the kernel touches:

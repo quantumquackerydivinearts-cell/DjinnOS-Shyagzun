@@ -257,6 +257,78 @@ fn next_ready(from: usize) -> usize {
     }
 }
 
+// ── ELF loader — x86_64 (identity-mapped, SYSCALL ABI) ───────────────────────
+//
+// Loads an x86_64 static ELF into the identity-mapped address space and
+// enters ring 3 via IRETQ.  Does not return — the user process exits by
+// calling SYS_ZU (syscall number 1), which calls kill_current() + yield_now().
+//
+// Limitations (Phase 1):
+//   • Static ELF only — no dynamic linker support.
+//   • ELF virtual addresses are used directly as physical addresses
+//     (identity map covers 0–4 GiB so this works for typical load addresses).
+//   • User stack is a 64 KiB static allocation within the kernel heap.
+//   • No per-process page table isolation (all pages U/S=1 after setup_userspace).
+
+#[cfg(target_arch = "x86_64")]
+const X86_USER_STACK: usize = 64 * 1024;  // 64 KiB user stack
+
+#[cfg(target_arch = "x86_64")]
+pub fn spawn_elf_x86(data: &[u8]) -> Option<()> {
+    use crate::elf;
+
+    let info = elf::parse(data)?;
+
+    // Copy PT_LOAD segments to their virtual addresses (== physical in id-map).
+    for seg in &info.segs[..info.seg_count] {
+        if seg.filesz == 0 && seg.memsz == 0 { continue; }
+
+        let dst = seg.vaddr as *mut u8;
+
+        // Copy file data
+        if seg.filesz > 0 {
+            let file_off = seg.offset as usize;
+            if file_off + seg.filesz as usize > data.len() { return None; }
+            unsafe {
+                core::ptr::copy_nonoverlapping(
+                    data.as_ptr().add(file_off),
+                    dst,
+                    seg.filesz as usize,
+                );
+            }
+        }
+        // Zero BSS region (memsz > filesz)
+        if seg.memsz > seg.filesz {
+            unsafe {
+                core::ptr::write_bytes(
+                    dst.add(seg.filesz as usize),
+                    0,
+                    (seg.memsz - seg.filesz) as usize,
+                );
+            }
+        }
+    }
+
+    // Allocate user stack from the kernel heap (accessible at ring 3 after U/S patch).
+    extern crate alloc;
+    use alloc::alloc::{alloc, Layout};
+    let stack_layout = Layout::from_size_align(X86_USER_STACK, 16).ok()?;
+    let stack_base   = unsafe { alloc(stack_layout) };
+    if stack_base.is_null() { return None; }
+    let stack_top = unsafe { stack_base.add(X86_USER_STACK) } as u64;
+
+    // Reset user heap break so the new process starts with a fresh heap.
+    unsafe { crate::arch::USER_HEAP_BREAK = 0; }
+
+    crate::uart::puts("userspace: entering ring 3 at 0x");
+    crate::uart::putx(info.entry);
+    crate::uart::puts("\r\n");
+
+    // Transfer control — blocks until user calls SYS_ZU, then returns.
+    crate::arch::enter_user(info.entry, stack_top);
+    Some(())
+}
+
 // ── ELF loader (RISC-V only — requires Sv39 and user_resume) ─────────────────
 
 #[cfg(target_arch = "riscv64")]
