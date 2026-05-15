@@ -103,6 +103,16 @@ const EXAMPLES = [
   [TyShak]
   [TaStShiKo]
   [TaShyMa(Yeshu)]
+}`,
+`LoShun: Shakshi(TaLaShaN) [reversible] {
+  [Ao Ye JuTaLoShi]
+  [Ui Kiel TaShakWu]
+}`,
+`Soa: FrontierOpen {
+  [Ga(LoShun) TaStShiKo]
+}`,
+`YeShu: FrontierOpen {
+  [Va(LoShun) TaMelLy]
 }`
 ];
 
@@ -225,8 +235,20 @@ function parseSamosMyr() {
       consume();
     }
 
+    let isReversible = false;
+    if (peek().k === "[") {
+      const savedPos = pos;
+      consume();
+      if (peek().k === "W" && peek().v.toLowerCase() === "reversible") {
+        consume();
+        if (peek().k === "]") { consume(); isReversible = true; }
+        else { pos = savedPos; }
+      } else { pos = savedPos; }
+    }
+
     const entitySpecs = [];
     let temporalClosure = null;
+    const closureOps = [];
 
     if (peek().k === "{") {
       consume();
@@ -240,19 +262,24 @@ function parseSamosMyr() {
             const t = consume();
             if (t.k === "W") {
               if (peek().k === "(") {
-                hasParen = true;
+                const isClosure = t.v === "Ga" || t.v === "Va";
                 parenWord = t.v;
                 consume();
                 const addrTok = peek().k === "W" ? consume().v : "";
                 while (peek().k !== ")" && peek().k !== "EOF") consume();
                 consume();
-                const secs = evalTemporalAddress(addrTok);
-                temporalClosure = {
-                  operatorRaw: parenWord,
-                  addressRaw: addrTok,
-                  seconds: secs,
-                  clock: secondsToClock(secs),
-                };
+                if (isClosure) {
+                  closureOps.push({ op: t.v, target: addrTok });
+                } else {
+                  hasParen = true;
+                  const secs = evalTemporalAddress(addrTok);
+                  temporalClosure = {
+                    operatorRaw: parenWord,
+                    addressRaw: addrTok,
+                    seconds: secs,
+                    clock: secondsToClock(secs),
+                  };
+                }
               } else {
                 words.push(t.v);
               }
@@ -283,10 +310,22 @@ function parseSamosMyr() {
       if (!witnessStates[sym]) witnessStates[sym] = "unwitnessed";
     }
 
+    const gaTargets = new Set(closureOps.filter(o => o.op === "Ga").map(o => o.target));
+    const vaTargets = new Set(closureOps.filter(o => o.op === "Va").map(o => o.target));
+    if (gaTargets.has(identRaw) || vaTargets.has(identRaw)) {
+      throw new Error(`Closure op references own ident "${identRaw}" — self-reference not allowed`);
+    }
+    for (const t of gaTargets) {
+      if (vaTargets.has(t)) {
+        throw new Error(`Ga(${t}) and Va(${t}) in same scene — closure and restoration of same target is contradictory`);
+      }
+    }
+
     renderOutput({
       identRaw, identIndex, coherenceRaw, interiorWords,
       entitySpecs, temporalClosure, allCannabis, allTopo,
       deliberate, parseState, src,
+      isReversible, closureOps,
     });
 
   } catch(e) {
@@ -357,7 +396,8 @@ function coherenceColor(grade) {
 function renderOutput(data) {
   const { identRaw, identIndex, coherenceRaw, interiorWords,
           entitySpecs, temporalClosure, allCannabis, allTopo,
-          deliberate, parseState, src } = data;
+          deliberate, parseState, src,
+          isReversible, closureOps } = data;
 
   const witnessed = allCannabis.filter(s => witnessStates[s] === "witnessed").length;
   const partial   = allCannabis.filter(s => witnessStates[s] === "partial").length;
@@ -370,6 +410,7 @@ function renderOutput(data) {
   let html = `<div class="panel">
     <div class="panel-title">Parse result</div>
     <span class="state-badge ${parseState === 'Resolved' ? 'resolved' : parseState === 'FrontierOpen' ? 'frontier' : 'echo'}">${parseState}</span>
+    ${isReversible ? `<span class="state-badge" style="background:#E6F1FB;color:#185FA5;margin-left:6px;">reversible</span>` : ''}
     <div class="cut-bar" style="background:${cutColor};"></div>
     <div style="font-size:11px;color:var(--color-text-tertiary);margin-bottom:10px;">cut character: ${cutChar}</div>
 
@@ -406,6 +447,23 @@ function renderOutput(data) {
       <div class="panel-title">Topological relevance declarations</div>
       ${allTopo.map(s => `<span class="topo-chip">${s}</span>`).join('')}
     </div>`;
+  }
+
+  if (closureOps.length) {
+    const gaOps = closureOps.filter(o => o.op === "Ga");
+    const vaOps = closureOps.filter(o => o.op === "Va");
+    html += `<div style="margin-top:10px;"><div class="panel-title">Closure operators</div>`;
+    if (gaOps.length) {
+      html += `<div style="margin-bottom:4px;">` +
+        gaOps.map(o => `<span class="state-badge" style="background:#3A0A2A;color:#FFB7DD;margin-right:4px;">Ga(${o.target})</span>`).join('') +
+        `<span style="font-size:10px;color:var(--color-text-tertiary);"> — permanent closure</span></div>`;
+    }
+    if (vaOps.length) {
+      html += `<div>` +
+        vaOps.map(o => `<span class="state-badge" style="background:#E1F5EE;color:#0F6E56;margin-right:4px;">Va(${o.target})</span>`).join('') +
+        `<span style="font-size:10px;color:var(--color-text-tertiary);"> — restoration (requires target [reversible])</span></div>`;
+    }
+    html += `</div>`;
   }
 
   html += `<div style="margin-top:12px;"><div class="panel-title">Entity specs (${entitySpecs.length})</div>`;
