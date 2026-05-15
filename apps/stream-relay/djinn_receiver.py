@@ -17,6 +17,7 @@ import aiohttp
 from protocol        import read_packet, PKT_FRAME, PKT_SEMANTIC, PKT_KEEPALIVE, PKT_META
 from stream_registry import registry
 from transcode       import rgb_to_jpeg_b64, frame_mime
+from discord_notifier import notify_stream_live, notify_stream_end, notify_semantic
 
 ATELIER_STREAMING = os.getenv("ATELIER_STREAMING", "http://localhost:7800")
 
@@ -53,6 +54,7 @@ async def _handle_source(
     reg    = registry()
     stream = reg.get_or_create(stream_id, source_ip)
     mime   = frame_mime()
+    peak_viewers = 0
 
     try:
         while True:
@@ -64,6 +66,7 @@ async def _handle_source(
             if pkt.pkt_type == PKT_META:
                 try:
                     meta = json.loads(pkt.payload.decode("utf-8", errors="replace"))
+                    is_new = not stream.meta  # first META = stream just came live
                     stream.meta    = meta
                     stream.frame_w = meta.get("w", 320)
                     stream.frame_h = meta.get("h", 180)
@@ -71,9 +74,15 @@ async def _handle_source(
                     await reg.broadcast(stream_id, {
                         "type": "meta", "stream_id": stream_id, **meta,
                     })
-                    # Auto-register with atelier-streaming backend so the stream
-                    # appears in QCR discovery and BoK tracking immediately.
                     await _register_with_backend(stream_id, source_ip, meta)
+                    if is_new:
+                        await notify_stream_live(
+                            stream_id = stream_id,
+                            title     = meta.get("title", stream_id),
+                            game      = meta.get("game", "7_KLGS"),
+                            source_ip = source_ip,
+                            tongues   = meta.get("tongues", []),
+                        )
                 except Exception:
                     pass
 
@@ -91,6 +100,9 @@ async def _handle_source(
                 stream.last_frame_ts = time.time()
                 stream.frame_w       = w
                 stream.frame_h       = h
+                vc = reg.viewer_count(stream_id)
+                if vc > peak_viewers:
+                    peak_viewers = vc
 
                 encoded = rgb_to_jpeg_b64(w, h, rgb)
                 if encoded:
@@ -109,6 +121,12 @@ async def _handle_source(
                     ev = json.loads(pkt.payload.decode("utf-8", errors="replace"))
                     stream.record_event(ev)
                     await reg.broadcast(stream_id, {"type": "semantic", "payload": ev})
+                    await notify_semantic(
+                        stream_id = stream_id,
+                        title     = stream.meta.get("title", stream_id),
+                        ev_type   = ev.get("ev", ""),
+                        payload_d = ev,
+                    )
                 except Exception:
                     pass
 
@@ -117,8 +135,20 @@ async def _handle_source(
     except (ConnectionResetError, asyncio.IncompleteReadError, OSError):
         pass
     finally:
-        print(f"[receiver] {source_ip} disconnected")
+        duration = stream.age_s()
+        title    = stream.meta.get("title", stream_id) if stream.meta else stream_id
+        vc       = reg.viewer_count(stream_id)
+        peak_viewers = max(peak_viewers, vc)
+        print(f"[receiver] {source_ip} disconnected  duration={duration:.0f}s  peak={peak_viewers}")
         reg.remove(stream_id)
+        if stream.meta:  # only notify if stream was actually live
+            import asyncio as _aio
+            _aio.ensure_future(notify_stream_end(
+                stream_id    = stream_id,
+                title        = title,
+                duration_s   = duration,
+                peak_viewers = peak_viewers,
+            ))
         try:
             writer.close()
         except Exception:

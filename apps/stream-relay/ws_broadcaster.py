@@ -25,8 +25,9 @@ from typing import Optional
 import websockets
 import websockets.exceptions
 
-from guild_gate      import validate_token
-from stream_registry import registry
+from guild_gate        import validate_token
+from stream_registry   import registry
+from discord_notifier  import notify_witness_join
 
 
 # ── Connection handler ────────────────────────────────────────────────────────
@@ -85,8 +86,14 @@ async def _viewer_handler(websocket) -> None:
 
     q: asyncio.Queue = asyncio.Queue(maxsize=30)
     reg.add_viewer(stream_id, q)
-    vc = reg.viewer_count(stream_id)
-    print(f"[ws] viewer joined  stream:{stream_id}  viewers:{vc}  user:{user.get('artisan_id','?')}")
+    vc       = reg.viewer_count(stream_id)
+    username = user.get("artisan_id", user.get("discord_username", "witness"))
+    title    = (stream.meta or {}).get("title", stream_id)
+    print(f"[ws] viewer joined  stream:{stream_id}  viewers:{vc}  user:{username}")
+    # Notify Discord when the first witness arrives (not every join).
+    if vc == 1:
+        import asyncio as _aio
+        _aio.ensure_future(notify_witness_join(stream_id, title, username, vc))
 
     try:
         await asyncio.gather(

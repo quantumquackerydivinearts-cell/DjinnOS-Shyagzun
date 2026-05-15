@@ -28,15 +28,59 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+
+_DISCORD_QUACK_WEBHOOK = (
+    os.getenv("DISCORD_QUACK_WEBHOOK_URL") or
+    os.getenv("DISCORD_WEBHOOK_URL") or
+    ""
+)
+COLOR_QUACK = 0xD4AF37
+
+
+def _fire_quack_webhook(
+    tongue_number: int,
+    tongue_name:   str,
+    artisan_id:    str,
+    entry_count:   int,
+    rank_title:    str = "",
+) -> None:
+    if not _DISCORD_QUACK_WEBHOOK:
+        return
+    fields = [
+        {"name": "Tongue",  "value": f"{tongue_number} — {tongue_name}", "inline": True},
+        {"name": "Entries", "value": str(entry_count),                    "inline": True},
+        {"name": "Artisan", "value": artisan_id,                          "inline": True},
+    ]
+    if rank_title:
+        fields.append({"name": "Rank", "value": rank_title, "inline": True})
+    payload = {
+        "embeds": [{
+            "title":       f"◆  Quack minted — Tongue {tongue_number}: {tongue_name}",
+            "description": (
+                f"**{artisan_id}** extended the byte table with **{entry_count}** new entries.\n"
+                f"The semantic substrate grows."
+            ),
+            "color":     COLOR_QUACK,
+            "fields":    fields,
+            "footer":    {"text": "Quantum Quackery Guild · Quack Ledger"},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }]
+    }
+    try:
+        httpx.post(_DISCORD_QUACK_WEBHOOK, json=payload, timeout=5)
+    except Exception:
+        pass
 
 from .db import get_db
 from .models import QuackToken, TongueProposal
@@ -210,6 +254,7 @@ def propose_tongue(
 def mint_quack(
     proposal_id: str,
     payload: QuackMintIn,
+    bg: BackgroundTasks,
     artisan_id: str = Depends(_resolve_artisan),
     db: Session = Depends(get_db),
 ) -> QuackOut:
@@ -258,11 +303,24 @@ def mint_quack(
     proposal.status = "minted"
     db.commit()
     db.refresh(quack)
+
+    # Fire Discord notification in background (non-blocking)
+    from .quack_titles import practitioner_rank
+    rank = practitioner_rank(
+        db.query(QuackToken).filter(QuackToken.holder_artisan_id == proposal.artisan_id).count()
+    )
+    bg.add_task(
+        _fire_quack_webhook,
+        quack.tongue_number, quack.tongue_name,
+        quack.holder_artisan_id, quack.entry_count, rank,
+    )
+
     return _row_to_quack_out(quack)
 
 
 @router.post("/genesis")
 def seed_genesis(
+    bg: BackgroundTasks,
     x_admin_gate_token: Optional[str] = Header(default=None),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -354,6 +412,15 @@ def seed_genesis(
         minted.append(tongue_name)
 
     db.commit()
+
+    if minted:
+        bg.add_task(
+            _fire_quack_webhook,
+            0, "Genesis Seed",
+            "alexi", sum(len(by_tongue.get(t, [])) for t in minted),
+            "Genesis",
+        )
+
     return {"minted": minted, "skipped": skipped, "total": len(minted) + len(skipped)}
 
 

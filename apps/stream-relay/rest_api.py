@@ -87,11 +87,14 @@ async def options_handler(request: web.Request) -> web.Response:
 # ── App factory ───────────────────────────────────────────────────────────────
 
 def make_app() -> web.Application:
+    from discord_oauth import oauth_start, oauth_callback
     app = web.Application()
     app.router.add_get( "/health",                     get_health)
     app.router.add_get( "/streams",                    get_streams)
     app.router.add_get( "/streams/{stream_id}",        get_stream)
     app.router.add_get( "/streams/{stream_id}/events", get_stream_events)
+    app.router.add_get( "/discord/oauth/start",        oauth_start)
+    app.router.add_get( "/discord/oauth/callback",     oauth_callback)
     app.router.add_route("OPTIONS", "/{path_info:.*}", options_handler)
     return app
 

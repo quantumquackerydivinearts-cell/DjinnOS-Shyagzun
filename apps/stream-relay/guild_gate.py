@@ -34,11 +34,23 @@ async def validate_token(token: str) -> Optional[dict]:
     if not token or not token.strip():
         return None
 
+    token = token.strip()
+
+    # Check Discord OAuth session store first (no network hop needed)
+    try:
+        from discord_oauth import lookup_session
+        session_user = lookup_session(token)
+        if session_user is not None:
+            return session_user
+    except Exception:
+        pass
+
+    # Fall back to Atelier API token validation
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 f"{ATELIER_API}/v1/auth/me",
-                headers={"Authorization": f"Bearer {token.strip()}"},
+                headers={"Authorization": f"Bearer {token}"},
                 timeout=aiohttp.ClientTimeout(total=5),
             ) as resp:
                 if resp.status == 200:

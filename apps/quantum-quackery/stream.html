@@ -333,6 +333,35 @@ video, canvas#videoCanvas {
 }
 .connect-btn:hover { box-shadow: var(--glow-m); }
 
+.discord-btn {
+  width: 100%;
+  background: #5865F2;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.15s;
+  margin-top: 8px;
+}
+.discord-btn:hover { opacity: 0.88; }
+.discord-btn svg { flex-shrink: 0; }
+
+.divider {
+  display: flex; align-items: center; gap: 10px;
+  margin: 14px 0 6px;
+  font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
 .err-msg { color: #f87171; font-size: 12px; margin-top: 8px; }
 </style>
 </head>
@@ -369,6 +398,16 @@ video, canvas#videoCanvas {
       <input id="tokenInp" type="text" placeholder="">
     </div>
     <button class="connect-btn" onclick="connect()">Enter Witness Space</button>
+
+    <div class="divider">or</div>
+
+    <button class="discord-btn" onclick="discordLogin()">
+      <svg width="18" height="14" viewBox="0 0 71 55" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M60.1 4.9A58.5 58.5 0 0 0 45.5.4a40.2 40.2 0 0 0-1.8 3.7 54 54 0 0 0-16.3 0A40.8 40.8 0 0 0 25.6.4 58.4 58.4 0 0 0 11 4.9C1.6 19.2-.9 33.1.3 46.8a58.9 58.9 0 0 0 18 9.1 44.2 44.2 0 0 0 3.8-6.2 38.3 38.3 0 0 1-6-2.9l1.4-1.1a42 42 0 0 0 36 0l1.5 1.1a38.3 38.3 0 0 1-6 2.9 44.2 44.2 0 0 0 3.8 6.2 58.7 58.7 0 0 0 18-9.1C72 31 68.8 17.2 60.1 4.9ZM23.7 38.4c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2Zm23.7 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.3 6.4 7.2c0 4-2.8 7.2-6.4 7.2Z" fill="white"/>
+      </svg>
+      Login with Discord
+    </button>
+
     <div class="err-msg" id="errMsg"></div>
   </div>
 </div>
@@ -644,6 +683,19 @@ function sendWitness() {
   pushEvent('witness_sent', 'attestation sent', false);
 }
 
+function discordLogin() {
+  const streamId = document.getElementById('streamIdInp').value.trim();
+  const relay    = document.getElementById('wsUrl').value.trim();
+  // Derive REST API base from the relay WS URL (port 7702)
+  let oauthBase = 'https://relay.quantumquackery.com';
+  if (relay.includes('localhost') || relay.includes('127.0.0.1')) {
+    oauthBase = 'http://localhost:7702';
+  }
+  let url = oauthBase + '/discord/oauth/start';
+  if (streamId) url += '?stream=' + encodeURIComponent(streamId);
+  window.location.href = url;
+}
+
 // ── Pre-fill from query string ─────────────────────────────────────────────────
 
 (function () {
@@ -656,7 +708,7 @@ function sendWitness() {
   if (token)  document.getElementById('tokenInp').value  = token;
   if (relay && stream) connect();
   else if (stream) {
-    const base = 'wss://stream.quantumquackery.com';
+    const base = 'wss://relay.quantumquackery.com';
     document.getElementById('wsUrl').value = base;
     connect();
   }

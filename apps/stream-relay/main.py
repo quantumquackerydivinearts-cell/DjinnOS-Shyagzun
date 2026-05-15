@@ -22,13 +22,16 @@ import signal
 from djinn_receiver import start_receiver
 from ws_broadcaster import start_broadcaster
 from rest_api       import start_rest
+from discord_bot    import start_bot
 
-BIND          = os.getenv("BIND",           "0.0.0.0")
-RECV_PORT     = int(os.getenv("RECEIVER_PORT", "7700"))
-WS_PORT       = int(os.getenv("WS_PORT",       "7701"))
-REST_PORT     = int(os.getenv("REST_PORT",      "7702"))
-REQUIRE_AUTH  = os.getenv("REQUIRE_AUTH",  "false")
-ATELIER_API   = os.getenv("ATELIER_API",   "http://127.0.0.1:9000")
+BIND          = os.getenv("BIND",                 "0.0.0.0")
+RECV_PORT     = int(os.getenv("RECEIVER_PORT",    "7700"))
+WS_PORT       = int(os.getenv("WS_PORT",          "7701"))
+REST_PORT     = int(os.getenv("REST_PORT",         "7702"))
+REQUIRE_AUTH  = os.getenv("REQUIRE_AUTH",         "false")
+ATELIER_API   = os.getenv("ATELIER_API",          "http://127.0.0.1:9000")
+# Discord — set DISCORD_WEBHOOK_URL to enable stream notifications
+DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK_URL", "")
 
 
 def _banner() -> None:
@@ -49,9 +52,12 @@ def _banner() -> None:
 
 
 async def _main() -> None:
-    recv_srv  = await start_receiver(BIND, RECV_PORT)
-    ws_srv    = await start_broadcaster(BIND, WS_PORT)
+    recv_srv    = await start_receiver(BIND, RECV_PORT)
+    ws_srv      = await start_broadcaster(BIND, WS_PORT)
     rest_runner = await start_rest(BIND, REST_PORT)
+
+    # Discord bot runs concurrently; no-op if token not set
+    asyncio.ensure_future(start_bot())
 
     _banner()
 
