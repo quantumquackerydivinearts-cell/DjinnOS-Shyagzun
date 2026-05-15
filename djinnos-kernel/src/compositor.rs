@@ -125,8 +125,9 @@ impl Compositor {
             return;
         }
         let _ = (x, y);
+        // Cursor-only: save/restore handles the damaged pixels without
+        // requiring a content layer repaint.
         self.mark_dirty(LayerKind::Cursor);
-        self.mark_dirty(LayerKind::Content);
     }
 
     // ── Notifications ─────────────────────────────────────────────────────────
@@ -190,12 +191,9 @@ impl Compositor {
         #[cfg(target_arch = "x86_64")]
         crate::ne_bar::render(gpu, mode_name, profile_name, frame);
 
-        // Layer 3: Cursor (software fallback only -- hardware path skips this)
-        if !self.hw_cursor && self.layers[3].dirty && self.layers[3].visible {
-            #[cfg(target_arch = "x86_64")]
-            crate::cursor::render(gpu);
-            self.layers[3].dirty = false;
-        }
+        // Layer 3: Cursor is now driven by main.rs via save/restore.
+        // The compositor marks it for dirty-tracking purposes only.
+        self.layers[3].dirty = false;
     }
 
     fn render_overlay(&self, gpu: &dyn crate::gpu::GpuSurface) {

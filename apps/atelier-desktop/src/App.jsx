@@ -14317,11 +14317,27 @@ function extractPythonSavedPath(outputText) {
   const [qcrContracts,       setQcrContracts]        = useState([]);
   const [qcrSelected,        setQcrSelected]         = useState(null);
   const [qcrStatus,          setQcrStatus]           = useState("");
+  const [qcrNewClient,       setQcrNewClient]        = useState("");
+  const [qcrNonErasure,      setQcrNonErasure]       = useState(false);
+  const [qcrImplContract,    setQcrImplContract]     = useState("");
+  const [qcrImplDomain,      setQcrImplDomain]       = useState("");
+  const [qcrImplRate,        setQcrImplRate]         = useState("3500");
 
   // ── Billing ──────────────────────────────────────────────────────────────────
   const [billingShares,      setBillingShares]       = useState([]);
   const [billingOffsets,     setBillingOffsets]      = useState([]);
   const [billingStatus,      setBillingStatus]       = useState("");
+  const [billingPeriod,      setBillingPeriod]       = useState(() => new Date().toISOString().slice(0,7));
+  const [billingEnergy,      setBillingEnergy]       = useState("0");
+  const [billingInfra,       setBillingInfra]        = useState("0");
+  const [billingSulphur,     setBillingSulphur]      = useState("0");
+  const [billingMercury,     setBillingMercury]      = useState("0");
+  const [billingSalt,        setBillingSalt]         = useState("0");
+  const [billingQqees,       setBillingQqees]        = useState("0");
+
+  // ── Quack Genesis ─────────────────────────────────────────────────────────────
+  const [genesisGate,        setGenesisGate]         = useState("STEWARD_DEV_GATE");
+  const [genesisStatus,      setGenesisStatus]       = useState("");
 
   // ── Roko ─────────────────────────────────────────────────────────────────────
   const [rokoDomain,         setRokoDomain]          = useState("");
@@ -20168,6 +20184,42 @@ function extractPythonSavedPath(outputText) {
           </section>
 
           <section className="panel">
+            <h2>Genesis Seed</h2>
+            <p style={{ opacity: 0.6, fontSize: "0.85em" }}>Mint Alexi's genesis Quacks — one per tongue, sourced from the live byte table. Idempotent: already-minted tongues are skipped. Requires the admin gate token.</p>
+            <div className="row" style={{ marginTop: "0.5rem" }}>
+              <input
+                value={genesisGate}
+                onChange={e => setGenesisGate(e.target.value)}
+                placeholder="admin gate token"
+                style={{ flex: 1, fontFamily: "monospace" }}
+              />
+              <button className="action" onClick={async () => {
+                setGenesisStatus("seeding…");
+                try {
+                  const resp = await fetch(`${API_BASE}/v1/quack/genesis`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "X-Admin-Gate-Token": genesisGate,
+                      "X-Artisan-Id": artisanId || "alexi",
+                    },
+                  });
+                  const data = await resp.json();
+                  if (resp.ok) {
+                    setGenesisStatus(`seeded: ${data.minted?.length || 0} minted, ${data.skipped?.length || 0} skipped`);
+                    void loadQuackLedger();
+                  } else {
+                    setGenesisStatus(`error: ${data.detail || resp.status}`);
+                  }
+                } catch (err) {
+                  setGenesisStatus(`error: ${err.message}`);
+                }
+              }}>Seed Genesis</button>
+            </div>
+            {genesisStatus && <p style={{ marginTop: "0.4rem", fontFamily: "monospace", fontSize: "0.85em", opacity: 0.8 }}>{genesisStatus}</p>}
+          </section>
+
+          <section className="panel">
             <h2>Your Proposals</h2>
             <div className="row">
               <button className="action" onClick={loadQuackProposals}>Refresh</button>
@@ -20478,11 +20530,86 @@ function extractPythonSavedPath(outputText) {
                 <div><strong>Status:</strong> {selectedContract.status}</div>
                 <div><strong>Signed:</strong> {selectedContract.signed_at}</div>
                 <div><strong>Roko gate:</strong> {selectedContract.roko_status || "—"}</div>
-                <div><strong>Roko checked:</strong> {selectedContract.roko_last_checked || "—"}</div>
                 {selectedContract.revocation_reason && <div style={{ color: "#f87171" }}><strong>Revoked:</strong> {selectedContract.revocation_reason}</div>}
               </div>
             </section>
           )}
+
+          <section className="panel">
+            <h2>New Contract</h2>
+            <p style={{ opacity: 0.6, fontSize: "0.85em" }}>Each contract ties a client to a dispatcher. $35/month per implementation. Non-erasure term is mandatory.</p>
+            <div className="row" style={{ marginTop: "0.5rem" }}>
+              <input
+                value={qcrNewClient} onChange={e => setQcrNewClient(e.target.value)}
+                placeholder="client_id (e.g. studio-name or domain)"
+                style={{ flex: 1 }}
+              />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", fontSize: "0.85em", cursor: "pointer" }}>
+              <input type="checkbox" checked={qcrNonErasure} onChange={e => setQcrNonErasure(e.target.checked)} />
+              Client acknowledges non-erasure term
+            </label>
+            <div className="row" style={{ marginTop: "0.5rem" }}>
+              <button className="action" disabled={!qcrNewClient.trim() || !qcrNonErasure} onClick={async () => {
+                setQcrStatus("creating contract…");
+                const data = await apiCall("/v1/billing/contracts", "POST", {
+                  client_id: qcrNewClient.trim(),
+                  non_erasure_acknowledged: true,
+                });
+                if (data?.id) {
+                  setQcrStatus(`contract created: ${data.id.slice(0,8)}…`);
+                  setQcrNewClient(""); setQcrNonErasure(false);
+                  const updated = await apiCall("/v1/billing/contracts", "GET");
+                  if (updated) setQcrContracts(Array.isArray(updated) ? updated : updated.contracts || []);
+                } else { setQcrStatus("error creating contract"); }
+              }}>Create Contract</button>
+              {qcrStatus && <span style={{ opacity: 0.6, fontSize: "0.85em" }}>{qcrStatus}</span>}
+            </div>
+          </section>
+
+          <section className="panel">
+            <h2>Add Implementation</h2>
+            <p style={{ opacity: 0.6, fontSize: "0.85em" }}>Each domain or subdomain is one implementation at $35/month. Generates a domain-locked API key.</p>
+            <div className="row" style={{ marginTop: "0.5rem" }}>
+              <select
+                value={qcrImplContract} onChange={e => setQcrImplContract(e.target.value)}
+                style={{ flex: 1 }}
+              >
+                <option value="">— select contract —</option>
+                {qcrContracts.filter(c => c.status === "active").map(c => (
+                  <option key={c.id} value={c.id}>{c.client_id} ({c.id.slice(0,8)})</option>
+                ))}
+              </select>
+            </div>
+            <div className="row" style={{ marginTop: "0.4rem" }}>
+              <input
+                value={qcrImplDomain} onChange={e => setQcrImplDomain(e.target.value)}
+                placeholder="domain (e.g. example.com)"
+                style={{ flex: 1 }}
+              />
+              <input
+                value={qcrImplRate} onChange={e => setQcrImplRate(e.target.value)}
+                placeholder="rate cents (3500 = $35)"
+                style={{ width: "160px" }}
+                type="number" min="0"
+              />
+            </div>
+            <button className="action" style={{ marginTop: "0.5rem" }}
+              disabled={!qcrImplContract || !qcrImplDomain.trim()}
+              onClick={async () => {
+                setQcrStatus("adding implementation…");
+                const data = await apiCall("/v1/billing/implementations", "POST", {
+                  contract_id: qcrImplContract,
+                  domain: qcrImplDomain.trim(),
+                  rate_cents: parseInt(qcrImplRate) || 3500,
+                });
+                if (data?.id) {
+                  setQcrStatus(`implementation added  API key: ${data.api_key}`);
+                  setQcrImplDomain(""); setQcrImplContract("");
+                } else { setQcrStatus("error adding implementation"); }
+              }}
+            >Add Implementation</button>
+          </section>
         </>
       );
     }
@@ -20528,6 +20655,43 @@ function extractPythonSavedPath(outputText) {
               {billingShares.length === 0 && <p className="muted-text">No revenue shares loaded.</p>}
             </div>
           </section>
+          <section className="panel">
+            <h2>Run Billing Cycle</h2>
+            <p style={{ opacity: 0.6, fontSize: "0.85em" }}>Records costs for the period, generates revenue shares for all active implementations, and refreshes Quack offsets. All figures in cents (100 = $1.00).</p>
+            <div className="row" style={{ marginTop: "0.5rem" }}>
+              <label style={{ fontSize: "0.85em", opacity: 0.7, minWidth: 80 }}>Period</label>
+              <input value={billingPeriod} onChange={e => setBillingPeriod(e.target.value)} placeholder="YYYY-MM" style={{ width: 120 }} />
+            </div>
+            {[
+              ["Energy", billingEnergy, setBillingEnergy],
+              ["Infra", billingInfra, setBillingInfra],
+              ["Sulphur wages", billingSulphur, setBillingSulphur],
+              ["Mercury wages", billingMercury, setBillingMercury],
+              ["Salt wages", billingSalt, setBillingSalt],
+              ["QQEES credit", billingQqees, setBillingQqees],
+            ].map(([label, val, setter]) => (
+              <div className="row" key={label} style={{ marginTop: "0.3rem" }}>
+                <label style={{ fontSize: "0.85em", opacity: 0.7, minWidth: 120 }}>{label} (¢)</label>
+                <input value={val} onChange={e => setter(e.target.value)} type="number" min="0" style={{ width: 100 }} />
+              </div>
+            ))}
+            <button className="action" style={{ marginTop: "0.75rem" }} onClick={async () => {
+              setBillingStatus("running cycle…");
+              const data = await apiCall("/v1/billing/run-cycle", "POST", {
+                period:              billingPeriod,
+                energy_cents:        parseInt(billingEnergy)   || 0,
+                infra_cents:         parseInt(billingInfra)    || 0,
+                sulphur_wages_cents: parseInt(billingSulphur)  || 0,
+                mercury_wages_cents: parseInt(billingMercury)  || 0,
+                salt_wages_cents:    parseInt(billingSalt)     || 0,
+                qqees_credit_cents:  parseInt(billingQqees)    || 0,
+              });
+              if (data) {
+                setBillingStatus(`cycle complete — ${data.implementations} implementations · H=${data.shannon_h?.toFixed(3)}`);
+              } else { setBillingStatus("error"); }
+            }}>Run Cycle for {billingPeriod}</button>
+          </section>
+
           <section className="panel">
             <h2>Quack Offsets</h2>
             <div className="row">

@@ -332,20 +332,28 @@ impl crate::gpu::GpuSurface for GpuDriver {
     fn fill(&self, b: u8, g: u8, r: u8)                       { self.fill(b, g, r) }
     fn flush(&mut self)                                         { self.flush() }
 
-    /// #[inline(never)] keeps this a real function call from Shell::render.
-    /// write_volatile prevents −Oz from miscomputing the pixel address via
-    /// the slli/srli register trick that causes the sepc=0x100 / stval crash.
+    /// Explicit while loops prevent the RISC-V backend's polyhedral loop
+    /// fusion from merging the two induction variables into a single affine
+    /// expression that overflows the framebuffer (stval=0x88000000 crash).
     #[inline(never)]
     fn fill_rect(&self, x: u32, y: u32, rw: u32, rh: u32, b: u8, g: u8, r: u8) {
         let pixel: u32 = (r as u32) << 16 | (g as u32) << 8 | b as u32;
-        let fb     = FB_PHYS as *mut u32;
-        let stride = self.width as usize;
-        let x1     = (x + rw).min(self.width)  as usize;
-        let y1     = (y + rh).min(self.height) as usize;
-        for row in (y as usize)..y1 {
-            for col in (x as usize)..x1 {
-                unsafe { write_volatile(fb.add(row * stride + col), pixel); }
+        let sw = self.width;
+        let sh = self.height;
+        if x >= sw || y >= sh || rw == 0 || rh == 0 { return; }
+        let x1 = (x + rw).min(sw);
+        let y1 = (y + rh).min(sh);
+        let fb = FB_PHYS as *mut u32;
+        let stride = sw as usize;
+        let mut row = y;
+        while row < y1 {
+            let row_base = (row as usize) * stride;
+            let mut col = x;
+            while col < x1 {
+                unsafe { write_volatile(fb.add(row_base + col as usize), pixel); }
+                col = col.wrapping_add(1);
             }
+            row = row.wrapping_add(1);
         }
     }
 }

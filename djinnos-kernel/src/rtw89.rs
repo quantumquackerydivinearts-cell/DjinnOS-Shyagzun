@@ -583,10 +583,14 @@ pub fn get() -> Option<&'static mut Rtw89> {
 
 // ── Public init ───────────────────────────────────────────────────────────────
 
+#[cfg(target_arch = "x86_64")]
 pub fn init() -> bool {
     unsafe { init_inner() }
 }
+#[cfg(not(target_arch = "x86_64"))]
+pub fn init() -> bool { false }
 
+#[cfg(target_arch = "x86_64")]
 unsafe fn init_inner() -> bool {
     // Find [10ec:8852] in PCI table.
     let dev = match crate::pci::find_id(VENDOR, DEVICE) {

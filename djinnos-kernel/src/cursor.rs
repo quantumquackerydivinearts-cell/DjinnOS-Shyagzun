@@ -10,9 +10,73 @@ static mut CUR_X:       u32 = 0;
 static mut CUR_Y:       u32 = 0;
 static mut CUR_BTN:     u8  = 0;
 static mut CUR_PREV:    u8  = 0;
-static mut CUR_SCROLL:  i32 = 0;  // accumulated scroll ticks this frame
+static mut CUR_SCROLL:  i32 = 0;
 static mut SCREEN_W:    u32 = 1920;
 static mut SCREEN_H:    u32 = 1080;
+
+// ── Cursor save/restore buffer ────────────────────────────────────────────────
+//
+// Before drawing the cursor we save the pixels underneath it.
+// When the cursor moves we restore those pixels first, then save the new
+// position and draw.  This means cursor movement costs 2×(12×16) pixel
+// operations instead of a full content layer repaint (~2M pixels).
+//
+// Pixel storage is BGR packed as three u8 bytes per pixel.
+
+const SAVE_W: usize = 12;
+const SAVE_H: usize = 16;
+
+static mut SAVE_BUF:   [[u8; SAVE_W * 3]; SAVE_H] = [[0u8; SAVE_W * 3]; SAVE_H];
+static mut SAVE_X:     u32  = 0;
+static mut SAVE_Y:     u32  = 0;
+static mut SAVE_VALID: bool = false;
+
+/// Save the pixels currently under the cursor hotspot.
+pub fn save_under(gpu: &dyn GpuSurface) {
+    unsafe {
+        let (cx, cy) = (CUR_X, CUR_Y);
+        SAVE_X = cx; SAVE_Y = cy;
+        let sw = gpu.width(); let sh = gpu.height();
+        for row in 0..SAVE_H {
+            for col in 0..SAVE_W {
+                let px = cx + col as u32;
+                let py = cy + row as u32;
+                let (b, g, r) = if px < sw && py < sh {
+                    gpu.get_pixel(px, py)
+                } else {
+                    (0, 0, 0)
+                };
+                SAVE_BUF[row][col * 3]     = b;
+                SAVE_BUF[row][col * 3 + 1] = g;
+                SAVE_BUF[row][col * 3 + 2] = r;
+            }
+        }
+        SAVE_VALID = true;
+    }
+}
+
+/// Restore the saved pixels to their original position.
+pub fn restore_under(gpu: &dyn GpuSurface) {
+    unsafe {
+        if !SAVE_VALID { return; }
+        let (sx, sy) = (SAVE_X, SAVE_Y);
+        let sw = gpu.width(); let sh = gpu.height();
+        for row in 0..SAVE_H {
+            for col in 0..SAVE_W {
+                let px = sx + col as u32;
+                let py = sy + row as u32;
+                if px < sw && py < sh {
+                    gpu.set_pixel(px, py,
+                        SAVE_BUF[row][col * 3],
+                        SAVE_BUF[row][col * 3 + 1],
+                        SAVE_BUF[row][col * 3 + 2],
+                    );
+                }
+            }
+        }
+        SAVE_VALID = false;
+    }
+}
 
 pub fn init(sw: u32, sh: u32) {
     unsafe {

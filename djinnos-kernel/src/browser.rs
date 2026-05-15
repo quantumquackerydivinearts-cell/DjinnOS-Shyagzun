@@ -529,30 +529,42 @@ impl BrowserClient {
     }
 
     // ── ko: — evaluate Kobra expression, render result ───────────────────────
+    //
+    // Dispatch model:
+    //   result.html == true  → output is Faerie-safe HTML; pass to parse_html.
+    //   first line is a URL  → transparent navigation (no page state change).
+    //   otherwise            → render as plain text lines.
 
     fn eval_ko(&mut self, script: &[u8]) {
-        if let Ok(s) = core::str::from_utf8(script) {
-            let result = crate::kobra::eval_expr(s.as_bytes());
-            if result.line_count() == 0 {
-                self.push_line(b"(no output)", KIND_NORMAL, 0xFF);
-            } else {
-                for i in 0..result.line_count() {
-                    let line = result.line(i);
-                    // If result looks like a URL, navigate there
-                    if line.starts_with(b"local://") || line.starts_with(b"http") {
-                        let mut tmp = [0u8; URL_W];
-                        let ln = line.len().min(URL_W);
-                        tmp[..ln].copy_from_slice(&line[..ln]);
-                        self.nav_inner(&tmp[..ln]);
-                        return;
-                    }
-                    self.push_line(line, KIND_NORMAL, 0xFF);
-                }
-            }
-        } else {
-            self.push_line(b"ko: invalid UTF-8", KIND_NORMAL, 0xFF);
+        let result = crate::kobra::eval_expr(script);
+
+        if result.line_count() == 0 {
+            self.push_line(b"(no output)", KIND_NORMAL, 0xFF);
+            self.setstatus(b"ko: done");
+            return;
         }
-        self.setstatus(b"ko: evaluated");
+
+        // HTML output — build flat buffer and hand to parse_html.
+        if result.html {
+            let n = result.write_to(unsafe { &mut RBUF });
+            self.parse_html(unsafe { &RBUF[..n] });
+            self.setstatus(b"ko: done");
+            return;
+        }
+
+        // Plain output — check first line for URL navigation.
+        for i in 0..result.line_count() {
+            let line = result.line(i);
+            if line.starts_with(b"local://") || line.starts_with(b"http") {
+                let mut tmp = [0u8; URL_W];
+                let ln = line.len().min(URL_W);
+                tmp[..ln].copy_from_slice(&line[..ln]);
+                self.nav_inner(&tmp[..ln]);
+                return;
+            }
+            self.push_line(line, KIND_NORMAL, 0xFF);
+        }
+        self.setstatus(b"ko: done");
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -777,8 +789,11 @@ impl BrowserClient {
 
         self.parse_html(body);
 
-        // If very little content: this is a JS-rendered site.
+        // If very little content: try JS evaluation before falling back.
         if self.n_lines < 4 {
+            #[cfg(all(quickjs_available, target_arch = "x86_64"))]
+            if self.try_js_render(body) { return; }
+
             self.push_line(b"", KIND_NORMAL, 0xFF);
             self.push_line(b"[ Page requires JavaScript -- Faerie is a no-JS reader ]", KIND_NORMAL, 0xFF);
             self.push_line(b"", KIND_NORMAL, 0xFF);
@@ -814,6 +829,64 @@ impl BrowserClient {
 
     fn setstatus(&mut self, msg: &[u8]) {
         set_status_inner(&mut self.status, &mut self.status_n, msg);
+    }
+
+    // ── JS rendering (QuickJS, x86_64 only) ─────────────────────────────────
+    //
+    // Extracts <script> tags from the page body, evaluates them with the
+    // DOM bridge, and parses any document.write() output as HTML.
+    // Returns true if JS produced usable content.
+
+    #[cfg(all(quickjs_available, target_arch = "x86_64"))]
+    fn try_js_render(&mut self, html: &[u8]) -> bool {
+        // Collect all <script>...</script> content into RBUF (reuse).
+        let script_buf = unsafe { &mut RBUF };
+        let mut pos = 0usize;
+        let mut i   = 0usize;
+        while i < html.len() {
+            let needle = b"<script";
+            if html[i..].starts_with(needle) {
+                // Skip to end of opening tag
+                while i < html.len() && html[i] != b'>' { i += 1; }
+                if i < html.len() { i += 1; }
+                // Collect until </script>
+                let close = b"</script>";
+                while i + close.len() < html.len() {
+                    if html[i..].starts_with(close) { i += close.len(); break; }
+                    if pos + 1 < script_buf.len() {
+                        script_buf[pos] = html[i]; pos += 1;
+                    }
+                    i += 1;
+                }
+                // Separator between scripts
+                if pos + 1 < script_buf.len() { script_buf[pos] = b'\n'; pos += 1; }
+            } else {
+                i += 1;
+            }
+        }
+        if pos == 0 { return false; }
+
+        // Evaluate with DOM bridge.  Output goes into a static buffer.
+        static mut JS_OUT: [u8; 8192] = [0u8; 8192];
+        let rc = unsafe {
+            crate::c_api::djinnos_js_eval_dom_rs(
+                script_buf.as_ptr(), pos,
+                JS_OUT.as_mut_ptr(), JS_OUT.len(),
+            )
+        };
+        if rc != 0 { return false; }
+
+        let (out, out_len) = unsafe { (&JS_OUT, JS_OUT.len()) };
+        let n = out.iter().position(|&b| b == 0).unwrap_or(out_len);
+        if n < 8 { return false; }
+
+        // Parse the document.write() HTML output.
+        self.parse_html(&out[..n]);
+        if self.n_lines > 2 {
+            self.setstatus(b"Faerie: JS rendered via QuickJS");
+            return true;
+        }
+        false
     }
 
     // ── HTML parser ───────────────────────────────────────────────────────────

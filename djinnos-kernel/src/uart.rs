@@ -76,6 +76,10 @@ pub fn puts(s: &str) {
     for b in s.bytes() { putc(b); }
 }
 
+pub fn puts_bytes(s: &[u8]) {
+    for &b in s { putc(b); }
+}
+
 pub fn putc_char(c: u8) { putc(c); }
 
 pub fn putu(mut n: u64) {

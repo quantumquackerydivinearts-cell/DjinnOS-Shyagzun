@@ -83,6 +83,26 @@ factorisation pattern defines the topology.</p>
   number theory.
 </div>
 
+<div class="def">
+  <span class="term">Akinen.</span> The minimal unit of semantic content in
+  Shygazun. An akinen occupies a single byte address and carries a specific
+  meaning determined by its position in the address space, not assigned
+  arbitrarily. The word is Shygazun: A (existence) + Ki (structure) + Ne
+  (network/system) + N (compression marker). An akinen is the smallest thing
+  that can be meant precisely.
+</div>
+
+<div class="def">
+  <span class="term">Tongue.</span> A named register within the byte table
+  occupying a contiguous range of addresses. Each Tongue covers a coherent
+  semantic domain &mdash; Lotus for elemental presence, Dragon for biological
+  consciousness, Koi for balanced exchange, and so on. Tongue boundaries are
+  determined by the prime factorisation structure of the address space, not by
+  editorial decision. There are 38 canonical Tongues. New Tongues cannot be
+  declared arbitrarily; they must emerge from the geometric logic of the address
+  space and require Quack-generating Wunashakoun practice to populate.
+</div>
+
 <p>The 38 Tongues cover: foundational registers (Lotus through Cannabis, bytes
 0&ndash;213); biological consciousness registers (Dragon through Protist, bytes
 256&ndash;511); higher consciousness registers (Immune through Djinn, bytes
@@ -100,6 +120,17 @@ Tongue proximity:</p>
 
 <span class="eq">W(i,j) = K(addr_j - addr_i) * tongue_affinity(tongue_i, tongue_j)</span>
 
+<div class="def">
+  <span class="term">Translation-invariant.</span> A property of a mathematical
+  object that does not change when a uniform offset is applied. Here: the weight
+  between two candidates depends only on the distance between their byte
+  addresses, not on where in the address space they sit. W(i,j) = W(i+k, j+k)
+  for any offset k. This means the semantic relationship between two concepts
+  is determined by their relative position in the topology, not by which
+  specific addresses they occupy. The entire weight matrix can be specified by
+  a single kernel function evaluated at each possible address difference.
+</div>
+
 <p>Because the weight depends only on the address difference (not absolute
 positions), the weight matrix is translation-invariant. The Hopfield update
 is therefore a one-dimensional convolution over the semantic address space.
@@ -107,12 +138,47 @@ The energy function is:</p>
 
 <span class="eq">E(s) = -0.5 * s^T W s</span>
 
+<div class="def">
+  <span class="term">Energy Landscape.</span> The surface defined by the energy
+  function E(s) over all possible activation states of the candidate set. Valleys
+  in this surface are stable configurations &mdash; regions where small changes
+  in the activation pattern increase energy rather than decrease it. The landscape
+  is determined entirely by the weight matrix, which is derived from the byte table
+  topology. The energy landscape does not change when new queries are run; it is a
+  fixed property of the semantic address space. Queries are stones dropped into it:
+  they do not reshape it, they fall toward its existing valleys.
+</div>
+
+<div class="def">
+  <span class="term">Attractor.</span> A local energy minimum in the Hopfield
+  network: a stable activation pattern that the system converges to from nearby
+  initial conditions. An attractor represents a coherent semantic configuration
+  &mdash; a set of candidates that mutually reinforce each other within the byte
+  table topology. The number of attractors a network can reliably store is
+  proportional to the number of candidates (approximately 0.14N for a standard
+  Hopfield network). The byte table&rsquo;s 1358 candidates support a large
+  but finite set of coherent semantic attractors. These are the stable
+  &ldquo;meanings&rdquo; the architecture can express.
+</div>
+
 <p>where s is the state vector. The network converges to local energy minima
 (attractors) that represent coherent semantic configurations. A query is an
 initial condition: some units are pinned by the query, the remainder converge
 to the nearest attractor.</p>
 
 <h2>4. The Thermodynamic Content Engine</h2>
+
+<div class="def">
+  <span class="term">Boltzmann Machine.</span> A stochastic extension of the
+  Hopfield network in which units do not deterministically flip to their lowest-energy
+  state but instead flip with a probability governed by temperature. At high temperature
+  the system explores freely; at low temperature it settles into energy minima. The
+  name comes from the Boltzmann distribution of statistical mechanics: P(state) is
+  proportional to exp(&minus;E / T), where E is energy and T is temperature.
+  At T=0 this reduces to deterministic descent. At T&rarr;&infin; all states
+  are equally probable. The interval between these extremes is the design space
+  for content generation.
+</div>
 
 <p>We extend the Hopfield network to a Boltzmann machine by introducing a
 temperature parameter T. At T=0 the system is a deterministic Hopfield
@@ -133,9 +199,22 @@ in the Quantum Quackery native intelligence architecture:</p>
   Boltzmann distribution. Two identical queries can produce different but
   equally coherent results. The unexpected adjacency is the product.<br><br>
   <span class="term">Drovitth.</span> Periodic kernel. Activates candidates
-  at resonant address intervals. Temporal gating via the Orrery context.<br><br>
+  at resonant address intervals. Temporal gating via the Orrery context
+  (see below).<br><br>
   <span class="term">Saelith.</span> Conditional. A predicate gates which
   candidates are eligible for activation.
+</div>
+
+<div class="def">
+  <span class="term">Orrery.</span> The causal tracking layer built into the
+  DjinnOS kernel by the Djinn Drovitth. The Orrery records which semantic
+  candidates were activated in which order across a session, mapping a
+  practitioner&rsquo;s engagement as a trajectory through the byte table address
+  space. Drovitth mode uses this trajectory to weight future activations:
+  candidates at address intervals that are resonant with the observed trajectory
+  are preferentially activated, producing temporal coherence across a session.
+  The Orrery does not predict; it tracks. The resonance is structural, not
+  inferential.
 </div>
 
 <div class="def">
@@ -221,6 +300,20 @@ consistent with the existing topology &mdash; the Boltzmann sampling verifies
 coherence. Bad-faith generation produces incoherent entries that do not fit
 the energy landscape. The mathematics rejects them.</p>
 
+<div class="def">
+  <span class="term">Wunashakoun.</span> A Shygazun compound: Wu (way/path) +
+  Na (through/relational) + Sha (intellect/clarity) + Ko (experience/dreaming).
+  Simultaneously a word and the thing it names. The state of engaged
+  relational attention in which structural clarity is present: not trance as
+  dissociation, but trance as the removal of noise that would otherwise prevent
+  clear structural perception. Wunashakoun practice is the only valid context
+  for Tongue generation. The requirement is not ceremonial; it is functional.
+  Incoherent entries produced without Wunashakoun engagement fail the
+  Boltzmann coherence test. The mathematics can distinguish the practice from
+  its absence because the practice produces geometrically consistent output and
+  its absence does not.
+</div>
+
 <p>Tongue generation is a skilled practice. It requires Wunashakoun
 engagement: relational trance bounded with structural clarity. Wunashakoun
 is both a way of being and a Shygazun utterance (Wu+Na+Sha+Ko: Way Through
@@ -234,12 +327,40 @@ Intellect and Experience). The practice is real and cannot be simulated.</p>
   (Mandelbrot save state) configurations produced by a practitioner engaged
   in Wunashakoun practice. The Mandelbrot geometry is infinite and
   non-repeating; every diff is unique. The diff encodes the specific shape
-  of the practitioner's engagement &mdash; it is a geometric record of the
+  of the practitioner&rsquo;s engagement &mdash; it is a geometric record of the
   practice, not an assigned identifier.<br><br>
   2. A <strong>Tongue generation</strong>: new semantically coherent entries
   in the Shygazun byte table, produced through the same Wunashakoun practice
   and verified for geometric consistency by Boltzmann sampling over the
   existing energy landscape.
+</div>
+
+<div class="def">
+  <span class="term">BreathOfKo (BoK).</span> A save state of the Julia set
+  renderer built into DjinnOS, encoding a specific complex parameter
+  c = re + im&middot;i that defines the particular Julia set geometry at a
+  moment of practice. The Julia set is compact, bounded, and uniquely
+  determined by c; two values of c that differ by any amount produce visibly
+  distinct fractal geometries. A BoK diff is the delta between two such
+  parameter states &mdash; the record of how the practitioner&rsquo;s engagement
+  moved through the complex plane over the course of a session. Because the
+  complex plane is continuous and infinite, no two authentic sessions produce
+  identical diffs. The BoK is the geometric fingerprint of the practice.
+</div>
+
+<div class="def">
+  <span class="term">Peri-fungible.</span> A property of tokens that are fungible
+  at the substrate level but nonfungible in their specific instances. The prefix
+  peri- (around, near) distinguishes this from both full fungibility (every
+  instance is interchangeable) and full nonfungibility (no instance shares
+  structure with any other). A Quack is peri-fungible because: all Quacks
+  are denominated in the same byte table address space (shared substrate,
+  fungible basis) and each Quack encodes a unique BoK diff and a specific
+  Tongue generation (nonfungible instance). The peri-fungible structure means
+  Quacks can be aggregated, compared, and used as a shared economic unit while
+  retaining individual identity and provenance. This is not achieved by
+  existing token architectures, which treat fungibility and nonfungibility as
+  mutually exclusive properties.
 </div>
 
 <p>The byte table is the peri-fungible basis. It is shared (fungible): every

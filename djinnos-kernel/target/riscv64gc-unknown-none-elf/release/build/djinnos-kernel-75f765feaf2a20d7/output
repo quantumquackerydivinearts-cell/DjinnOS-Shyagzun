@@ -1,0 +1,5 @@
+cargo:rerun-if-changed=assets/fonts/Inter-Regular.ttf
+cargo:rerun-if-changed=assets/fonts/JetBrainsMono-Regular.ttf
+cargo:rerun-if-changed=build.rs
+cargo::rustc-check-cfg=cfg(c_toolchain_available)
+cargo::rustc-check-cfg=cfg(quickjs_available)

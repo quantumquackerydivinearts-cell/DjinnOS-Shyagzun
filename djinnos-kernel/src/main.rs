@@ -59,6 +59,7 @@ mod kos_characters;
 mod sa;
 mod arch;
 mod byte_table;
+mod c_api;
 mod editor;
 mod kos_labyrnth;
 mod eigenstate;
@@ -676,6 +677,8 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     ramdisk::init(rdaddr, rdcnt);
 
     let rule_y = fbdrv.height() * 55 / 100;
+    let (fa, fw, fh, fp, fr, fg, fb_b) = fbdrv.raw_params();
+    c_api::djinnos_fb_init(fa, fw, fh, fp, fr, fg, fb_b);
     style::init();
     x86_splash(&fbdrv, rule_y);
     let mut sh = shell::Shell::new(rule_y);
@@ -742,8 +745,9 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
     // Render only on meaningful events.  The HP Envy's i8042 emits noise
     // bytes; treating every PS/2 byte as a render trigger floods the
     // uncached framebuffer and hides real input.
-    let mut dirty    = true;  // initial render
-    let mut mode_name = "DjinnOS"; // kept in sync with mode each iteration
+    let mut dirty        = true;  // content layer needs repaint
+    let mut cursor_dirty = false; // cursor only — save/restore, no full repaint
+    let mut mode_name = "DjinnOS";
     loop {
         // Mode name kept current for eigenstate advance and Ne Bar display.
         mode_name = match mode {
@@ -910,7 +914,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                 let (cx, cy) = cursor::pos();
                 compositor::get().on_cursor_move(cx, cy);
                 eigenstate::advance(eigenstate::T_SAKURA);
-                dirty = true;
+                cursor_dirty = true; // cursor move — no content repaint needed
             }
             // PS/2 mouse (USB HID mouse / external)
             while let Some(mev) = ps2::poll_mouse() {
@@ -918,7 +922,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                 let (cx, cy) = cursor::pos();
                 compositor::get().on_cursor_move(cx, cy);
                 eigenstate::advance(eigenstate::T_SAKURA);
-                dirty = true;
+                cursor_dirty = true;
             }
             // Left click dispatch
             if cursor::left_clicked() {
@@ -1073,7 +1077,7 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                 AppMode::Game7 => {
                     let was = game7::game7().exited;
                     game7::game7().handle_key(key);
-                    if !was && game7::game7().exited { mode = AppMode::Shell; }
+                    if !was && game7::game7().exited { mode = AppMode::Atelier; }
                     dirty = true;
                 }
                 AppMode::NpcScreen => {
@@ -1120,10 +1124,16 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
         // Persist eigenstate every ~5 s so linguistic history survives reboots.
         if frame % 300 == 0 && frame > 0 { eigenstate::persist(); }
 
+        let fb_ref = &fbdrv as &dyn gpu::GpuSurface;
+
         if dirty {
-            dirty = false;
+            dirty        = false;
+            cursor_dirty = false;
+            // Full content repaint — restore cursor pixels first so the content
+            // render doesn't composite on top of cursor remnants.
+            #[cfg(target_arch = "x86_64")]
+            cursor::restore_under(fb_ref);
             compositor::get().mark_dirty(compositor::LayerKind::Content);
-            let fb_ref = &fbdrv as &dyn gpu::GpuSurface;
             let profile_name = profile::active()
                 .map(|p| core::str::from_utf8(p.name_str()).unwrap_or(""))
                 .unwrap_or("");
@@ -1153,8 +1163,23 @@ fn uefi_boot_continue(mut fbdrv: fb::FbDriver, rsdp_hint: u64, rdaddr: u64, rdcn
                     AppMode::Home      => { home::home().render(gpu); }
                 }
             });
+            // Save pixels under new cursor position, then draw cursor.
+            #[cfg(target_arch = "x86_64")]
+            { cursor::save_under(fb_ref); cursor::render(fb_ref); }
             fbdrv.flush();
             frame = frame.wrapping_add(1);
+
+        } else if cursor_dirty {
+            // Cursor moved — no content change.  Restore → save → draw.
+            // ~384 pixel operations instead of ~2M.
+            cursor_dirty = false;
+            #[cfg(target_arch = "x86_64")]
+            {
+                cursor::restore_under(fb_ref);
+                cursor::save_under(fb_ref);
+                cursor::render(fb_ref);
+                fbdrv.flush();
+            }
         }
         process::yield_now();
     }

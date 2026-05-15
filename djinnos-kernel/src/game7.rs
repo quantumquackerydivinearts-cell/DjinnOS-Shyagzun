@@ -20,7 +20,7 @@ use crate::dungeon::{self, DUN_W, DUN_H};
 // ── Sub-mode ──────────────────────────────────────────────────────────────────
 
 #[derive(Copy, Clone, PartialEq)]
-enum G7Sub { ZoneView, DungeonWalk }
+enum G7Sub { ZoneView, DungeonWalk, Pause, KoDream }
 
 // ── Menu item ─────────────────────────────────────────────────────────────────
 
@@ -62,36 +62,46 @@ impl MenuItem {
 // ── Game7 state ───────────────────────────────────────────────────────────────
 
 pub struct Game7 {
-    pub exited: bool,
-    rule_y:     u32,
-    zone:       [u8; 40],
-    zone_n:     usize,
-    cursor:     usize,
-    sub:        G7Sub,
-    items:      [MenuItem; 16],
-    item_n:     usize,
-    walk_x:     usize,
-    walk_y:     usize,
-    walk_map:   [[u8; DUN_W]; DUN_H],
-    msg:        [u8; 64],
-    msg_n:      usize,
+    pub exited:    bool,
+    rule_y:        u32,
+    zone:          [u8; 40],
+    zone_n:        usize,
+    cursor:        usize,
+    sub:           G7Sub,
+    items:         [MenuItem; 16],
+    item_n:        usize,
+    walk_x:        usize,
+    walk_y:        usize,
+    walk_map:      [[u8; DUN_W]; DUN_H],
+    msg:           [u8; 64],
+    msg_n:         usize,
+    pause_cursor:  usize,
+    dream_text:    [u8; 256],
+    dream_text_n:  usize,
 }
 
 static mut G7: Game7 = Game7 {
-    exited:   false,
-    rule_y:   0,
-    zone:     [0u8; 40],
-    zone_n:   0,
-    cursor:   0,
-    sub:      G7Sub::ZoneView,
-    items:    [MenuItem::EMPTY; 16],
-    item_n:   0,
-    walk_x:   1,
-    walk_y:   1,
-    walk_map: [[b'#'; DUN_W]; DUN_H],
-    msg:      [0u8; 64],
-    msg_n:    0,
+    exited:       false,
+    rule_y:       0,
+    zone:         [0u8; 40],
+    zone_n:       0,
+    cursor:       0,
+    sub:          G7Sub::ZoneView,
+    items:        [MenuItem::EMPTY; 16],
+    item_n:       0,
+    walk_x:       1,
+    walk_y:       1,
+    walk_map:     [[b'#'; DUN_W]; DUN_H],
+    msg:          [0u8; 64],
+    msg_n:        0,
+    pause_cursor: 0,
+    dream_text:   [0u8; 256],
+    dream_text_n: 0,
 };
+
+// Counts Rest/Meditate actions — every DREAM_EVERY triggers a Ko dream.
+static mut DREAM_TICK: u32 = 0;
+const    DREAM_EVERY: u32  = 4;
 
 pub fn game7() -> &'static mut Game7 { unsafe { &mut G7 } }
 
@@ -128,6 +138,8 @@ impl Game7 {
     }
 
     fn zone_id(&self) -> &[u8] { &self.zone[..self.zone_n] }
+    /// Public accessor for Kobra/Faerie zone queries (read-only).
+    pub fn zone_id_pub(&self) -> &[u8] { &self.zone[..self.zone_n] }
 
     fn set_zone(&mut self, id: &[u8]) {
         let n = id.len().min(40);
@@ -267,12 +279,14 @@ impl Game7 {
         match self.sub {
             G7Sub::ZoneView    => self.zone_key(key),
             G7Sub::DungeonWalk => self.walk_key(key),
+            G7Sub::Pause       => self.pause_key(key),
+            G7Sub::KoDream     => self.dream_key(key),
         }
     }
 
     fn zone_key(&mut self, key: Key) {
         match key {
-            Key::Escape => { self.exited = true; }
+            Key::Escape => { self.sub = G7Sub::Pause; self.pause_cursor = 0; }
             Key::Up     => {
                 if self.cursor > 0 { self.cursor -= 1; }
                 else { self.cursor = self.item_n.saturating_sub(1); }
@@ -341,6 +355,7 @@ impl Game7 {
                 self.set_msg(msg);
             }
             MenuAction::Meditate => {
+                self.maybe_trigger_dream();
                 crate::meditation::meditation().open(self.rule_y);
                 crate::meditation::request();
             }
@@ -348,7 +363,10 @@ impl Game7 {
                 let ps = crate::player_state::get_mut();
                 for s in &mut ps.sanity { *s = (*s).saturating_add(5); }
                 crate::player_state::save();
-                self.set_msg(b"Rested. Sanity partially restored. Game saved.");
+                self.maybe_trigger_dream();
+                if self.sub != G7Sub::KoDream {
+                    self.set_msg(b"Rested. Sanity partially restored. Game saved.");
+                }
             }
             MenuAction::Journal => {
                 crate::journal::journal().open(self.rule_y);
@@ -398,6 +416,55 @@ impl Game7 {
         }
     }
 
+    fn pause_key(&mut self, key: Key) {
+        // Pause menu: 0 = Continue, 1 = Return to Atelier
+        match key {
+            Key::Escape => { self.sub = G7Sub::ZoneView; }
+            Key::Up => {
+                if self.pause_cursor > 0 { self.pause_cursor -= 1; }
+            }
+            Key::Down => {
+                if self.pause_cursor < 1 { self.pause_cursor += 1; }
+            }
+            Key::Enter => {
+                match self.pause_cursor {
+                    0 => { self.sub = G7Sub::ZoneView; }
+                    _ => { self.exited = true; }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn dream_key(&mut self, key: Key) {
+        match key {
+            Key::Enter | Key::Escape | Key::Char(b' ') => {
+                self.sub = G7Sub::ZoneView;
+            }
+            _ => {}
+        }
+    }
+
+    fn maybe_trigger_dream(&mut self) {
+        unsafe {
+            DREAM_TICK += 1;
+            if DREAM_TICK % DREAM_EVERY == 0 {
+                self.enter_ko_dream();
+            }
+        }
+    }
+
+    fn enter_ko_dream(&mut self) {
+        let lines = crate::dialogue::KO_LINES;
+        if lines.is_empty() { return; }
+        let idx = unsafe { ((DREAM_TICK / DREAM_EVERY).wrapping_sub(1)) as usize % lines.len() };
+        let text = lines[idx].text;
+        let n = text.len().min(255);
+        self.dream_text[..n].copy_from_slice(&text[..n]);
+        self.dream_text_n = n;
+        self.sub = G7Sub::KoDream;
+    }
+
     fn try_walk(&mut self, nx: usize, ny: usize) {
         if nx >= DUN_W || ny >= DUN_H { return; }
         match self.walk_map[ny][nx] {
@@ -435,6 +502,8 @@ impl Game7 {
         match self.sub {
             G7Sub::ZoneView    => self.render_zone(gpu),
             G7Sub::DungeonWalk => self.render_walk(gpu),
+            G7Sub::Pause       => { self.render_zone(gpu); self.render_pause(gpu); }
+            G7Sub::KoDream     => self.render_dream(gpu),
         }
     }
 
@@ -450,16 +519,16 @@ impl Game7 {
         let zdef = zone_by_id(id);
 
         let name: &[u8] = zdef.map(|z| z.name).unwrap_or(b"Unknown Zone");
-        it.text(20, y0 + 4,
-            core::str::from_utf8(name).unwrap_or("?"), 2, t.header);
+        it.tt(20, y0 as i32 + 6,
+            core::str::from_utf8(name).unwrap_or("?"), 17.0, t.header);
 
         let rtag: &[u8] = zdef.map(|z| -> &[u8] { match z.realm {
             Realm::Lapidus  => b"Lapidus",
             Realm::Mercurie => b"Mercurie",
             Realm::Sulphera => b"Sulphera",
         }}).unwrap_or(b"");
-        it.text(w.saturating_sub(80), y0 + 6,
-            core::str::from_utf8(rtag).unwrap_or(""), 1, t.text_dim);
+        it.tt_right(w as i32 - 16, y0 as i32 + 8,
+            core::str::from_utf8(rtag).unwrap_or(""), 11.0, t.text_dim);
 
         let ktag: &[u8] = zdef.map(|z| -> &[u8] { match z.kind {
             ZoneKind::Town       => b"Town",
@@ -472,8 +541,8 @@ impl Game7 {
             ZoneKind::Chamber    => b"Chamber",
             ZoneKind::BossArena  => b"Boss Arena",
         }}).unwrap_or(b"");
-        it.text(w.saturating_sub(80), y0 + 18,
-            core::str::from_utf8(ktag).unwrap_or(""), 1, t.text_dim);
+        it.tt_right(w as i32 - 16, y0 as i32 + 22,
+            core::str::from_utf8(ktag).unwrap_or(""), 11.0, t.text_dim);
 
         it.fill(0, y0 + 24, w, 1, t.rule);
 
@@ -488,20 +557,77 @@ impl Game7 {
         let scroll = if self.cursor >= vis.max(1) { self.cursor + 1 - vis.max(1) } else { 0 };
         for vi in 0..vis.min(self.item_n.saturating_sub(scroll)) {
             let si  = scroll + vi;
-            let vy  = menu_y + vi as u32 * 14;
+            let vy  = menu_y + vi as u32 * 16;
             let sel = si == self.cursor;
             let col = if sel { t.accent } else { t.text };
-            if sel { it.text(8, vy, ">", 1, t.accent); }
+            if sel {
+                it.fill_rounded(6, vy.saturating_sub(1), w - 12, 17, 3, t.selection);
+                it.tt(10, vy as i32, ">", 13.0, t.accent);
+            }
             let lbl = &self.items[si].label[..self.items[si].label_n];
-            it.text(20, vy, core::str::from_utf8(lbl).unwrap_or("?"), 1, col);
+            it.tt(24, vy as i32, core::str::from_utf8(lbl).unwrap_or("?"), 13.0, col);
         }
 
         if self.msg_n > 0 {
             let ms = core::str::from_utf8(&self.msg[..self.msg_n]).unwrap_or("");
-            it.text(20, h.saturating_sub(24), ms, 1, t.accent);
+            it.tt(20, h as i32 - 26, ms, 11.0, t.accent);
         }
-        it.fill(0, h.saturating_sub(14), w, 14, t.surface);
-        it.text(8, h.saturating_sub(12), "Up/Down=select  Enter=act  Esc=shell", 1, t.text_dim);
+        it.fill(0, h.saturating_sub(16), w, 16, t.surface);
+        it.tt(8, h as i32 - 13, "Up/Down=select  Enter=act  Esc=menu", 11.0, t.text_dim);
+    }
+
+    fn render_pause(&self, gpu: &dyn GpuSurface) {
+        let it = It::new(gpu);
+        let t  = style::get();
+        let w  = gpu.width();
+        let h  = gpu.height();
+
+        // Dim overlay — a centered panel.
+        let pw: u32 = 260;
+        let ph: u32 = 80;
+        let px = (w.saturating_sub(pw)) / 2;
+        let py = (h.saturating_sub(ph)) / 2;
+        it.fill(px, py, pw, ph, t.surface);
+        it.fill(px, py, pw, 1, t.rule);
+        it.fill(px, py + ph.saturating_sub(1), pw, 1, t.rule);
+
+        it.text(px + 12, py + 10, "PAUSED", 1, t.header);
+
+        let opts: &[&str] = &["Continue", "Return to Atelier"];
+        for (i, &label) in opts.iter().enumerate() {
+            let oy  = py + 28 + i as u32 * 16;
+            let col = if i == self.pause_cursor { t.accent } else { t.text };
+            if i == self.pause_cursor { it.text(px + 8, oy, ">", 1, t.accent); }
+            it.text(px + 20, oy, label, 1, col);
+        }
+        it.text(px + 12, py + ph.saturating_sub(14), "Enter=select  Esc=cancel", 1, t.text_dim);
+    }
+
+    fn render_dream(&self, gpu: &dyn GpuSurface) {
+        let it = It::new(gpu);
+        let t  = style::get();
+        let w  = gpu.width();
+        let h  = gpu.height();
+
+        it.fill(0, 0, w, h, (4, 2, 8));
+
+        // Ko marker, centered upper quarter.
+        let kx = w.saturating_sub(24) / 2;
+        it.text(kx, h / 5, "Ko", 2, t.accent);
+
+        // Ko's words, word-wrapped in the center band.
+        let mut dy = h / 3;
+        let margin = w / 5;
+        word_wrap(
+            gpu, &it,
+            &self.dream_text[..self.dream_text_n],
+            margin, &mut dy,
+            w.saturating_sub(margin * 2),
+            t.text_dim, 8,
+        );
+
+        it.fill(0, h.saturating_sub(14), w, 14, (8, 4, 16));
+        it.text(8, h.saturating_sub(12), "Enter=wake", 1, t.text_dim);
     }
 
     fn render_walk(&self, gpu: &dyn GpuSurface) {

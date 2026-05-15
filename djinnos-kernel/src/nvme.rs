@@ -344,10 +344,14 @@ unsafe fn create_io_queues(c: &mut NvmeCtrl) -> bool {
 
 // ── Public: initialise ────────────────────────────────────────────────────────
 
+#[cfg(target_arch = "x86_64")]
 pub fn init() -> bool {
     unsafe { init_inner() }
 }
+#[cfg(not(target_arch = "x86_64"))]
+pub fn init() -> bool { false }
 
+#[cfg(target_arch = "x86_64")]
 unsafe fn init_inner() -> bool {
     // Find NVMe controller: PCI class=0x01, sub=0x08.
     let dev = match crate::pci::find(0x01, 0x08) {

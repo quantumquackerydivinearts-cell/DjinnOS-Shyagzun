@@ -65,6 +65,12 @@ impl FbDriver {
         }
     }
 
+    /// Return raw framebuffer params for the C API init.
+    pub fn raw_params(&self) -> (u64, u32, u32, u32, u8, u8, u8) {
+        (self.addr as u64, self._width, self._height,
+         self.pitch_px, self.r_pos, self.g_pos, self.b_pos)
+    }
+
     /// Parse the multiboot2 info block at `info_phys` and find the
     /// framebuffer tag.  Returns None if not present or fb_type ≠ RGB.
     pub fn from_mb2(info_phys: u64) -> Option<Self> {

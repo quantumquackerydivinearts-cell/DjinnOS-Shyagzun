@@ -20,10 +20,14 @@ unsafe fn dump_byte(b: u8) {
     uart::puts(core::str::from_utf8(&buf).unwrap_or("??"));
 }
 
+#[cfg(target_arch = "x86_64")]
 pub fn run() -> &'static str {
     unsafe { run_inner() }
 }
+#[cfg(not(target_arch = "x86_64"))]
+pub fn run() -> &'static str { "NOT SUPPORTED ON THIS ARCHITECTURE" }
 
+#[cfg(target_arch = "x86_64")]
 unsafe fn run_inner() -> &'static str {
     uart::puts("\r\n=== DjinnOS Installer ===\r\n");
 

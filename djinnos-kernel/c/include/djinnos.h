@@ -139,6 +139,95 @@ size_t djinnos_stream_handle_http(
     size_t      resp_cap
 );
 
+/* ── Phase 5: Userspace / Process ────────────────────────────────────────── */
+
+/**
+ * Spawn a C function as a new kernel-mode cooperative process.
+ *
+ * fn_ptr  : address of void fn(uint64_t arg) — must be a valid kernel function.
+ * coord   : byte-table address used as process identity (e.g. 19 = Ko).
+ * arg     : passed to fn_ptr as its only argument.
+ * Returns 0 on success, -1 if the process table is full (max 8 processes).
+ */
+int djinnos_spawn_fn(uint64_t fn_ptr, uint32_t coord, uint64_t arg);
+
+/**
+ * Load a static x86-64 ELF binary and run it in ring-3 (user mode).
+ *
+ * Blocks the calling kernel thread until the user process calls djinnos_exit().
+ * data : pointer to raw ELF bytes; len : byte count.
+ * Returns 0 on success, -1 if ELF is invalid or stack allocation fails.
+ */
+int djinnos_spawn_elf(const uint8_t *data, size_t len);
+
+/** Cooperatively yield the CPU to the next ready process. */
+void djinnos_yield(void);
+
+/** Return the byte-table coordinate of the currently running process. */
+uint32_t djinnos_current_coord(void);
+
+/**
+ * Expand the flat user heap by incr bytes.
+ * Returns the previous break (base of the newly allocated region).
+ * Returns UINT64_MAX on OOM.
+ * Ring-3 user programs call this via the SYS_KO (19) syscall — see djinnos_user.h.
+ */
+uint64_t djinnos_sbrk(size_t incr);
+
+/* ── Phase 6: Framebuffer ────────────────────────────────────────────────── */
+
+/** Framebuffer width in pixels. 0 if not yet initialised. */
+uint32_t djinnos_fb_width(void);
+
+/** Framebuffer height in pixels. 0 if not yet initialised. */
+uint32_t djinnos_fb_height(void);
+
+/** Write one RGB pixel at (x, y). Out-of-bounds writes are silently dropped. */
+void djinnos_fb_put_pixel(uint32_t x, uint32_t y, uint8_t r, uint8_t g, uint8_t b);
+
+/** Fill a rectangle with a solid RGB colour. Clips to framebuffer bounds. */
+void djinnos_fb_fill_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
+                          uint8_t r, uint8_t g, uint8_t b);
+
+/**
+ * Draw a null-terminated ASCII string at (x, y) using the kernel 8x8 font.
+ * Returns the x coordinate just past the last character drawn.
+ */
+uint32_t djinnos_fb_text(uint32_t x, uint32_t y, const uint8_t *text,
+                         uint8_t r, uint8_t g, uint8_t b);
+
+/* ── Phase 7: Network (TCP) ──────────────────────────────────────────────── */
+
+#define DJINNOS_INVALID_FD UINT64_MAX
+
+/**
+ * Open a TCP socket and begin connecting to ip0.ip1.ip2.ip3:port.
+ * Returns a file descriptor on success, DJINNOS_INVALID_FD on failure.
+ * Poll djinnos_tcp_ready() before sending or receiving.
+ */
+uint64_t djinnos_tcp_connect(uint8_t ip0, uint8_t ip1, uint8_t ip2, uint8_t ip3,
+                             uint16_t port);
+
+/** Returns 1 if the connection is established and ready for I/O, 0 otherwise. */
+int djinnos_tcp_ready(uint64_t fd);
+
+/** Send len bytes from data. Returns bytes actually enqueued. */
+size_t djinnos_tcp_send(uint64_t fd, const uint8_t *data, size_t len);
+
+/** Receive up to cap bytes into buf. Returns bytes received (0 = none ready). */
+size_t djinnos_tcp_recv(uint64_t fd, uint8_t *buf, size_t cap);
+
+/** Close a TCP connection and release the socket slot. */
+void djinnos_tcp_close(uint64_t fd);
+
+/* ── Phase 8: UART / console ─────────────────────────────────────────────── */
+
+/** Write a null-terminated string to the UART debug console. */
+void djinnos_puts(const uint8_t *msg);
+
+/** Write exactly len bytes to UART (no null terminator required). */
+void djinnos_write_uart(const uint8_t *data, size_t len);
+
 #ifdef __cplusplus
 }
 #endif

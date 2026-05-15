@@ -86,12 +86,19 @@ fn main() {
     println!("cargo:rerun-if-changed=assets/fonts/Inter-Regular.ttf");
     println!("cargo:rerun-if-changed=assets/fonts/JetBrainsMono-Regular.ttf");
     println!("cargo:rerun-if-changed=build.rs");
+    // Declare cfg flags so Rust doesn't warn about unknown cfg names.
+    println!("cargo::rustc-check-cfg=cfg(c_toolchain_available)");
+    println!("cargo::rustc-check-cfg=cfg(quickjs_available)");
 
     // ── Freestanding C sources ────────────────────────────────────────────────
     // Only compiled when targeting a bare-metal kernel (target_os = "none").
     // Set CC_x86_64_unknown_none or CC in the environment to override the
     // compiler (e.g. CC=clang or CC=x86_64-elf-gcc).
-    if env::var("CARGO_CFG_TARGET_OS").unwrap_or_default().is_empty() {
+    // Compile C sources for x86_64 bare-metal only.
+    // RISC-V kernel modules use a different ABI and don't link against these.
+    let target_os   = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    if target_arch == "x86_64" && (target_os.is_empty() || target_os == "none") {
         compile_c_kernel_sources();
     }
 }
@@ -154,8 +161,70 @@ fn compile_c_kernel_sources() {
     if any {
         build.compile("djinnos_c");
         println!("cargo:rustc-link-lib=static=djinnos_c");
-        // Signal to Rust code that C sources were successfully compiled.
         println!("cargo:rustc-cfg=c_toolchain_available");
+    }
+
+    // ── QuickJS (Faerie JS engine) ────────────────────────────────────────────
+    let qjs_dir = c_root.join("quickjs");
+    if qjs_dir.exists() {
+        compile_quickjs_sources(&qjs_dir, &compiler, &extra_flags);
+    }
+}
+
+fn compile_quickjs_sources(
+    qjs_dir:      &std::path::Path,
+    compiler:     &str,
+    extra_flags:  &[String],
+) {
+    // Only these files are needed for the evaluation core.
+    // qjs.c / qjsc.c have their own main(); libbf.c (BigFloat) is optional.
+    // libbf.c is always included by quickjs.c (unconditional #include "libbf.h").
+    let qjs_files = ["libbf.c", "quickjs.c", "cutils.c",
+                     "libregexp.c", "libunicode.c", "djinnos_js.c"];
+
+    let mut build = cc::Build::new();
+    build.compiler(compiler);
+
+    // QuickJS needs the port header first (overrides malloc/free/FILE).
+    // We use clang's own resource headers for freestanding C primitives
+    // (stdint.h, stdarg.h, stdatomic.h, etc.) rather than host stdlib.
+    // Host stdlib paths are excluded via -nostdlibinc (not -nostdinc so that
+    // clang's own resource directory is still searched).
+    let port = qjs_dir.join("djinnos_port.h");
+    // QuickJS uses double arithmetic which requires SSE on x86-64.
+    // We allow SSE here — QuickJS is called cooperatively (not from IRQ context)
+    // so clobbering XMM caller-saved registers is safe.
+    // We still keep -mno-red-zone because we're in kernel stack space.
+    for flag in &[
+        "-ffreestanding", "-nostdlib", "-fno-builtin",
+        "-nostdlibinc",
+        "-m64", "-mno-red-zone",
+        "-fno-stack-protector", "-O1", "-w",
+    ] {
+        build.flag(flag);
+    }
+    build.flag(&format!("-include{}", port.display()));
+    for flag in extra_flags {
+        build.flag(flag);
+    }
+
+    // QuickJS headers (quickjs.h, cutils.h, etc.) + our port stubs.
+    build.include(qjs_dir);
+
+    let mut any = false;
+    for name in &qjs_files {
+        let path = qjs_dir.join(name);
+        if path.exists() {
+            build.file(&path);
+            println!("cargo:rerun-if-changed={}", path.display());
+            any = true;
+        }
+    }
+
+    if any {
+        build.compile("djinnos_qjs");
+        println!("cargo:rustc-link-lib=static=djinnos_qjs");
+        println!("cargo:rustc-cfg=quickjs_available");
     }
 }
 

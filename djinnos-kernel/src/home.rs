@@ -217,12 +217,15 @@ impl Home {
             "arrows = navigate   Enter / letter = launch   Esc = Ko shell",
             12.0, t.text_dim);
 
-        // System time right-aligned in status bar.
-        let rtc = crate::rtc::read();
-        let mut tb = [0u8; 10];
-        let tn = fmt_time(&mut tb, rtc.hour, rtc.minute);
-        let ts = core::str::from_utf8(&tb[..tn]).unwrap_or("");
-        it.tt_right(w as i32 - 20, ty2, ts, 12.0, t.text_dim);
+        // System time right-aligned in status bar (x86 RTC only).
+        #[cfg(target_arch = "x86_64")]
+        {
+            let rtc = crate::rtc::read();
+            let mut tb = [0u8; 10];
+            let tn = fmt_time(&mut tb, rtc.hour, rtc.minute);
+            let ts = core::str::from_utf8(&tb[..tn]).unwrap_or("");
+            it.tt_right(w as i32 - 20, ty2, ts, 12.0, t.text_dim);
+        }
 
         style::set(prev);
     }

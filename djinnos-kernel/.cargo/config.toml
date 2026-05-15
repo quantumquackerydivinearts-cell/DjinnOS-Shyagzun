@@ -12,3 +12,9 @@ rustflags = [
     "-C", "link-arg=-no-pie",
 ]
 # Use build_x86.ps1 for running — the ELF must be converted to a flat binary first.
+
+[env]
+# C toolchain for kernel C modules and QuickJS.
+# Requires LLVM (winget install LLVM.LLVM) to be installed.
+CC = { value = "C:\\Program Files\\LLVM\\bin\\clang.exe", force = false }
+AR = { value = "C:\\Program Files\\LLVM\\bin\\llvm-ar.exe", force = false }

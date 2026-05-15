@@ -91,15 +91,24 @@ const LABYRINTH: &[u8] = br#"<!DOCTYPE html>
 <h1>Ko's Labyrinth</h1>
 <p>Game 7 of 31. Lapidus -- the Overworld. You are in the labyrinth now.</p>
 <hr>
-<h2>Where are you?</h2>
-<a href="local://wiltoll.html">Wiltoll Lane -- your home</a>
-<a href="local://azonithia.html">Azonithia Avenue</a>
-<hr>
 <h2>Situation</h2>
 <p>The Royal Lottery has selected your name. You have until the next
 drawing to clear the Sulphera rings or be conscripted to Castle Azoth.</p>
 <p>Hypatia is somewhere in the labyrinth. You are her apprentice.
 Find her before the Alfir's window closes.</p>
+<hr>
+<h2>Current state</h2>
+<a href="ko:zone">Where am I? (current zone)</a>
+<a href="ko:player">Player state -- sanity and quests</a>
+<a href="ko:quest">Active quests</a>
+<hr>
+<h2>Browse the world</h2>
+<a href="ko:zone wiltoll_lane">Wiltoll Lane</a>
+<a href="ko:zone azonithia_west">Azonithia Avenue</a>
+<a href="ko:zone june_street">June Street</a>
+<a href="ko:zone temple_quarter">Temple Quarter</a>
+<a href="ko:zone hopefare">Hopefare</a>
+<a href="ko:zone castle_azoth_gates">Castle Azoth</a>
 <hr>
 <a href="local://home.html">Back to QQVA</a>
 </body>
@@ -114,13 +123,17 @@ const WILTOLL: &[u8] = br#"<!DOCTYPE html>
 <p>The eastern end of Lapidus, where the lane meets the foot of Mt. Elaene.
 Lush near the mountain, spare near Azonithia Avenue. Morning fog.</p>
 <hr>
+<h2>Zone detail</h2>
+<a href="ko:zone wiltoll_lane">Wiltoll Lane -- exits and lore</a>
+<hr>
 <h2>You can see</h2>
 <p>Your house. The lane stretching west toward the city.
 A figure by the treeline -- Sidhal, carrying something.</p>
 <hr>
-<h2>What do you do?</h2>
-<a href="ko:quest status 0003_KLST">Check on Sidhal</a>
-<a href="local://azonithia.html">Walk toward Azonithia Avenue</a>
+<h2>People present</h2>
+<a href="ko:quest">Active quests (check Sidhal's progress)</a>
+<hr>
+<a href="ko:zone azonithia_west">Walk toward Azonithia Avenue</a>
 <a href="local://labyrinth.html">Back to situation</a>
 </body>
 </html>
@@ -202,19 +215,14 @@ the student becomes the instrument.</p>
 // ── Seed function ─────────────────────────────────────────────────────────────
 
 pub fn seed() {
-    write_if_absent(b"home.html",       HOME);
-    write_if_absent(b"atelier.html",    ATELIER);
-    write_if_absent(b"labyrinth.html",  LABYRINTH);
-    write_if_absent(b"wiltoll.html",    WILTOLL);
-    write_if_absent(b"azonithia.html",  AZONITHIA);
-    write_if_absent(b"shygazun.html",   SHYGAZUN);
-    write_if_absent(b"synthesis.html",  SYNTHESIS);
-}
-
-fn write_if_absent(name: &[u8], content: &[u8]) {
-    static mut PROBE: [u8; 1] = [0u8; 1];
-    let n = crate::sa::read_file(name, unsafe { &mut PROBE });
-    if n == 0 {
-        crate::sa::write_file(name, content);
-    }
+    // Always overwrite — pages are compiled into the kernel and should stay
+    // in sync with the binary.  Static content lives in the kernel, not the
+    // Sa volume; the volume is a cache, not the source of truth.
+    crate::sa::write_file(b"home.html",      HOME);
+    crate::sa::write_file(b"atelier.html",   ATELIER);
+    crate::sa::write_file(b"labyrinth.html", LABYRINTH);
+    crate::sa::write_file(b"wiltoll.html",   WILTOLL);
+    crate::sa::write_file(b"azonithia.html", AZONITHIA);
+    crate::sa::write_file(b"shygazun.html",  SHYGAZUN);
+    crate::sa::write_file(b"synthesis.html", SYNTHESIS);
 }

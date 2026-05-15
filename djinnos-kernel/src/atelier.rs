@@ -450,13 +450,13 @@ impl Atelier {
                 }
                 Enter => {
                     if STR_INPUT_ACTIVE {
-                        // Confirm title — copy to stream module
+                        #[cfg(target_arch = "x86_64")]
                         crate::stream::set_title(&STR_TITLE[..STR_TITLE_N]);
                         STR_INPUT_ACTIVE = false;
-                    } else if crate::stream::is_live() {
-                        crate::stream::stop();
                     } else {
-                        crate::stream::start();
+                        #[cfg(target_arch = "x86_64")]
+                        if crate::stream::is_live() { crate::stream::stop(); }
+                        else { crate::stream::start(); }
                     }
                 }
                 Char(b'\t') => {
@@ -484,9 +484,18 @@ impl Atelier {
 
         it.atl_header_bar(y0, "Soastream", "Broadcast control — stream.quantumquackery.com");
 
+        #[cfg(target_arch = "x86_64")]
         let live = crate::stream::is_live();
+        #[cfg(not(target_arch = "x86_64"))]
+        let live = false;
+        #[cfg(target_arch = "x86_64")]
         let ip   = crate::stream::relay_ip();
+        #[cfg(not(target_arch = "x86_64"))]
+        let ip   = [127u8, 0, 0, 1];
+        #[cfg(target_arch = "x86_64")]
         let port = crate::stream::relay_port();
+        #[cfg(not(target_arch = "x86_64"))]
+        let port = 7700u16;
 
         let content_y = y0 + ATL_BRAND_H + 20;
         let lx = cx + 28;
@@ -552,7 +561,10 @@ impl Atelier {
         if live {
             let tick_y = wit_y + 30;
             it.tt(lx as i32, tick_y as i32, "Frames sent:", 11.0, t.text_dim);
+            #[cfg(target_arch = "x86_64")]
             let ticks = crate::stream::frame_tick();
+            #[cfg(not(target_arch = "x86_64"))]
+            let ticks = 0u32;
             let mut tb = [0u8; 8]; let mut tn = 0usize;
             let mut v = ticks;
             if v == 0 { tb[0] = b'0'; tn = 1; }
