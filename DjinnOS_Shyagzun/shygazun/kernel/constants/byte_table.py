@@ -15,30 +15,30 @@ class ShygazunByteEntry(TypedDict):
 # Format: Decimal,Binary,Tongue,Symbol,Meaning
 # Note: rows are parsed with split(',', 4) so commas inside Meaning are preserved.
 _BYTE_TABLE_CSV: Final[str] = """Decimal,Binary,Tongue,Symbol,Meaning
-0,00000000,Lotus,Ty,Earth Initiator / material beginning
-1,00000001,Lotus,Zu,Earth Terminator / empirical closure
-2,00000010,Lotus,Ly,Water Initiator / feeling toward
-3,00000011,Lotus,Mu,Water Terminator / memory from
-4,00000100,Lotus,Fy,Air Initiator / thought toward
-5,00000101,Lotus,Pu,Air Terminator / stasis / stuck
-6,00000110,Lotus,Shy,Fire Initiator / pattern toward
-7,00000111,Lotus,Ku,Fire Terminator / death / end
-8,00001000,Lotus,Ti,Here / near presence
-9,00001001,Lotus,Ta,Active being / presence
-10,00001010,Lotus,Li,New / odd
-11,00001011,Lotus,La,Tense / excited
-12,00001100,Lotus,Fi,Known / context-sensitive
-13,00001101,Lotus,Fa,Complex / old
-14,00001110,Lotus,Shi,Related / clear
-15,00001111,Lotus,Sha,Intellect of spirit
-16,00010000,Lotus,Zo,Absence / passive non-being
-17,00010001,Lotus,Mo,Relaxed / silent
-18,00010010,Lotus,Po,Simple / new
-19,00010011,Lotus,Ko,Experience / intuition
-20,00010100,Lotus,Ze,There / far
-21,00010101,Lotus,Me,Familiar / home
-22,00010110,Lotus,Pe,Unknown / insensitive
-23,00010111,Lotus,Ke,Incoherent / ill
+0,00000000,Lotus,Ty,Time+ · Earth — material beginning
+1,00000001,Lotus,Ly,Time+ · Water — feeling toward
+2,00000010,Lotus,Fy,Time+ · Air — thought toward
+3,00000011,Lotus,Shy,Time+ · Fire — pattern toward
+4,00000100,Lotus,Zu,Time− · Earth — empirical closure
+5,00000101,Lotus,Mu,Time− · Water — memory from
+6,00000110,Lotus,Pu,Time− · Air — stasis / stuck
+7,00000111,Lotus,Ku,Time− · Fire — death / end
+8,00001000,Lotus,Ti,Space+ · Earth — here / near presence
+9,00001001,Lotus,Li,Space+ · Water — new / odd
+10,00001010,Lotus,Fi,Space+ · Air — known / context-sensitive
+11,00001011,Lotus,Shi,Space+ · Fire — related / clear
+12,00001100,Lotus,Ze,Space− · Earth — there / far
+13,00001101,Lotus,Me,Space− · Water — familiar / home
+14,00001110,Lotus,Pe,Space− · Air — unknown / insensitive
+15,00001111,Lotus,Ke,Space− · Fire — incoherent / ill
+16,00010000,Lotus,Ta,Mind+ · Earth — active being / presence
+17,00010001,Lotus,La,Mind+ · Water — tense / excited
+18,00010010,Lotus,Fa,Mind+ · Air — complex / old
+19,00010011,Lotus,Sha,Mind+ · Fire — intellect of spirit
+20,00010100,Lotus,Zo,Mind− · Earth — absence / passive non-being
+21,00010101,Lotus,Mo,Mind− · Water — relaxed / silent
+22,00010110,Lotus,Po,Mind− · Air — simple / new
+23,00010111,Lotus,Ko,Mind− · Fire — experience / intuition
 24,00011000,Rose,Ru,Vector Lowest Red
 25,00011001,Rose,Ot,Vector Orange
 26,00011010,Rose,El,Vector Yellow
