@@ -454,6 +454,16 @@ export const ITEMS = [
   // ── Processed material outputs ───────────────────────────────────────────────
   { id: "0070_KLIT", name: "Gunpowder",       stackable: true,
     note: "Saltpeter + Sulphur + Charcoal ground together. Traditional formula." },
+
+  // ── Electronics (Hack-gated) ─────────────────────────────────────────────────
+  { id: "0081_KLIT", name: "Receiver",        stackable: false,
+    note: "Crystal radio receiver. Copper coil + Quartz crystal resonator + Wood housing. Hack 35." },
+  { id: "0082_KLIT", name: "Transmitter",     stackable: false,
+    note: "Signal transmitter. Copper + Iron core + Quartz + Wood. Hack 55." },
+  { id: "0083_KLIT", name: "Radio",           stackable: false,
+    note: "Full radio unit — Receiver + Transmitter assembled. Hack 80. " +
+          "The physical counterpart to St. Alaro's broadcast deal. " +
+          "Connects to the Lapidus airwaves infrastructure." },
 ];
 
 // ── Quests (KLST) ─────────────────────────────────────────────────────────────
