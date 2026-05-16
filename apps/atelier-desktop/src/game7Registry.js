@@ -156,10 +156,17 @@ export const CHARACTERS = [
           "Protagonist/player character across the series. NPC in Sulphera's Royal Ring." },
 
   // Townspeople
-  { id: "0001_TOWN",  name: "Joannah",             type: "TOWN" },
-  { id: "0002_TOWN",  name: "Wells",               type: "TOWN" },
-  { id: "0003_TOWN",  name: "Lavelle",             type: "TOWN" },
-  { id: "0004_TOWN",  name: "Sidhal",              type: "TOWN" },
+  { id: "0001_TOWN",  name: "Joannah",   type: "TOWN", note: "Warren resident. Husband: Kaelith (0009_TOWN)." },
+  { id: "0002_TOWN",  name: "Wells",     type: "TOWN", note: "Aqueduct foreman, 38, father of 6. Wife: Janine (0007_TOWN). Serpent's Pass end of 0003_KLST." },
+  { id: "0003_TOWN",  name: "Lavelle",   type: "TOWN", note: "Laundry/explosives/bookworm, 23, mother of 2. Husband: Hartwell (0008_TOWN). Serpent's Pass end of 0003_KLST." },
+  { id: "0004_TOWN",  name: "Sidhal",    type: "TOWN", note: "Forester and temple custodian, 26, father of 2. Wife: Marcia (0010_TOWN). Guide through Hopefare Road warrens in 0003_KLST." },
+  { id: "0005_TOWN",  name: "James",     type: "TOWN", note: "Aqueduct worker, 24. Lover: Tyrone (0006_TOWN). Works with Wells." },
+  { id: "0006_TOWN",  name: "Tyrone",    type: "TOWN", note: "Aqueduct worker, 24. Lover: James (0005_TOWN). Works with Wells." },
+  { id: "0007_TOWN",  name: "Janine",    type: "TOWN", note: "Wife of Wells (0002_TOWN)." },
+  { id: "0008_TOWN",  name: "Hartwell",  type: "TOWN", note: "Husband of Lavelle (0003_TOWN)." },
+  { id: "0009_TOWN",  name: "Kaelith",   type: "TOWN", note: "Husband of Joannah (0001_TOWN). Works the mines with the children, same age as Joannah." },
+  { id: "0010_TOWN",  name: "Marcia",    type: "TOWN", note: "Wife of Sidhal (0004_TOWN), 28. Teacher at the temple." },
+  { id: "0011_TOWN",  name: "Genovise",  type: "TOWN", note: "Single, 30. Runs an occult shop in an alley on the way to Serpent's Pass. Works with Savvi to run the black market." },
 
   // Witches — Alfir is the Game 7 mentor who teaches Infernal Meditation
   { id: "0005_WTCH",  name: "Kore",                type: "WTCH" },
