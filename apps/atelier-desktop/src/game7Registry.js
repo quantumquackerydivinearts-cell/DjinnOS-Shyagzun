@@ -371,53 +371,89 @@ export const CHARACTERS = [
 
 // ── Items (KLIT) ──────────────────────────────────────────────────────────────
 // () prefix = stackable (multiple quantity possible)
+// ID groupings:
+//   0001-0009  Botanicals / forageables
+//   0010-0019  Equipment (weapons, jewelry, generic ingot/coin)
+//   0020-0034  Quest items and consumables
+//   0035       Health Potion (existing)
+//   0036       Map of Mercurie (existing)
+//   0040-0049  Typed metal ingots (one per metal — do not stack across types)
+//   0050-0059  Typed coins
+//   0060-0069  Ammunition and special projectiles
+//   0070-0079  Processed materials (recipe outputs from KLOB → KLIT)
 export const ITEMS = [
-  { id: "0035_KLIT", name: "Health Potion",  stackable: false },
-  { id: null,        name: "Cherry",         stackable: false },
-  { id: null,        name: "Apple",          stackable: false },
-  { id: null,        name: "Pomegranate",    stackable: false },
-  { id: null,        name: "Barley",         stackable: false },
-  { id: null,        name: "Pine Needle",    stackable: false },
-  { id: null,        name: "Acorn",          stackable: false },
-  { id: null,        name: "Lotus Flower",   stackable: false },
-  { id: null,        name: "Lotus Seed",     stackable: false },
-  { id: null,        name: "Pine Nut",       stackable: false },
-  { id: null,        name: "Necklace",       stackable: false },
-  { id: null,        name: "Ring",           stackable: true  },   // ()Ring
-  { id: null,        name: "Ingot",          stackable: true  },   // ()Ingot
-  { id: null,        name: "Coin",           stackable: true  },   // ()Coin
-  { id: null,        name: "Dagger",         stackable: true  },   // ()Dagger
-  { id: null,        name: "Sword",          stackable: true  },   // ()Sword
-  { id: null,        name: "Shield",         stackable: false },
-  { id: null,        name: "Bow",            stackable: false },
-  { id: null,        name: "Arrow",          stackable: true  },   // ()Arrow
-  { id: null,        name: "Staff",          stackable: true  },   // ()Staff
-  { id: null,        name: "Desire Crystal", stackable: false,
+  // ── Botanicals / forageables ────────────────────────────────────────────────
+  { id: "0001_KLIT", name: "Cherry",          stackable: true  },
+  { id: "0002_KLIT", name: "Apple",           stackable: true  },
+  { id: "0003_KLIT", name: "Pomegranate",     stackable: true  },
+  { id: "0004_KLIT", name: "Barley",          stackable: true  },
+  { id: "0005_KLIT", name: "Pine Needle",     stackable: true  },
+  { id: "0006_KLIT", name: "Acorn",           stackable: true  },
+  { id: "0007_KLIT", name: "Lotus Flower",    stackable: true  },
+  { id: "0008_KLIT", name: "Lotus Seed",      stackable: true  },
+  { id: "0009_KLIT", name: "Pine Nut",        stackable: true  },
+
+  // ── Equipment ───────────────────────────────────────────────────────────────
+  { id: "0010_KLIT", name: "Necklace",        stackable: false },
+  { id: "0011_KLIT", name: "Ring",            stackable: true  },
+  { id: "0012_KLIT", name: "Ingot",           stackable: true,
+    note: "Generic ingot — use typed ingots (0040-0049) for smelting outputs." },
+  { id: "0013_KLIT", name: "Coin",            stackable: true  },
+  { id: "0014_KLIT", name: "Dagger",          stackable: true  },
+  { id: "0015_KLIT", name: "Sword",           stackable: true  },
+  { id: "0016_KLIT", name: "Shield",          stackable: false },
+  { id: "0017_KLIT", name: "Bow",             stackable: false },
+  { id: "0018_KLIT", name: "Arrow",           stackable: true  },
+  { id: "0019_KLIT", name: "Staff",           stackable: true  },
+
+  // ── Quest items and consumables ──────────────────────────────────────────────
+  { id: "0021_KLIT", name: "Desire Crystal",  stackable: false,
     note: "Asmodean material. Structurally a time crystal — desire is forward-temporal. " +
           "Swallowing deposits the bearer in the timeline most consonant with their dominant desire. " +
-          "In 0009_KLST: offered by the imp in trade for Hypatia's Dagger. Fades to dust after one use " +
-          "— sufficient for a single entry into Ring 1 (Pride) without Infernal Meditation. " +
-          "If stolen instead of traded, it shatters on the imp's corpse." },
-  { id: null,        name: "Hypatia's Dagger", stackable: false,
+          "In 0009_KLST: offered by the imp in trade for Hypatia's Dagger. Fades to dust after one use." },
+  { id: "0022_KLIT", name: "Hypatia's Dagger", stackable: false,
     note: "Forged by Hypatia and left with the player at their first meeting. " +
           "Designed for processing raw reagents. The imp's desired trade item in 0009_KLST." },
-  { id: null,        name: "Absinthe",      stackable: false,
-    note: "The imp's fallback ask in 0009_KLST if the Desire Crystal trade is rejected." },
-  { id: null,        name: "Wormwood",      stackable: true },
-  { id: null,        name: "Anise",         stackable: true },
-  { id: null,        name: "Fennel",        stackable: true },
-  { id: null,        name: "White Wine",    stackable: false },
-  { id: null,        name: "Aqua Vitae",    stackable: false,
-    note: "Distilled white wine. Brandy of white wine. Ingredient in Absinthe." },
-  { id: null,        name: "Angelic Spear",  stackable: false },
-  { id: null,        name: "Angelic Gun",    stackable: false },
-  { id: null,        name: "Demonic Irons",  stackable: false },
+  { id: "0023_KLIT", name: "Absinthe",        stackable: false,
+    note: "The imp's fallback ask in 0009_KLST. Also craftable via distillation." },
+  { id: "0024_KLIT", name: "Wormwood",        stackable: true  },
+  { id: "0025_KLIT", name: "Anise",           stackable: true  },
+  { id: "0026_KLIT", name: "Fennel",          stackable: true  },
+  { id: "0027_KLIT", name: "White Wine",      stackable: false },
+  { id: "0028_KLIT", name: "Aqua Vitae",      stackable: false,
+    note: "Distilled white wine. Ingredient in Absinthe." },
+  { id: "0029_KLIT", name: "Angelic Spear",   stackable: false },
+  { id: "0030_KLIT", name: "Angelic Gun",     stackable: false },
+  { id: "0031_KLIT", name: "Demonic Irons",   stackable: false },
+
+  // ── Health and alchemy outputs ──────────────────────────────────────────────
+  { id: "0035_KLIT", name: "Health Potion",   stackable: false },
   { id: "0036_KLIT", name: "Map of Mercurie", stackable: false,
-    note: "Quest reward for 0004_KLST (The Golden Path). A hand-drawn graphite map of the Realm of " +
-          "Mercurie (the Faewilds), given by Forest (0007_WTCH) — folded inside his journal. Marked " +
-          "with the names of Sophia, Chazak, and the Nymphs (beings, not locations), alongside " +
-          "Mt. Hieronymus and the Church of Gnome Rizz (locations). " +
-          "Texture assets: mercurie_map_full.png, mercurie_map_folded.png, mercurie_map_thumb.png." },
+    note: "Quest reward. Hand-drawn graphite map of Mercurie given by Forest (0007_WTCH)." },
+
+  // ── Typed metal ingots (smelting outputs) ────────────────────────────────────
+  { id: "0040_KLIT", name: "Iron Ingot",      stackable: true  },
+  { id: "0041_KLIT", name: "Copper Ingot",    stackable: true  },
+  { id: "0042_KLIT", name: "Gold Ingot",      stackable: true  },
+  { id: "0043_KLIT", name: "Silver Ingot",    stackable: true  },
+  { id: "0044_KLIT", name: "Lead Ingot",      stackable: true  },
+  { id: "0045_KLIT", name: "Tin Ingot",       stackable: true  },
+  { id: "0046_KLIT", name: "Nickel Ingot",    stackable: true  },
+
+  // ── Typed coins ─────────────────────────────────────────────────────────────
+  { id: "0050_KLIT", name: "Gold Coin",       stackable: true  },
+  { id: "0051_KLIT", name: "Silver Coin",     stackable: true  },
+  { id: "0052_KLIT", name: "Copper Coin",     stackable: true  },
+
+  // ── Ammunition ──────────────────────────────────────────────────────────────
+  { id: "0060_KLIT", name: "Gold Bullet",     stackable: true,
+    note: "For the Colt .45 — the only thing that can kill Sophia." },
+  { id: "0061_KLIT", name: "Iron Arrow",      stackable: true  },
+  { id: "0062_KLIT", name: "Flint Arrow",     stackable: true  },
+
+  // ── Processed material outputs ───────────────────────────────────────────────
+  { id: "0070_KLIT", name: "Gunpowder",       stackable: true,
+    note: "Saltpeter + Sulphur + Charcoal ground together. Traditional formula." },
 ];
 
 // ── Quests (KLST) ─────────────────────────────────────────────────────────────
