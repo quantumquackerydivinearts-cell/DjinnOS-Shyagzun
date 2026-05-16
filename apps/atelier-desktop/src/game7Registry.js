@@ -66,79 +66,128 @@ export const OBJECT_TRAIT_BY_NAME = Object.fromEntries(
 );
 
 // ── Objects (KLOB) ────────────────────────────────────────────────────────────
+// ID groupings:
+//   0001-0029  Lab equipment (tools, vessels, spoons)
+//   0030       Heat equipment
+//   1001-1099  Processing materials (bulk chemicals, organic)
+//   2001-2099  Metals
+//   3001-3099  Minerals
+//   4001-4099  Gems and special stones
+//   5001-5099  Writing materials
+//   8000,2000  Grinding tools (Mortar, Pestle — existing IDs preserved)
+//   9001-9099  Quest / realm-specific materials
 export const OBJECTS = [
-  { id: "8000_KLOB", name: "Mortar",           default_trait: 0 },
-  { id: "2000_KLOB", name: "Pestle",           default_trait: 1 },
-  { id: null,        name: "Rag",              default_trait: null },
-  { id: null,        name: "Stand",            default_trait: null },
-  { id: null,        name: "Retort",           default_trait: null },
-  { id: null,        name: "Volume Flask",     default_trait: null },
-  { id: null,        name: "Reagent Bottle",   default_trait: null },
-  { id: null,        name: "Sand",             default_trait: null },
-  { id: null,        name: "Refined Sand",     default_trait: null },
-  { id: null,        name: "Furnace",          default_trait: null },
-  { id: null,        name: "Wooden Spoon",     default_trait: null },
-  { id: null,        name: "Copper Spoon",     default_trait: null },
-  { id: null,        name: "Iron Spoon",       default_trait: null },
-  { id: null,        name: "Steel Spoon",      default_trait: null },
-  { id: null,        name: "Granite Spoon",    default_trait: null },
-  { id: null,        name: "Bellows",          default_trait: null },
-  { id: null,        name: "Crucible",         default_trait: null },
-  { id: null,        name: "Bottle",           default_trait: null },
-  { id: null,        name: "Jar",              default_trait: null },
-  { id: null,        name: "Diatom Earth",     default_trait: null },
-  { id: null,        name: "Glycerine",        default_trait: null },
-  { id: null,        name: "Petrolium Jelly",  default_trait: null },
-  { id: null,        name: "Saltpeter",        default_trait: null },
-  { id: null,        name: "Sulphur",          default_trait: null },
-  { id: null,        name: "Charcoal",         default_trait: null },
-  { id: null,        name: "Tin",              default_trait: null },
-  { id: null,        name: "Iron",             default_trait: null },
-  { id: null,        name: "Gold",             default_trait: null },
-  { id: null,        name: "Copper",           default_trait: null },
-  { id: null,        name: "Mercury",          default_trait: null },
-  { id: null,        name: "Silver",           default_trait: null },
-  { id: null,        name: "Lead",             default_trait: null },
-  { id: null,        name: "Nickel",           default_trait: null },
-  { id: null,        name: "Cyanide",          default_trait: null },
-  { id: null,        name: "Ashes",            default_trait: null },
-  { id: null,        name: "Caustic Lye",      default_trait: null },
-  { id: null,        name: "Potassium",        default_trait: null },
-  { id: null,        name: "Phosphorus",       default_trait: null },
-  { id: null,        name: "Arsenic",          default_trait: null },
-  { id: null,        name: "Water",            default_trait: null },
-  { id: null,        name: "Wood",             default_trait: null },
-  { id: null,        name: "Flint",            default_trait: null },
-  { id: null,        name: "Shark Tooth",      default_trait: null },
-  { id: null,        name: "Granite",          default_trait: null },
-  { id: null,        name: "Obsidian",         default_trait: null },
-  { id: null,        name: "Chalk",            default_trait: null },
-  { id: null,        name: "Gypsum",           default_trait: null },
-  { id: null,        name: "Quartz",           default_trait: null },
-  { id: null,        name: "Pumice",           default_trait: null },
-  { id: null,        name: "Amythest",         default_trait: null },
-  { id: null,        name: "Ruby",             default_trait: null },
-  { id: null,        name: "Sapphire",         default_trait: null },
-  { id: null,        name: "Emerald",          default_trait: null },
-  { id: null,        name: "Diamond",          default_trait: null },
-  { id: null,        name: "Jade",             default_trait: null },
-  { id: null,        name: "Crucible Tongs",   default_trait: null },
-  { id: null,        name: "Ring Mold",        default_trait: null },
-  { id: null,        name: "Ingot Mold",       default_trait: null },
-  { id: null,        name: "Anvil",            default_trait: null },
-  { id: null,        name: "Hammer",           default_trait: null },
-  { id: null,        name: "Lathe Chuck",      default_trait: null },
-  { id: null,        name: "Lathe",            default_trait: null },
-  { id: null,        name: "Chizel",           default_trait: null },
-  { id: null,        name: "Ring Blank",       default_trait: null },
-  { id: null,        name: "Moldavite",        default_trait: null },
-  { id: null,        name: "Desert Glass",     default_trait: null },
-  { id: null,        name: "Pearl",            default_trait: null },
-  { id: null,        name: "Black Pearl",      default_trait: null },
-  { id: null,        name: "Pulp",             default_trait: null },
-  { id: null,        name: "Paper",            default_trait: null },
-  { id: null,        name: "Ink",              default_trait: null },
-  { id: null,        name: "Pen",              default_trait: null },
+  // ── Grinding tools ──────────────────────────────────────────────────────────
+  { id: "8000_KLOB", name: "Mortar",            category: "grinding",  default_trait: 0 },
+  { id: "2000_KLOB", name: "Pestle",            category: "grinding",  default_trait: 1 },
+
+  // ── Lab equipment ───────────────────────────────────────────────────────────
+  { id: "0001_KLOB", name: "Rag",               category: "tool" },
+  { id: "0002_KLOB", name: "Stand",             category: "tool" },
+  { id: "0003_KLOB", name: "Retort",            category: "vessel" },
+  { id: "0004_KLOB", name: "Volume Flask",      category: "vessel" },
+  { id: "0005_KLOB", name: "Reagent Bottle",    category: "vessel" },
+  { id: "0006_KLOB", name: "Bellows",           category: "tool" },
+  { id: "0007_KLOB", name: "Crucible",          category: "vessel" },
+  { id: "0008_KLOB", name: "Bottle",            category: "vessel" },
+  { id: "0009_KLOB", name: "Jar",               category: "vessel" },
+  { id: "0010_KLOB", name: "Crucible Tongs",    category: "tool" },
+  { id: "0011_KLOB", name: "Ring Mold",         category: "tool" },
+  { id: "0012_KLOB", name: "Ingot Mold",        category: "tool" },
+  { id: "0013_KLOB", name: "Anvil",             category: "smithing" },
+  { id: "0014_KLOB", name: "Hammer",            category: "smithing" },
+  { id: "0015_KLOB", name: "Lathe Chuck",       category: "smithing" },
+  { id: "0016_KLOB", name: "Lathe",             category: "smithing" },
+  { id: "0017_KLOB", name: "Chisel",            category: "smithing" },
+  { id: "0018_KLOB", name: "Ring Blank",        category: "smithing" },
+  { id: "0019_KLOB", name: "Pen",               category: "writing" },
+
+  // ── Spoons (stirring) ───────────────────────────────────────────────────────
+  { id: "0020_KLOB", name: "Wooden Spoon",      category: "stirring" },
+  { id: "0021_KLOB", name: "Copper Spoon",      category: "stirring" },
+  { id: "0022_KLOB", name: "Iron Spoon",        category: "stirring" },
+  { id: "0023_KLOB", name: "Steel Spoon",       category: "stirring" },
+  { id: "0024_KLOB", name: "Granite Spoon",     category: "stirring" },
+
+  // ── Heat equipment ──────────────────────────────────────────────────────────
+  { id: "0030_KLOB", name: "Furnace",           category: "heat" },
+
+  // ── Processing materials ────────────────────────────────────────────────────
+  { id: "1001_KLOB", name: "Sand",              category: "material" },
+  { id: "1002_KLOB", name: "Refined Sand",      category: "material" },
+  { id: "1003_KLOB", name: "Diatom Earth",      category: "filtering" },
+  { id: "1004_KLOB", name: "Glycerine",         category: "chemical" },
+  { id: "1005_KLOB", name: "Petroleum Jelly",   category: "chemical" },
+  { id: "1006_KLOB", name: "Saltpeter",         category: "chemical" },
+  { id: "1007_KLOB", name: "Sulphur",           category: "chemical" },
+  { id: "1008_KLOB", name: "Charcoal",          category: "chemical" },
+  { id: "1009_KLOB", name: "Ashes",             category: "chemical" },
+  { id: "1010_KLOB", name: "Caustic Lye",       category: "chemical" },
+  { id: "1011_KLOB", name: "Potassium",         category: "chemical" },
+  { id: "1012_KLOB", name: "Phosphorus",        category: "chemical" },
+  { id: "1013_KLOB", name: "Arsenic",           category: "chemical" },
+  { id: "1014_KLOB", name: "Cyanide",           category: "chemical" },
+  { id: "1015_KLOB", name: "Water",             category: "material" },
+  { id: "1016_KLOB", name: "Wood",              category: "material" },
+  { id: "1017_KLOB", name: "Flint",             category: "mineral" },
+  { id: "1018_KLOB", name: "Shark Tooth",       category: "mineral" },
+
+  // ── Metals ──────────────────────────────────────────────────────────────────
+  { id: "2001_KLOB", name: "Tin",               category: "metal" },
+  { id: "2002_KLOB", name: "Iron",              category: "metal" },
+  { id: "2003_KLOB", name: "Gold",              category: "metal" },
+  { id: "2004_KLOB", name: "Copper",            category: "metal" },
+  { id: "2005_KLOB", name: "Mercury",           category: "metal" },
+  { id: "2006_KLOB", name: "Silver",            category: "metal" },
+  { id: "2007_KLOB", name: "Lead",              category: "metal" },
+  { id: "2008_KLOB", name: "Nickel",            category: "metal" },
+
+  // ── Minerals ────────────────────────────────────────────────────────────────
+  { id: "3001_KLOB", name: "Granite",           category: "mineral" },
+  { id: "3002_KLOB", name: "Obsidian",          category: "mineral" },
+  { id: "3003_KLOB", name: "Chalk",             category: "mineral" },
+  { id: "3004_KLOB", name: "Gypsum",            category: "mineral" },
+  { id: "3005_KLOB", name: "Quartz",            category: "mineral" },
+  { id: "3006_KLOB", name: "Pumice",            category: "mineral" },
+
+  // ── Gems and special stones ─────────────────────────────────────────────────
+  { id: "4001_KLOB", name: "Amethyst",          category: "gem" },
+  { id: "4002_KLOB", name: "Ruby",              category: "gem" },
+  { id: "4003_KLOB", name: "Sapphire",          category: "gem" },
+  { id: "4004_KLOB", name: "Emerald",           category: "gem" },
+  { id: "4005_KLOB", name: "Diamond",           category: "gem" },
+  { id: "4006_KLOB", name: "Jade",              category: "gem" },
+  { id: "4007_KLOB", name: "Moldavite",         category: "gem" },
+  { id: "4008_KLOB", name: "Desert Glass",      category: "gem" },
+  { id: "4009_KLOB", name: "Pearl",             category: "gem" },
+  { id: "4010_KLOB", name: "Black Pearl",       category: "gem" },
+
+  // ── Writing materials ───────────────────────────────────────────────────────
+  { id: "5001_KLOB", name: "Pulp",              category: "writing" },
+  { id: "5002_KLOB", name: "Paper",             category: "writing" },
+  { id: "5003_KLOB", name: "Ink",               category: "writing" },
+
+  // ── Quest / realm-specific materials ────────────────────────────────────────
+  { id: "9001_KLOB", name: "Demonic Iron",       category: "quest_material",
+    note: "Iron from Sulphera — carries the infernal register. Used in 0041 poison and Colt .45." },
+  { id: "9002_KLOB", name: "Angelic Spear",      category: "quest_material",
+    note: "From the Pride Ring ash fields — continuous extermination campaign." },
+  { id: "9003_KLOB", name: "Crystal Dust",       category: "quest_material",
+    note: "Dissolved Asmodean Crystal from 0007 — reagent for Infernal Salve." },
+  { id: "9004_KLOB", name: "Salt Water",         category: "quest_material",
+    note: "Ocean water — used to rust purified demonic iron in 0041." },
+  { id: "9005_KLOB", name: "Purified Demonic Iron", category: "quest_material",
+    note: "Intermediate: demonic iron purified over sulphur in furnace." },
+  { id: "9006_KLOB", name: "Rusted Iron Vial",   category: "quest_material",
+    note: "Intermediate: rust from salt-water-corroded purified demonic iron, collected in vial." },
+  { id: "9007_KLOB", name: "Angelic-Purified Iron", category: "quest_material",
+    note: "Intermediate: demonic iron melted with angelic spears — basis for Colt .45." },
+  { id: "9008_KLOB", name: "Infernal Salve",     category: "quest_output",
+    note: "Enables descent into the Sulphera rings. Made from Crystal Dust." },
+  { id: "9009_KLOB", name: "Nexiott Poison",     category: "quest_output",
+    note: "Rusted iron vial mixed with mercury. Penetrates Kielum's protection." },
+  { id: "9010_KLOB", name: "Colt .45",           category: "quest_output",
+    note: "Hypatia's Angelic Gun. Fires gold bullets. Only thing that can kill Sophia." },
 ];
 
 // ── Characters ────────────────────────────────────────────────────────────────
@@ -252,9 +301,9 @@ export const CHARACTERS = [
           "He and Hypatia are peers — both navigating the deep structure of the 9th Ring." },
 
   // Demi-gods
-  { id: "2012_DEMI",  name: "Shapieru",            type: "DEMI" },
-  { id: "2013_DEMI",  name: "Lanzu",               type: "DEMI" },
-  { id: "2014_DEMI",  name: "Tagame",              type: "DEMI" },
+  { id: "2012_DEMI",  name: "Shapieru",  type: "DEMI", domain: "Shaper of Cultures" },
+  { id: "2013_DEMI",  name: "Lanzu",     type: "DEMI", note: "Son of Lakota × Zukoru — divine knowledge and demonic betrayal in one nature" },
+  { id: "2014_DEMI",  name: "Tagame",   type: "DEMI", domain: "Life", note: "Daughter of Negaya × Lakota. Kore's lover." },
 
   // Soldiers
   { id: "2013_SOLD",  name: "Captain Lanvaki",     type: "SOLD" },
